@@ -94,15 +94,20 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun createAuthorizationUrl(redirectUri: String = "simklcalendar://auth"): String? {
+        return repository.createAuthorizationUrl(redirectUri)
+    }
+
     fun exchangeOAuthCode(
         code: String,
-        redirectUri: String = "simklcalendar://auth",
+        state: String? = null,
+        redirectUri: String? = null,
         onSuccess: () -> Unit,
         onFailure: () -> Unit
     ) {
         viewModelScope.launch {
             _isSyncing.value = true
-            val success = repository.exchangeOAuthCode(code, redirectUri)
+            val success = repository.exchangeOAuthCode(code = code, state = state, redirectUri = redirectUri)
             _isSyncing.value = false
             if (success) {
                 onSuccess()

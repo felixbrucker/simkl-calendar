@@ -9,6 +9,7 @@ import com.example.data.database.NotificationSetting
 import com.example.data.database.UserToken
 import com.example.data.network.OAuthTokenRequest
 import com.example.data.network.SimklApiService
+import com.example.data.util.PkceUtil
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 class SimklRepository(private val context: Context) {
@@ -26,6 +28,7 @@ class SimklRepository(private val context: Context) {
     private val tokenDao = db.userTokenDao()
     private val calendarDao = db.calendarItemDao()
     private val settingDao = db.notificationSettingDao()
+    private val authPrefs = context.getSharedPreferences("simkl_pkce_auth", Context.MODE_PRIVATE)
 
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
     val calendarItems: Flow<List<CalendarItem>> = calendarDao.getAllCalendarItems()
@@ -78,8 +81,29 @@ class SimklRepository(private val context: Context) {
         return clientId.isNotEmpty() && clientId != "YOUR_SIMKL_CLIENT_ID"
     }
 
-    suspend fun getClientCredentials(): Pair<String, String> {
-        return Pair(BuildConfig.SIMKL_CLIENT_ID, BuildConfig.SIMKL_CLIENT_SECRET)
+    /**
+     * Prepares PKCE authorization URL with state and stores code_verifier & state in SharedPreferences
+     * for CSRF protection and verification during the OAuth redirect callback.
+     */
+    fun createAuthorizationUrl(redirectUri: String = "simklcalendar://auth"): String? {
+        val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" } ?: return null
+        val codeVerifier = PkceUtil.generateCodeVerifier()
+        val codeChallenge = PkceUtil.generateCodeChallenge(codeVerifier)
+        val state = PkceUtil.generateState()
+
+        authPrefs.edit()
+            .putString("pkce_code_verifier", codeVerifier)
+            .putString("pkce_redirect_uri", redirectUri)
+            .putString("pkce_state", state)
+            .apply()
+
+        val encodedRedirect = try {
+            URLEncoder.encode(redirectUri, "UTF-8")
+        } catch (e: Exception) {
+            redirectUri
+        }
+
+        return "https://simkl.com/oauth/authorize?response_type=code&client_id=$clientId&redirect_uri=$encodedRedirect&code_challenge=$codeChallenge&code_challenge_method=S256&state=$state"
     }
 
     suspend fun logout() = withContext(Dispatchers.IO) {
@@ -87,18 +111,43 @@ class SimklRepository(private val context: Context) {
         calendarDao.clearCalendarItems()
     }
 
-    suspend fun exchangeOAuthCode(code: String, redirectUri: String = "simklcalendar://auth"): Boolean = withContext(Dispatchers.IO) {
+    suspend fun exchangeOAuthCode(
+        code: String,
+        state: String? = null,
+        redirectUri: String? = null
+    ): Boolean = withContext(Dispatchers.IO) {
         try {
             val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
+            if (clientId.isNullOrEmpty()) {
+                Log.e("SimklRepository", "Client ID is missing")
+                return@withContext false
+            }
+
+            val savedState = authPrefs.getString("pkce_state", null)
+            if (!savedState.isNullOrEmpty()) {
+                if (state == null || state != savedState) {
+                    Log.e("SimklRepository", "OAuth state mismatch or missing! CSRF verification failed.")
+                    return@withContext false
+                }
+            }
+
+            val codeVerifier = authPrefs.getString("pkce_code_verifier", null)
+            val savedRedirectUri = authPrefs.getString("pkce_redirect_uri", "simklcalendar://auth") ?: "simklcalendar://auth"
+            val effectiveRedirectUri = redirectUri ?: savedRedirectUri
+
+            if (codeVerifier.isNullOrEmpty()) {
+                Log.e("SimklRepository", "PKCE code_verifier is missing from local storage")
+                return@withContext false
+            }
             
-            // 1. Exchange code for access token via POST /oauth/token
+            // 1. Exchange code for access token via POST /oauth/token using PKCE flow
             val response = apiService.getAccessToken(
                 apiKey = clientId,
                 request = OAuthTokenRequest(
                     code = code,
-                    clientId = BuildConfig.SIMKL_CLIENT_ID,
-                    clientSecret = BuildConfig.SIMKL_CLIENT_SECRET,
-                    redirectUri = redirectUri
+                    clientId = clientId,
+                    codeVerifier = codeVerifier,
+                    redirectUri = effectiveRedirectUri
                 )
             )
             val accessToken = response.accessToken
@@ -106,6 +155,13 @@ class SimklRepository(private val context: Context) {
                 Log.e("SimklRepository", "OAuth returned empty access token")
                 return@withContext false
             }
+
+            // Successfully received token: clear stored PKCE parameters
+            authPrefs.edit()
+                .remove("pkce_code_verifier")
+                .remove("pkce_redirect_uri")
+                .remove("pkce_state")
+                .apply()
             
             // 2. Fetch user profile from POST /users/settings to get the user's name
             val username = try {

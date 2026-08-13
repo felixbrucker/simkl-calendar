@@ -32,7 +32,6 @@ jobs:
       - name: Prepare environment and keystore
         env:
           SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
-          SIMKL_CLIENT_SECRET: ${{ secrets.SIMKL_CLIENT_SECRET }}
         run: |
           # Copy base template if available
           if [ -f .env.example ]; then
@@ -45,12 +44,6 @@ jobs:
           if [ -n "$SIMKL_CLIENT_ID" ]; then
             sed -i '/^SIMKL_CLIENT_ID=/d' .env
             echo "SIMKL_CLIENT_ID=$SIMKL_CLIENT_ID" >> .env
-          fi
-
-          # Inject SIMKL_CLIENT_SECRET from secrets if provided
-          if [ -n "$SIMKL_CLIENT_SECRET" ]; then
-            sed -i '/^SIMKL_CLIENT_SECRET=/d' .env
-            echo "SIMKL_CLIENT_SECRET=$SIMKL_CLIENT_SECRET" >> .env
           fi
           
           # Restore debug keystore from base64 if present

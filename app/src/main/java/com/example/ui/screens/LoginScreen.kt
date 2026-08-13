@@ -139,16 +139,16 @@ fun LoginScreen(
                         )
 
                         if (isConfigured) {
-                            val clientId = BuildConfig.SIMKL_CLIENT_ID
-                            val redirectUri = "simklcalendar://auth"
-                            val encodedRedirect = try { URLEncoder.encode(redirectUri, "UTF-8") } catch (e: Exception) { redirectUri }
-                            val authUrl = "https://simkl.com/oauth/authorize?response_type=code&client_id=$clientId&redirect_uri=$encodedRedirect"
-
                             Button(
                                 onClick = { 
                                     oauthError = null
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
-                                    context.startActivity(intent)
+                                    val authUrl = viewModel.createAuthorizationUrl("simklcalendar://auth")
+                                    if (authUrl != null) {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
+                                        context.startActivity(intent)
+                                    } else {
+                                        oauthError = "Could not initialize PKCE OAuth flow"
+                                    }
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()

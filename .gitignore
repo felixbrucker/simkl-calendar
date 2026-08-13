@@ -16,3 +16,8 @@
 local.properties
 .env
 debug.keystore
+
+# Gradle Wrapper
+gradlew
+gradlew.bat
+gradle/wrapper/

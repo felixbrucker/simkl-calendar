@@ -55,9 +55,11 @@ class MainActivity : ComponentActivity() {
         val uri: Uri? = intent?.data
         if (uri != null && uri.scheme == "simklcalendar") {
             val code = uri.getQueryParameter("code")
+            val state = uri.getQueryParameter("state")
             if (!code.isNullOrEmpty()) {
                 viewModel.exchangeOAuthCode(
                     code = code,
+                    state = state,
                     redirectUri = "simklcalendar://auth",
                     onSuccess = {
                         Toast.makeText(this, "Successfully authenticated with Simkl!", Toast.LENGTH_SHORT).show()
