@@ -1,0 +1,82 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Prepare environment and keystore
+        env:
+          SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
+          SIMKL_CLIENT_SECRET: ${{ secrets.SIMKL_CLIENT_SECRET }}
+          SIMKL_API_ID: ${{ secrets.SIMKL_API_ID }}
+          SIMKL_API_SECRET: ${{ secrets.SIMKL_API_SECRET }}
+        run: |
+          # Copy base template if available
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            touch .env
+          fi
+          
+          # Inject SIMKL_CLIENT_ID from secrets if provided
+          CLIENT_ID="${SIMKL_CLIENT_ID:-$SIMKL_API_ID}"
+          if [ -n "$CLIENT_ID" ]; then
+            sed -i '/^SIMKL_CLIENT_ID=/d' .env
+            echo "SIMKL_CLIENT_ID=$CLIENT_ID" >> .env
+          fi
+
+          # Inject SIMKL_CLIENT_SECRET from secrets if provided
+          CLIENT_SECRET="${SIMKL_CLIENT_SECRET:-$SIMKL_API_SECRET}"
+          if [ -n "$CLIENT_SECRET" ]; then
+            sed -i '/^SIMKL_CLIENT_SECRET=/d' .env
+            echo "SIMKL_CLIENT_SECRET=$CLIENT_SECRET" >> .env
+          fi
+          
+          # Restore debug keystore from base64 if present
+          if [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          elif [ ! -f debug.keystore ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Build Debug APK
+        run: |
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle assembleDebug --stacktrace
+          fi
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simkl-calendar-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
