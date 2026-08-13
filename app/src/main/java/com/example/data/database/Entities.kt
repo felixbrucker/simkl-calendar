@@ -37,3 +37,13 @@ data class NotificationSetting(
     val notifyEveryEpisode: Boolean = true,
     val notifyAiredLastEpisode: Boolean = true
 )
+
+@Entity(tableName = "tracked_watchlist_items")
+data class TrackedWatchlistItem(
+    @PrimaryKey val id: Int, // Simkl ID
+    val type: String, // "tv", "anime", "movie"
+    val status: String, // "watching", "plantowatch"
+    val title: String,
+    val poster: String? = null
+)
+

@@ -29,6 +29,16 @@ interface SimklApiService {
         @Query("app-version") appVersion: String = "1.0"
     ): SimklV2CalendarResponse
 
+    @GET("sync/activities")
+    suspend fun getSyncActivities(
+        @Header("Authorization") authorization: String? = null,
+        @Header("simkl-api-key") apiKey: String? = null,
+        @Header("User-Agent") userAgent: String = "simkl-calendar/1.0",
+        @Query("client_id") clientId: String? = null,
+        @Query("app-name") appName: String = "simkl-calendar",
+        @Query("app-version") appVersion: String = "1.0"
+    ): SyncActivitiesResponse
+
     @GET("sync/all-items")
     suspend fun getSyncAllItems(
         @Header("Authorization") authorization: String? = null,
@@ -38,6 +48,7 @@ interface SimklApiService {
         @Query("app-name") appName: String = "simkl-calendar",
         @Query("app-version") appVersion: String = "1.0",
         @Query("extended") extended: String = "full",
-        @Query("next_watch_info") nextWatchInfo: String = "yes"
+        @Query("next_watch_info") nextWatchInfo: String = "yes",
+        @Query("date_from") dateFrom: String? = null
     ): SyncAllItemsResponse
 }

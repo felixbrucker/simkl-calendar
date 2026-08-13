@@ -47,3 +47,22 @@ interface NotificationSettingDao {
     @Query("DELETE FROM notification_settings WHERE showId = :showId")
     suspend fun deleteSetting(showId: Int)
 }
+
+@Dao
+interface WatchlistDao {
+    @Query("SELECT * FROM tracked_watchlist_items")
+    suspend fun getAllTrackedItems(): List<TrackedWatchlistItem>
+
+    @Query("SELECT * FROM tracked_watchlist_items WHERE type = :type")
+    suspend fun getTrackedItemsByType(type: String): List<TrackedWatchlistItem>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateItems(items: List<TrackedWatchlistItem>)
+
+    @Query("DELETE FROM tracked_watchlist_items WHERE id = :id")
+    suspend fun deleteItem(id: Int)
+
+    @Query("DELETE FROM tracked_watchlist_items")
+    suspend fun clearAll()
+}
+

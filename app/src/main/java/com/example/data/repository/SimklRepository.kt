@@ -6,6 +6,7 @@ import com.example.BuildConfig
 import com.example.data.database.AppDatabase
 import com.example.data.database.CalendarItem
 import com.example.data.database.NotificationSetting
+import com.example.data.database.TrackedWatchlistItem
 import com.example.data.database.UserToken
 import com.example.data.network.OAuthTokenRequest
 import com.example.data.network.SimklApiService
@@ -29,7 +30,9 @@ class SimklRepository(private val context: Context) {
     private val tokenDao = db.userTokenDao()
     private val calendarDao = db.calendarItemDao()
     private val settingDao = db.notificationSettingDao()
+    private val watchlistDao = db.watchlistDao()
     private val authPrefs = context.getSharedPreferences("simkl_pkce_auth", Context.MODE_PRIVATE)
+    private val syncPrefs = context.getSharedPreferences("simkl_sync_prefs", Context.MODE_PRIVATE)
 
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
     val calendarItems: Flow<List<CalendarItem>> = calendarDao.getAllCalendarItems()
@@ -110,6 +113,8 @@ class SimklRepository(private val context: Context) {
     suspend fun logout() = withContext(Dispatchers.IO) {
         tokenDao.clearUserToken()
         calendarDao.clearCalendarItems()
+        watchlistDao.clearAll()
+        syncPrefs.edit().clear().apply()
     }
 
     suspend fun exchangeOAuthCode(
@@ -211,123 +216,120 @@ class SimklRepository(private val context: Context) {
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
         val bearer = userToken?.accessToken?.takeIf { it.isNotEmpty() }?.let { "Bearer $it" }
 
-        val dbItems = mutableListOf<CalendarItem>()
-
-        var trackedShowIds: Set<Int>? = null
-        var trackedAnimeIds: Set<Int>? = null
-        var trackedMovieIds: Set<Int>? = null
-
-        // 1. If authenticated, fetch user watchlist items strictly filtered to "watching" and "plantowatch"
+        // Two-Phase Sync for authenticated users
         if (bearer != null) {
             try {
-                val userSync = apiService.getSyncAllItems(
+                // Phase 1: Check /sync/activities to see if any library changes occurred
+                val activities = apiService.getSyncActivities(
                     authorization = bearer,
                     apiKey = clientId,
                     clientId = clientId
                 )
 
+                val currentActivitiesTimestamp = activities.all
+                val savedTimestamp = syncPrefs.getString("last_activities_all", null)
                 val validStatuses = setOf("watching", "plantowatch", "plan_to_watch")
 
-                val watchingOrPlanShows = userSync.shows?.filter {
-                    it.status?.lowercase() in validStatuses
-                } ?: emptyList()
+                val shouldFetchDeltas = force || savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
 
-                val watchingOrPlanAnime = userSync.anime?.filter {
-                    it.status?.lowercase() in validStatuses
-                } ?: emptyList()
+                if (shouldFetchDeltas) {
+                    val dateFromParam = if (force) null else savedTimestamp
+                    Log.d("SimklRepository", "Two-Phase Sync: Calling /sync/all-items with date_from=$dateFromParam (saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
-                val planMovies = userSync.movies?.filter {
-                    it.status?.lowercase() in setOf("plantowatch", "plan_to_watch")
-                } ?: emptyList()
+                    val syncResponse = apiService.getSyncAllItems(
+                        authorization = bearer,
+                        apiKey = clientId,
+                        clientId = clientId,
+                        dateFrom = dateFromParam
+                    )
 
-                trackedShowIds = watchingOrPlanShows.mapNotNull {
-                    it.show?.ids?.simkl ?: it.show?.ids?.simklId
-                }.toSet()
+                    val newTracked = mutableListOf<TrackedWatchlistItem>()
 
-                trackedAnimeIds = watchingOrPlanAnime.mapNotNull {
-                    (it.anime ?: it.show)?.ids?.simkl ?: (it.anime ?: it.show)?.ids?.simklId
-                }.toSet()
-
-                trackedMovieIds = planMovies.mapNotNull {
-                    it.movie?.ids?.simkl ?: it.movie?.ids?.simklId
-                }.toSet()
-
-                Log.d("SimklRepository", "User tracked counts: shows=${trackedShowIds.size}, anime=${trackedAnimeIds.size}, movies=${trackedMovieIds.size}")
-
-                // Include upcoming unwatched episodes from nextToWatchInfo ONLY if an air date is provided
-                for (item in watchingOrPlanShows) {
-                    val media = item.show ?: item.anime ?: continue
-                    val epInfo = item.nextToWatchInfo ?: continue
-                    val rawDate = epInfo.date?.takeIf { it.isNotBlank() } ?: continue
-                    val normalizedDate = DateUtil.normalizeDate(rawDate) ?: continue
-                    val simklId = media.ids?.simkl ?: media.ids?.simklId ?: continue
-
-                    val posterRaw = media.poster
-                    val posterUrl = when {
-                        posterRaw.isNullOrEmpty() -> "https://simkl.in/poster_no_pic.png"
-                        posterRaw.startsWith("http") -> posterRaw
-                        posterRaw.contains("/") -> "https://simkl.in/$posterRaw"
-                        else -> "https://simkl.in/posters/${posterRaw}_m.jpg"
+                    // Process TV Shows
+                    syncResponse.shows?.forEach { item ->
+                        val media = item.show ?: item.anime ?: return@forEach
+                        val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
+                        val status = item.status?.lowercase() ?: ""
+                        if (status in validStatuses) {
+                            newTracked.add(
+                                TrackedWatchlistItem(
+                                    id = simklId,
+                                    type = "tv",
+                                    status = status,
+                                    title = media.title ?: "Untitled",
+                                    poster = media.poster
+                                )
+                            )
+                        } else if (dateFromParam != null) {
+                            watchlistDao.deleteItem(simklId)
+                        }
                     }
 
-                    dbItems.add(
-                        CalendarItem(
-                            primaryKey = "sync_${simklId}_${epInfo.season ?: 0}_${epInfo.episode ?: 0}_$normalizedDate",
-                            id = simklId,
-                            title = media.title ?: "Untitled",
-                            episodeTitle = epInfo.title,
-                            season = epInfo.season,
-                            episodeNumber = epInfo.episode,
-                            date = normalizedDate,
-                            type = "tv",
-                            isSeasonPremiere = false,
-                            isSeasonFinale = false,
-                            poster = posterUrl,
-                            simklId = simklId,
-                            isLastEpisode = false,
-                            notificationsScheduled = false
-                        )
-                    )
-                }
-
-                for (item in watchingOrPlanAnime) {
-                    val media = item.anime ?: item.show ?: continue
-                    val epInfo = item.nextToWatchInfo ?: continue
-                    val rawDate = epInfo.date?.takeIf { it.isNotBlank() } ?: continue
-                    val normalizedDate = DateUtil.normalizeDate(rawDate) ?: continue
-                    val simklId = media.ids?.simkl ?: media.ids?.simklId ?: continue
-
-                    val posterRaw = media.poster
-                    val posterUrl = when {
-                        posterRaw.isNullOrEmpty() -> "https://simkl.in/poster_no_pic.png"
-                        posterRaw.startsWith("http") -> posterRaw
-                        posterRaw.contains("/") -> "https://simkl.in/$posterRaw"
-                        else -> "https://simkl.in/posters/${posterRaw}_m.jpg"
+                    // Process Anime
+                    syncResponse.anime?.forEach { item ->
+                        val media = item.anime ?: item.show ?: return@forEach
+                        val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
+                        val status = item.status?.lowercase() ?: ""
+                        if (status in validStatuses) {
+                            newTracked.add(
+                                TrackedWatchlistItem(
+                                    id = simklId,
+                                    type = "anime",
+                                    status = status,
+                                    title = media.title ?: "Untitled",
+                                    poster = media.poster
+                                )
+                            )
+                        } else if (dateFromParam != null) {
+                            watchlistDao.deleteItem(simklId)
+                        }
                     }
 
-                    dbItems.add(
-                        CalendarItem(
-                            primaryKey = "sync_${simklId}_${epInfo.season ?: 0}_${epInfo.episode ?: 0}_$normalizedDate",
-                            id = simklId,
-                            title = media.title ?: "Untitled",
-                            episodeTitle = epInfo.title,
-                            season = epInfo.season,
-                            episodeNumber = epInfo.episode,
-                            date = normalizedDate,
-                            type = "anime",
-                            isSeasonPremiere = false,
-                            isSeasonFinale = false,
-                            poster = posterUrl,
-                            simklId = simklId,
-                            isLastEpisode = false,
-                            notificationsScheduled = false
-                        )
-                    )
+                    // Process Movies
+                    syncResponse.movies?.forEach { item ->
+                        val media = item.movie ?: return@forEach
+                        val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
+                        val status = item.status?.lowercase() ?: ""
+                        if (status in setOf("plantowatch", "plan_to_watch")) {
+                            newTracked.add(
+                                TrackedWatchlistItem(
+                                    id = simklId,
+                                    type = "movie",
+                                    status = status,
+                                    title = media.title ?: "Untitled",
+                                    poster = media.poster
+                                )
+                            )
+                        } else if (dateFromParam != null) {
+                            watchlistDao.deleteItem(simklId)
+                        }
+                    }
+
+                    if (dateFromParam == null) {
+                        watchlistDao.clearAll()
+                    }
+                    if (newTracked.isNotEmpty()) {
+                        watchlistDao.insertOrUpdateItems(newTracked)
+                    }
+
+                    if (!currentActivitiesTimestamp.isNullOrEmpty()) {
+                        syncPrefs.edit().putString("last_activities_all", currentActivitiesTimestamp).apply()
+                    }
+                } else {
+                    Log.d("SimklRepository", "Two-Phase Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
                 }
             } catch (e: Exception) {
-                Log.e("SimklRepository", "Error fetching user sync items", e)
+                Log.e("SimklRepository", "Error during two-phase sync activities check", e)
             }
         }
+
+        // Load local tracked items
+        val allTrackedItems = if (bearer != null) watchlistDao.getAllTrackedItems() else emptyList()
+        val trackedShowIds = allTrackedItems.filter { it.type == "tv" }.map { it.id }.toSet()
+        val trackedAnimeIds = allTrackedItems.filter { it.type == "anime" }.map { it.id }.toSet()
+        val trackedMovieIds = allTrackedItems.filter { it.type == "movie" }.map { it.id }.toSet()
+
+        val dbItems = mutableListOf<CalendarItem>()
 
         // 2. Fetch CDN v2 Calendars (TV, Anime, Movies) from data.simkl.in
         val cdnEndpoints = listOf(
@@ -353,9 +355,9 @@ class SimklRepository(private val context: Context) {
                     // If user is authenticated, only include items from their watchlist ("watching" and "plan to watch")
                     if (bearer != null) {
                         val isTracked = when (defaultType) {
-                            "tv" -> trackedShowIds?.contains(simklId) == true
-                            "anime" -> trackedAnimeIds?.contains(simklId) == true
-                            "movie" -> trackedMovieIds?.contains(simklId) == true
+                            "tv" -> trackedShowIds.contains(simklId)
+                            "anime" -> trackedAnimeIds.contains(simklId)
+                            "movie" -> trackedMovieIds.contains(simklId)
                             else -> false
                         }
                         if (!isTracked) return@forEach
@@ -382,7 +384,6 @@ class SimklRepository(private val context: Context) {
 
                     val keyUnique = "v2_${simklId}_${seasonNum ?: 0}_${epNum ?: 0}_$normalizedDate"
 
-                    // Prevent duplicate if already added via nextToWatchInfo or same entry
                     val alreadyAdded = dbItems.any {
                         it.primaryKey == keyUnique || (it.id == simklId && it.season == seasonNum && it.episodeNumber == epNum && it.date == normalizedDate)
                     }

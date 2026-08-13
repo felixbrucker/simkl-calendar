@@ -6,14 +6,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class],
-    version = 1,
+    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userTokenDao(): UserTokenDao
     abstract fun calendarItemDao(): CalendarItemDao
     abstract fun notificationSettingDao(): NotificationSettingDao
+    abstract fun watchlistDao(): WatchlistDao
 
     companion object {
         @Volatile

@@ -114,6 +114,11 @@ data class SimklNextToWatchInfo(
 )
 
 @JsonClass(generateAdapter = true)
+data class SyncActivitiesResponse(
+    @Json(name = "all") val all: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class SyncAllItemsResponse(
     @Json(name = "shows") val shows: List<SyncShowItem>?,
     @Json(name = "anime") val anime: List<SyncShowItem>?,
