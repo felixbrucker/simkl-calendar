@@ -70,19 +70,19 @@ class NotificationReceiver : BroadcastReceiver() {
 
         fun triggerEpisodeNotification(context: Context, showTitle: String, episodeName: String?, season: Int?, episodeNumber: Int?, isLastEpisode: Boolean) {
             val title = if (isLastEpisode) {
-                "🍿 Ready to Binge: $showTitle"
+                "Last episode released"
             } else {
-                "⚡ New Episode Code: $showTitle"
+                "New episode released"
             }
 
             val epLabel = if (season != null && episodeNumber != null) {
-                "S${season}E${episodeNumber}"
+                " (S${season}E${episodeNumber})"
             } else ""
 
             val message = if (isLastEpisode) {
-                "Series Finale is ready! All episodes of '$showTitle' season $season have now successfully aired. Grab your popcorn!"
+                "$showTitle$epLabel - Last episode released"
             } else {
-                "Episode '$episodeName' ($epLabel) of '$showTitle' is airing now! Stream it to stay tracked."
+                "$showTitle$epLabel - New episode released"
             }
 
             val id = (showTitle.hashCode() + (episodeNumber ?: 1))

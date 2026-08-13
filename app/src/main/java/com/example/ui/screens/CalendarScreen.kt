@@ -277,8 +277,7 @@ fun CalendarScreen(
                         items(dayItems, key = { it.primaryKey }) { item ->
                             CalendarItemCard(
                                 item = item,
-                                onClick = { onNavigateToShowDetail(item.id) },
-                                onTriggerAlert = { viewModel.testTriggerNotification(item) }
+                                onClick = { onNavigateToShowDetail(item.id) }
                             )
                         }
                     }
@@ -291,8 +290,7 @@ fun CalendarScreen(
 @Composable
 fun CalendarItemCard(
     item: CalendarItem,
-    onClick: () -> Unit,
-    onTriggerAlert: () -> Unit
+    onClick: () -> Unit
 ) {
     val categoryColor = when (item.type) {
         "anime" -> Color(0xFFD0BCFF)
@@ -415,21 +413,6 @@ fun CalendarItemCard(
                         Text("🍿 READY TO BINGE", fontSize = 10.sp, color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold)
                     }
                 }
-            }
-
-            // Quick Alert Trigger / Simulation Action
-            IconButton(
-                onClick = onTriggerAlert,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(Color(0xFF313033))
-                    .testTag("test_alert_${item.id}")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.NotificationAdd,
-                    contentDescription = "Trigger immediate reminder",
-                    tint = Color(0xFFD0BCFF)
-                )
             }
         }
     }

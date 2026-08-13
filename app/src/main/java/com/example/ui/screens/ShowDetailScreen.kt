@@ -312,24 +312,6 @@ fun ShowDetailScreen(
                               }
                           }
                       }
-
-                    // Test alerts button
-                    Button(
-                        onClick = { viewModel.testTriggerNotification(matchingShow) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .testTag("test_alert_trigger_button"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFD0BCFF),
-                            contentColor = Color(0xFF381E72)
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(Icons.Default.NotificationsActive, contentDescription = null, size = 18.dp, tint = Color(0xFF381E72))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Simulate Episode Airing Alert", fontWeight = FontWeight.SemiBold)
-                    }
                 }
             }
         }

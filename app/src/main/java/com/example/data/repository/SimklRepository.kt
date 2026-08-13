@@ -11,6 +11,7 @@ import com.example.data.database.UserToken
 import com.example.data.network.OAuthTokenRequest
 import com.example.data.network.SimklApiService
 import com.example.data.util.DateUtil
+import com.example.data.util.ImageUtil
 import com.example.data.util.PkceUtil
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -257,7 +258,7 @@ class SimklRepository(private val context: Context) {
                                     type = "tv",
                                     status = status,
                                     title = media.title ?: "Untitled",
-                                    poster = media.poster
+                                    poster = ImageUtil.formatPosterUrl(media.poster)
                                 )
                             )
                         } else if (dateFromParam != null) {
@@ -277,7 +278,7 @@ class SimklRepository(private val context: Context) {
                                     type = "anime",
                                     status = status,
                                     title = media.title ?: "Untitled",
-                                    poster = media.poster
+                                    poster = ImageUtil.formatPosterUrl(media.poster)
                                 )
                             )
                         } else if (dateFromParam != null) {
@@ -297,7 +298,7 @@ class SimklRepository(private val context: Context) {
                                     type = "movie",
                                     status = status,
                                     title = media.title ?: "Untitled",
-                                    poster = media.poster
+                                    poster = ImageUtil.formatPosterUrl(media.poster)
                                 )
                             )
                         } else if (dateFromParam != null) {
@@ -374,13 +375,8 @@ class SimklRepository(private val context: Context) {
                     val isPremiere = entry.premiereType != null && entry.premiereType.toString() != "0"
                     val isFinale = entry.finaleType != null && entry.finaleType.toString() != "0"
 
-                    val posterRaw = meta?.poster
-                    val posterUrl = when {
-                        posterRaw.isNullOrEmpty() -> "https://simkl.in/poster_no_pic.png"
-                        posterRaw.startsWith("http") -> posterRaw
-                        posterRaw.contains("/") -> "https://simkl.in/$posterRaw"
-                        else -> "https://simkl.in/posters/${posterRaw}_m.jpg"
-                    }
+                    val posterRaw = meta?.poster ?: allTrackedItems.find { it.id == simklId }?.poster
+                    val posterUrl = ImageUtil.formatPosterUrl(posterRaw)
 
                     val keyUnique = "v2_${simklId}_${seasonNum ?: 0}_${epNum ?: 0}_$normalizedDate"
 
