@@ -65,7 +65,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             }
 
             matchesCategory && matchesType
-        }
+        }.sortedWith(compareBy<CalendarItem> { it.date }.thenBy { it.title })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Calendar sync and status tracking

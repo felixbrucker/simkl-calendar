@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.data.util.DateUtil
 import com.example.ui.viewmodel.CalendarViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -169,7 +170,7 @@ fun ShowDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("Airing Date", color = Color(0xFFCAC4D0), fontSize = 14.sp)
-                                Text(matchingShow.date, color = Color(0xFFE6E1E5), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                Text(DateUtil.formatDisplayDate(matchingShow.date), color = Color(0xFFE6E1E5), fontWeight = FontWeight.Medium, fontSize = 14.sp)
                             }
 
                             if (matchingShow.type != "movie") {

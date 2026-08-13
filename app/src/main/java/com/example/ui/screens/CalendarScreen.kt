@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import com.example.data.database.CalendarItem
+import com.example.data.util.DateUtil
 import com.example.ui.viewmodel.CalendarViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -57,7 +58,7 @@ fun CalendarScreen(
     // Group items by date for sticky headers or grouped listing
     val groupedItems = remember(items) {
         items.groupBy { item ->
-            formatAiringDateHeader(item.date)
+            DateUtil.formatAiringDateHeader(item.date)
         }
     }
 
@@ -443,44 +444,4 @@ fun Icon(imageVector: ImageVector, contentDescription: String?, size: androidx.c
         tint = tint,
         modifier = Modifier.size(size)
     )
-}
-
-// Helper to format Date string to attractive header labels (today, tomorrow, next week)
-fun formatAiringDateHeader(dateStr: String?): String {
-    if (dateStr == null) return "SOMEDAY"
-    try {
-        val parser = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        // Also supports complete ISO timestamps
-        val parsedDate = if (dateStr.contains(" ")) {
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(dateStr)
-        } else {
-            parser.parse(dateStr)
-        } ?: return dateStr
-
-        val todayCal = Calendar.getInstance()
-        val airingCal = Calendar.getInstance().apply { time = parsedDate }
-
-        // clear timing parameters
-        todayCal.set(Calendar.HOUR_OF_DAY, 0)
-        todayCal.set(Calendar.MINUTE, 0)
-        todayCal.set(Calendar.SECOND, 0)
-        todayCal.set(Calendar.MILLISECOND, 0)
-
-        val compareCal = Calendar.getInstance().apply { time = parsedDate }
-        compareCal.set(Calendar.HOUR_OF_DAY, 0)
-        compareCal.set(Calendar.MINUTE, 0)
-        compareCal.set(Calendar.SECOND, 0)
-        compareCal.set(Calendar.MILLISECOND, 0)
-
-        val diffDays = ((compareCal.timeInMillis - todayCal.timeInMillis) / (1000 * 60 * 60 * 24)).toInt()
-
-        return when (diffDays) {
-            0 -> "TODAY - " + SimpleDateFormat("EEEE, MMMM dd", Locale.getDefault()).format(parsedDate).uppercase()
-            1 -> "TOMORROW - " + SimpleDateFormat("EEEE, MMMM dd", Locale.getDefault()).format(parsedDate).uppercase()
-            -1 -> "YESTERDAY - " + SimpleDateFormat("EEEE, MMMM dd", Locale.getDefault()).format(parsedDate).uppercase()
-            else -> SimpleDateFormat("EEEE, MMMM dd", Locale.getDefault()).format(parsedDate).uppercase()
-        }
-    } catch (e: Exception) {
-        return dateStr.uppercase()
-    }
 }
