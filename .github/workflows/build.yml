@@ -18,23 +18,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.11.1'
+          gradle-version: '9.3.1'
 
       - name: Prepare environment and keystore
         env:
           SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
           SIMKL_CLIENT_SECRET: ${{ secrets.SIMKL_CLIENT_SECRET }}
-          SIMKL_API_ID: ${{ secrets.SIMKL_API_ID }}
-          SIMKL_API_SECRET: ${{ secrets.SIMKL_API_SECRET }}
         run: |
           # Copy base template if available
           if [ -f .env.example ]; then
@@ -44,17 +42,15 @@ jobs:
           fi
           
           # Inject SIMKL_CLIENT_ID from secrets if provided
-          CLIENT_ID="${SIMKL_CLIENT_ID:-$SIMKL_API_ID}"
-          if [ -n "$CLIENT_ID" ]; then
+          if [ -n "$SIMKL_CLIENT_ID" ]; then
             sed -i '/^SIMKL_CLIENT_ID=/d' .env
-            echo "SIMKL_CLIENT_ID=$CLIENT_ID" >> .env
+            echo "SIMKL_CLIENT_ID=$SIMKL_CLIENT_ID" >> .env
           fi
 
           # Inject SIMKL_CLIENT_SECRET from secrets if provided
-          CLIENT_SECRET="${SIMKL_CLIENT_SECRET:-$SIMKL_API_SECRET}"
-          if [ -n "$CLIENT_SECRET" ]; then
+          if [ -n "$SIMKL_CLIENT_SECRET" ]; then
             sed -i '/^SIMKL_CLIENT_SECRET=/d' .env
-            echo "SIMKL_CLIENT_SECRET=$CLIENT_SECRET" >> .env
+            echo "SIMKL_CLIENT_SECRET=$SIMKL_CLIENT_SECRET" >> .env
           fi
           
           # Restore debug keystore from base64 if present
