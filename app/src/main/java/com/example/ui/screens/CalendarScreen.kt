@@ -396,7 +396,7 @@ fun CalendarItemCard(
                     )
                 } else {
                     Text(
-                        text = "Theatrical release!",
+                        text = "Digital / DVD Release",
                         fontSize = 13.sp,
                         color = Color(0xFFF2B8B5)
                     )

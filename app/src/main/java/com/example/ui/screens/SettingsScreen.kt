@@ -49,7 +49,7 @@ fun SettingsScreen(
     }
 
     // Global toggle simulations stored as standard Compose states or can hook to datastore
-    var enableGlobalAlerts by remember { mutableStateOf(true) }
+    var enableGlobalAlerts by remember { mutableStateOf(false) }
     var enableBingeAlerts by remember { mutableStateOf(true) }
 
     Scaffold(

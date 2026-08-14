@@ -118,12 +118,17 @@ object DateUtil {
     }
 
     /**
-     * Formats localized date and time (e.g. "August 12, 2026 at 4:00 AM").
+     * Formats localized date and time into a single unified display string (e.g. "August 12, 2026 at 4:00 PM" or "August 12, 2026").
      */
     fun formatDisplayDateTime(isoDateStr: String?): String {
-        val dateOnly = formatDisplayDate(isoDateStr)
-        val timeOnly = formatLocalizedTime(isoDateStr)
-        return if (timeOnly != null) "$dateOnly at $timeOnly" else dateOnly
+        if (isoDateStr.isNullOrBlank()) return "TBD"
+        val parsedDate = parseDate(isoDateStr)
+        if (parsedDate != null && isoDateStr.trim().length > 10) {
+            val dateFormat = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
+            val timeFormat = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT, Locale.getDefault())
+            return "${dateFormat.format(parsedDate)} at ${timeFormat.format(parsedDate)}"
+        }
+        return formatDisplayDate(isoDateStr)
     }
 }
 

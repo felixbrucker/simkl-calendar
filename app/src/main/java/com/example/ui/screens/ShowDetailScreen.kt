@@ -44,7 +44,7 @@ fun ShowDetailScreen(
 
     // Individual notification toggle flows
     var notifyEveryEpisode by remember(showSetting) {
-        mutableStateOf(showSetting?.notifyEveryEpisode ?: true)
+        mutableStateOf(showSetting?.notifyEveryEpisode ?: false)
     }
     var notifyAiredLastEpisode by remember(showSetting) {
         mutableStateOf(showSetting?.notifyAiredLastEpisode ?: true)
@@ -139,8 +139,12 @@ fun ShowDetailScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
+                        val sNum = matchingShow.season ?: 1
+                        val eNum = matchingShow.episodeNumber ?: 1
+                        val epInfo = if (matchingShow.type != "movie") String.format(Locale.US, " (S%02dE%02d)", sNum, eNum) else ""
+
                         Text(
-                            text = matchingShow.title,
+                            text = "${matchingShow.title}$epInfo",
                             fontSize = 24.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
@@ -148,7 +152,7 @@ fun ShowDetailScreen(
                     }
                 }
 
-                // Airing details info
+                // Airing / Release details info
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -162,49 +166,46 @@ fun ShowDetailScreen(
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Airing Schedule", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                            Text(
+                                text = if (matchingShow.type == "movie") "Release Information" else "Airing Schedule",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE6E1E5),
+                                fontSize = 15.sp
+                            )
                             
+                            val dateLabel = if (matchingShow.type == "movie") "Digital / DVD Release" else "Air Date"
+                            val formattedDateTime = DateUtil.formatDisplayDateTime(matchingShow.date)
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Airing Date", color = Color(0xFFCAC4D0), fontSize = 14.sp)
-                                Text(DateUtil.formatDisplayDate(matchingShow.date), color = Color(0xFFE6E1E5), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                Text(dateLabel, color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                Text(
+                                    text = formattedDateTime,
+                                    color = Color(0xFFE6E1E5),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
                             }
 
-                            val localizedTime = DateUtil.formatLocalizedTime(matchingShow.date)
-                            if (localizedTime != null) {
+                            if (matchingShow.type != "movie" && !matchingShow.episodeTitle.isNullOrBlank()) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Release Time", color = Color(0xFFCAC4D0), fontSize = 14.sp)
-                                    Text("$localizedTime (Local Time)", color = Color(0xFFD0BCFF), fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                }
-                            }
-
-                            if (matchingShow.type != "movie") {
-                                val sNum = matchingShow.season ?: 1
-                                val eNum = matchingShow.episodeNumber ?: 1
-                                val epLabel = String.format(Locale.US, "Season %02d • Episode %02d", sNum, eNum)
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Release Focus", color = Color(0xFFCAC4D0), fontSize = 14.sp)
-                                    Text(epLabel, color = Color(0xFFE6E1E5), fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                }
-
-                                if (matchingShow.episodeTitle != null) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("Episode Name", color = Color(0xFFCAC4D0), fontSize = 14.sp)
-                                        Text(matchingShow.episodeTitle, color = Color(0xFFE6E1E5), fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                    }
+                                    Text("Episode Name", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                    Text(
+                                        text = matchingShow.episodeTitle,
+                                        color = Color(0xFFE6E1E5),
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.sp,
+                                        maxLines = 2
+                                    )
                                 }
                             }
 

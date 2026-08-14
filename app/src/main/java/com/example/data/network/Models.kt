@@ -16,8 +16,7 @@ data class OAuthTokenRequest(
 data class OAuthTokenResponse(
     @Json(name = "access_token") val accessToken: String?,
     @Json(name = "token_type") val tokenType: String?,
-    @Json(name = "scope") val scope: String?,
-    @Json(name = "expires_in") val expiresIn: Long?
+    @Json(name = "scope") val scope: String?
 )
 
 @JsonClass(generateAdapter = true)
@@ -29,7 +28,6 @@ data class UserSettingsResponse(
 @JsonClass(generateAdapter = true)
 data class UserProfile(
     @Json(name = "name") val name: String?,
-    @Json(name = "joined_at") val joinedAt: String?,
     @Json(name = "gender") val gender: String?,
     @Json(name = "avatar") val avatar: String?,
     @Json(name = "bio") val bio: String?,
@@ -55,7 +53,6 @@ data class SimklV2CalendarResponse(
 data class SimklV2CalendarEntry(
     @Json(name = "simkl_id") val simklId: Int?,
     @Json(name = "date") val date: String?,
-    @Json(name = "premiere_type") val premiereType: Any?,
     @Json(name = "finale_type") val finaleType: Any?,
     @Json(name = "episode") val episode: SimklV2Episode?
 )
@@ -75,31 +72,34 @@ data class SimklV2Metadata(
     @Json(name = "status") val status: String?,
     @Json(name = "genres") val genres: List<String>?,
     @Json(name = "url") val url: String?,
-    @Json(name = "ids") val ids: SimklIds?
+    @Json(name = "ids") val ids: SimklIds?,
+    @Json(name = "dvd") val dvd: String? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class SimklMedia(
     @Json(name = "title") val title: String?,
-    @Json(name = "ids") val ids: SimklIds?,
+    @Json(name = "year") val year: Int? = null,
     @Json(name = "poster") val poster: String?,
-    @Json(name = "status") val status: String?
+    @Json(name = "ids") val ids: SimklIds?
 )
 
 @JsonClass(generateAdapter = true)
 data class SimklIds(
     @Json(name = "simkl") val simkl: Int?,
-    @Json(name = "simkl_id") val simklId: Int?,
+    @Json(name = "simkl_id") val simklId: Int? = null,
+    @Json(name = "slug") val slug: String? = null,
     @Json(name = "imdb") val imdb: String?,
     @Json(name = "tmdb") val tmdb: String?,
-    @Json(name = "tvdb") val tvdb: String?
+    @Json(name = "tvdb") val tvdb: String?,
+    @Json(name = "mal") val mal: String? = null,
+    @Json(name = "anidb") val anidb: String? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class SimklEpisode(
     @Json(name = "title") val title: String?,
     @Json(name = "season") val season: Int?,
-    @Json(name = "number") val number: Int?,
     @Json(name = "episode") val episodeNumber: Int?,
     @Json(name = "date") val date: String?
 )
@@ -109,13 +109,16 @@ data class SimklNextToWatchInfo(
     @Json(name = "title") val title: String? = null,
     @Json(name = "season") val season: Int? = null,
     @Json(name = "episode") val episode: Int? = null,
-    @Json(name = "date") val date: String? = null,
-    @Json(name = "url") val url: String? = null
+    @Json(name = "date") val date: String? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class SyncActivitiesResponse(
-    @Json(name = "all") val all: String? = null
+    @Json(name = "all") val all: String? = null,
+    @Json(name = "tv") val tv: String? = null,
+    @Json(name = "anime") val anime: String? = null,
+    @Json(name = "movies") val movies: String? = null,
+    @Json(name = "ratings") val ratings: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -139,7 +142,6 @@ data class SyncShowItem(
     @Json(name = "not_aired_episodes_count") val notAiredEpisodesCount: Int? = null,
     @Json(name = "anime_type") val animeType: String? = null,
     @Json(name = "show") val show: SimklMedia? = null,
-    @Json(name = "anime") val anime: SimklMedia? = null,
     @Json(name = "next_to_watch_info") val nextToWatchInfo: SimklNextToWatchInfo? = null
 )
 

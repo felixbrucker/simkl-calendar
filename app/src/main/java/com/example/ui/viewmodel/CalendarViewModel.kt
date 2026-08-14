@@ -144,7 +144,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     fun testTriggerNotification(item: CalendarItem) {
         viewModelScope.launch {
             val setting = repository.getSettingForShow(item.id)
-            val notifyEveryEp = setting?.notifyEveryEpisode ?: true
+            val notifyEveryEp = setting?.notifyEveryEpisode ?: false
             val notifyBinge = setting?.notifyAiredLastEpisode ?: true
 
             if (item.isLastEpisode) {

@@ -248,7 +248,7 @@ class SimklRepository(private val context: Context) {
 
                     // Process TV Shows
                     syncResponse.shows?.forEach { item ->
-                        val media = item.show ?: item.anime ?: return@forEach
+                        val media = item.show ?: return@forEach
                         val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
                         val status = item.status?.lowercase() ?: ""
                         if (status in validStatuses) {
@@ -268,7 +268,7 @@ class SimklRepository(private val context: Context) {
 
                     // Process Anime
                     syncResponse.anime?.forEach { item ->
-                        val media = item.anime ?: item.show ?: return@forEach
+                        val media = item.show ?: return@forEach
                         val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
                         val status = item.status?.lowercase() ?: ""
                         if (status in validStatuses) {
@@ -350,7 +350,15 @@ class SimklRepository(private val context: Context) {
 
                 entries.forEach { entry ->
                     val simklId = entry.simklId ?: return@forEach
-                    val rawDateStr = entry.date ?: return@forEach
+                    val meta = metadataMap[simklId.toString()] ?: metadataMap[simklId.toString().lowercase()]
+
+                    // For movies, use the DVD release date from metadata as primary date to track
+                    val rawDateStr = if (defaultType == "movie") {
+                        meta?.dvd?.takeIf { it.isNotBlank() } ?: entry.date ?: return@forEach
+                    } else {
+                        entry.date ?: return@forEach
+                    }
+
                     val normalizedDate = DateUtil.normalizeDate(rawDateStr) ?: return@forEach
 
                     // If user is authenticated, only include items from their watchlist ("watching" and "plan to watch")
@@ -364,15 +372,13 @@ class SimklRepository(private val context: Context) {
                         if (!isTracked) return@forEach
                     }
 
-                    val meta = metadataMap[simklId.toString()] ?: metadataMap[simklId.toString().lowercase()]
-
                     val title = meta?.title ?: "Untitled"
                     val ep = entry.episode
                     val seasonNum = ep?.season
                     val epNum = ep?.episode
                     val epTitle = ep?.title
 
-                    val isPremiere = entry.premiereType != null && entry.premiereType.toString() != "0"
+                    val isPremiere = (seasonNum == 1 && epNum == 1) || epNum == 1
                     val isFinale = entry.finaleType != null && entry.finaleType.toString() != "0"
 
                     val posterRaw = meta?.poster ?: allTrackedItems.find { it.id == simklId }?.poster

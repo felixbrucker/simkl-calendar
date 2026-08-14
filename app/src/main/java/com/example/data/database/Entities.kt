@@ -34,7 +34,7 @@ data class NotificationSetting(
     @PrimaryKey val showId: Int, // Simkl ID or hash
     val showTitle: String,
     val type: String, // "tv", "anime", "movie"
-    val notifyEveryEpisode: Boolean = true,
+    val notifyEveryEpisode: Boolean = false,
     val notifyAiredLastEpisode: Boolean = true
 )
 
