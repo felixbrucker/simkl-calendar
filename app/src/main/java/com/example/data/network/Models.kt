@@ -54,6 +54,7 @@ data class SimklV2Metadata(
     @Json(name = "title") val title: String?,
     @Json(name = "poster") val poster: String?,
     @Json(name = "status") val status: String?,
+    @Json(name = "total_episodes") val totalEpisodes: Int? = null,
     @Json(name = "dvd") val dvd: String? = null
 )
 

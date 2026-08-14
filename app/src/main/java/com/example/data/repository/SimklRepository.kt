@@ -206,6 +206,7 @@ class SimklRepository(private val context: Context) {
                 notifyAiredLastEpisode = notifyAiredLastEpisode
             )
         )
+        com.example.receiver.NotificationScheduler.scheduleNotificationsForShow(context, showId)
     }
 
     suspend fun getSettingForShow(showId: Int): NotificationSetting? = withContext(Dispatchers.IO) {
@@ -393,7 +394,14 @@ class SimklRepository(private val context: Context) {
                             val epTitle = ep?.title
 
                             val isPremiere = (seasonNum == 1 && epNum == 1) || epNum == 1
-                            val isFinale = entry.finaleType != null && entry.finaleType.toString() != "0"
+                            val isExplicitFinale = entry.finaleType != null && entry.finaleType.toString() != "0" && entry.finaleType.toString() != "null"
+                            val isMetadataFinale = defaultType != "movie" &&
+                                meta?.totalEpisodes != null &&
+                                meta.totalEpisodes > 1 &&
+                                epNum != null &&
+                                epNum > 1 &&
+                                epNum >= meta.totalEpisodes
+                            val isFinale = isExplicitFinale || isMetadataFinale
 
                             val posterRaw = meta?.poster ?: allTrackedItems.find { it.id == simklId }?.poster
                             val posterUrl = ImageUtil.formatPosterUrl(posterRaw)
@@ -432,10 +440,25 @@ class SimklRepository(private val context: Context) {
             }
         }
 
+        val existingNotifiedKeys = try {
+            calendarDao.getAllCalendarItemsList().filter { it.isNotified }.map { it.primaryKey }.toSet()
+        } catch (_: Exception) {
+            emptySet()
+        }
+
+        val finalDbItems = dbItems.map { item ->
+            if (existingNotifiedKeys.contains(item.primaryKey)) {
+                item.copy(isNotified = true)
+            } else {
+                item
+            }
+        }
+
         calendarDao.clearCalendarItems()
-        if (dbItems.isNotEmpty()) {
-            calendarDao.insertCalendarItems(dbItems)
-            Log.d("SimklRepository", "Successfully synchronized ${dbItems.size} calendar items")
+        if (finalDbItems.isNotEmpty()) {
+            calendarDao.insertCalendarItems(finalDbItems)
+            Log.d("SimklRepository", "Successfully synchronized ${finalDbItems.size} calendar items")
+            com.example.receiver.NotificationScheduler.scheduleAllNotifications(context)
         } else {
             Log.w("SimklRepository", "No calendar items retrieved from CDN or sync")
         }

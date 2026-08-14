@@ -23,6 +23,12 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items ORDER BY date ASC")
     fun getAllCalendarItems(): Flow<List<CalendarItem>>
 
+    @Query("SELECT * FROM calendar_items ORDER BY date ASC")
+    suspend fun getAllCalendarItemsList(): List<CalendarItem>
+
+    @Query("SELECT * FROM calendar_items WHERE id = :showId ORDER BY date ASC")
+    suspend fun getItemsForShow(showId: Int): List<CalendarItem>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCalendarItems(items: List<CalendarItem>)
 
@@ -31,12 +37,18 @@ interface CalendarItemDao {
 
     @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
     suspend fun findItem(primaryKey: String): CalendarItem?
+
+    @Query("UPDATE calendar_items SET isNotified = 1 WHERE primaryKey = :primaryKey")
+    suspend fun markItemAsNotified(primaryKey: String)
 }
 
 @Dao
 interface NotificationSettingDao {
     @Query("SELECT * FROM notification_settings")
     fun getAllSettings(): Flow<List<NotificationSetting>>
+
+    @Query("SELECT * FROM notification_settings")
+    suspend fun getAllSettingsList(): List<NotificationSetting>
 
     @Query("SELECT * FROM notification_settings WHERE showId = :showId LIMIT 1")
     suspend fun getSettingForShow(showId: Int): NotificationSetting?

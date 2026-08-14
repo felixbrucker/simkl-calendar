@@ -120,6 +120,37 @@ fun SettingsScreen(
                 }
             }
 
+            // Background Sync Card
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Background Synchronization", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "The app automatically synchronizes calendar data and schedules air-date notifications in the background every 12 hours, even when the app is closed.",
+                        color = Color(0xFFCAC4D0),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            viewModel.syncLocalCalendar(force = true)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F378B)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().testTag("sync_now_button")
+                    ) {
+                        Icon(Icons.Default.Sync, contentDescription = "Sync Now", tint = Color(0xFFEADDFF), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Sync Calendar Now", color = Color(0xFFEADDFF), fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
             // Global Notification Setup Toggles
             Card(
                 shape = RoundedCornerShape(12.dp),

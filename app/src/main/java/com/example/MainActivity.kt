@@ -29,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.receiver.NotificationReceiver
+import com.example.worker.SyncCalendarWorker
 import com.example.ui.screens.CalendarScreen
 import com.example.ui.screens.LoginScreen
 import com.example.ui.screens.SettingsScreen
@@ -43,6 +44,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         NotificationReceiver.createNotificationChannel(this)
+        SyncCalendarWorker.enqueuePeriodicSync(this)
 
         handleOAuthIntent(intent)
 

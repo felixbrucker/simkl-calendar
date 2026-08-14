@@ -26,7 +26,8 @@ data class CalendarItem(
     val poster: String?, // URL for show poster image
     val simklId: Int?, // Unique ID for Simkl
     val isLastEpisode: Boolean = false, // Ready to binge?
-    val notificationsScheduled: Boolean = false // Track alarm status
+    val notificationsScheduled: Boolean = false, // Track alarm status
+    val isNotified: Boolean = false // Track whether notification has been dispatched
 )
 
 @Entity(tableName = "notification_settings")

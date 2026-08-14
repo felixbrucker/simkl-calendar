@@ -9,16 +9,24 @@ import java.util.TimeZone
 object DateUtil {
 
     /**
-     * Extracts the standard YYYY-MM-DD date from ISO-8601 timestamps (e.g. "2026-08-12T04:00:00Z", "2026-08-12").
+     * Extracts the standard YYYY-MM-DD date from ISO-8601 timestamps (e.g. "2026-08-12T04:00:00Z", "2026-08-12") or MM/dd/yyyy.
      */
     fun normalizeDate(isoDateStr: String?): String? {
         if (isoDateStr.isNullOrBlank()) return null
         val trimmed = isoDateStr.trim()
-        return if (trimmed.length >= 10 && trimmed[4] == '-' && trimmed[7] == '-') {
-            trimmed.substring(0, 10)
-        } else {
-            trimmed
+        if (trimmed.length >= 10 && trimmed[4] == '-' && trimmed[7] == '-') {
+            return trimmed.substring(0, 10)
         }
+        if (trimmed.length >= 10 && trimmed[2] == '/' && trimmed[5] == '/') {
+            try {
+                val inSdf = SimpleDateFormat("MM/dd/yyyy", Locale.US)
+                val outSdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                val parsed = inSdf.parse(trimmed.substring(0, 10))
+                if (parsed != null) return outSdf.format(parsed)
+            } catch (_: Exception) {
+            }
+        }
+        return trimmed
     }
 
     /**
@@ -34,7 +42,8 @@ object DateUtil {
             "yyyy-MM-dd'T'HH:mm:ssXXX",
             "yyyy-MM-dd'T'HH:mm:ss",
             "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd"
+            "yyyy-MM-dd",
+            "MM/dd/yyyy"
         )
 
         for (pattern in patterns) {
@@ -49,6 +58,41 @@ object DateUtil {
             }
         }
         return null
+    }
+
+    /**
+     * Converts an ISO date or date/time string to epoch millis.
+     * If the string has only a date without time, it defaults to 9:00 AM on that day in local time.
+     */
+    fun parseToEpochMillis(isoDateStr: String?): Long? {
+        if (isoDateStr.isNullOrBlank()) return null
+        val trimmed = isoDateStr.trim()
+
+        val date = parseDate(trimmed)
+        if (date != null && (trimmed.contains("T") || trimmed.contains(":") || trimmed.length > 10)) {
+            return date.time
+        }
+
+        val ymd = normalizeDate(trimmed)
+        if (ymd != null) {
+            try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                val parsed = sdf.parse(ymd)
+                if (parsed != null) {
+                    val cal = Calendar.getInstance().apply {
+                        time = parsed
+                        set(Calendar.HOUR_OF_DAY, 9)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+                    return cal.timeInMillis
+                }
+            } catch (_: Exception) {
+            }
+        }
+
+        return date?.time
     }
 
     /**
