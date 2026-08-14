@@ -515,7 +515,16 @@ fun CalendarItemCard(
 
                 Spacer(modifier = Modifier.height(2.dp))
 
-                if (item.type != "movie") {
+                if (item.type == "anime") {
+                    val epNum = item.episodeNumber ?: 1
+                    Text(
+                        text = "Episode $epNum",
+                        fontSize = 13.sp,
+                        color = Color(0xFFCAC4D0),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } else if (item.type != "movie") {
                     val epSeason = item.season ?: 1
                     val epNum = item.episodeNumber ?: 1
                     val epLabel = String.format(Locale.US, "S%02d • E%02d", epSeason, epNum)
@@ -534,23 +543,25 @@ fun CalendarItemCard(
                     )
                 }
 
-                val releaseTime = DateUtil.formatLocalizedTime(item.date)
-                if (releaseTime != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = "Air Time",
-                            size = 13.dp,
-                            tint = Color(0xFFD0BCFF)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = releaseTime,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFFD0BCFF)
-                        )
+                if (item.type != "movie") {
+                    val releaseTime = DateUtil.formatLocalizedTime(item.date)
+                    if (releaseTime != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = "Air Time",
+                                size = 13.dp,
+                                tint = Color(0xFFD0BCFF)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = releaseTime,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFFD0BCFF)
+                            )
+                        }
                     }
                 }
 

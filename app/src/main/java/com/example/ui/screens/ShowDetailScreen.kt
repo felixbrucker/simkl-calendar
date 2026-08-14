@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +35,7 @@ fun ShowDetailScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val items by viewModel.filteredCalendarItems.collectAsState()
     val matchingShow = remember(items, showId) {
         items.firstOrNull { it.id == showId }
@@ -139,12 +143,8 @@ fun ShowDetailScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        val sNum = matchingShow.season ?: 1
-                        val eNum = matchingShow.episodeNumber ?: 1
-                        val epInfo = if (matchingShow.type != "movie") String.format(Locale.US, " (S%02dE%02d)", sNum, eNum) else ""
-
                         Text(
-                            text = "${matchingShow.title}$epInfo",
+                            text = matchingShow.title,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
@@ -176,7 +176,11 @@ fun ShowDetailScreen(
                             )
                             
                             val dateLabel = if (matchingShow.type == "movie") "Digital / DVD Release" else "Air Date"
-                            val formattedDateTime = DateUtil.formatDisplayDateTime(matchingShow.date)
+                            val formattedDateTime = if (matchingShow.type == "movie") {
+                                DateUtil.formatDisplayDate(matchingShow.date)
+                            } else {
+                                DateUtil.formatDisplayDateTime(matchingShow.date)
+                            }
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -192,20 +196,54 @@ fun ShowDetailScreen(
                                 )
                             }
 
-                            if (matchingShow.type != "movie" && !matchingShow.episodeTitle.isNullOrBlank()) {
+                            // Season and Episode Slug positioned above Episode Name
+                            if (matchingShow.type != "movie") {
+                                val sNum = matchingShow.season ?: 1
+                                val eNum = matchingShow.episodeNumber ?: 1
+                                val (slugLabel, slugValue) = if (matchingShow.type == "anime") {
+                                    "Episode" to "Episode $eNum"
+                                } else {
+                                    "Season & Episode" to String.format(Locale.US, "S%02dE%02d", sNum, eNum)
+                                }
+
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Episode Name", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                    Text(slugLabel, color = Color(0xFFCAC4D0), fontSize = 14.sp)
                                     Text(
-                                        text = matchingShow.episodeTitle,
+                                        text = slugValue,
                                         color = Color(0xFFE6E1E5),
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 14.sp,
-                                        maxLines = 2
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp
                                     )
+                                }
+
+                                if (!matchingShow.episodeTitle.isNullOrBlank()) {
+                                    val titleText = matchingShow.episodeTitle
+                                    val isGenericAnimeTitle = matchingShow.type == "anime" && (
+                                        titleText.equals("Episode $eNum", ignoreCase = true) ||
+                                        titleText.equals("Ep $eNum", ignoreCase = true) ||
+                                        titleText.equals("Ep. $eNum", ignoreCase = true)
+                                    )
+
+                                    if (!isGenericAnimeTitle) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("Episode Name", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                            Text(
+                                                text = titleText,
+                                                color = Color(0xFFE6E1E5),
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 14.sp,
+                                                maxLines = 2
+                                            )
+                                        }
+                                    }
                                 }
                             }
 
@@ -234,6 +272,41 @@ fun ShowDetailScreen(
                                 }
                             }
                         }
+                    }
+
+                    // Open on SIMKL Button
+                    Button(
+                        onClick = {
+                            val urlType = when (matchingShow.type) {
+                                "movie", "movies" -> "movies"
+                                "anime" -> "anime"
+                                else -> "tv"
+                            }
+                            val simklUrl = "https://simkl.com/$urlType/${matchingShow.id}"
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(simklUrl))
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("open_on_simkl_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4F378B),
+                            contentColor = Color(0xFFEADDFF)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.OpenInNew,
+                            contentDescription = "Open on SIMKL",
+                            modifier = Modifier.size(18.dp),
+                            tint = Color(0xFFEADDFF)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Open on SIMKL",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
                     }
 
                     // Per-Show Notification Settings
@@ -323,11 +396,11 @@ fun ShowDetailScreen(
                                             )
                                         },
                                         modifier = Modifier.testTag("detail_notify_movie_switch")
-                                      )
-                                  }
-                              }
-                          }
-                      }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
