@@ -55,9 +55,21 @@ fun CalendarScreen(
 
     val username = userToken?.username ?: "Guest"
 
-    // Group items by date for sticky headers or grouped listing
-    val groupedItems = remember(items) {
-        items.groupBy { item ->
+    var showEarlierReleases by remember { mutableStateOf(false) }
+
+    // Separate earlier releases from today/upcoming releases
+    val (earlierItems, upcomingItems) = remember(items) {
+        items.partition { DateUtil.isEarlierThanToday(it.date) }
+    }
+
+    val earlierGrouped = remember(earlierItems) {
+        earlierItems.groupBy { item ->
+            DateUtil.formatAiringDateHeader(item.date)
+        }
+    }
+
+    val upcomingGrouped = remember(upcomingItems) {
+        upcomingItems.groupBy { item ->
             DateUtil.formatAiringDateHeader(item.date)
         }
     }
@@ -213,7 +225,7 @@ fun CalendarScreen(
             }
 
             // Calendar Group list
-            if (groupedItems.isEmpty()) {
+            if (items.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -254,31 +266,151 @@ fun CalendarScreen(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
-                    groupedItems.forEach { (dateHeader, dayItems) ->
-                        // Date Header
-                        stickyHeader {
-                            Box(
+                    // Earlier Releases Expandable Header Card
+                    if (earlierItems.isNotEmpty()) {
+                        item(key = "earlier_releases_toggle_card") {
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (showEarlierReleases) Color(0xFF381E72).copy(alpha = 0.5f) else Color(0xFF2B2930)
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (showEarlierReleases) Color(0xFFD0BCFF) else Color(0xFF49454F)
+                                ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFF1C1B1F))
                                     .padding(horizontal = 16.dp, vertical = 6.dp)
+                                    .clickable { showEarlierReleases = !showEarlierReleases }
+                                    .testTag("toggle_earlier_releases_button")
                             ) {
-                                Text(
-                                    text = dateHeader,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFCAC4D0),
-                                    letterSpacing = 1.sp
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.History,
+                                            contentDescription = null,
+                                            tint = Color(0xFFD0BCFF),
+                                            size = 20.dp
+                                        )
+                                        Column {
+                                            Text(
+                                                text = if (showEarlierReleases) "Hide Earlier Releases" else "Show Earlier Releases",
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 14.sp,
+                                                color = Color(0xFFE6E1E5)
+                                            )
+                                            Text(
+                                                text = "${earlierItems.size} past ${if (earlierItems.size == 1) "release" else "releases"} hidden by default",
+                                                fontSize = 12.sp,
+                                                color = Color(0xFFCAC4D0)
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        imageVector = if (showEarlierReleases) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = if (showEarlierReleases) "Collapse earlier releases" else "Expand earlier releases",
+                                        tint = Color(0xFFD0BCFF),
+                                        size = 24.dp
+                                    )
+                                }
                             }
                         }
 
-                        // Day Release Cards
-                        items(dayItems, key = { it.primaryKey }) { item ->
-                            CalendarItemCard(
-                                item = item,
-                                onClick = { onNavigateToShowDetail(item.id) }
-                            )
+                        // When expanded, render earlier day groups
+                        if (showEarlierReleases) {
+                            earlierGrouped.forEach { (dateHeader, dayItems) ->
+                                stickyHeader(key = "earlier_header_$dateHeader") {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color(0xFF1C1B1F))
+                                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = dateHeader,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF9E9AA3),
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
+                                }
+
+                                items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
+                                    CalendarItemCard(
+                                        item = item,
+                                        onClick = { onNavigateToShowDetail(item.id) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Upcoming releases (today and future dates)
+                    if (upcomingGrouped.isNotEmpty()) {
+                        upcomingGrouped.forEach { (dateHeader, dayItems) ->
+                            stickyHeader(key = "upcoming_header_$dateHeader") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFF1C1B1F))
+                                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = dateHeader,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFCAC4D0),
+                                        letterSpacing = 1.sp
+                                    )
+                                }
+                            }
+
+                            items(dayItems, key = { it.primaryKey }) { item ->
+                                CalendarItemCard(
+                                    item = item,
+                                    onClick = { onNavigateToShowDetail(item.id) }
+                                )
+                            }
+                        }
+                    } else if (earlierItems.isNotEmpty() && !showEarlierReleases) {
+                        // Notice when upcoming is empty but earlier items exist
+                        item(key = "no_upcoming_prompt") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.EventAvailable,
+                                        contentDescription = null,
+                                        tint = Color(0xFF3E3D4F),
+                                        size = 48.dp
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        "No upcoming releases for active filters",
+                                        color = Color(0xFFA5A3B1),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    TextButton(onClick = { showEarlierReleases = true }) {
+                                        Text("View ${earlierItems.size} Earlier Releases", color = Color(0xFFD0BCFF))
+                                    }
+                                }
+                            }
                         }
                     }
                 }

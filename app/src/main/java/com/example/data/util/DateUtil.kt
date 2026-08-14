@@ -63,6 +63,36 @@ object DateUtil {
     }
 
     /**
+     * Checks if a given ISO date is strictly earlier than today (00:00:00).
+     */
+    fun isEarlierThanToday(isoDateStr: String?): Boolean {
+        val ymd = normalizeDate(isoDateStr) ?: return false
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val parsedDate = sdf.parse(ymd) ?: return false
+
+            val todayCal = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+
+            val targetCal = Calendar.getInstance().apply {
+                time = parsedDate
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+
+            targetCal.before(todayCal)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
      * Formats an ISO-8601 date string into a calendar group header (e.g. "TODAY - WEDNESDAY, AUGUST 12").
      */
     fun formatAiringDateHeader(isoDateStr: String?): String {

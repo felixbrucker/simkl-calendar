@@ -332,87 +332,103 @@ class SimklRepository(private val context: Context) {
 
         val dbItems = mutableListOf<CalendarItem>()
 
-        // 2. Fetch CDN v2 Calendars (TV, Anime, Movies) from data.simkl.in
-        val cdnEndpoints = listOf(
-            "https://data.simkl.in/calendar/v2/tv.json" to "tv",
-            "https://data.simkl.in/calendar/v2/anime.json" to "anime",
-            "https://data.simkl.in/calendar/v2/movie_release.json" to "movie"
+        // 2. Fetch CDN Calendars for current + next 3 months (TV, Anime, Movies) from data.simkl.in
+        val currentCal = java.util.Calendar.getInstance()
+        val monthsToFetch = (0..3).map { offset ->
+            val cal = java.util.Calendar.getInstance().apply {
+                time = currentCal.time
+                add(java.util.Calendar.MONTH, offset)
+            }
+            val year = cal.get(java.util.Calendar.YEAR)
+            val month = cal.get(java.util.Calendar.MONTH) + 1 // 1-12
+            year to month
+        }
+
+        val mediaTypes = listOf(
+            "tv" to "tv",
+            "anime" to "anime",
+            "movie_release" to "movie"
         )
 
-        for ((url, defaultType) in cdnEndpoints) {
-            try {
-                val response = apiService.getV2Calendar(
-                    url = url,
-                    clientId = clientId
-                )
-                val entries = response.calendar ?: emptyList()
-                val metadataMap = response.metadata ?: emptyMap()
+        for ((year, month) in monthsToFetch) {
+            for ((endpointType, defaultType) in mediaTypes) {
+                val url = "https://data.simkl.in/calendar/v2/$year/$month/$endpointType.json"
+                try {
+                    val response = apiService.getV2Calendar(
+                        url = url,
+                        clientId = clientId
+                    )
+                    val entries = response.calendar
+                    val metadataMap = response.metadata ?: emptyMap()
 
-                entries.forEach { entry ->
-                    val simklId = entry.simklId ?: return@forEach
-                    val meta = metadataMap[simklId.toString()] ?: metadataMap[simklId.toString().lowercase()]
+                    if (!entries.isNullOrEmpty()) {
+                        entries.forEach { entry ->
+                            val simklId = entry.simklId ?: return@forEach
+                            val meta = metadataMap[simklId.toString()] ?: metadataMap[simklId.toString().lowercase()]
 
-                    // For movies, use the DVD release date from metadata as primary date to track
-                    val rawDateStr = if (defaultType == "movie") {
-                        meta?.dvd?.takeIf { it.isNotBlank() } ?: entry.date ?: return@forEach
-                    } else {
-                        entry.date ?: return@forEach
-                    }
+                            // For movies, use the DVD release date from metadata as primary date to track
+                            val rawDateStr = if (defaultType == "movie") {
+                                meta?.dvd?.takeIf { it.isNotBlank() } ?: entry.date ?: return@forEach
+                            } else {
+                                entry.date ?: return@forEach
+                            }
 
-                    val normalizedDate = DateUtil.normalizeDate(rawDateStr) ?: return@forEach
+                            val normalizedDate = DateUtil.normalizeDate(rawDateStr) ?: return@forEach
 
-                    // If user is authenticated, only include items from their watchlist ("watching" and "plan to watch")
-                    if (bearer != null) {
-                        val isTracked = when (defaultType) {
-                            "tv" -> trackedShowIds.contains(simklId)
-                            "anime" -> trackedAnimeIds.contains(simklId)
-                            "movie" -> trackedMovieIds.contains(simklId)
-                            else -> false
+                            // If user is authenticated, only include items from their watchlist ("watching" and "plan to watch")
+                            if (bearer != null) {
+                                val isTracked = when (defaultType) {
+                                    "tv" -> trackedShowIds.contains(simklId)
+                                    "anime" -> trackedAnimeIds.contains(simklId)
+                                    "movie" -> trackedMovieIds.contains(simklId)
+                                    else -> false
+                                }
+                                if (!isTracked) return@forEach
+                            }
+
+                            val title = meta?.title ?: "Untitled"
+                            val ep = entry.episode
+                            val seasonNum = ep?.season
+                            val epNum = ep?.episode
+                            val epTitle = ep?.title
+
+                            val isPremiere = (seasonNum == 1 && epNum == 1) || epNum == 1
+                            val isFinale = entry.finaleType != null && entry.finaleType.toString() != "0"
+
+                            val posterRaw = meta?.poster ?: allTrackedItems.find { it.id == simklId }?.poster
+                            val posterUrl = ImageUtil.formatPosterUrl(posterRaw)
+
+                            val keyUnique = "v2_${simklId}_${seasonNum ?: 0}_${epNum ?: 0}_$normalizedDate"
+
+                            val alreadyAdded = dbItems.any {
+                                it.primaryKey == keyUnique || (it.id == simklId && it.season == seasonNum && it.episodeNumber == epNum && DateUtil.normalizeDate(it.date) == normalizedDate)
+                            }
+
+                            if (!alreadyAdded) {
+                                dbItems.add(
+                                    CalendarItem(
+                                        primaryKey = keyUnique,
+                                        id = simklId,
+                                        title = title,
+                                        episodeTitle = epTitle,
+                                        season = seasonNum,
+                                        episodeNumber = epNum,
+                                        date = rawDateStr,
+                                        type = defaultType,
+                                        isSeasonPremiere = isPremiere,
+                                        isSeasonFinale = isFinale,
+                                        poster = posterUrl,
+                                        simklId = simklId,
+                                        isLastEpisode = isFinale && meta?.status == "ended",
+                                        notificationsScheduled = false
+                                    )
+                                )
+                            }
                         }
-                        if (!isTracked) return@forEach
                     }
-
-                    val title = meta?.title ?: "Untitled"
-                    val ep = entry.episode
-                    val seasonNum = ep?.season
-                    val epNum = ep?.episode
-                    val epTitle = ep?.title
-
-                    val isPremiere = (seasonNum == 1 && epNum == 1) || epNum == 1
-                    val isFinale = entry.finaleType != null && entry.finaleType.toString() != "0"
-
-                    val posterRaw = meta?.poster ?: allTrackedItems.find { it.id == simklId }?.poster
-                    val posterUrl = ImageUtil.formatPosterUrl(posterRaw)
-
-                    val keyUnique = "v2_${simklId}_${seasonNum ?: 0}_${epNum ?: 0}_$normalizedDate"
-
-                    val alreadyAdded = dbItems.any {
-                        it.primaryKey == keyUnique || (it.id == simklId && it.season == seasonNum && it.episodeNumber == epNum && DateUtil.normalizeDate(it.date) == normalizedDate)
-                    }
-
-                    if (!alreadyAdded) {
-                        dbItems.add(
-                            CalendarItem(
-                                primaryKey = keyUnique,
-                                id = simklId,
-                                title = title,
-                                episodeTitle = epTitle,
-                                season = seasonNum,
-                                episodeNumber = epNum,
-                                date = rawDateStr,
-                                type = defaultType,
-                                isSeasonPremiere = isPremiere,
-                                isSeasonFinale = isFinale,
-                                poster = posterUrl,
-                                simklId = simklId,
-                                isLastEpisode = isFinale && meta?.status == "ended",
-                                notificationsScheduled = false
-                            )
-                        )
-                    }
+                } catch (e: Exception) {
+                    Log.e("SimklRepository", "Failed fetching CDN v2 calendar from $url", e)
                 }
-            } catch (e: Exception) {
-                Log.e("SimklRepository", "Failed fetching CDN v2 calendar from $url", e)
             }
         }
 
