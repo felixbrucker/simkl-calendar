@@ -80,15 +80,23 @@ fun CalendarScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            MediumTopAppBar(
+            TopAppBar(
                 title = {
-                    Column {
-                        Text("Simkl Calendar", fontWeight = FontWeight.Bold, color = Color.White)
+                    Column(
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Simkl Calendar",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = Color.White
+                        )
                         Text(
                             text = "Hi, $username • Tracked Schedule",
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             color = Color(0xFFCAC4D0),
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Normal,
+                            lineHeight = 16.sp
                         )
                     }
                 },
@@ -104,7 +112,7 @@ fun CalendarScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF1C1B1F),
                     titleContentColor = Color.White
                 )
