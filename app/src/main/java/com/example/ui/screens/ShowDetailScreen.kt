@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.util.DateUtil
 import com.example.ui.viewmodel.CalendarViewModel
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -173,13 +174,27 @@ fun ShowDetailScreen(
                                 Text(DateUtil.formatDisplayDate(matchingShow.date), color = Color(0xFFE6E1E5), fontWeight = FontWeight.Medium, fontSize = 14.sp)
                             }
 
+                            val localizedTime = DateUtil.formatLocalizedTime(matchingShow.date)
+                            if (localizedTime != null) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Release Time", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                    Text("$localizedTime (Local Time)", color = Color(0xFFD0BCFF), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                }
+                            }
+
                             if (matchingShow.type != "movie") {
+                                val sNum = matchingShow.season ?: 1
+                                val eNum = matchingShow.episodeNumber ?: 1
+                                val epLabel = String.format(Locale.US, "Season %02d • Episode %02d", sNum, eNum)
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text("Release Focus", color = Color(0xFFCAC4D0), fontSize = 14.sp)
-                                    Text("Season ${matchingShow.season} • Episode ${matchingShow.episodeNumber}", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                    Text(epLabel, color = Color(0xFFE6E1E5), fontWeight = FontWeight.Medium, fontSize = 14.sp)
                                 }
 
                                 if (matchingShow.episodeTitle != null) {

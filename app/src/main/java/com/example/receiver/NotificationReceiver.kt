@@ -9,6 +9,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
+import java.util.Locale
 
 class NotificationReceiver : BroadcastReceiver() {
 
@@ -76,7 +77,7 @@ class NotificationReceiver : BroadcastReceiver() {
             }
 
             val epLabel = if (season != null && episodeNumber != null) {
-                " (S${season}E${episodeNumber})"
+                String.format(Locale.US, " (S%02dE%02d)", season, episodeNumber)
             } else ""
 
             val message = if (isLastEpisode) {

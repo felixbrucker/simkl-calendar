@@ -381,7 +381,7 @@ class SimklRepository(private val context: Context) {
                     val keyUnique = "v2_${simklId}_${seasonNum ?: 0}_${epNum ?: 0}_$normalizedDate"
 
                     val alreadyAdded = dbItems.any {
-                        it.primaryKey == keyUnique || (it.id == simklId && it.season == seasonNum && it.episodeNumber == epNum && it.date == normalizedDate)
+                        it.primaryKey == keyUnique || (it.id == simklId && it.season == seasonNum && it.episodeNumber == epNum && DateUtil.normalizeDate(it.date) == normalizedDate)
                     }
 
                     if (!alreadyAdded) {
@@ -393,7 +393,7 @@ class SimklRepository(private val context: Context) {
                                 episodeTitle = epTitle,
                                 season = seasonNum,
                                 episodeNumber = epNum,
-                                date = normalizedDate,
+                                date = rawDateStr,
                                 type = defaultType,
                                 isSeasonPremiere = isPremiere,
                                 isSeasonFinale = isFinale,

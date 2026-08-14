@@ -1,5 +1,10 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +22,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.ui.viewmodel.CalendarViewModel
 import com.example.receiver.NotificationReceiver
 
@@ -29,7 +35,18 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val userToken by viewModel.userToken.collectAsState()
-    val isConfigured = viewModel.repository.isRealApiConfigured()
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { /* Permission result */ }
+
+    fun checkAndRequestPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
 
     // Global toggle simulations stored as standard Compose states or can hook to datastore
     var enableGlobalAlerts by remember { mutableStateOf(true) }
@@ -103,40 +120,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Sync Settings Segment
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("API Specifications & Secrets", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (isConfigured) Icons.Default.CheckCircle else Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = if (isConfigured) Color(0xFFBAC3FF) else Color(0xFFF2B8B5),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = if (isConfigured) "Real Simkl Integration Active" else "Sandbox Fallback Active",
-                                color = Color(0xFFE6E1E5),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            )
-                            Text(
-                                text = if (isConfigured) "Client credentials loaded correctly from AI Studio Secrets." else "Running demo-data simulation mode.",
-                                color = Color(0xFFCAC4D0),
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
-            }
-
             // Global Notification Setup Toggles
             Card(
                 shape = RoundedCornerShape(12.dp),
@@ -161,7 +144,10 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = enableGlobalAlerts,
-                            onCheckedChange = { enableGlobalAlerts = it },
+                            onCheckedChange = { 
+                                enableGlobalAlerts = it
+                                if (it) checkAndRequestPermission()
+                            },
                             modifier = Modifier.testTag("air_notification_switch")
                         )
                     }
@@ -182,7 +168,10 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = enableBingeAlerts,
-                            onCheckedChange = { enableBingeAlerts = it },
+                            onCheckedChange = { 
+                                enableBingeAlerts = it
+                                if (it) checkAndRequestPermission()
+                            },
                             modifier = Modifier.testTag("binge_notification_switch")
                         )
                     }
@@ -206,6 +195,7 @@ fun SettingsScreen(
 
                     Button(
                         onClick = {
+                            checkAndRequestPermission()
                             if (enableGlobalAlerts) {
                                 NotificationReceiver.triggerEpisodeNotification(
                                     context,
@@ -231,6 +221,7 @@ fun SettingsScreen(
 
                     Button(
                         onClick = {
+                            checkAndRequestPermission()
                             if (enableBingeAlerts) {
                                 NotificationReceiver.triggerEpisodeNotification(
                                     context,

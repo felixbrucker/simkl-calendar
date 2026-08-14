@@ -2,7 +2,9 @@ package com.example.data.util
 
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 object DateUtil {
 
@@ -17,6 +19,47 @@ object DateUtil {
         } else {
             trimmed
         }
+    }
+
+    /**
+     * Parses an ISO date/time string into a Date object.
+     */
+    fun parseDate(isoDateStr: String?): Date? {
+        if (isoDateStr.isNullOrBlank()) return null
+        val trimmed = isoDateStr.trim()
+
+        val patterns = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd"
+        )
+
+        for (pattern in patterns) {
+            try {
+                val sdf = SimpleDateFormat(pattern, Locale.US)
+                if (pattern.endsWith("'Z'") || pattern == "yyyy-MM-dd HH:mm:ss" || pattern.contains("'T'")) {
+                    sdf.timeZone = TimeZone.getTimeZone("UTC")
+                }
+                val date = sdf.parse(trimmed)
+                if (date != null) return date
+            } catch (_: Exception) {
+            }
+        }
+        return null
+    }
+
+    /**
+     * Extracts localized time (e.g. "4:00 AM" or "16:00" in local timezone).
+     * Returns null if only a date without time was provided.
+     */
+    fun formatLocalizedTime(isoDateStr: String?): String? {
+        if (isoDateStr.isNullOrBlank() || isoDateStr.trim().length <= 10) return null
+        val date = parseDate(isoDateStr) ?: return null
+        val timeFormat = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT, Locale.getDefault())
+        return timeFormat.format(date)
     }
 
     /**
@@ -72,6 +115,15 @@ object DateUtil {
         } catch (_: Exception) {
             ymd
         }
+    }
+
+    /**
+     * Formats localized date and time (e.g. "August 12, 2026 at 4:00 AM").
+     */
+    fun formatDisplayDateTime(isoDateStr: String?): String {
+        val dateOnly = formatDisplayDate(isoDateStr)
+        val timeOnly = formatLocalizedTime(isoDateStr)
+        return if (timeOnly != null) "$dateOnly at $timeOnly" else dateOnly
     }
 }
 
