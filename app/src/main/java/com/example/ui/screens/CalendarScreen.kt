@@ -39,7 +39,7 @@ import java.util.*
 fun CalendarScreen(
     viewModel: CalendarViewModel,
     onNavigateToSettings: () -> Unit,
-    onNavigateToShowDetail: (Int) -> Unit,
+    onNavigateToShowDetail: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val items by viewModel.filteredCalendarItems.collectAsState()
@@ -348,7 +348,7 @@ fun CalendarScreen(
                                 items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
                                     CalendarItemCard(
                                         item = item,
-                                        onClick = { onNavigateToShowDetail(item.id) }
+                                        onClick = { onNavigateToShowDetail(item.primaryKey) }
                                     )
                                 }
                             }
@@ -378,7 +378,7 @@ fun CalendarScreen(
                             items(dayItems, key = { it.primaryKey }) { item ->
                                 CalendarItemCard(
                                     item = item,
-                                    onClick = { onNavigateToShowDetail(item.id) }
+                                    onClick = { onNavigateToShowDetail(item.primaryKey) }
                                 )
                             }
                         }

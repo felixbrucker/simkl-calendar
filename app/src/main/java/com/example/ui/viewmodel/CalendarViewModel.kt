@@ -21,6 +21,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val notificationSettings: StateFlow<List<NotificationSetting>> = repository.notificationSettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allCalendarItems: StateFlow<List<CalendarItem>> = repository.calendarItems
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // Filtering State Flows
     val showTv = MutableStateFlow(true)
     val showAnime = MutableStateFlow(true)

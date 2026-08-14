@@ -2,18 +2,22 @@ package com.example.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -23,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.data.database.CalendarItem
 import com.example.data.util.DateUtil
 import com.example.ui.viewmodel.CalendarViewModel
 import java.util.Locale
@@ -31,19 +36,34 @@ import java.util.Locale
 @Composable
 fun ShowDetailScreen(
     viewModel: CalendarViewModel,
-    showId: Int,
+    itemKey: String,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val items by viewModel.filteredCalendarItems.collectAsState()
-    val matchingShow = remember(items, showId) {
-        items.firstOrNull { it.id == showId }
+    val allItems by viewModel.allCalendarItems.collectAsState()
+
+    var activeItemKey by remember(itemKey) { mutableStateOf(itemKey) }
+
+    val activeItem = remember(allItems, activeItemKey, itemKey) {
+        allItems.firstOrNull { it.primaryKey == activeItemKey }
+            ?: allItems.firstOrNull { it.id.toString() == activeItemKey }
+            ?: allItems.firstOrNull { it.primaryKey == itemKey }
+            ?: allItems.firstOrNull { it.id.toString() == itemKey }
+    }
+
+    val showScheduleItems = remember(allItems, activeItem) {
+        if (activeItem != null) {
+            allItems.filter { it.id == activeItem.id }
+                .sortedWith(compareBy<CalendarItem> { it.date }.thenBy { it.season }.thenBy { it.episodeNumber })
+        } else {
+            emptyList()
+        }
     }
 
     val settingsList by viewModel.notificationSettings.collectAsState()
-    val showSetting = remember(settingsList, showId) {
-        settingsList.firstOrNull { it.showId == showId }
+    val showSetting = remember(settingsList, activeItem) {
+        if (activeItem != null) settingsList.firstOrNull { it.showId == activeItem.id } else null
     }
 
     // Individual notification toggle flows
@@ -61,7 +81,7 @@ fun ShowDetailScreen(
                 title = { Text("Release Details", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("back_to_calendar_button")) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFFE6E1E5))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFFE6E1E5))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C1B1F))
@@ -69,7 +89,7 @@ fun ShowDetailScreen(
         },
         containerColor = Color(0xFF1C1B1F)
     ) { innerPadding ->
-        if (matchingShow == null) {
+        if (activeItem == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -92,7 +112,7 @@ fun ShowDetailScreen(
                         .height(260.dp)
                 ) {
                     AsyncImage(
-                        model = matchingShow.poster,
+                        model = activeItem.poster,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -122,19 +142,19 @@ fun ShowDetailScreen(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
-                            color = when (matchingShow.type) {
+                            color = when (activeItem.type) {
                                 "anime" -> Color(0xFFE8DEF8)
                                 "movie" -> Color(0xFFF2B8B5)
                                 else -> Color(0xFFBAC3FF)
                             },
-                            contentColor = when (matchingShow.type) {
+                            contentColor = when (activeItem.type) {
                                 "anime" -> Color(0xFF1D192B)
                                 "movie" -> Color(0xFF601410)
                                 else -> Color(0xFF1A237E)
                             }
                         ) {
                             Text(
-                                text = matchingShow.type.uppercase(),
+                                text = activeItem.type.uppercase(),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -144,7 +164,7 @@ fun ShowDetailScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = matchingShow.title,
+                            text = activeItem.title,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
@@ -162,24 +182,24 @@ fun ShowDetailScreen(
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
+                        border = BorderStroke(1.dp, Color(0xFF49454F))
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Text(
-                                text = if (matchingShow.type == "movie") "Release Information" else "Airing Schedule",
+                                text = if (activeItem.type == "movie") "Release Information" else "Selected Episode Details",
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFE6E1E5),
                                 fontSize = 15.sp
                             )
-                            
-                            val dateLabel = if (matchingShow.type == "movie") "Digital / DVD Release" else "Air Date"
-                            val formattedDateTime = if (matchingShow.type == "movie") {
-                                DateUtil.formatDisplayDate(matchingShow.date)
+
+                            val dateLabel = if (activeItem.type == "movie") "Digital / DVD Release" else "Air Date"
+                            val formattedDateTime = if (activeItem.type == "movie") {
+                                DateUtil.formatDisplayDate(activeItem.date)
                             } else {
-                                DateUtil.formatDisplayDateTime(matchingShow.date)
+                                DateUtil.formatDisplayDateTime(activeItem.date)
                             }
 
                             Row(
@@ -197,10 +217,10 @@ fun ShowDetailScreen(
                             }
 
                             // Season and Episode Slug positioned above Episode Name
-                            if (matchingShow.type != "movie") {
-                                val sNum = matchingShow.season ?: 1
-                                val eNum = matchingShow.episodeNumber ?: 1
-                                val (slugLabel, slugValue) = if (matchingShow.type == "anime") {
+                            if (activeItem.type != "movie") {
+                                val sNum = activeItem.season ?: 1
+                                val eNum = activeItem.episodeNumber ?: 1
+                                val (slugLabel, slugValue) = if (activeItem.type == "anime") {
                                     "Episode" to "Episode $eNum"
                                 } else {
                                     "Season & Episode" to String.format(Locale.US, "S%02dE%02d", sNum, eNum)
@@ -220,9 +240,9 @@ fun ShowDetailScreen(
                                     )
                                 }
 
-                                if (!matchingShow.episodeTitle.isNullOrBlank()) {
-                                    val titleText = matchingShow.episodeTitle
-                                    val isGenericAnimeTitle = matchingShow.type == "anime" && (
+                                if (!activeItem.episodeTitle.isNullOrBlank()) {
+                                    val titleText = activeItem.episodeTitle
+                                    val isGenericAnimeTitle = activeItem.type == "anime" && (
                                         titleText.equals("Episode $eNum", ignoreCase = true) ||
                                         titleText.equals("Ep $eNum", ignoreCase = true) ||
                                         titleText.equals("Ep. $eNum", ignoreCase = true)
@@ -248,10 +268,10 @@ fun ShowDetailScreen(
                             }
 
                             // Prem/Finale labels
-                            if (matchingShow.isSeasonPremiere || matchingShow.isSeasonFinale) {
-                                Divider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+                            if (activeItem.isSeasonPremiere || activeItem.isSeasonFinale) {
+                                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (matchingShow.isSeasonPremiere) {
+                                    if (activeItem.isSeasonPremiere) {
                                         Box(
                                             modifier = Modifier
                                                 .background(Color(0xFFE8DEF8), RoundedCornerShape(4.dp))
@@ -260,7 +280,7 @@ fun ShowDetailScreen(
                                             Text("🎉 SEASON PREMIERE", color = Color(0xFF1D192B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
-                                    if (matchingShow.isSeasonFinale) {
+                                    if (activeItem.isSeasonFinale) {
                                         Box(
                                             modifier = Modifier
                                                 .background(Color(0xFFB3261E), RoundedCornerShape(4.dp))
@@ -274,15 +294,107 @@ fun ShowDetailScreen(
                         }
                     }
 
+                    // If there are multiple scheduled episodes for this show, display an episode selector / list
+                    if (showScheduleItems.size > 1) {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+                            border = BorderStroke(1.dp, Color(0xFF49454F))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Scheduled Episodes (${showScheduleItems.size})",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFE6E1E5),
+                                    fontSize = 15.sp
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                showScheduleItems.forEach { epItem ->
+                                    val isSelected = epItem.primaryKey == activeItem.primaryKey
+                                    val s = epItem.season ?: 1
+                                    val e = epItem.episodeNumber ?: 1
+                                    val epTag = if (epItem.type == "anime") "Ep $e" else String.format(Locale.US, "S%02dE%02d", s, e)
+                                    val epDate = DateUtil.formatDisplayDateTime(epItem.date)
+
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSelected) Color(0xFF4F378B).copy(alpha = 0.4f) else Color(0xFF1C1B1F),
+                                        border = BorderStroke(
+                                            1.dp,
+                                            if (isSelected) Color(0xFFD0BCFF) else Color(0xFF3B383E)
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                            .clickable { activeItemKey = epItem.primaryKey }
+                                            .testTag("schedule_episode_row_${epItem.primaryKey}")
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF381E72),
+                                                    contentColor = if (isSelected) Color(0xFF381E72) else Color(0xFFEADDFF)
+                                                ) {
+                                                    Text(
+                                                        text = epTag,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 11.sp,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+
+                                                Column {
+                                                    Text(
+                                                        text = epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "Episode $e",
+                                                        color = Color(0xFFE6E1E5),
+                                                        fontSize = 13.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        maxLines = 1
+                                                    )
+                                                    Text(
+                                                        text = epDate,
+                                                        color = Color(0xFFA5A3B1),
+                                                        fontSize = 11.sp
+                                                    )
+                                                }
+                                            }
+
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.CheckCircle,
+                                                    contentDescription = "Currently Selected",
+                                                    tint = Color(0xFFD0BCFF),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Open on SIMKL Button
                     Button(
                         onClick = {
-                            val urlType = when (matchingShow.type) {
+                            val urlType = when (activeItem.type) {
                                 "movie", "movies" -> "movies"
                                 "anime" -> "anime"
                                 else -> "tv"
                             }
-                            val simklUrl = "https://simkl.com/$urlType/${matchingShow.id}"
+                            val simklUrl = "https://simkl.com/$urlType/${activeItem.id}"
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(simklUrl))
                             context.startActivity(intent)
                         },
@@ -296,7 +408,7 @@ fun ShowDetailScreen(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.OpenInNew,
+                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                             contentDescription = "Open on SIMKL",
                             modifier = Modifier.size(18.dp),
                             tint = Color(0xFFEADDFF)
@@ -313,13 +425,13 @@ fun ShowDetailScreen(
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
+                        border = BorderStroke(1.dp, Color(0xFF49454F))
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text("Notifications Strategy", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 15.sp)
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            if (matchingShow.type != "movie") {
+                            if (activeItem.type != "movie") {
                                 // Toggle every episode
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -335,9 +447,9 @@ fun ShowDetailScreen(
                                         onCheckedChange = { isChecked ->
                                             notifyEveryEpisode = isChecked
                                             viewModel.toggleNotification(
-                                                showId = matchingShow.id,
-                                                title = matchingShow.title,
-                                                type = matchingShow.type,
+                                                showId = activeItem.id,
+                                                title = activeItem.title,
+                                                type = activeItem.type,
                                                 notifyEp = isChecked,
                                                 notifyLast = notifyAiredLastEpisode
                                             )
@@ -346,7 +458,7 @@ fun ShowDetailScreen(
                                     )
                                 }
 
-                                Divider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+                                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
 
                                 // Toggle Ready to Binge
                                 Row(
@@ -363,9 +475,9 @@ fun ShowDetailScreen(
                                         onCheckedChange = { isChecked ->
                                             notifyAiredLastEpisode = isChecked
                                             viewModel.toggleNotification(
-                                                showId = matchingShow.id,
-                                                title = matchingShow.title,
-                                                type = matchingShow.type,
+                                                showId = activeItem.id,
+                                                title = activeItem.title,
+                                                type = activeItem.type,
                                                 notifyEp = notifyEveryEpisode,
                                                 notifyLast = isChecked
                                             )
@@ -388,9 +500,9 @@ fun ShowDetailScreen(
                                         onCheckedChange = { isChecked ->
                                             notifyEveryEpisode = isChecked
                                             viewModel.toggleNotification(
-                                                showId = matchingShow.id,
-                                                title = matchingShow.title,
-                                                type = matchingShow.type,
+                                                showId = activeItem.id,
+                                                title = activeItem.title,
+                                                type = activeItem.type,
                                                 notifyEp = isChecked,
                                                 notifyLast = notifyAiredLastEpisode
                                             )

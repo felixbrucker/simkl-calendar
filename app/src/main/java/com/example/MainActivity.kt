@@ -134,8 +134,9 @@ fun SimklCalendarApp(viewModel: CalendarViewModel) {
                     onNavigateToSettings = {
                         navController.navigate("settings")
                     },
-                    onNavigateToShowDetail = { showId ->
-                        navController.navigate("detail/$showId")
+                    onNavigateToShowDetail = { itemKey ->
+                        val encodedKey = java.net.URLEncoder.encode(itemKey, "UTF-8")
+                        navController.navigate("detail/$encodedKey")
                     }
                 )
             }
@@ -152,13 +153,18 @@ fun SimklCalendarApp(viewModel: CalendarViewModel) {
 
             // 4. Show Details screen
             composable(
-                route = "detail/{id}",
-                arguments = listOf(navArgument("id") { type = NavType.IntType })
+                route = "detail/{itemKey}",
+                arguments = listOf(navArgument("itemKey") { type = NavType.StringType })
             ) { backStackEntry ->
-                val showId = backStackEntry.arguments?.getInt("id") ?: 0
+                val rawKey = backStackEntry.arguments?.getString("itemKey") ?: ""
+                val itemKey = try {
+                    java.net.URLDecoder.decode(rawKey, "UTF-8")
+                } catch (_: Exception) {
+                    rawKey
+                }
                 ShowDetailScreen(
                     viewModel = viewModel,
-                    showId = showId,
+                    itemKey = itemKey,
                     onNavigateBack = {
                         navController.popBackStack()
                     }
