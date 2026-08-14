@@ -135,19 +135,6 @@ fun SettingsScreen(
                         fontSize = 13.sp,
                         lineHeight = 18.sp
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = {
-                            viewModel.syncLocalCalendar(force = true)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F378B)),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth().testTag("sync_now_button")
-                    ) {
-                        Icon(Icons.Default.Sync, contentDescription = "Sync Now", tint = Color(0xFFEADDFF), modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Sync Calendar Now", color = Color(0xFFEADDFF), fontWeight = FontWeight.SemiBold)
-                    }
                 }
             }
 
@@ -245,7 +232,7 @@ fun SettingsScreen(
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, size = 16.dp, tint = Color(0xFFE6E1E5))
+                        Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFE6E1E5))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Simulate Episode Alert", color = Color(0xFFE6E1E5))
                     }
@@ -271,7 +258,7 @@ fun SettingsScreen(
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Icon(Icons.Default.MovieFilter, contentDescription = null, size = 16.dp, tint = Color(0xFFD0BCFF))
+                        Icon(Icons.Default.MovieFilter, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFD0BCFF))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Simulate Ready-to-Binge Alert", color = Color(0xFFD0BCFF))
                     }

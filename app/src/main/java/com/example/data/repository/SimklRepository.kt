@@ -209,14 +209,22 @@ class SimklRepository(private val context: Context) {
         com.example.receiver.NotificationScheduler.scheduleNotificationsForShow(context, showId)
     }
 
+    suspend fun getActiveUserToken(): UserToken? = withContext(Dispatchers.IO) {
+        tokenDao.getActiveToken()
+    }
+
     suspend fun getSettingForShow(showId: Int): NotificationSetting? = withContext(Dispatchers.IO) {
         settingDao.getSettingForShow(showId)
     }
 
     suspend fun syncCalendar(force: Boolean = false) = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken()
+        if (userToken == null || userToken.accessToken.isNullOrEmpty()) {
+            Log.d("SimklRepository", "No authenticated user token found, skipping sync.")
+            return@withContext
+        }
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
-        val bearer = userToken?.accessToken?.takeIf { it.isNotEmpty() }?.let { "Bearer $it" }
+        val bearer = "Bearer ${userToken.accessToken}"
 
         // Two-Phase Sync for authenticated users
         if (bearer != null) {

@@ -79,12 +79,21 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val syncError: StateFlow<String?> = _syncError.asStateFlow()
 
     init {
-        // Automatically sync calendar on launch (fallbacks to demo if unlogged)
-        syncLocalCalendar()
+        // Automatically sync calendar on launch only if user is logged in
+        viewModelScope.launch {
+            val token = repository.getActiveUserToken()
+            if (token != null && !token.accessToken.isNullOrEmpty()) {
+                syncLocalCalendar()
+            }
+        }
     }
 
     fun syncLocalCalendar(force: Boolean = false) {
         viewModelScope.launch {
+            val token = repository.getActiveUserToken()
+            if (token == null || token.accessToken.isNullOrEmpty()) {
+                return@launch
+            }
             _isSyncing.value = true
             _syncError.value = null
             try {

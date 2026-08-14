@@ -7,11 +7,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,16 +94,6 @@ fun CalendarScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = { viewModel.syncLocalCalendar(force = true) },
-                        modifier = Modifier.testTag("refresh_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Sync database",
-                            tint = Color.White
-                        )
-                    }
-                    IconButton(
                         onClick = onNavigateToSettings,
                         modifier = Modifier.testTag("settings_button")
                     ) {
@@ -119,120 +112,114 @@ fun CalendarScreen(
         },
         containerColor = Color(0xFF1C1B1F)
     ) { innerPadding ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = isSyncing,
+            onRefresh = { viewModel.syncLocalCalendar(force = true) },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .testTag("pull_to_refresh_box")
         ) {
-            // Toggles / Chip Filtering Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.fillMaxSize()
             ) {
-                // TV Toggle
-                FilterChip(
-                    selected = tvFilter,
-                    onClick = { viewModel.showTv.value = !tvFilter },
-                    label = { Text("TV") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFBAC3FF),
-                        selectedLabelColor = Color(0xFF1A237E),
-                        containerColor = Color(0xFF313033),
-                        labelColor = Color(0xFFCAC4D0)
-                    ),
-                    modifier = Modifier.testTag("filter_tv_toggle")
-                )
-                
-                // Anime Toggle
-                FilterChip(
-                    selected = animeFilter,
-                    onClick = { viewModel.showAnime.value = !animeFilter },
-                    label = { Text("Anime") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFE8DEF8),
-                        selectedLabelColor = Color(0xFF1D192B),
-                        containerColor = Color(0xFF313033),
-                        labelColor = Color(0xFFCAC4D0)
-                    ),
-                    modifier = Modifier.testTag("filter_anime_toggle")
-                )
-
-                // Movies Toggle
-                FilterChip(
-                    selected = moviesFilter,
-                    onClick = { viewModel.showMovies.value = !moviesFilter },
-                    label = { Text("Movies") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFF2B8B5),
-                        selectedLabelColor = Color(0xFF601410),
-                        containerColor = Color(0xFF313033),
-                        labelColor = Color(0xFFCAC4D0)
-                    ),
-                    modifier = Modifier.testTag("filter_movies_toggle")
-                )
-            }
-
-            // Subtype Row filters (Season Premiere / Season Finale highlights)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = premieresOnly,
-                    onClick = { viewModel.onlySeasonPremieres.value = !premieresOnly },
-                    label = { Text("Season Premiere 🎉") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFE8DEF8),
-                        selectedLabelColor = Color(0xFF1D192B),
-                        containerColor = Color(0xFF313033),
-                        labelColor = Color(0xFFCAC4D0)
-                    ),
-                    modifier = Modifier.testTag("filter_premieres_toggle")
-                )
-
-                FilterChip(
-                    selected = finalesOnly,
-                    onClick = { viewModel.onlySeasonFinales.value = !finalesOnly },
-                    label = { Text("Season Finale 🍿") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFB3261E),
-                        selectedLabelColor = Color.White,
-                        containerColor = Color(0xFF313033),
-                        labelColor = Color(0xFFCAC4D0)
-                    ),
-                    modifier = Modifier.testTag("filter_finales_toggle")
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Syncing indicator
-            AnimatedVisibility(
-                visible = isSyncing,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                LinearProgressIndicator(
-                    color = Color(0xFFD0BCFF),
-                    trackColor = Color(0xFF49454F),
-                    modifier = Modifier.fillMaxWidth().height(4.dp)
-                )
-            }
-
-            // Calendar Group list
-            if (items.isEmpty()) {
-                Box(
+                // Toggles / Chip Filtering Bar
+                Row(
                     modifier = Modifier
-                        .weight(1f)
                         .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // TV Toggle
+                    FilterChip(
+                        selected = tvFilter,
+                        onClick = { viewModel.showTv.value = !tvFilter },
+                        label = { Text("TV") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFBAC3FF),
+                            selectedLabelColor = Color(0xFF1A237E),
+                            containerColor = Color(0xFF313033),
+                            labelColor = Color(0xFFCAC4D0)
+                        ),
+                        modifier = Modifier.testTag("filter_tv_toggle")
+                    )
+                    
+                    // Anime Toggle
+                    FilterChip(
+                        selected = animeFilter,
+                        onClick = { viewModel.showAnime.value = !animeFilter },
+                        label = { Text("Anime") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFE8DEF8),
+                            selectedLabelColor = Color(0xFF1D192B),
+                            containerColor = Color(0xFF313033),
+                            labelColor = Color(0xFFCAC4D0)
+                        ),
+                        modifier = Modifier.testTag("filter_anime_toggle")
+                    )
+
+                    // Movies Toggle
+                    FilterChip(
+                        selected = moviesFilter,
+                        onClick = { viewModel.showMovies.value = !moviesFilter },
+                        label = { Text("Movies") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFF2B8B5),
+                            selectedLabelColor = Color(0xFF601410),
+                            containerColor = Color(0xFF313033),
+                            labelColor = Color(0xFFCAC4D0)
+                        ),
+                        modifier = Modifier.testTag("filter_movies_toggle")
+                    )
+                }
+
+                // Subtype Row filters (Season Premiere / Season Finale highlights)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = premieresOnly,
+                        onClick = { viewModel.onlySeasonPremieres.value = !premieresOnly },
+                        label = { Text("Season Premiere 🎉") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFE8DEF8),
+                            selectedLabelColor = Color(0xFF1D192B),
+                            containerColor = Color(0xFF313033),
+                            labelColor = Color(0xFFCAC4D0)
+                        ),
+                        modifier = Modifier.testTag("filter_premieres_toggle")
+                    )
+
+                    FilterChip(
+                        selected = finalesOnly,
+                        onClick = { viewModel.onlySeasonFinales.value = !finalesOnly },
+                        label = { Text("Season Finale 🍿") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFB3261E),
+                            selectedLabelColor = Color.White,
+                            containerColor = Color(0xFF313033),
+                            labelColor = Color(0xFFCAC4D0)
+                        ),
+                        modifier = Modifier.testTag("filter_finales_toggle")
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Calendar Group list
+                if (items.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             imageVector = Icons.Default.CalendarToday,
@@ -299,7 +286,7 @@ fun CalendarScreen(
                                             imageVector = Icons.Default.History,
                                             contentDescription = null,
                                             tint = Color(0xFFD0BCFF),
-                                            size = 20.dp
+                                            modifier = Modifier.size(20.dp)
                                         )
                                         Column {
                                             Text(
@@ -319,7 +306,7 @@ fun CalendarScreen(
                                         imageVector = if (showEarlierReleases) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                         contentDescription = if (showEarlierReleases) "Collapse earlier releases" else "Expand earlier releases",
                                         tint = Color(0xFFD0BCFF),
-                                        size = 24.dp
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             }
@@ -396,7 +383,7 @@ fun CalendarScreen(
                                         imageVector = Icons.Default.EventAvailable,
                                         contentDescription = null,
                                         tint = Color(0xFF3E3D4F),
-                                        size = 48.dp
+                                        modifier = Modifier.size(48.dp)
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
@@ -417,6 +404,7 @@ fun CalendarScreen(
             }
         }
     }
+}
 }
 
 @Composable
@@ -551,7 +539,7 @@ fun CalendarItemCard(
                             Icon(
                                 imageVector = Icons.Default.Schedule,
                                 contentDescription = "Air Time",
-                                size = 13.dp,
+                                modifier = Modifier.size(13.dp),
                                 tint = Color(0xFFD0BCFF)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -574,7 +562,7 @@ fun CalendarItemCard(
                             .background(Color(0xFF381E72), RoundedCornerShape(4.dp))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Icon(Icons.Default.Movie, contentDescription = null, size = 12.dp, tint = Color(0xFFD0BCFF))
+                        Icon(Icons.Default.Movie, contentDescription = null, modifier = Modifier.size(12.dp), tint = Color(0xFFD0BCFF))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("🍿 READY TO BINGE", fontSize = 10.sp, color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold)
                     }
@@ -582,15 +570,4 @@ fun CalendarItemCard(
             }
         }
     }
-}
-
-// Utility icon size modifier helper
-@Composable
-fun Icon(imageVector: ImageVector, contentDescription: String?, size: androidx.compose.ui.unit.Dp, tint: Color) {
-    Icon(
-        imageVector = imageVector,
-        contentDescription = contentDescription,
-        tint = tint,
-        modifier = Modifier.size(size)
-    )
 }
