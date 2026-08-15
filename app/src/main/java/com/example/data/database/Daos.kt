@@ -26,7 +26,7 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items ORDER BY date ASC")
     suspend fun getAllCalendarItemsList(): List<CalendarItem>
 
-    @Query("SELECT * FROM calendar_items WHERE id = :showId ORDER BY date ASC")
+    @Query("SELECT * FROM calendar_items WHERE id = :showId OR simklId = :showId ORDER BY date ASC")
     suspend fun getItemsForShow(showId: Int): List<CalendarItem>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -40,6 +40,12 @@ interface CalendarItemDao {
 
     @Query("UPDATE calendar_items SET isNotified = 1 WHERE primaryKey = :primaryKey")
     suspend fun markItemAsNotified(primaryKey: String)
+
+    @Query("UPDATE calendar_items SET isNotified = 0 WHERE id = :showId OR simklId = :showId")
+    suspend fun resetNotifiedForShow(showId: Int)
+
+    @Query("UPDATE calendar_items SET isNotified = 0")
+    suspend fun resetAllNotified()
 }
 
 @Dao

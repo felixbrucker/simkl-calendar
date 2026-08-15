@@ -19,7 +19,7 @@ class SyncCalendarWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        Log.d(TAG, "Starting periodic background calendar synchronization (every 12h)")
+        Log.d(TAG, "Starting periodic background calendar synchronization")
         return try {
             val repository = SimklRepository(applicationContext)
             // Perform full calendar synchronization
@@ -41,24 +41,24 @@ class SyncCalendarWorker(
         const val UNIQUE_WORK_NAME = "simkl_periodic_calendar_sync"
 
         /**
-         * Enqueues a periodic background sync every 12 hours with network connectivity requirement.
-         * Runs reliably even when the app is completely closed.
+         * Enqueues a periodic background sync every 1 hour with network connectivity requirement.
+         * Runs reliably even when the app is in background or closed.
          */
         fun enqueuePeriodicSync(context: Context) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
 
-            val syncRequest = PeriodicWorkRequestBuilder<SyncCalendarWorker>(12, TimeUnit.HOURS)
+            val syncRequest = PeriodicWorkRequestBuilder<SyncCalendarWorker>(1, TimeUnit.HOURS)
                 .setConstraints(constraints)
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 syncRequest
             )
-            Log.d(TAG, "Enqueued 12-hour periodic background calendar sync work")
+            Log.d(TAG, "Enqueued 1-hour periodic background calendar sync work")
         }
     }
 }

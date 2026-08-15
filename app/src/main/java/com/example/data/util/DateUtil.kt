@@ -65,15 +65,25 @@ object DateUtil {
 
     /**
      * Converts an ISO date or date/time string to epoch millis.
-     * If the string has only a date without time, it defaults to 9:00 AM on that day in local time.
+     * If the string has only a date or midnight placeholder, it defaults to 9:00 AM on that day in local time.
+     * If an explicit hour is provided (e.g. 14:30:00 UTC or ISO timestamp), it preserves that exact UTC timestamp.
      */
     fun parseToEpochMillis(isoDateStr: String?): Long? {
         if (isoDateStr.isNullOrBlank()) return null
         val trimmed = isoDateStr.trim()
 
-        val date = parseDate(trimmed)
-        if (date != null && (trimmed.contains("T") || trimmed.contains(":") || trimmed.length > 10)) {
-            return date.time
+        val isMidnightOrDateOnly = trimmed.length <= 10 ||
+                trimmed.endsWith("00:00:00") ||
+                trimmed.endsWith("00:00:00Z") ||
+                trimmed.endsWith("T00:00:00") ||
+                trimmed.endsWith("T00:00:00Z") ||
+                trimmed.endsWith("00:00")
+
+        if (!isMidnightOrDateOnly) {
+            val date = parseDate(trimmed)
+            if (date != null) {
+                return date.time
+            }
         }
 
         val ymd = normalizeDate(trimmed)
@@ -95,16 +105,20 @@ object DateUtil {
             }
         }
 
-        return date?.time
+        return parseDate(trimmed)?.time
     }
 
     /**
      * Extracts localized time (e.g. "4:00 AM" or "16:00" in local timezone).
-     * Returns null if only a date without time was provided.
+     * Returns null if only a date without specific airing time was provided.
      */
     fun formatLocalizedTime(isoDateStr: String?): String? {
         if (isoDateStr.isNullOrBlank() || isoDateStr.trim().length <= 10) return null
-        val date = parseDate(isoDateStr) ?: return null
+        val trimmed = isoDateStr.trim()
+        if (trimmed.endsWith("00:00:00") || trimmed.endsWith("00:00:00Z") || trimmed.endsWith("T00:00:00") || trimmed.endsWith("T00:00:00Z")) {
+            return null
+        }
+        val date = parseDate(trimmed) ?: return null
         val timeFormat = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT, Locale.getDefault())
         return timeFormat.format(date)
     }
