@@ -14,6 +14,9 @@ import com.example.data.database.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.core.content.ContextCompat
+import com.example.R
+import android.widget.Toast
 import java.util.Locale
 
 class NotificationReceiver : BroadcastReceiver() {
@@ -87,6 +90,20 @@ class NotificationReceiver : BroadcastReceiver() {
         fun showNotification(context: Context, title: String, message: String, notificationId: Int) {
             createNotificationChannel(context)
 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ContextCompat.checkSelfPermission(
+                        context,
+                        android.Manifest.permission.POST_NOTIFICATIONS
+                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    Log.w(TAG, "POST_NOTIFICATIONS permission not granted. Cannot display notification.")
+                    CoroutineScope(Dispatchers.Main).launch {
+                        Toast.makeText(context, "Notification permission required to display alert", Toast.LENGTH_SHORT).show()
+                    }
+                    return
+                }
+            }
+
             val openIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
@@ -98,7 +115,7 @@ class NotificationReceiver : BroadcastReceiver() {
             )
 
             val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))
@@ -109,8 +126,13 @@ class NotificationReceiver : BroadcastReceiver() {
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
 
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.notify(notificationId, builder.build())
+            try {
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.notify(notificationId, builder.build())
+                Log.d(TAG, "Successfully displayed notification id=$notificationId: $title")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error posting notification", e)
+            }
         }
 
         fun triggerEpisodeNotification(context: Context, showTitle: String, episodeName: String?, season: Int?, episodeNumber: Int?, isLastEpisode: Boolean) {

@@ -161,33 +161,14 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun testTriggerNotification(item: CalendarItem) {
         viewModelScope.launch {
-            val setting = repository.getSettingForShow(item.id)
-            val notifyEveryEp = setting?.notifyEveryEpisode ?: false
-            val notifyBinge = setting?.notifyAiredLastEpisode ?: true
-
-            if (item.isLastEpisode) {
-                if (notifyBinge) {
-                    NotificationReceiver.triggerEpisodeNotification(
-                        getApplication(),
-                        showTitle = item.title,
-                        episodeName = item.episodeTitle,
-                        season = item.season,
-                        episodeNumber = item.episodeNumber,
-                        isLastEpisode = true
-                    )
-                }
-            } else {
-                if (notifyEveryEp) {
-                    NotificationReceiver.triggerEpisodeNotification(
-                        getApplication(),
-                        showTitle = item.title,
-                        episodeName = item.episodeTitle,
-                        season = item.season,
-                        episodeNumber = item.episodeNumber,
-                        isLastEpisode = false
-                    )
-                }
-            }
+            NotificationReceiver.triggerEpisodeNotification(
+                getApplication(),
+                showTitle = item.title,
+                episodeName = item.episodeTitle,
+                season = item.season,
+                episodeNumber = item.episodeNumber,
+                isLastEpisode = item.isLastEpisode
+            )
         }
     }
 }

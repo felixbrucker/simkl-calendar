@@ -205,16 +205,14 @@ fun SettingsScreen(
                     Button(
                         onClick = {
                             checkAndRequestPermission()
-                            if (enableGlobalAlerts) {
-                                NotificationReceiver.triggerEpisodeNotification(
-                                    context,
-                                    showTitle = "Demon Slayer",
-                                    episodeName = "The Pillars Gather",
-                                    season = 5,
-                                    episodeNumber = 1,
-                                    isLastEpisode = false
-                                )
-                            }
+                            NotificationReceiver.triggerEpisodeNotification(
+                                context,
+                                showTitle = "Demon Slayer: Kimetsu no Yaiba",
+                                episodeName = "The Hashira Training",
+                                season = 4,
+                                episodeNumber = 1,
+                                isLastEpisode = false
+                            )
                         },
                         modifier = Modifier.fillMaxWidth().testTag("simulate_episode_alert_button"),
                         colors = ButtonDefaults.buttonColors(
@@ -231,16 +229,14 @@ fun SettingsScreen(
                     Button(
                         onClick = {
                             checkAndRequestPermission()
-                            if (enableBingeAlerts) {
-                                NotificationReceiver.triggerEpisodeNotification(
-                                    context,
-                                    showTitle = "Succession",
-                                    episodeName = "With Open Eyes",
-                                    season = 4,
-                                    episodeNumber = 10,
-                                    isLastEpisode = true
-                                )
-                            }
+                            NotificationReceiver.triggerEpisodeNotification(
+                                context,
+                                showTitle = "Succession",
+                                episodeName = "With Open Eyes",
+                                season = 4,
+                                episodeNumber = 10,
+                                isLastEpisode = true
+                            )
                         },
                         modifier = Modifier.fillMaxWidth().testTag("simulate_binge_alert_button"),
                         colors = ButtonDefaults.buttonColors(
