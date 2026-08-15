@@ -153,6 +153,12 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun rescheduleAllNotifications() {
+        viewModelScope.launch {
+            com.example.receiver.NotificationScheduler.scheduleAllNotifications(getApplication())
+        }
+    }
+
     fun testTriggerNotification(item: CalendarItem) {
         viewModelScope.launch {
             val setting = repository.getSettingForShow(item.id)

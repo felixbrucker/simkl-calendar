@@ -47,11 +47,6 @@ class NotificationReceiver : BroadcastReceiver() {
             try {
                 if (itemKey != null) {
                     val db = AppDatabase.getDatabase(context)
-                    val item = db.calendarItemDao().findItem(itemKey)
-                    if (item != null && item.isNotified) {
-                        Log.d(TAG, "Item $itemKey already marked notified in database, skipping duplicate.")
-                        return@launch
-                    }
                     db.calendarItemDao().markItemAsNotified(itemKey)
                 }
                 showNotification(context, title, message, id)
@@ -80,6 +75,9 @@ class NotificationReceiver : BroadcastReceiver() {
                 val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                     description = descriptionText
                     enableVibration(true)
+                    enableLights(true)
+                    setShowBadge(true)
+                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 }
                 val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 notificationManager.createNotificationChannel(channel)
@@ -105,6 +103,9 @@ class NotificationReceiver : BroadcastReceiver() {
                 .setContentText(message)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
 

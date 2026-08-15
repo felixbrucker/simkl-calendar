@@ -39,9 +39,12 @@ object DateUtil {
         val patterns = listOf(
             "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
             "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
             "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
             "yyyy-MM-dd'T'HH:mm:ss",
             "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm",
             "yyyy-MM-dd",
             "MM/dd/yyyy"
         )
@@ -49,7 +52,7 @@ object DateUtil {
         for (pattern in patterns) {
             try {
                 val sdf = SimpleDateFormat(pattern, Locale.US)
-                if (pattern.endsWith("'Z'") || pattern == "yyyy-MM-dd HH:mm:ss" || pattern.contains("'T'")) {
+                if (pattern.endsWith("'Z'") || pattern == "yyyy-MM-dd HH:mm:ss" || pattern == "yyyy-MM-dd HH:mm" || (pattern.contains("'T'") && !pattern.contains("XXX"))) {
                     sdf.timeZone = TimeZone.getTimeZone("UTC")
                 }
                 val date = sdf.parse(trimmed)

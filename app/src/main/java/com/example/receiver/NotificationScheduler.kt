@@ -58,11 +58,20 @@ object NotificationScheduler {
             val settings = db.notificationSettingDao().getAllSettingsList()
             val settingsMap = settings.associateBy { it.showId }
             val allItems = db.calendarItemDao().getAllCalendarItemsList()
+            val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+            val globalAiring = prefs.getBoolean("global_airing_alerts", false)
+            val globalBinge = prefs.getBoolean("global_binge_alerts", true)
 
             Log.d(TAG, "Scheduling notifications: found ${settings.size} show settings and ${allItems.size} calendar items")
 
             for (item in allItems) {
-                val setting = settingsMap[item.id] ?: continue
+                val setting = settingsMap[item.id] ?: NotificationSetting(
+                    showId = item.id,
+                    showTitle = item.title,
+                    type = item.type,
+                    notifyEveryEpisode = globalAiring,
+                    notifyAiredLastEpisode = globalBinge
+                )
                 scheduleOrDispatchItem(context, db, item, setting)
             }
         } catch (e: Exception) {
@@ -131,9 +140,9 @@ object NotificationScheduler {
                 notificationId = notificationId
             )
         } else {
-            // Already reached air time -> if recent (within 12 hours) and not yet notified in DB, trigger immediately
-            val twelveHoursMillis = 12 * 60 * 60 * 1000L
-            if ((now - triggerTime) < twelveHoursMillis && !item.isNotified) {
+            // Already reached air time -> if recent (within 24 hours) and not yet notified in DB, trigger immediately
+            val twentyFourHoursMillis = 24 * 60 * 60 * 1000L
+            if ((now - triggerTime) < twentyFourHoursMillis && !item.isNotified) {
                 NotificationReceiver.showNotification(context, title, message, notificationId)
                 db.calendarItemDao().markItemAsNotified(item.primaryKey)
                 Log.d(TAG, "Dispatched immediate notification for recently reached air date: ${item.title}")
@@ -167,15 +176,31 @@ object NotificationScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val showIntent = Intent(context, com.example.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val showPendingIntent = PendingIntent.getActivity(
+            context,
+            requestCode,
+            showIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                    try {
+                        val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerAtMillis, showPendingIntent)
+                        alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+                    } catch (_: Exception) {
+                        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                    }
                 } else {
                     alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
                 }
             } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerAtMillis, showPendingIntent)
+                alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
             }
             Log.d(TAG, "Scheduled air date alarm for '$title' at timestamp $triggerAtMillis (key=$itemKey)")
         } catch (e: Exception) {

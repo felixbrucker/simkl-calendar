@@ -1,7 +1,12 @@
 package com.example.ui.screens
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.example.data.database.CalendarItem
 import com.example.data.util.DateUtil
@@ -42,6 +48,18 @@ fun ShowDetailScreen(
 ) {
     val context = LocalContext.current
     val allItems by viewModel.allCalendarItems.collectAsState()
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { /* Permission callback */ }
+
+    fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
 
     var activeItemKey by remember(itemKey) { mutableStateOf(itemKey) }
 
@@ -446,6 +464,7 @@ fun ShowDetailScreen(
                                         checked = notifyEveryEpisode,
                                         onCheckedChange = { isChecked ->
                                             notifyEveryEpisode = isChecked
+                                            if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
                                                 showId = activeItem.id,
                                                 title = activeItem.title,
@@ -474,6 +493,7 @@ fun ShowDetailScreen(
                                         checked = notifyAiredLastEpisode,
                                         onCheckedChange = { isChecked ->
                                             notifyAiredLastEpisode = isChecked
+                                            if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
                                                 showId = activeItem.id,
                                                 title = activeItem.title,
@@ -499,6 +519,7 @@ fun ShowDetailScreen(
                                         checked = notifyEveryEpisode,
                                         onCheckedChange = { isChecked ->
                                             notifyEveryEpisode = isChecked
+                                            if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
                                                 showId = activeItem.id,
                                                 title = activeItem.title,

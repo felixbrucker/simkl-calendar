@@ -48,9 +48,13 @@ fun SettingsScreen(
         }
     }
 
-    // Global toggle simulations stored as standard Compose states or can hook to datastore
-    var enableGlobalAlerts by remember { mutableStateOf(false) }
-    var enableBingeAlerts by remember { mutableStateOf(true) }
+    val prefs = remember { context.getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE) }
+    var enableGlobalAlerts by remember {
+        mutableStateOf(prefs.getBoolean("global_airing_alerts", false))
+    }
+    var enableBingeAlerts by remember {
+        mutableStateOf(prefs.getBoolean("global_binge_alerts", true))
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -147,7 +151,9 @@ fun SettingsScreen(
                             checked = enableGlobalAlerts,
                             onCheckedChange = { 
                                 enableGlobalAlerts = it
+                                prefs.edit().putBoolean("global_airing_alerts", it).apply()
                                 if (it) checkAndRequestPermission()
+                                viewModel.rescheduleAllNotifications()
                             },
                             modifier = Modifier.testTag("air_notification_switch")
                         )
@@ -171,7 +177,9 @@ fun SettingsScreen(
                             checked = enableBingeAlerts,
                             onCheckedChange = { 
                                 enableBingeAlerts = it
+                                prefs.edit().putBoolean("global_binge_alerts", it).apply()
                                 if (it) checkAndRequestPermission()
+                                viewModel.rescheduleAllNotifications()
                             },
                             modifier = Modifier.testTag("binge_notification_switch")
                         )
