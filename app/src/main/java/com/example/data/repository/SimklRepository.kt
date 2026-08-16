@@ -382,7 +382,7 @@ class SimklRepository(private val context: Context) {
                                 entry.date ?: return@forEach
                             }
 
-                            val normalizedDate = DateUtil.normalizeDate(rawDateStr) ?: return@forEach
+                            val instant = DateUtil.parseToInstant(rawDateStr) ?: return@forEach
 
                             // If user is authenticated, only include items from their watchlist ("watching" and "plan to watch")
                             if (bearer != null) {
@@ -414,10 +414,10 @@ class SimklRepository(private val context: Context) {
                             val posterRaw = meta?.poster ?: allTrackedItems.find { it.id == simklId }?.poster
                             val posterUrl = ImageUtil.formatPosterUrl(posterRaw)
 
-                            val keyUnique = "v2_${simklId}_${seasonNum ?: 0}_${epNum ?: 0}_$normalizedDate"
+                            val keyUnique = "v2_${simklId}_${seasonNum ?: 0}_${epNum ?: 0}_${instant.toEpochMilli()}"
 
                             val alreadyAdded = dbItems.any {
-                                it.primaryKey == keyUnique || (it.id == simklId && it.season == seasonNum && it.episodeNumber == epNum && DateUtil.normalizeDate(it.date) == normalizedDate)
+                                it.primaryKey == keyUnique || (it.id == simklId && it.season == seasonNum && it.episodeNumber == epNum && it.date == instant)
                             }
 
                             if (!alreadyAdded) {
@@ -429,7 +429,7 @@ class SimklRepository(private val context: Context) {
                                         episodeTitle = epTitle,
                                         season = seasonNum,
                                         episodeNumber = epNum,
-                                        date = rawDateStr,
+                                        date = instant,
                                         type = defaultType,
                                         isSeasonPremiere = isPremiere,
                                         isSeasonFinale = isFinale,

@@ -86,8 +86,8 @@ fun ShowDetailScreen(
     }
 
     val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
-    val defaultAiring = prefs.getBoolean("default_notify_airing", prefs.getBoolean("global_airing_alerts", false))
-    val defaultBinge = prefs.getBoolean("default_notify_binge", prefs.getBoolean("global_binge_alerts", true))
+    val defaultAiring = prefs.getBoolean("default_notify_airing", false)
+    val defaultBinge = prefs.getBoolean("default_notify_binge", true)
 
     // Individual notification toggle flows
     var notifyEveryEpisode by remember(showSetting, defaultAiring) {

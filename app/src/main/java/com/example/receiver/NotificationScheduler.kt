@@ -59,8 +59,8 @@ object NotificationScheduler {
             val settingsMap = settings.associateBy { it.showId }
             val allItems = db.calendarItemDao().getAllCalendarItemsList()
             val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
-            val defaultAiring = prefs.getBoolean("default_notify_airing", prefs.getBoolean("global_airing_alerts", false))
-            val defaultBinge = prefs.getBoolean("default_notify_binge", prefs.getBoolean("global_binge_alerts", true))
+            val defaultAiring = prefs.getBoolean("default_notify_airing", false)
+            val defaultBinge = prefs.getBoolean("default_notify_binge", true)
 
             Log.d(TAG, "Scheduling notifications: found ${settings.size} custom show settings and ${allItems.size} calendar items")
 
@@ -129,7 +129,16 @@ object NotificationScheduler {
             return
         }
 
-        val triggerTime = DateUtil.parseToEpochMillis(item.date) ?: return
+        val triggerTime = if (item.type == "movie") {
+            item.date.atZone(java.time.ZoneId.systemDefault())
+                .toLocalDate()
+                .atTime(9, 0)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+        } else {
+            item.date.toEpochMilli()
+        }
         val now = System.currentTimeMillis()
         val (title, message) = formatNotificationContent(item, isFinale)
         val notificationId = Math.abs(item.primaryKey.hashCode())

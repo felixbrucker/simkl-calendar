@@ -2,6 +2,7 @@ package com.example.data.database
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.time.Instant
 
 @Entity(tableName = "user_token")
 data class UserToken(
@@ -13,13 +14,13 @@ data class UserToken(
 
 @Entity(tableName = "calendar_items")
 data class CalendarItem(
-    @PrimaryKey val primaryKey: String, // Constructed as "showId_season_episode_date" or movie "movieId_date"
+    @PrimaryKey val primaryKey: String, // Constructed as "v2_showId_season_episode_epoch" or movie "v2_movieId_epoch"
     val id: Int, // Simkl main ID
     val title: String, // Show or Movie title
     val episodeTitle: String?, // Episode title (null for movies)
     val season: Int?, // Season number (null for movies)
     val episodeNumber: Int?, // Episode number (null for movies)
-    val date: String, // Air date/time string, e.g. "YYYY-MM-DD HH:MM:SS"
+    val date: Instant, // Full air date/time as native Instant object
     val type: String, // "tv", "anime", "movie"
     val isSeasonPremiere: Boolean,
     val isSeasonFinale: Boolean,

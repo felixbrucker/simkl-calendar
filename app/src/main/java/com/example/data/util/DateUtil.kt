@@ -1,225 +1,117 @@
 package com.example.data.util
 
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.time.temporal.ChronoUnit
 import java.util.Locale
-import java.util.TimeZone
 
 object DateUtil {
 
     /**
-     * Extracts the standard YYYY-MM-DD date from ISO-8601 timestamps (e.g. "2026-08-12T04:00:00Z", "2026-08-12") or MM/dd/yyyy.
+     * Parses an ISO 8601 date/time string into a native Instant object.
+     * Uses standard ISO 8601 parsers without manual string slicing:
+     * - Standard ISO 8601 UTC / Offset timestamps (e.g. "2026-08-22T20:30:00Z", "2026-08-22T20:30:00+00:00")
+     * - Date-only strings (e.g. movie DVD release date "2026-08-22")
+     * - ISO date-time variations with space separator (e.g. "2026-08-22 20:30:00")
      */
-    fun normalizeDate(isoDateStr: String?): String? {
-        if (isoDateStr.isNullOrBlank()) return null
-        val trimmed = isoDateStr.trim()
-        if (trimmed.length >= 10 && trimmed[4] == '-' && trimmed[7] == '-') {
-            return trimmed.substring(0, 10)
-        }
-        if (trimmed.length >= 10 && trimmed[2] == '/' && trimmed[5] == '/') {
+    fun parseToInstant(rawDateStr: String?): Instant? {
+        if (rawDateStr.isNullOrBlank()) return null
+        val trimmed = rawDateStr.trim()
+        return try {
+            Instant.parse(trimmed)
+        } catch (_: Exception) {
             try {
-                val inSdf = SimpleDateFormat("MM/dd/yyyy", Locale.US)
-                val outSdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                val parsed = inSdf.parse(trimmed.substring(0, 10))
-                if (parsed != null) return outSdf.format(parsed)
+                OffsetDateTime.parse(trimmed).toInstant()
             } catch (_: Exception) {
-            }
-        }
-        return trimmed
-    }
-
-    /**
-     * Parses an ISO date/time string into a Date object.
-     */
-    fun parseDate(isoDateStr: String?): Date? {
-        if (isoDateStr.isNullOrBlank()) return null
-        val trimmed = isoDateStr.trim()
-
-        val patterns = listOf(
-            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-            "yyyy-MM-dd'T'HH:mm:ssXXX",
-            "yyyy-MM-dd'T'HH:mm:ss.SSS",
-            "yyyy-MM-dd'T'HH:mm:ss",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd HH:mm",
-            "yyyy-MM-dd",
-            "MM/dd/yyyy"
-        )
-
-        for (pattern in patterns) {
-            try {
-                val sdf = SimpleDateFormat(pattern, Locale.US)
-                if (pattern.endsWith("'Z'") || pattern == "yyyy-MM-dd HH:mm:ss" || pattern == "yyyy-MM-dd HH:mm" || (pattern.contains("'T'") && !pattern.contains("XXX"))) {
-                    sdf.timeZone = TimeZone.getTimeZone("UTC")
-                }
-                val date = sdf.parse(trimmed)
-                if (date != null) return date
-            } catch (_: Exception) {
-            }
-        }
-        return null
-    }
-
-    /**
-     * Converts an ISO date or date/time string to epoch millis.
-     * If the string has only a date or midnight placeholder, it defaults to 9:00 AM on that day in local time.
-     * If an explicit hour is provided (e.g. 14:30:00 UTC or ISO timestamp), it preserves that exact UTC timestamp.
-     */
-    fun parseToEpochMillis(isoDateStr: String?): Long? {
-        if (isoDateStr.isNullOrBlank()) return null
-        val trimmed = isoDateStr.trim()
-
-        val isMidnightOrDateOnly = trimmed.length <= 10 ||
-                trimmed.endsWith("00:00:00") ||
-                trimmed.endsWith("00:00:00Z") ||
-                trimmed.endsWith("T00:00:00") ||
-                trimmed.endsWith("T00:00:00Z") ||
-                trimmed.endsWith("00:00")
-
-        if (!isMidnightOrDateOnly) {
-            val date = parseDate(trimmed)
-            if (date != null) {
-                return date.time
-            }
-        }
-
-        val ymd = normalizeDate(trimmed)
-        if (ymd != null) {
-            try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                val parsed = sdf.parse(ymd)
-                if (parsed != null) {
-                    val cal = Calendar.getInstance().apply {
-                        time = parsed
-                        set(Calendar.HOUR_OF_DAY, 9)
-                        set(Calendar.MINUTE, 0)
-                        set(Calendar.SECOND, 0)
-                        set(Calendar.MILLISECOND, 0)
+                try {
+                    // Date-only ISO format (e.g., movie DVD release date "2026-08-22")
+                    LocalDate.parse(trimmed).atStartOfDay(ZoneId.systemDefault()).toInstant()
+                } catch (_: Exception) {
+                    try {
+                        val isoFormatted = trimmed.replace(" ", "T")
+                        if (isoFormatted.contains("T")) {
+                            if (!isoFormatted.endsWith("Z") && !isoFormatted.contains("+") && !isoFormatted.substringAfter("T").contains("-")) {
+                                LocalDateTime.parse(isoFormatted).atZone(ZoneOffset.UTC).toInstant()
+                            } else {
+                                Instant.parse(isoFormatted)
+                            }
+                        } else {
+                            null
+                        }
+                    } catch (_: Exception) {
+                        null
                     }
-                    return cal.timeInMillis
                 }
-            } catch (_: Exception) {
             }
-        }
-
-        return parseDate(trimmed)?.time
-    }
-
-    /**
-     * Extracts localized time (e.g. "4:00 AM" or "16:00" in local timezone).
-     * Returns null if only a date without specific airing time was provided.
-     */
-    fun formatLocalizedTime(isoDateStr: String?): String? {
-        if (isoDateStr.isNullOrBlank() || isoDateStr.trim().length <= 10) return null
-        val trimmed = isoDateStr.trim()
-        if (trimmed.endsWith("00:00:00") || trimmed.endsWith("00:00:00Z") || trimmed.endsWith("T00:00:00") || trimmed.endsWith("T00:00:00Z")) {
-            return null
-        }
-        val date = parseDate(trimmed) ?: return null
-        val timeFormat = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT, Locale.getDefault())
-        return timeFormat.format(date)
-    }
-
-    /**
-     * Checks if a given ISO date is strictly earlier than today (00:00:00).
-     */
-    fun isEarlierThanToday(isoDateStr: String?): Boolean {
-        val ymd = normalizeDate(isoDateStr) ?: return false
-        return try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-            val parsedDate = sdf.parse(ymd) ?: return false
-
-            val todayCal = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-
-            val targetCal = Calendar.getInstance().apply {
-                time = parsedDate
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-
-            targetCal.before(todayCal)
-        } catch (_: Exception) {
-            false
         }
     }
 
     /**
-     * Formats an ISO-8601 date string into a calendar group header (e.g. "TODAY - WEDNESDAY, AUGUST 12").
+     * Checks if a given Instant is strictly before today in the user's local timezone.
      */
-    fun formatAiringDateHeader(isoDateStr: String?): String {
-        val ymd = normalizeDate(isoDateStr) ?: return "SOMEDAY"
-        return try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-            val parsedDate = sdf.parse(ymd) ?: return ymd
+    fun isEarlierThanToday(date: Instant): Boolean {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val itemLocalDate = date.atZone(zone).toLocalDate()
+        return itemLocalDate.isBefore(today)
+    }
 
-            val todayCal = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
+    /**
+     * Formats an Instant into a calendar group header in the user's local date/time
+     * (e.g. "TODAY - SUNDAY, AUGUST 23", "TOMORROW - MONDAY, AUGUST 24", or "SUNDAY, AUGUST 23").
+     */
+    fun formatAiringDateHeader(date: Instant): String {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val localDate = date.atZone(zone).toLocalDate()
 
-            val targetCal = Calendar.getInstance().apply {
-                time = parsedDate
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
+        val diffDays = ChronoUnit.DAYS.between(today, localDate)
+        val displayFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault())
+        val dateLabel = localDate.format(displayFormatter).uppercase(Locale.getDefault())
 
-            val diffMillis = targetCal.timeInMillis - todayCal.timeInMillis
-            val diffDays = (diffMillis / (1000 * 60 * 60 * 24)).toInt()
-
-            val displayFormat = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
-            val dateLabel = displayFormat.format(parsedDate).uppercase(Locale.getDefault())
-
-            when (diffDays) {
-                0 -> "TODAY - $dateLabel"
-                1 -> "TOMORROW - $dateLabel"
-                -1 -> "YESTERDAY - $dateLabel"
-                else -> dateLabel
-            }
-        } catch (_: Exception) {
-            ymd.uppercase(Locale.getDefault())
+        return when (diffDays) {
+            0L -> "TODAY - $dateLabel"
+            1L -> "TOMORROW - $dateLabel"
+            -1L -> "YESTERDAY - $dateLabel"
+            else -> dateLabel
         }
     }
 
     /**
-     * Formats an ISO-8601 date string for display in details (e.g. "August 12, 2026").
+     * Extracts localized time (e.g. "4:00 AM" or "16:00") in the user's local timezone.
+     * Returns null if date-only (e.g. movie release).
      */
-    fun formatDisplayDate(isoDateStr: String?): String {
-        val ymd = normalizeDate(isoDateStr) ?: return "TBD"
-        return try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-            val parsed = sdf.parse(ymd) ?: return ymd
-            SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(parsed)
-        } catch (_: Exception) {
-            ymd
-        }
+    fun formatLocalizedTime(date: Instant, isDateOnly: Boolean = false): String? {
+        if (isDateOnly) return null
+        val zonedDateTime = date.atZone(ZoneId.systemDefault())
+        return zonedDateTime.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
     }
 
     /**
-     * Formats localized date and time into a single unified display string (e.g. "August 12, 2026 at 4:00 PM" or "August 12, 2026").
+     * Formats an Instant for display in release details (e.g. "August 23, 2026") in local time.
      */
-    fun formatDisplayDateTime(isoDateStr: String?): String {
-        if (isoDateStr.isNullOrBlank()) return "TBD"
-        val parsedDate = parseDate(isoDateStr)
-        if (parsedDate != null && isoDateStr.trim().length > 10) {
-            val dateFormat = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
-            val timeFormat = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT, Locale.getDefault())
-            return "${dateFormat.format(parsedDate)} at ${timeFormat.format(parsedDate)}"
+    fun formatDisplayDate(date: Instant): String {
+        val localDate = date.atZone(ZoneId.systemDefault()).toLocalDate()
+        return localDate.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG))
+    }
+
+    /**
+     * Formats localized date and time into a single unified display string
+     * (e.g. "August 23, 2026 at 4:00 PM") in local time.
+     */
+    fun formatDisplayDateTime(date: Instant, isDateOnly: Boolean = false): String {
+        if (isDateOnly) {
+            return formatDisplayDate(date)
         }
-        return formatDisplayDate(isoDateStr)
+        val zonedDateTime = date.atZone(ZoneId.systemDefault())
+        val dateStr = zonedDateTime.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG))
+        val timeStr = zonedDateTime.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
+        return "$dateStr at $timeStr"
     }
 }
-

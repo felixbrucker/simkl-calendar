@@ -50,10 +50,10 @@ fun SettingsScreen(
 
     val prefs = remember { context.getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE) }
     var enableDefaultAiring by remember {
-        mutableStateOf(prefs.getBoolean("default_notify_airing", prefs.getBoolean("global_airing_alerts", false)))
+        mutableStateOf(prefs.getBoolean("default_notify_airing", false))
     }
     var enableDefaultBinge by remember {
-        mutableStateOf(prefs.getBoolean("default_notify_binge", prefs.getBoolean("global_binge_alerts", true)))
+        mutableStateOf(prefs.getBoolean("default_notify_binge", true))
     }
 
     Scaffold(
@@ -160,7 +160,6 @@ fun SettingsScreen(
                                 enableDefaultAiring = it
                                 prefs.edit()
                                     .putBoolean("default_notify_airing", it)
-                                    .putBoolean("global_airing_alerts", it)
                                     .apply()
                                 if (it) checkAndRequestPermission()
                             },
@@ -188,7 +187,6 @@ fun SettingsScreen(
                                 enableDefaultBinge = it
                                 prefs.edit()
                                     .putBoolean("default_notify_binge", it)
-                                    .putBoolean("global_binge_alerts", it)
                                     .apply()
                                 if (it) checkAndRequestPermission()
                             },
