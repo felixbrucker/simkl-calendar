@@ -470,8 +470,8 @@ class SimklRepository(private val context: Context) {
             // Initialize default notification settings for new shows while preserving user's existing settings
             try {
                 val notifPrefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
-                val defaultAiring = notifPrefs.getBoolean("default_notify_airing", notifPrefs.getBoolean("global_airing_alerts", false))
-                val defaultBinge = notifPrefs.getBoolean("default_notify_binge", notifPrefs.getBoolean("global_binge_alerts", true))
+                val defaultAiring = notifPrefs.getBoolean("default_notify_airing", false)
+                val defaultBinge = notifPrefs.getBoolean("default_notify_binge", true)
 
                 val distinctShows = finalDbItems.groupBy { it.id }
                 val newSettings = distinctShows.map { (showId, items) ->
