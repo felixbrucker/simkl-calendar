@@ -87,20 +87,22 @@ fun ShowDetailScreen(
 
     val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
     val defaultAiring = prefs.getBoolean("default_notify_airing", false)
-    val defaultBinge = prefs.getBoolean("default_notify_binge", true)
+    val defaultSeasonFinished = prefs.getBoolean("default_notify_season_finished", true)
+    val isMovie = activeItem?.type == "movie"
+    val defaultMovieNotify = defaultAiring || defaultSeasonFinished
 
     // Individual notification toggle flows
-    var notifyEveryEpisode by remember(showSetting, defaultAiring) {
-        mutableStateOf(showSetting?.notifyEveryEpisode ?: defaultAiring)
+    var notifyEveryEpisode by remember(showSetting, defaultAiring, defaultMovieNotify, isMovie) {
+        mutableStateOf(showSetting?.notifyEveryEpisode ?: (if (isMovie) defaultMovieNotify else defaultAiring))
     }
-    var notifyAiredLastEpisode by remember(showSetting, defaultBinge) {
-        mutableStateOf(showSetting?.notifyAiredLastEpisode ?: defaultBinge)
+    var notifySeasonFinished by remember(showSetting, defaultSeasonFinished, defaultMovieNotify, isMovie) {
+        mutableStateOf(showSetting?.notifyAiredLastEpisode ?: (if (isMovie) defaultMovieNotify else defaultSeasonFinished))
     }
 
     LaunchedEffect(showSetting) {
         if (showSetting != null) {
             notifyEveryEpisode = showSetting.notifyEveryEpisode
-            notifyAiredLastEpisode = showSetting.notifyAiredLastEpisode
+            notifySeasonFinished = showSetting.notifyAiredLastEpisode
         }
     }
 
@@ -481,8 +483,8 @@ fun ShowDetailScreen(
                                                 showId = activeItem.id,
                                                 title = activeItem.title,
                                                 type = activeItem.type,
-                                                notifyEp = isChecked,
-                                                notifyLast = notifyAiredLastEpisode
+                                                notifyEpisode = isChecked,
+                                                notifySeasonFinished = notifySeasonFinished
                                             )
                                         },
                                         modifier = Modifier.testTag("detail_notify_episode_switch")
@@ -491,30 +493,30 @@ fun ShowDetailScreen(
 
                                 HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
 
-                                // Toggle Ready to Binge
+                                // Toggle Season Finished Airing
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Binge Alert On Finale", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                        Text("Notify me when season finale is reached, flagging series is ready to binge.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                                        Text("Season Finished Airing", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                        Text("Notify me when the season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
                                     }
                                     Switch(
-                                        checked = notifyAiredLastEpisode,
+                                        checked = notifySeasonFinished,
                                         onCheckedChange = { isChecked ->
-                                            notifyAiredLastEpisode = isChecked
+                                            notifySeasonFinished = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
                                                 showId = activeItem.id,
                                                 title = activeItem.title,
                                                 type = activeItem.type,
-                                                notifyEp = notifyEveryEpisode,
-                                                notifyLast = isChecked
+                                                notifyEpisode = notifyEveryEpisode,
+                                                notifySeasonFinished = isChecked
                                             )
                                         },
-                                        modifier = Modifier.testTag("detail_notify_binge_switch")
+                                        modifier = Modifier.testTag("detail_notify_season_finished_switch")
                                     )
                                 }
                             } else {
@@ -531,13 +533,14 @@ fun ShowDetailScreen(
                                         checked = notifyEveryEpisode,
                                         onCheckedChange = { isChecked ->
                                             notifyEveryEpisode = isChecked
+                                            notifySeasonFinished = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
                                                 showId = activeItem.id,
                                                 title = activeItem.title,
                                                 type = activeItem.type,
-                                                notifyEp = isChecked,
-                                                notifyLast = notifyAiredLastEpisode
+                                                notifyEpisode = isChecked,
+                                                notifySeasonFinished = isChecked
                                             )
                                         },
                                         modifier = Modifier.testTag("detail_notify_movie_switch")

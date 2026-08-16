@@ -9,14 +9,15 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import android.widget.Toast
 import com.example.MainActivity
+import com.example.R
 import com.example.data.database.AppDatabase
+import com.example.data.database.CalendarItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import androidx.core.content.ContextCompat
-import com.example.R
-import android.widget.Toast
 import java.util.Locale
 
 class NotificationReceiver : BroadcastReceiver() {
@@ -70,10 +71,81 @@ class NotificationReceiver : BroadcastReceiver() {
         const val EXTRA_ID = "extra_id"
         const val EXTRA_ITEM_KEY = "extra_item_key"
 
+        /**
+         * Formats notification title and message from raw parameters.
+         * Finale notifications display season and total episode count without the individual episode number.
+         */
+        fun formatNotificationContent(
+            showTitle: String,
+            type: String,
+            episodeTitle: String?,
+            season: Int?,
+            episodeNumber: Int?,
+            isFinale: Boolean,
+            totalEpisodes: Int? = null
+        ): Pair<String, String> {
+            return if (type == "movie") {
+                val title = "Movie Released Today"
+                val message = "$showTitle is now available!"
+                title to message
+            } else if (isFinale) {
+                val title = "Season finished airing"
+                val total = totalEpisodes ?: episodeNumber
+                val episodeCountStr = if (total != null) {
+                    "$total ${if (total == 1) "Episode" else "Episodes"}"
+                } else null
+
+                val finaleTag = if (type == "anime") {
+                    if (episodeCountStr != null) " ($episodeCountStr)" else ""
+                } else {
+                    if (season != null && episodeCountStr != null) {
+                        " (Season $season, $episodeCountStr)"
+                    } else if (season != null) {
+                        " (Season $season)"
+                    } else if (episodeCountStr != null) {
+                        " ($episodeCountStr)"
+                    } else ""
+                }
+                val message = "$showTitle$finaleTag"
+                title to message
+            } else {
+                val title = "New Episode Released"
+                val epLabel = if (type == "anime") {
+                    if (episodeNumber != null) " (Episode $episodeNumber)" else ""
+                } else if (season != null && episodeNumber != null) {
+                    String.format(Locale.US, " (S%02dE%02d)", season, episodeNumber)
+                } else if (episodeNumber != null) {
+                    " (Episode $episodeNumber)"
+                } else ""
+                val epName = if (!episodeTitle.isNullOrBlank()) " \"$episodeTitle\"" else ""
+                val message = "$showTitle$epLabel$epName is now airing."
+                title to message
+            }
+        }
+
+        /**
+         * Formats notification title and message for a CalendarItem entity.
+         */
+        fun formatNotificationContent(
+            item: CalendarItem,
+            isFinale: Boolean,
+            totalEpisodes: Int? = null
+        ): Pair<String, String> {
+            return formatNotificationContent(
+                showTitle = item.title,
+                type = item.type,
+                episodeTitle = item.episodeTitle,
+                season = item.season,
+                episodeNumber = item.episodeNumber,
+                isFinale = isFinale,
+                totalEpisodes = totalEpisodes
+            )
+        }
+
         fun createNotificationChannel(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val name = "Simkl Calendar Alerts"
-                val descriptionText = "Local notifications for airing episodes and ready-to-binge series finales."
+                val descriptionText = "Local notifications for airing episodes and seasons that finished airing."
                 val importance = NotificationManager.IMPORTANCE_HIGH
                 val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                     description = descriptionText
@@ -135,28 +207,27 @@ class NotificationReceiver : BroadcastReceiver() {
             }
         }
 
-        fun triggerEpisodeNotification(context: Context, showTitle: String, episodeName: String?, season: Int?, episodeNumber: Int?, isLastEpisode: Boolean) {
-            val title = if (isLastEpisode) {
-                "Last episode released"
-            } else {
-                "New episode released"
-            }
+        fun triggerEpisodeNotification(
+            context: Context,
+            showTitle: String,
+            episodeName: String?,
+            season: Int?,
+            episodeNumber: Int?,
+            isLastEpisode: Boolean,
+            type: String = "tv",
+            totalEpisodes: Int? = null
+        ) {
+            val (title, message) = formatNotificationContent(
+                showTitle = showTitle,
+                type = type,
+                episodeTitle = episodeName,
+                season = season,
+                episodeNumber = episodeNumber,
+                isFinale = isLastEpisode,
+                totalEpisodes = totalEpisodes
+            )
 
-            val epLabel = if (season != null && episodeNumber != null) {
-                String.format(Locale.US, " (S%02dE%02d)", season, episodeNumber)
-            } else if (episodeNumber != null) {
-                " (Episode $episodeNumber)"
-            } else ""
-
-            val epName = if (!episodeName.isNullOrBlank()) " \"$episodeName\"" else ""
-
-            val message = if (isLastEpisode) {
-                "$showTitle$epLabel - Ready to binge!"
-            } else {
-                "$showTitle$epLabel$epName is now airing."
-            }
-
-            val id = (showTitle.hashCode() + (episodeNumber ?: 1))
+            val id = Math.abs(showTitle.hashCode() + (episodeNumber ?: 1))
             showNotification(context, title, message, id)
         }
     }

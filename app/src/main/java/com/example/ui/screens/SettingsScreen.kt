@@ -52,8 +52,8 @@ fun SettingsScreen(
     var enableDefaultAiring by remember {
         mutableStateOf(prefs.getBoolean("default_notify_airing", false))
     }
-    var enableDefaultBinge by remember {
-        mutableStateOf(prefs.getBoolean("default_notify_binge", true))
+    var enableDefaultSeasonFinished by remember {
+        mutableStateOf(prefs.getBoolean("default_notify_season_finished", true))
     }
 
     Scaffold(
@@ -178,19 +178,19 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Binge Readiness", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text("Default to notify when a full TV Show / Anime season has concluded.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                            Text("Season Finished Airing", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Text("Default to notify when a full TV Show or Anime season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
                         }
                         Switch(
-                            checked = enableDefaultBinge,
+                            checked = enableDefaultSeasonFinished,
                             onCheckedChange = { 
-                                enableDefaultBinge = it
+                                enableDefaultSeasonFinished = it
                                 prefs.edit()
-                                    .putBoolean("default_notify_binge", it)
+                                    .putBoolean("default_notify_season_finished", it)
                                     .apply()
                                 if (it) checkAndRequestPermission()
                             },
-                            modifier = Modifier.testTag("binge_notification_switch")
+                            modifier = Modifier.testTag("season_finished_notification_switch")
                         )
                     }
                 }
@@ -220,7 +220,8 @@ fun SettingsScreen(
                                 episodeName = "The Hashira Training",
                                 season = 4,
                                 episodeNumber = 1,
-                                isLastEpisode = false
+                                isLastEpisode = false,
+                                type = "anime"
                             )
                         },
                         modifier = Modifier.fillMaxWidth().testTag("simulate_episode_alert_button"),
@@ -244,10 +245,12 @@ fun SettingsScreen(
                                 episodeName = "With Open Eyes",
                                 season = 4,
                                 episodeNumber = 10,
-                                isLastEpisode = true
+                                isLastEpisode = true,
+                                type = "tv",
+                                totalEpisodes = 10
                             )
                         },
-                        modifier = Modifier.fillMaxWidth().testTag("simulate_binge_alert_button"),
+                        modifier = Modifier.fillMaxWidth().testTag("simulate_season_finished_alert_button"),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF381E72),
                             contentColor = Color(0xFFD0BCFF)
@@ -256,7 +259,7 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.MovieFilter, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFD0BCFF))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Simulate Ready-to-Binge Alert", color = Color(0xFFD0BCFF))
+                        Text("Simulate Season Finished Alert", color = Color(0xFFD0BCFF))
                     }
                 }
             }

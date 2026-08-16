@@ -471,17 +471,19 @@ class SimklRepository(private val context: Context) {
             try {
                 val notifPrefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
                 val defaultAiring = notifPrefs.getBoolean("default_notify_airing", false)
-                val defaultBinge = notifPrefs.getBoolean("default_notify_binge", true)
+                val defaultSeasonFinished = notifPrefs.getBoolean("default_notify_season_finished", true)
 
                 val distinctShows = finalDbItems.groupBy { it.id }
                 val newSettings = distinctShows.map { (showId, items) ->
                     val sample = items.first()
+                    val isMovie = sample.type == "movie"
+                    val movieDefault = defaultAiring || defaultSeasonFinished
                     NotificationSetting(
                         showId = showId,
                         showTitle = sample.title,
                         type = sample.type,
-                        notifyEveryEpisode = defaultAiring,
-                        notifyAiredLastEpisode = defaultBinge
+                        notifyEveryEpisode = if (isMovie) movieDefault else defaultAiring,
+                        notifyAiredLastEpisode = if (isMovie) movieDefault else defaultSeasonFinished
                     )
                 }
                 settingDao.insertSettings(newSettings)

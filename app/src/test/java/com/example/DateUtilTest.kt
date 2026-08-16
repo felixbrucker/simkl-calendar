@@ -84,4 +84,59 @@ class DateUtilTest {
             TimeZone.setDefault(originalTz)
         }
     }
+
+    @Test
+    fun testNotificationContentFormatting() {
+        val tvFinaleItem = com.example.data.database.CalendarItem(
+            primaryKey = "key_1",
+            id = 101,
+            title = "Succession",
+            episodeTitle = "With Open Eyes",
+            season = 4,
+            episodeNumber = 10,
+            date = Instant.parse("2026-08-22T20:00:00Z"),
+            type = "tv",
+            isSeasonPremiere = false,
+            isSeasonFinale = true,
+            poster = null,
+            simklId = 101,
+            isLastEpisode = true
+        )
+
+        val (tvTitle, tvMsg) = com.example.receiver.NotificationReceiver.formatNotificationContent(
+            item = tvFinaleItem,
+            isFinale = true,
+            totalEpisodes = 10
+        )
+        assertEquals("Season finished airing", tvTitle)
+        assertEquals("Succession (Season 4, 10 Episodes)", tvMsg)
+        assertFalse("Finale message should not include episode number E10", tvMsg.contains("E10"))
+        assertFalse("Finale message should not include ready to binge", tvMsg.contains("binge", ignoreCase = true))
+
+        val animeFinaleItem = com.example.data.database.CalendarItem(
+            primaryKey = "key_2",
+            id = 202,
+            title = "Demon Slayer",
+            episodeTitle = "Hashira",
+            season = 4,
+            episodeNumber = 8,
+            date = Instant.parse("2026-08-22T20:00:00Z"),
+            type = "anime",
+            isSeasonPremiere = false,
+            isSeasonFinale = true,
+            poster = null,
+            simklId = 202,
+            isLastEpisode = true
+        )
+
+        val (animeTitle, animeMsg) = com.example.receiver.NotificationReceiver.formatNotificationContent(
+            item = animeFinaleItem,
+            isFinale = true,
+            totalEpisodes = 8
+        )
+        assertEquals("Season finished airing", animeTitle)
+        assertEquals("Demon Slayer (8 Episodes)", animeMsg)
+        assertFalse("Anime message should not include season number", animeMsg.contains("Season"))
+        assertFalse("Anime message should not include ready to binge", animeMsg.contains("binge", ignoreCase = true))
+    }
 }

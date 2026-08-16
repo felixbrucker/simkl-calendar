@@ -9,45 +9,13 @@ import android.util.Log
 import com.example.data.database.AppDatabase
 import com.example.data.database.CalendarItem
 import com.example.data.database.NotificationSetting
-import com.example.data.util.DateUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 object NotificationScheduler {
 
     private const val TAG = "NotificationScheduler"
     const val ACTION_AIR_DATE_ALERT = "com.example.ACTION_AIR_DATE_ALERT"
-
-    /**
-     * Formats the notification title and message body for a calendar item.
-     */
-    fun formatNotificationContent(item: CalendarItem, isFinale: Boolean): Pair<String, String> {
-        return if (item.type == "movie") {
-            val title = "Movie Released Today"
-            val message = "${item.title} is now available!"
-            title to message
-        } else if (isFinale) {
-            val title = "Season Finale Released"
-            val epLabel = if (item.season != null && item.episodeNumber != null) {
-                String.format(Locale.US, " (S%02dE%02d)", item.season, item.episodeNumber)
-            } else if (item.episodeNumber != null) {
-                " (Episode ${item.episodeNumber})"
-            } else ""
-            val message = "${item.title}$epLabel - Ready to binge!"
-            title to message
-        } else {
-            val title = "New Episode Released"
-            val epLabel = if (item.season != null && item.episodeNumber != null) {
-                String.format(Locale.US, " (S%02dE%02d)", item.season, item.episodeNumber)
-            } else if (item.episodeNumber != null) {
-                " (Episode ${item.episodeNumber})"
-            } else ""
-            val epName = if (!item.episodeTitle.isNullOrBlank()) " \"${item.episodeTitle}\"" else ""
-            val message = "${item.title}$epLabel$epName is now airing."
-            title to message
-        }
-    }
 
     /**
      * Schedules or fires notifications for all eligible upcoming or recently aired items across all shows.
@@ -60,20 +28,26 @@ object NotificationScheduler {
             val allItems = db.calendarItemDao().getAllCalendarItemsList()
             val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
             val defaultAiring = prefs.getBoolean("default_notify_airing", false)
-            val defaultBinge = prefs.getBoolean("default_notify_binge", true)
+            val defaultSeasonFinished = prefs.getBoolean("default_notify_season_finished", true)
 
             Log.d(TAG, "Scheduling notifications: found ${settings.size} custom show settings and ${allItems.size} calendar items")
 
+            val allEpisodesMap = allItems.groupBy { it.id to (if (it.type == "anime") null else it.season) }
+
             for (item in allItems) {
                 // Per-item setting in database always takes precedence over new item defaults
+                val isMovie = item.type == "movie"
+                val movieDefault = defaultAiring || defaultSeasonFinished
                 val setting = settingsMap[item.id] ?: NotificationSetting(
                     showId = item.id,
                     showTitle = item.title,
                     type = item.type,
-                    notifyEveryEpisode = defaultAiring,
-                    notifyAiredLastEpisode = defaultBinge
+                    notifyEveryEpisode = if (isMovie) movieDefault else defaultAiring,
+                    notifyAiredLastEpisode = if (isMovie) movieDefault else defaultSeasonFinished
                 )
-                scheduleOrDispatchItem(context, db, item, setting)
+                val seasonItems = allEpisodesMap[item.id to (if (item.type == "anime") null else item.season)]
+                val totalEpisodesInSeason = seasonItems?.mapNotNull { it.episodeNumber }?.maxOrNull() ?: item.episodeNumber
+                scheduleOrDispatchItem(context, db, item, setting, totalEpisodesInSeason)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error while scheduling all notifications", e)
@@ -100,9 +74,12 @@ object NotificationScheduler {
             // Reset notified status for upcoming/today's items for this show so newly enabled alerts fire
             db.calendarItemDao().resetNotifiedForShow(showId)
             val updatedShowItems = db.calendarItemDao().getItemsForShow(showId)
+            val showEpisodesMap = updatedShowItems.groupBy { if (it.type == "anime") null else it.season }
 
             for (item in updatedShowItems) {
-                scheduleOrDispatchItem(context, db, item, setting)
+                val seasonItems = showEpisodesMap[if (item.type == "anime") null else item.season]
+                val totalEpisodesInSeason = seasonItems?.mapNotNull { it.episodeNumber }?.maxOrNull() ?: item.episodeNumber
+                scheduleOrDispatchItem(context, db, item, setting, totalEpisodesInSeason)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error scheduling notifications for show $showId", e)
@@ -113,7 +90,8 @@ object NotificationScheduler {
         context: Context,
         db: AppDatabase,
         item: CalendarItem,
-        setting: NotificationSetting
+        setting: NotificationSetting,
+        totalEpisodesInSeason: Int? = null
     ) {
         val isFinale = item.isSeasonFinale || item.isLastEpisode
         val isEnabled = if (item.type == "movie") {
@@ -140,7 +118,7 @@ object NotificationScheduler {
             item.date.toEpochMilli()
         }
         val now = System.currentTimeMillis()
-        val (title, message) = formatNotificationContent(item, isFinale)
+        val (title, message) = NotificationReceiver.formatNotificationContent(item, isFinale, totalEpisodesInSeason)
         val notificationId = Math.abs(item.primaryKey.hashCode())
 
         if (triggerTime > now) {
