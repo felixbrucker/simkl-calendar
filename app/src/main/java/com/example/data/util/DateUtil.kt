@@ -84,13 +84,13 @@ object DateUtil {
     }
 
     /**
-     * Extracts localized time (e.g. "4:00 AM" or "16:00") in the user's local timezone.
+     * Extracts localized time in 24-hour format (e.g. "16:00" or "04:30") in the user's local timezone.
      * Returns null if date-only (e.g. movie release).
      */
     fun formatLocalizedTime(date: Instant, isDateOnly: Boolean = false): String? {
         if (isDateOnly) return null
         val zonedDateTime = date.atZone(ZoneId.systemDefault())
-        return zonedDateTime.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
+        return zonedDateTime.format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
     }
 
     /**
@@ -102,8 +102,8 @@ object DateUtil {
     }
 
     /**
-     * Formats localized date and time into a single unified display string
-     * (e.g. "August 23, 2026 at 4:00 PM") in local time.
+     * Formats localized date and 24-hour time into a single unified display string
+     * (e.g. "August 23, 2026 at 16:00") in local time.
      */
     fun formatDisplayDateTime(date: Instant, isDateOnly: Boolean = false): String {
         if (isDateOnly) {
@@ -111,7 +111,7 @@ object DateUtil {
         }
         val zonedDateTime = date.atZone(ZoneId.systemDefault())
         val dateStr = zonedDateTime.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG))
-        val timeStr = zonedDateTime.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
+        val timeStr = zonedDateTime.format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
         return "$dateStr at $timeStr"
     }
 }

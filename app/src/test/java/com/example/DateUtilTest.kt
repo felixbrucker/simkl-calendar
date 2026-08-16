@@ -55,6 +55,31 @@ class DateUtilTest {
 
             val header = DateUtil.formatAiringDateHeader(instant)
             assertTrue("Header should contain 23: $header", header.contains("23") || header.contains("AUGUST 23"))
+
+            // Verify 24h format in Tokyo (20:30 UTC -> 05:30 JST)
+            val formattedTime = DateUtil.formatLocalizedTime(instant)
+            assertEquals("05:30", formattedTime)
+        } finally {
+            TimeZone.setDefault(originalTz)
+        }
+    }
+
+    @Test
+    fun test24HourTimeFormatting() {
+        val originalTz = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+
+            val instantEvening = Instant.parse("2026-08-22T20:45:00Z")
+            assertEquals("20:45", DateUtil.formatLocalizedTime(instantEvening))
+            assertFalse(DateUtil.formatLocalizedTime(instantEvening)!!.contains("PM", ignoreCase = true))
+
+            val instantMorning = Instant.parse("2026-08-22T08:05:00Z")
+            assertEquals("08:05", DateUtil.formatLocalizedTime(instantMorning))
+            assertFalse(DateUtil.formatLocalizedTime(instantMorning)!!.contains("AM", ignoreCase = true))
+
+            val instantMidnight = Instant.parse("2026-08-22T00:15:00Z")
+            assertEquals("00:15", DateUtil.formatLocalizedTime(instantMidnight))
         } finally {
             TimeZone.setDefault(originalTz)
         }
