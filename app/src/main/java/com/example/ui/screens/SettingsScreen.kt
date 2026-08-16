@@ -49,11 +49,11 @@ fun SettingsScreen(
     }
 
     val prefs = remember { context.getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE) }
-    var enableGlobalAlerts by remember {
-        mutableStateOf(prefs.getBoolean("global_airing_alerts", false))
+    var enableDefaultAiring by remember {
+        mutableStateOf(prefs.getBoolean("default_notify_airing", prefs.getBoolean("global_airing_alerts", false)))
     }
-    var enableBingeAlerts by remember {
-        mutableStateOf(prefs.getBoolean("global_binge_alerts", true))
+    var enableDefaultBinge by remember {
+        mutableStateOf(prefs.getBoolean("default_notify_binge", prefs.getBoolean("global_binge_alerts", true)))
     }
 
     Scaffold(
@@ -125,14 +125,21 @@ fun SettingsScreen(
             }
 
 
-            // Global Notification Setup Toggles
+            // Notification Setup Defaults Card
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Configurable Alerts", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+                    Text("Default Alerts (New Items)", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Sets default alert preferences when new shows or movies are synced. Individual show settings in Release Details will always take precedence.",
+                        color = Color(0xFFCAC4D0),
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Broadcast toggle 1
@@ -145,15 +152,17 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Airing Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text("Send system notification as soon as each episode is ready to stream.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                            Text("Default to alert as soon as each episode/movie is ready to stream.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
                         }
                         Switch(
-                            checked = enableGlobalAlerts,
+                            checked = enableDefaultAiring,
                             onCheckedChange = { 
-                                enableGlobalAlerts = it
-                                prefs.edit().putBoolean("global_airing_alerts", it).apply()
+                                enableDefaultAiring = it
+                                prefs.edit()
+                                    .putBoolean("default_notify_airing", it)
+                                    .putBoolean("global_airing_alerts", it)
+                                    .apply()
                                 if (it) checkAndRequestPermission()
-                                viewModel.rescheduleAllNotifications()
                             },
                             modifier = Modifier.testTag("air_notification_switch")
                         )
@@ -171,15 +180,17 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Binge Readiness", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text("Notify when a TV Show / Anime season has ended so you can binge-watch.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                            Text("Default to notify when a full TV Show / Anime season has concluded.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
                         }
                         Switch(
-                            checked = enableBingeAlerts,
+                            checked = enableDefaultBinge,
                             onCheckedChange = { 
-                                enableBingeAlerts = it
-                                prefs.edit().putBoolean("global_binge_alerts", it).apply()
+                                enableDefaultBinge = it
+                                prefs.edit()
+                                    .putBoolean("default_notify_binge", it)
+                                    .putBoolean("global_binge_alerts", it)
+                                    .apply()
                                 if (it) checkAndRequestPermission()
-                                viewModel.rescheduleAllNotifications()
                             },
                             modifier = Modifier.testTag("binge_notification_switch")
                         )

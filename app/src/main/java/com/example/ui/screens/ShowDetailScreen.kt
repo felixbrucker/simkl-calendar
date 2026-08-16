@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -84,12 +85,23 @@ fun ShowDetailScreen(
         if (activeItem != null) settingsList.firstOrNull { it.showId == activeItem.id } else null
     }
 
+    val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
+    val defaultAiring = prefs.getBoolean("default_notify_airing", prefs.getBoolean("global_airing_alerts", false))
+    val defaultBinge = prefs.getBoolean("default_notify_binge", prefs.getBoolean("global_binge_alerts", true))
+
     // Individual notification toggle flows
-    var notifyEveryEpisode by remember(showSetting) {
-        mutableStateOf(showSetting?.notifyEveryEpisode ?: false)
+    var notifyEveryEpisode by remember(showSetting, defaultAiring) {
+        mutableStateOf(showSetting?.notifyEveryEpisode ?: defaultAiring)
     }
-    var notifyAiredLastEpisode by remember(showSetting) {
-        mutableStateOf(showSetting?.notifyAiredLastEpisode ?: true)
+    var notifyAiredLastEpisode by remember(showSetting, defaultBinge) {
+        mutableStateOf(showSetting?.notifyAiredLastEpisode ?: defaultBinge)
+    }
+
+    LaunchedEffect(showSetting) {
+        if (showSetting != null) {
+            notifyEveryEpisode = showSetting.notifyEveryEpisode
+            notifyAiredLastEpisode = showSetting.notifyAiredLastEpisode
+        }
     }
 
     Scaffold(

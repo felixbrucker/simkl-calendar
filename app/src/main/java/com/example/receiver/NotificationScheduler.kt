@@ -59,18 +59,19 @@ object NotificationScheduler {
             val settingsMap = settings.associateBy { it.showId }
             val allItems = db.calendarItemDao().getAllCalendarItemsList()
             val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
-            val globalAiring = prefs.getBoolean("global_airing_alerts", false)
-            val globalBinge = prefs.getBoolean("global_binge_alerts", true)
+            val defaultAiring = prefs.getBoolean("default_notify_airing", prefs.getBoolean("global_airing_alerts", false))
+            val defaultBinge = prefs.getBoolean("default_notify_binge", prefs.getBoolean("global_binge_alerts", true))
 
-            Log.d(TAG, "Scheduling notifications: found ${settings.size} show settings and ${allItems.size} calendar items")
+            Log.d(TAG, "Scheduling notifications: found ${settings.size} custom show settings and ${allItems.size} calendar items")
 
             for (item in allItems) {
+                // Per-item setting in database always takes precedence over new item defaults
                 val setting = settingsMap[item.id] ?: NotificationSetting(
                     showId = item.id,
                     showTitle = item.title,
                     type = item.type,
-                    notifyEveryEpisode = globalAiring,
-                    notifyAiredLastEpisode = globalBinge
+                    notifyEveryEpisode = defaultAiring,
+                    notifyAiredLastEpisode = defaultBinge
                 )
                 scheduleOrDispatchItem(context, db, item, setting)
             }

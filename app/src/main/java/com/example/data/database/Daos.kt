@@ -62,6 +62,9 @@ interface NotificationSettingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveSetting(setting: NotificationSetting)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSettings(settings: List<NotificationSetting>)
+
     @Query("DELETE FROM notification_settings WHERE showId = :showId")
     suspend fun deleteSetting(showId: Int)
 }
