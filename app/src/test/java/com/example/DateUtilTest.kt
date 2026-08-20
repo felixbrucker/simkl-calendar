@@ -109,7 +109,7 @@ class DateUtilTest {
             totalEpisodes = 10
         )
         assertEquals("Season finished airing", tvTitle)
-        assertEquals("Succession (Season 4, 10 Episodes)", tvMsg)
+        assertEquals("Succession Season 4: 10 Episodes", tvMsg)
         assertFalse("Finale message should not include episode number E10", tvMsg.contains("E10"))
         assertFalse("Finale message should not include ready to binge", tvMsg.contains("binge", ignoreCase = true))
 
@@ -134,7 +134,7 @@ class DateUtilTest {
             totalEpisodes = 8
         )
         assertEquals("Season finished airing", animeTitle)
-        assertEquals("Demon Slayer (8 Episodes)", animeMsg)
+        assertEquals("Demon Slayer: 8 Episodes", animeMsg)
         assertFalse("Anime message should not include season number", animeMsg.contains("Season"))
         assertFalse("Anime message should not include ready to binge", animeMsg.contains("binge", ignoreCase = true))
 
@@ -160,7 +160,7 @@ class DateUtilTest {
             totalEpisodes = null
         )
         assertEquals("Movie In Theaters Today", movieTheaterTitle)
-        assertEquals("Dune: Part Two is now playing in theaters!", movieTheaterMsg)
+        assertEquals("Dune: Part Two is now in theaters!", movieTheaterMsg)
 
         val movieDigitalItem = com.example.data.database.CalendarItem(
             primaryKey = "key_4",
@@ -245,5 +245,62 @@ class DateUtilTest {
             .toInstant()
         val futureHeader = DateUtil.formatAiringDateHeader(futureDateInstant)
         assertTrue("Header should contain year ${currentYear + 3}: $futureHeader", futureHeader.contains("${currentYear + 3}"))
+    }
+
+    @Test
+    fun testCalendarItemEntityIncrementalUpdate() {
+        val initialItem = com.example.data.database.CalendarItem(
+            primaryKey = "v2_9999_1_1",
+            simklId = 9999,
+            title = "Mystery Show",
+            episodeTitle = null, // initially null
+            season = 1,
+            episodeNumber = 1,
+            date = Instant.parse("2026-09-01T20:00:00Z"),
+            type = MediaType.TV,
+            isSeasonPremiere = true,
+            isSeasonFinale = false,
+            poster = null,
+            isLastEpisode = false,
+            isNotified = false
+        )
+
+        val updatedNewData = com.example.data.database.CalendarItem(
+            primaryKey = "v2_9999_1_1",
+            simklId = 9999,
+            title = "Mystery Show",
+            episodeTitle = "Pilot: The Awakening", // now available!
+            season = 1,
+            episodeNumber = 1,
+            date = Instant.parse("2026-09-02T21:00:00Z"), // air date rescheduled
+            type = MediaType.TV,
+            isSeasonPremiere = true,
+            isSeasonFinale = true, // finale confirmed
+            poster = "https://simkl.in/posters/9999_m.jpg",
+            isLastEpisode = true,
+            isNotified = false
+        )
+
+        val itemsMap = mutableMapOf(initialItem.primaryKey to initialItem)
+
+        // Simulate updateOrAdd logic
+        val existing = itemsMap[updatedNewData.primaryKey]!!
+        val merged = existing.copy(
+            title = updatedNewData.title.takeIf { it.isNotBlank() && it != "Untitled" } ?: existing.title,
+            episodeTitle = updatedNewData.episodeTitle?.takeIf { it.isNotBlank() } ?: existing.episodeTitle,
+            date = updatedNewData.date,
+            poster = updatedNewData.poster?.takeIf { it.isNotBlank() } ?: existing.poster,
+            isSeasonPremiere = updatedNewData.isSeasonPremiere || existing.isSeasonPremiere,
+            isSeasonFinale = updatedNewData.isSeasonFinale || existing.isSeasonFinale,
+            isLastEpisode = updatedNewData.isLastEpisode || existing.isLastEpisode
+        )
+        itemsMap[updatedNewData.primaryKey] = merged
+
+        val result = itemsMap["v2_9999_1_1"]!!
+        assertEquals("Pilot: The Awakening", result.episodeTitle)
+        assertEquals(Instant.parse("2026-09-02T21:00:00Z"), result.date)
+        assertEquals("https://simkl.in/posters/9999_m.jpg", result.poster)
+        assertTrue(result.isSeasonFinale)
+        assertTrue(result.isLastEpisode)
     }
 }
