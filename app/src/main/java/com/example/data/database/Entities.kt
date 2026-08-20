@@ -2,6 +2,9 @@ package com.example.data.database
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.data.model.MediaType
+import com.example.data.model.MovieReleaseType
+import com.example.data.model.WatchlistStatus
 import java.time.Instant
 
 @Entity(tableName = "user_token")
@@ -14,14 +17,15 @@ data class UserToken(
 
 @Entity(tableName = "calendar_items")
 data class CalendarItem(
-    @PrimaryKey val primaryKey: String, // Constructed as "v2_showId_season_episode_epoch" or movie "v2_movieId_epoch"
+    @PrimaryKey val primaryKey: String, // Constructed as "v2_showId_season_episode_epoch" or movie "v2_movieId_releaseType_epoch"
     val id: Int, // Simkl main ID
     val title: String, // Show or Movie title
-    val episodeTitle: String?, // Episode title (null for movies)
+    val episodeTitle: String?, // Strictly episode title (null for movies)
     val season: Int?, // Season number (null for movies)
     val episodeNumber: Int?, // Episode number (null for movies)
     val date: Instant, // Full air date/time as native Instant object
-    val type: String, // "tv", "anime", "movie"
+    val type: MediaType, // MediaType enum (TV, ANIME, MOVIE)
+    val movieReleaseType: MovieReleaseType? = null, // Strictly for movies (THEATER, DIGITAL)
     val isSeasonPremiere: Boolean,
     val isSeasonFinale: Boolean,
     val poster: String?, // URL for show poster image
@@ -33,9 +37,9 @@ data class CalendarItem(
 
 @Entity(tableName = "notification_settings")
 data class NotificationSetting(
-    @PrimaryKey val showId: Int, // Simkl ID or hash
+    @PrimaryKey val showId: Int, // Simkl ID
     val showTitle: String,
-    val type: String, // "tv", "anime", "movie"
+    val type: MediaType,
     val notifyEveryEpisode: Boolean = false,
     val notifyAiredLastEpisode: Boolean = true
 )
@@ -43,8 +47,8 @@ data class NotificationSetting(
 @Entity(tableName = "tracked_watchlist_items")
 data class TrackedWatchlistItem(
     @PrimaryKey val id: Int, // Simkl ID
-    val type: String, // "tv", "anime", "movie"
-    val status: String, // "watching", "plantowatch"
+    val type: MediaType,
+    val status: WatchlistStatus,
     val title: String,
     val poster: String? = null
 )

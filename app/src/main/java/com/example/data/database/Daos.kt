@@ -1,6 +1,7 @@
 package com.example.data.database
 
 import androidx.room.*
+import com.example.data.model.MediaType
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -75,7 +76,7 @@ interface WatchlistDao {
     suspend fun getAllTrackedItems(): List<TrackedWatchlistItem>
 
     @Query("SELECT * FROM tracked_watchlist_items WHERE type = :type")
-    suspend fun getTrackedItemsByType(type: String): List<TrackedWatchlistItem>
+    suspend fun getTrackedItemsByType(type: MediaType): List<TrackedWatchlistItem>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateItems(items: List<TrackedWatchlistItem>)

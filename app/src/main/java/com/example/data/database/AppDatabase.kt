@@ -6,6 +6,9 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import com.example.data.model.MediaType
+import com.example.data.model.MovieReleaseType
+import com.example.data.model.WatchlistStatus
 import java.time.Instant
 
 class Converters {
@@ -18,11 +21,47 @@ class Converters {
     fun dateToTimestamp(date: Instant?): Long? {
         return date?.toEpochMilli()
     }
+
+    @TypeConverter
+    fun fromMediaType(type: MediaType?): String? {
+        return type?.key
+    }
+
+    @TypeConverter
+    fun toMediaType(value: String?): MediaType? {
+        return value?.let { MediaType.fromKey(it) }
+    }
+
+    @TypeConverter
+    fun fromMovieReleaseType(releaseType: MovieReleaseType?): String? {
+        return releaseType?.name
+    }
+
+    @TypeConverter
+    fun toMovieReleaseType(value: String?): MovieReleaseType? {
+        return value?.let {
+            try {
+                MovieReleaseType.valueOf(it)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    @TypeConverter
+    fun fromWatchlistStatus(status: WatchlistStatus?): String? {
+        return status?.key
+    }
+
+    @TypeConverter
+    fun toWatchlistStatus(value: String?): WatchlistStatus? {
+        return value?.let { WatchlistStatus.fromKey(it) }
+    }
 }
 
 @Database(
     entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

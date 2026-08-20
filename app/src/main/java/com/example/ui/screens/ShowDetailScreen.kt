@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.example.data.database.CalendarItem
+import com.example.data.model.MediaType
+import com.example.data.model.MovieReleaseType
 import com.example.data.util.DateUtil
 import com.example.ui.viewmodel.CalendarViewModel
 import java.util.Locale
@@ -90,7 +92,7 @@ fun ShowDetailScreen(
     val defaultSeasonFinished = prefs.getBoolean("default_notify_season_finished", true)
     val defaultMovieTheater = prefs.getBoolean("default_notify_movie_theater", false)
     val defaultMovieDigital = prefs.getBoolean("default_notify_movie_digital", true)
-    val isMovie = activeItem?.type == "movie"
+    val isMovie = activeItem?.type == MediaType.MOVIE
 
     // Individual notification toggle flows
     var notifyEveryEpisode by remember(showSetting, defaultAiring, defaultMovieTheater, isMovie) {
@@ -176,18 +178,18 @@ fun ShowDetailScreen(
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = when (activeItem.type) {
-                                "anime" -> Color(0xFFE8DEF8)
-                                "movie" -> Color(0xFFF2B8B5)
-                                else -> Color(0xFFBAC3FF)
+                                MediaType.ANIME -> Color(0xFFE8DEF8)
+                                MediaType.MOVIE -> Color(0xFFF2B8B5)
+                                MediaType.TV -> Color(0xFFBAC3FF)
                             },
                             contentColor = when (activeItem.type) {
-                                "anime" -> Color(0xFF1D192B)
-                                "movie" -> Color(0xFF601410)
-                                else -> Color(0xFF1A237E)
+                                MediaType.ANIME -> Color(0xFF1D192B)
+                                MediaType.MOVIE -> Color(0xFF601410)
+                                MediaType.TV -> Color(0xFF1A237E)
                             }
                         ) {
                             Text(
-                                text = activeItem.type.uppercase(),
+                                text = activeItem.type.displayName.uppercase(),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -222,16 +224,16 @@ fun ShowDetailScreen(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Text(
-                                text = if (activeItem.type == "movie") "Release Information" else "Selected Episode Details",
+                                text = if (activeItem.type == MediaType.MOVIE) "Release Information" else "Selected Episode Details",
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFE6E1E5),
                                 fontSize = 15.sp
                             )
 
-                            val dateLabel = if (activeItem.type == "movie") {
-                                if (activeItem.episodeTitle?.contains("theater", ignoreCase = true) == true) "Theatrical Release" else "Digital / DVD Release"
+                            val dateLabel = if (activeItem.type == MediaType.MOVIE) {
+                                if (activeItem.movieReleaseType == MovieReleaseType.THEATER) "Theatrical Release" else "Digital / DVD Release"
                             } else "Air Date"
-                            val formattedDateTime = if (activeItem.type == "movie") {
+                            val formattedDateTime = if (activeItem.type == MediaType.MOVIE) {
                                 DateUtil.formatDisplayDate(activeItem.date)
                             } else {
                                 DateUtil.formatDisplayDateTime(activeItem.date)
@@ -252,10 +254,10 @@ fun ShowDetailScreen(
                             }
 
                             // Season and Episode Slug positioned above Episode Name
-                            if (activeItem.type != "movie") {
+                            if (activeItem.type != MediaType.MOVIE) {
                                 val sNum = activeItem.season ?: 1
                                 val eNum = activeItem.episodeNumber ?: 1
-                                val (slugLabel, slugValue) = if (activeItem.type == "anime") {
+                                val (slugLabel, slugValue) = if (activeItem.type == MediaType.ANIME) {
                                     "Episode" to "Episode $eNum"
                                 } else {
                                     "Season & Episode" to String.format(Locale.US, "S%02dE%02d", sNum, eNum)
@@ -277,7 +279,7 @@ fun ShowDetailScreen(
 
                                 if (!activeItem.episodeTitle.isNullOrBlank()) {
                                     val titleText = activeItem.episodeTitle
-                                    val isGenericAnimeTitle = activeItem.type == "anime" && (
+                                    val isGenericAnimeTitle = activeItem.type == MediaType.ANIME && (
                                         titleText.equals("Episode $eNum", ignoreCase = true) ||
                                         titleText.equals("Ep $eNum", ignoreCase = true) ||
                                         titleText.equals("Ep. $eNum", ignoreCase = true)
@@ -338,7 +340,7 @@ fun ShowDetailScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = if (activeItem.type == "movie") "Scheduled Releases (${showScheduleItems.size})" else "Scheduled Episodes (${showScheduleItems.size})",
+                                    text = if (activeItem.type == MediaType.MOVIE) "Scheduled Releases (${showScheduleItems.size})" else "Scheduled Episodes (${showScheduleItems.size})",
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFE6E1E5),
                                     fontSize = 15.sp
@@ -349,14 +351,14 @@ fun ShowDetailScreen(
                                     val isSelected = epItem.primaryKey == activeItem.primaryKey
                                     val s = epItem.season ?: 1
                                     val e = epItem.episodeNumber ?: 1
-                                    val epTag = if (epItem.type == "movie") {
-                                        if (epItem.episodeTitle?.contains("theater", ignoreCase = true) == true) "THEATER" else "DIGITAL / DVD"
-                                    } else if (epItem.type == "anime") {
+                                    val epTag = if (epItem.type == MediaType.MOVIE) {
+                                        if (epItem.movieReleaseType == MovieReleaseType.THEATER) "THEATER" else "DIGITAL / DVD"
+                                    } else if (epItem.type == MediaType.ANIME) {
                                         "Ep $e"
                                     } else {
                                         String.format(Locale.US, "S%02dE%02d", s, e)
                                     }
-                                    val epDate = if (epItem.type == "movie") DateUtil.formatDisplayDate(epItem.date) else DateUtil.formatDisplayDateTime(epItem.date)
+                                    val epDate = if (epItem.type == MediaType.MOVIE) DateUtil.formatDisplayDate(epItem.date) else DateUtil.formatDisplayDateTime(epItem.date)
 
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
@@ -398,7 +400,11 @@ fun ShowDetailScreen(
 
                                                 Column {
                                                     Text(
-                                                        text = epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: (if (epItem.type == "movie") "Movie Release" else "Episode $e"),
+                                                        text = if (epItem.type == MediaType.MOVIE) {
+                                                            epItem.movieReleaseType?.displayName ?: "Movie Release"
+                                                        } else {
+                                                            epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "Episode $e"
+                                                        },
                                                         color = Color(0xFFE6E1E5),
                                                         fontSize = 13.sp,
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -431,9 +437,9 @@ fun ShowDetailScreen(
                     Button(
                         onClick = {
                             val urlType = when (activeItem.type) {
-                                "movie", "movies" -> "movies"
-                                "anime" -> "anime"
-                                else -> "tv"
+                                MediaType.MOVIE -> "movies"
+                                MediaType.ANIME -> "anime"
+                                MediaType.TV -> "tv"
                             }
                             val simklUrl = "https://simkl.com/$urlType/${activeItem.id}"
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(simklUrl))
@@ -472,7 +478,7 @@ fun ShowDetailScreen(
                             Text("Notifications Strategy", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 15.sp)
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            if (activeItem.type != "movie") {
+                            if (activeItem.type != MediaType.MOVIE) {
                                 // Toggle every episode
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),

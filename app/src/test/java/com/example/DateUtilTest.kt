@@ -1,5 +1,6 @@
 package com.example
 
+import com.example.data.model.MediaType
 import com.example.data.util.DateUtil
 import org.junit.Assert.*
 import org.junit.Test
@@ -95,7 +96,7 @@ class DateUtilTest {
             season = 4,
             episodeNumber = 10,
             date = Instant.parse("2026-08-22T20:00:00Z"),
-            type = "tv",
+            type = MediaType.TV,
             isSeasonPremiere = false,
             isSeasonFinale = true,
             poster = null,
@@ -121,7 +122,7 @@ class DateUtilTest {
             season = 4,
             episodeNumber = 8,
             date = Instant.parse("2026-08-22T20:00:00Z"),
-            type = "anime",
+            type = MediaType.ANIME,
             isSeasonPremiere = false,
             isSeasonFinale = true,
             poster = null,
@@ -138,5 +139,55 @@ class DateUtilTest {
         assertEquals("Demon Slayer (8 Episodes)", animeMsg)
         assertFalse("Anime message should not include season number", animeMsg.contains("Season"))
         assertFalse("Anime message should not include ready to binge", animeMsg.contains("binge", ignoreCase = true))
+
+        val movieTheaterItem = com.example.data.database.CalendarItem(
+            primaryKey = "key_3",
+            id = 303,
+            title = "Dune: Part Two",
+            episodeTitle = null,
+            season = null,
+            episodeNumber = null,
+            date = Instant.parse("2026-08-22T20:00:00Z"),
+            type = MediaType.MOVIE,
+            movieReleaseType = com.example.data.model.MovieReleaseType.THEATER,
+            isSeasonPremiere = false,
+            isSeasonFinale = false,
+            poster = null,
+            simklId = 303,
+            isLastEpisode = false
+        )
+
+        val (movieTheaterTitle, movieTheaterMsg) = com.example.receiver.NotificationReceiver.formatNotificationContent(
+            item = movieTheaterItem,
+            isFinale = false,
+            totalEpisodes = null
+        )
+        assertEquals("Movie In Theaters Today", movieTheaterTitle)
+        assertEquals("Dune: Part Two is now playing in theaters!", movieTheaterMsg)
+
+        val movieDigitalItem = com.example.data.database.CalendarItem(
+            primaryKey = "key_4",
+            id = 303,
+            title = "Dune: Part Two",
+            episodeTitle = null,
+            season = null,
+            episodeNumber = null,
+            date = Instant.parse("2026-08-22T20:00:00Z"),
+            type = MediaType.MOVIE,
+            movieReleaseType = com.example.data.model.MovieReleaseType.DIGITAL,
+            isSeasonPremiere = false,
+            isSeasonFinale = false,
+            poster = null,
+            simklId = 303,
+            isLastEpisode = false
+        )
+
+        val (movieDigitalTitle, movieDigitalMsg) = com.example.receiver.NotificationReceiver.formatNotificationContent(
+            item = movieDigitalItem,
+            isFinale = false,
+            totalEpisodes = null
+        )
+        assertEquals("Movie Released Today", movieDigitalTitle)
+        assertEquals("Dune: Part Two is now available on Digital / DVD!", movieDigitalMsg)
     }
 }

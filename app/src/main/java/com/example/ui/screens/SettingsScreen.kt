@@ -23,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.example.data.model.MediaType
+import com.example.data.model.MovieReleaseType
 import com.example.ui.viewmodel.CalendarViewModel
 import com.example.receiver.NotificationReceiver
 
@@ -295,7 +297,7 @@ fun SettingsScreen(
                                 season = 4,
                                 episodeNumber = 1,
                                 isLastEpisode = false,
-                                type = "anime"
+                                type = MediaType.ANIME
                             )
                         },
                         modifier = Modifier.fillMaxWidth().testTag("simulate_episode_alert_button"),
@@ -320,7 +322,7 @@ fun SettingsScreen(
                                 season = 4,
                                 episodeNumber = 10,
                                 isLastEpisode = true,
-                                type = "tv",
+                                type = MediaType.TV,
                                 totalEpisodes = 10
                             )
                         },
@@ -342,11 +344,12 @@ fun SettingsScreen(
                             NotificationReceiver.triggerEpisodeNotification(
                                 context,
                                 showTitle = "Dune: Part Two",
-                                episodeName = "Theater Release",
+                                episodeName = null,
                                 season = null,
                                 episodeNumber = null,
                                 isLastEpisode = false,
-                                type = "movie"
+                                type = MediaType.MOVIE,
+                                movieReleaseType = MovieReleaseType.THEATER
                             )
                         },
                         modifier = Modifier.fillMaxWidth().testTag("simulate_movie_theater_alert_button"),
@@ -367,11 +370,12 @@ fun SettingsScreen(
                             NotificationReceiver.triggerEpisodeNotification(
                                 context,
                                 showTitle = "Dune: Part Two",
-                                episodeName = "Digital / DVD Release",
+                                episodeName = null,
                                 season = null,
                                 episodeNumber = null,
                                 isLastEpisode = false,
-                                type = "movie"
+                                type = MediaType.MOVIE,
+                                movieReleaseType = MovieReleaseType.DIGITAL
                             )
                         },
                         modifier = Modifier.fillMaxWidth().testTag("simulate_movie_digital_alert_button"),

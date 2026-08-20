@@ -9,6 +9,8 @@ import android.util.Log
 import com.example.data.database.AppDatabase
 import com.example.data.database.CalendarItem
 import com.example.data.database.NotificationSetting
+import com.example.data.model.MediaType
+import com.example.data.model.MovieReleaseType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -34,11 +36,11 @@ object NotificationScheduler {
 
             Log.d(TAG, "Scheduling notifications: found ${settings.size} custom show settings and ${allItems.size} calendar items")
 
-            val allEpisodesMap = allItems.groupBy { it.id to (if (it.type == "anime") null else it.season) }
+            val allEpisodesMap = allItems.groupBy { it.id to (if (it.type == MediaType.ANIME) null else it.season) }
 
             for (item in allItems) {
                 // Per-item setting in database always takes precedence over new item defaults
-                val isMovie = item.type == "movie"
+                val isMovie = item.type == MediaType.MOVIE
                 val setting = settingsMap[item.id] ?: NotificationSetting(
                     showId = item.id,
                     showTitle = item.title,
@@ -46,7 +48,7 @@ object NotificationScheduler {
                     notifyEveryEpisode = if (isMovie) defaultMovieTheater else defaultAiring,
                     notifyAiredLastEpisode = if (isMovie) defaultMovieDigital else defaultSeasonFinished
                 )
-                val seasonItems = allEpisodesMap[item.id to (if (item.type == "anime") null else item.season)]
+                val seasonItems = allEpisodesMap[item.id to (if (item.type == MediaType.ANIME) null else item.season)]
                 val totalEpisodesInSeason = seasonItems?.mapNotNull { it.episodeNumber }?.maxOrNull() ?: item.episodeNumber
                 scheduleOrDispatchItem(context, db, item, setting, totalEpisodesInSeason)
             }
@@ -75,10 +77,10 @@ object NotificationScheduler {
             // Reset notified status for upcoming/today's items for this show so newly enabled alerts fire
             db.calendarItemDao().resetNotifiedForShow(showId)
             val updatedShowItems = db.calendarItemDao().getItemsForShow(showId)
-            val showEpisodesMap = updatedShowItems.groupBy { if (it.type == "anime") null else it.season }
+            val showEpisodesMap = updatedShowItems.groupBy { if (it.type == MediaType.ANIME) null else it.season }
 
             for (item in updatedShowItems) {
-                val seasonItems = showEpisodesMap[if (item.type == "anime") null else item.season]
+                val seasonItems = showEpisodesMap[if (item.type == MediaType.ANIME) null else item.season]
                 val totalEpisodesInSeason = seasonItems?.mapNotNull { it.episodeNumber }?.maxOrNull() ?: item.episodeNumber
                 scheduleOrDispatchItem(context, db, item, setting, totalEpisodesInSeason)
             }
@@ -95,9 +97,12 @@ object NotificationScheduler {
         totalEpisodesInSeason: Int? = null
     ) {
         val isFinale = item.isSeasonFinale || item.isLastEpisode
-        val isEnabled = if (item.type == "movie") {
-            val isTheater = item.episodeTitle?.contains("theater", ignoreCase = true) == true
-            if (isTheater) setting.notifyEveryEpisode else setting.notifyAiredLastEpisode
+        val isEnabled = if (item.type == MediaType.MOVIE) {
+            if (item.movieReleaseType == MovieReleaseType.THEATER) {
+                setting.notifyEveryEpisode
+            } else {
+                setting.notifyAiredLastEpisode
+            }
         } else if (isFinale) {
             setting.notifyAiredLastEpisode || setting.notifyEveryEpisode
         } else {
@@ -109,7 +114,7 @@ object NotificationScheduler {
             return
         }
 
-        val triggerTime = if (item.type == "movie") {
+        val triggerTime = if (item.type == MediaType.MOVIE) {
             item.date.atZone(java.time.ZoneId.systemDefault())
                 .toLocalDate()
                 .atTime(9, 0)

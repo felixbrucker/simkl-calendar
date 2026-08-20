@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.database.CalendarItem
 import com.example.data.database.NotificationSetting
 import com.example.data.database.UserToken
+import com.example.data.model.MediaType
 import com.example.data.repository.SimklRepository
 import com.example.receiver.NotificationReceiver
 import kotlinx.coroutines.flow.*
@@ -50,10 +51,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         items.filter { item ->
             // Category filter
             val matchesCategory = when (item.type) {
-                "tv" -> tv
-                "anime" -> anime
-                "movie" -> movies
-                else -> true
+                MediaType.TV -> tv
+                MediaType.ANIME -> anime
+                MediaType.MOVIE -> movies
             }
 
             // Premiere/Finale filter
@@ -138,7 +138,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     fun toggleNotification(
         showId: Int,
         title: String,
-        type: String,
+        type: MediaType,
         notifyEpisode: Boolean,
         notifySeasonFinished: Boolean
     ) {
@@ -168,7 +168,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 season = item.season,
                 episodeNumber = item.episodeNumber,
                 isLastEpisode = item.isSeasonFinale || item.isLastEpisode,
-                type = item.type
+                type = item.type,
+                movieReleaseType = item.movieReleaseType
             )
         }
     }

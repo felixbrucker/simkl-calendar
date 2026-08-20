@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import com.example.data.database.CalendarItem
+import com.example.data.model.MediaType
+import com.example.data.model.MovieReleaseType
 import com.example.data.util.DateUtil
 import com.example.ui.viewmodel.CalendarViewModel
 import java.text.SimpleDateFormat
@@ -421,9 +423,9 @@ fun CalendarItemCard(
     onClick: () -> Unit
 ) {
     val categoryColor = when (item.type) {
-        "anime" -> Color(0xFFD0BCFF)
-        "movie" -> Color(0xFFF2B8B5)
-        else -> Color(0xFFBAC3FF) // TV Show
+        MediaType.ANIME -> Color(0xFFD0BCFF)
+        MediaType.MOVIE -> Color(0xFFF2B8B5)
+        MediaType.TV -> Color(0xFFBAC3FF)
     }
 
     Card(
@@ -480,7 +482,7 @@ fun CalendarItemCard(
                         containerColor = categoryColor.copy(alpha = 0.2f),
                         contentColor = categoryColor
                     ) {
-                        Text(item.type.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
+                        Text(item.type.displayName.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                     }
 
                     // Premiere badge
@@ -511,35 +513,39 @@ fun CalendarItemCard(
 
                 Spacer(modifier = Modifier.height(2.dp))
 
-                if (item.type == "anime") {
-                    val epNum = item.episodeNumber ?: 1
-                    Text(
-                        text = "Episode $epNum",
-                        fontSize = 13.sp,
-                        color = Color(0xFFCAC4D0),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                } else if (item.type != "movie") {
-                    val epSeason = item.season ?: 1
-                    val epNum = item.episodeNumber ?: 1
-                    val epLabel = String.format(Locale.US, "S%02d • E%02d", epSeason, epNum)
-                    Text(
-                        text = "$epLabel : ${item.episodeTitle ?: "TBD"}",
-                        fontSize = 13.sp,
-                        color = Color(0xFFCAC4D0),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                } else {
-                    Text(
-                        text = item.episodeTitle?.takeIf { it.isNotBlank() } ?: "Movie Release",
-                        fontSize = 13.sp,
-                        color = Color(0xFFF2B8B5)
-                    )
+                when (item.type) {
+                    MediaType.ANIME -> {
+                        val epNum = item.episodeNumber ?: 1
+                        Text(
+                            text = "Episode $epNum",
+                            fontSize = 13.sp,
+                            color = Color(0xFFCAC4D0),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    MediaType.TV -> {
+                        val epSeason = item.season ?: 1
+                        val epNum = item.episodeNumber ?: 1
+                        val epLabel = String.format(Locale.US, "S%02d • E%02d", epSeason, epNum)
+                        Text(
+                            text = "$epLabel : ${item.episodeTitle ?: "TBD"}",
+                            fontSize = 13.sp,
+                            color = Color(0xFFCAC4D0),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    MediaType.MOVIE -> {
+                        Text(
+                            text = item.movieReleaseType?.displayName ?: "Movie Release",
+                            fontSize = 13.sp,
+                            color = Color(0xFFF2B8B5)
+                        )
+                    }
                 }
 
-                if (item.type != "movie") {
+                if (item.type != MediaType.MOVIE) {
                     val releaseTime = DateUtil.formatLocalizedTime(item.date)
                     if (releaseTime != null) {
                         Spacer(modifier = Modifier.height(4.dp))

@@ -15,6 +15,8 @@ import com.example.MainActivity
 import com.example.R
 import com.example.data.database.AppDatabase
 import com.example.data.database.CalendarItem
+import com.example.data.model.MediaType
+import com.example.data.model.MovieReleaseType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -72,28 +74,23 @@ class NotificationReceiver : BroadcastReceiver() {
         const val EXTRA_ITEM_KEY = "extra_item_key"
 
         /**
-         * Formats notification title and message from raw parameters.
-         * Finale notifications display season and total episode count without the individual episode number.
+         * Formats notification title and message from raw parameters using type-safe enums.
          */
         fun formatNotificationContent(
             showTitle: String,
-            type: String,
+            type: MediaType,
             episodeTitle: String?,
             season: Int?,
             episodeNumber: Int?,
             isFinale: Boolean,
-            totalEpisodes: Int? = null
+            totalEpisodes: Int? = null,
+            movieReleaseType: MovieReleaseType? = null
         ): Pair<String, String> {
-            return if (type == "movie") {
-                val isTheater = episodeTitle?.contains("theater", ignoreCase = true) == true
-                if (isTheater) {
-                    val title = "Movie In Theaters Today"
-                    val message = "$showTitle is now playing in theaters!"
-                    title to message
+            return if (type == MediaType.MOVIE) {
+                if (movieReleaseType == MovieReleaseType.THEATER) {
+                    "Movie In Theaters Today" to "$showTitle is now playing in theaters!"
                 } else {
-                    val title = "Movie Released Today"
-                    val message = "$showTitle is now available on Digital / DVD!"
-                    title to message
+                    "Movie Released Today" to "$showTitle is now available on Digital / DVD!"
                 }
             } else if (isFinale) {
                 val title = "Season finished airing"
@@ -102,7 +99,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     "$total ${if (total == 1) "Episode" else "Episodes"}"
                 } else null
 
-                val finaleTag = if (type == "anime") {
+                val finaleTag = if (type == MediaType.ANIME) {
                     if (episodeCountStr != null) " ($episodeCountStr)" else ""
                 } else {
                     if (season != null && episodeCountStr != null) {
@@ -117,7 +114,7 @@ class NotificationReceiver : BroadcastReceiver() {
                 title to message
             } else {
                 val title = "New Episode Released"
-                val epLabel = if (type == "anime") {
+                val epLabel = if (type == MediaType.ANIME) {
                     if (episodeNumber != null) " (Episode $episodeNumber)" else ""
                 } else if (season != null && episodeNumber != null) {
                     String.format(Locale.US, " (S%02dE%02d)", season, episodeNumber)
@@ -145,7 +142,8 @@ class NotificationReceiver : BroadcastReceiver() {
                 season = item.season,
                 episodeNumber = item.episodeNumber,
                 isFinale = isFinale,
-                totalEpisodes = totalEpisodes
+                totalEpisodes = totalEpisodes,
+                movieReleaseType = item.movieReleaseType
             )
         }
 
@@ -221,8 +219,9 @@ class NotificationReceiver : BroadcastReceiver() {
             season: Int?,
             episodeNumber: Int?,
             isLastEpisode: Boolean,
-            type: String = "tv",
-            totalEpisodes: Int? = null
+            type: MediaType = MediaType.TV,
+            totalEpisodes: Int? = null,
+            movieReleaseType: MovieReleaseType? = null
         ) {
             val (title, message) = formatNotificationContent(
                 showTitle = showTitle,
@@ -231,7 +230,8 @@ class NotificationReceiver : BroadcastReceiver() {
                 season = season,
                 episodeNumber = episodeNumber,
                 isFinale = isLastEpisode,
-                totalEpisodes = totalEpisodes
+                totalEpisodes = totalEpisodes,
+                movieReleaseType = movieReleaseType
             )
 
             val id = Math.abs(showTitle.hashCode() + (episodeNumber ?: 1))
