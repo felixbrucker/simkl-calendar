@@ -388,7 +388,7 @@ fun SettingsScreen(
                                 episodeName = "The Hashira Training",
                                 season = 4,
                                 episodeNumber = 1,
-                                isLastEpisode = false,
+                                isFinale = false,
                                 type = MediaType.ANIME
                             )
                         },
@@ -413,7 +413,7 @@ fun SettingsScreen(
                                 episodeName = "With Open Eyes",
                                 season = 4,
                                 episodeNumber = 10,
-                                isLastEpisode = true,
+                                isFinale = true,
                                 type = MediaType.TV,
                                 totalEpisodes = 10
                             )
@@ -439,7 +439,7 @@ fun SettingsScreen(
                                 episodeName = null,
                                 season = null,
                                 episodeNumber = null,
-                                isLastEpisode = false,
+                                isFinale = false,
                                 type = MediaType.MOVIE,
                                 movieReleaseType = MovieReleaseType.THEATER
                             )
@@ -465,7 +465,7 @@ fun SettingsScreen(
                                 episodeName = null,
                                 season = null,
                                 episodeNumber = null,
-                                isLastEpisode = false,
+                                isFinale = false,
                                 type = MediaType.MOVIE,
                                 movieReleaseType = MovieReleaseType.DIGITAL
                             )

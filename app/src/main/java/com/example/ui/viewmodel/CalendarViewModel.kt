@@ -141,16 +141,12 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun toggleNotification(
         showId: Int,
-        title: String,
-        type: MediaType,
         notifyEpisode: Boolean,
         notifySeasonFinished: Boolean
     ) {
         viewModelScope.launch {
             repository.toggleNotificationSetting(
                 showId = showId,
-                showTitle = title,
-                type = type,
                 notifyEveryEpisode = notifyEpisode,
                 notifyAiredLastEpisode = notifySeasonFinished
             )
@@ -171,7 +167,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 episodeName = item.episodeTitle,
                 season = item.season,
                 episodeNumber = item.episodeNumber,
-                isLastEpisode = item.isSeasonFinale || item.isLastEpisode,
+                isFinale = item.isSeasonFinale,
                 type = item.type,
                 movieReleaseType = item.movieReleaseType
             )

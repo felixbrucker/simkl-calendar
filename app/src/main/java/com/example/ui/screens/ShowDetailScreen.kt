@@ -553,8 +553,6 @@ fun ShowDetailScreen(
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
                                                 showId = activeItem.simklId,
-                                                title = activeItem.title,
-                                                type = activeItem.type,
                                                 notifyEpisode = isChecked,
                                                 notifySeasonFinished = notifySeasonFinished
                                             )
@@ -582,8 +580,6 @@ fun ShowDetailScreen(
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
                                                 showId = activeItem.simklId,
-                                                title = activeItem.title,
-                                                type = activeItem.type,
                                                 notifyEpisode = notifyEveryEpisode,
                                                 notifySeasonFinished = isChecked
                                             )
@@ -609,8 +605,6 @@ fun ShowDetailScreen(
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
                                                 showId = activeItem.simklId,
-                                                title = activeItem.title,
-                                                type = activeItem.type,
                                                 notifyEpisode = isChecked,
                                                 notifySeasonFinished = notifySeasonFinished
                                             )
@@ -638,8 +632,6 @@ fun ShowDetailScreen(
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
                                                 showId = activeItem.simklId,
-                                                title = activeItem.title,
-                                                type = activeItem.type,
                                                 notifyEpisode = notifyEveryEpisode,
                                                 notifySeasonFinished = isChecked
                                             )

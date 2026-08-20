@@ -4,15 +4,13 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.example.data.model.MediaType
 import com.example.data.model.MovieReleaseType
-import com.example.data.model.WatchlistStatus
 import java.time.Instant
 
 @Entity(tableName = "user_token")
 data class UserToken(
     @PrimaryKey val id: Int = 1, // Single-row lock for active user
     val accessToken: String,
-    val username: String,
-    val loginTime: Long = System.currentTimeMillis()
+    val username: String
 )
 
 @Entity(tableName = "calendar_items")
@@ -29,16 +27,12 @@ data class CalendarItem(
     val isSeasonPremiere: Boolean,
     val isSeasonFinale: Boolean,
     val poster: String?, // URL for show poster image
-    val isLastEpisode: Boolean = false, // Season finished airing
-    val notificationsScheduled: Boolean = false, // Track alarm status
     val isNotified: Boolean = false // Track whether notification has been dispatched
 )
 
 @Entity(tableName = "notification_settings")
 data class NotificationSetting(
     @PrimaryKey val showId: Int, // Simkl ID
-    val showTitle: String,
-    val type: MediaType,
     val notifyEveryEpisode: Boolean = false,
     val notifyAiredLastEpisode: Boolean = true
 )
@@ -47,8 +41,8 @@ data class NotificationSetting(
 data class TrackedWatchlistItem(
     @PrimaryKey val id: Int, // Simkl ID
     val type: MediaType,
-    val status: WatchlistStatus,
     val title: String,
     val poster: String? = null
 )
+
 

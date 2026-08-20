@@ -99,8 +99,7 @@ class DateUtilTest {
             type = MediaType.TV,
             isSeasonPremiere = false,
             isSeasonFinale = true,
-            poster = null,
-            isLastEpisode = true
+            poster = null
         )
 
         val (tvTitle, tvMsg) = com.example.receiver.NotificationReceiver.formatNotificationContent(
@@ -124,8 +123,7 @@ class DateUtilTest {
             type = MediaType.ANIME,
             isSeasonPremiere = false,
             isSeasonFinale = true,
-            poster = null,
-            isLastEpisode = true
+            poster = null
         )
 
         val (animeTitle, animeMsg) = com.example.receiver.NotificationReceiver.formatNotificationContent(
@@ -150,8 +148,7 @@ class DateUtilTest {
             movieReleaseType = com.example.data.model.MovieReleaseType.THEATER,
             isSeasonPremiere = false,
             isSeasonFinale = false,
-            poster = null,
-            isLastEpisode = false
+            poster = null
         )
 
         val (movieTheaterTitle, movieTheaterMsg) = com.example.receiver.NotificationReceiver.formatNotificationContent(
@@ -174,8 +171,7 @@ class DateUtilTest {
             movieReleaseType = com.example.data.model.MovieReleaseType.DIGITAL,
             isSeasonPremiere = false,
             isSeasonFinale = false,
-            poster = null,
-            isLastEpisode = false
+            poster = null
         )
 
         val (movieDigitalTitle, movieDigitalMsg) = com.example.receiver.NotificationReceiver.formatNotificationContent(
@@ -248,7 +244,7 @@ class DateUtilTest {
     }
 
     @Test
-    fun testCalendarItemEntityIncrementalUpdate() {
+    fun testCalendarItemEntityIncrementalUpdateAndDiffDetection() {
         val initialItem = com.example.data.database.CalendarItem(
             primaryKey = "v2_9999_1_1",
             simklId = 9999,
@@ -261,7 +257,6 @@ class DateUtilTest {
             isSeasonPremiere = true,
             isSeasonFinale = false,
             poster = null,
-            isLastEpisode = false,
             isNotified = false
         )
 
@@ -277,30 +272,38 @@ class DateUtilTest {
             isSeasonPremiere = true,
             isSeasonFinale = true, // finale confirmed
             poster = "https://simkl.in/posters/9999_m.jpg",
-            isLastEpisode = true,
             isNotified = false
         )
 
-        val itemsMap = mutableMapOf(initialItem.primaryKey to initialItem)
+        val originalExistingMap = mapOf(initialItem.primaryKey to initialItem)
+        val workingMap = originalExistingMap.toMutableMap()
 
         // Simulate updateOrAdd logic
-        val existing = itemsMap[updatedNewData.primaryKey]!!
+        val existing = workingMap[updatedNewData.primaryKey]!!
         val merged = existing.copy(
             title = updatedNewData.title.takeIf { it.isNotBlank() && it != "Untitled" } ?: existing.title,
             episodeTitle = updatedNewData.episodeTitle?.takeIf { it.isNotBlank() } ?: existing.episodeTitle,
             date = updatedNewData.date,
             poster = updatedNewData.poster?.takeIf { it.isNotBlank() } ?: existing.poster,
             isSeasonPremiere = updatedNewData.isSeasonPremiere || existing.isSeasonPremiere,
-            isSeasonFinale = updatedNewData.isSeasonFinale || existing.isSeasonFinale,
-            isLastEpisode = updatedNewData.isLastEpisode || existing.isLastEpisode
+            isSeasonFinale = updatedNewData.isSeasonFinale || existing.isSeasonFinale
         )
-        itemsMap[updatedNewData.primaryKey] = merged
+        workingMap[updatedNewData.primaryKey] = merged
 
-        val result = itemsMap["v2_9999_1_1"]!!
+        val result = workingMap["v2_9999_1_1"]!!
         assertEquals("Pilot: The Awakening", result.episodeTitle)
         assertEquals(Instant.parse("2026-09-02T21:00:00Z"), result.date)
         assertEquals("https://simkl.in/posters/9999_m.jpg", result.poster)
         assertTrue(result.isSeasonFinale)
-        assertTrue(result.isLastEpisode)
+
+        // Diff check should detect 1 updated item
+        val itemsToUpdate = workingMap.values.filter { it != originalExistingMap[it.primaryKey] }
+        assertEquals(1, itemsToUpdate.size)
+        assertEquals("v2_9999_1_1", itemsToUpdate.first().primaryKey)
+
+        // When syncing again with identical data, diff check should detect 0 updates
+        val identicalMap = mapOf(result.primaryKey to result)
+        val unchangedItems = identicalMap.values.filter { it != result }
+        assertEquals(0, unchangedItems.size)
     }
 }

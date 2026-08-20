@@ -33,6 +33,12 @@ interface CalendarItemDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCalendarItems(items: List<CalendarItem>)
 
+    @Update
+    suspend fun updateCalendarItems(items: List<CalendarItem>)
+
+    @Delete
+    suspend fun deleteCalendarItems(items: List<CalendarItem>)
+
     @Query("DELETE FROM calendar_items")
     suspend fun clearCalendarItems()
 

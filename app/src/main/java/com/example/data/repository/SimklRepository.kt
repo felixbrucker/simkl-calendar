@@ -198,12 +198,10 @@ class SimklRepository(private val context: Context) {
         }
     }
 
-    suspend fun toggleNotificationSetting(showId: Int, showTitle: String, type: MediaType, notifyEveryEpisode: Boolean, notifyAiredLastEpisode: Boolean) = withContext(Dispatchers.IO) {
+    suspend fun toggleNotificationSetting(showId: Int, notifyEveryEpisode: Boolean, notifyAiredLastEpisode: Boolean) = withContext(Dispatchers.IO) {
         settingDao.saveSetting(
             NotificationSetting(
                 showId = showId,
-                showTitle = showTitle,
-                type = type,
                 notifyEveryEpisode = notifyEveryEpisode,
                 notifyAiredLastEpisode = notifyAiredLastEpisode
             )
@@ -263,7 +261,6 @@ class SimklRepository(private val context: Context) {
                             TrackedWatchlistItem(
                                 id = simklId,
                                 type = MediaType.TV,
-                                status = status,
                                 title = media.title ?: "Untitled",
                                 poster = ImageUtil.formatPosterUrl(media.poster)
                             )
@@ -283,7 +280,6 @@ class SimklRepository(private val context: Context) {
                             TrackedWatchlistItem(
                                 id = simklId,
                                 type = MediaType.ANIME,
-                                status = status,
                                 title = media.title ?: "Untitled",
                                 poster = ImageUtil.formatPosterUrl(media.poster)
                             )
@@ -303,7 +299,6 @@ class SimklRepository(private val context: Context) {
                             TrackedWatchlistItem(
                                 id = simklId,
                                 type = MediaType.MOVIE,
-                                status = status,
                                 title = media.title ?: "Untitled",
                                 poster = ImageUtil.formatPosterUrl(media.poster)
                             )
@@ -336,19 +331,14 @@ class SimklRepository(private val context: Context) {
         val trackedAnimeIds = allTrackedItems.filter { it.type == MediaType.ANIME }.map { it.id }.toSet()
         val trackedMovieIds = allTrackedItems.filter { it.type == MediaType.MOVIE }.map { it.id }.toSet()
 
-        // Initialize with existing local calendar items for tracked shows to preserve and incrementally update data
+        // Load existing local calendar items to perform incremental diff comparison
         val existingDbItems = try {
-            calendarDao.getAllCalendarItemsList().filter { item ->
-                when (item.type) {
-                    MediaType.TV -> trackedShowIds.contains(item.simklId)
-                    MediaType.ANIME -> trackedAnimeIds.contains(item.simklId)
-                    MediaType.MOVIE -> trackedMovieIds.contains(item.simklId)
-                }
-            }
+            calendarDao.getAllCalendarItemsList()
         } catch (_: Exception) {
             emptyList()
         }
-        val itemsMap = existingDbItems.associateBy { it.primaryKey }.toMutableMap()
+        val originalExistingMap = existingDbItems.associateBy { it.primaryKey }
+        val itemsMap = originalExistingMap.toMutableMap()
 
         // 2. Fetch CDN Calendars for past month (-1) through next 5 months (TV, Anime, Movies) from data.simkl.in
         val currentCal = java.util.Calendar.getInstance()
@@ -417,9 +407,7 @@ class SimklRepository(private val context: Context) {
                                                 movieReleaseType = MovieReleaseType.THEATER,
                                                 isSeasonPremiere = false,
                                                 isSeasonFinale = false,
-                                                poster = posterUrl,
-                                                isLastEpisode = false,
-                                                notificationsScheduled = false
+                                                poster = posterUrl
                                             )
                                         )
                                     }
@@ -445,9 +433,7 @@ class SimklRepository(private val context: Context) {
                                                 movieReleaseType = MovieReleaseType.DIGITAL,
                                                 isSeasonPremiere = false,
                                                 isSeasonFinale = false,
-                                                poster = posterUrl,
-                                                isLastEpisode = false,
-                                                notificationsScheduled = false
+                                                poster = posterUrl
                                             )
                                         )
                                     }
@@ -485,9 +471,7 @@ class SimklRepository(private val context: Context) {
                                         movieReleaseType = null,
                                         isSeasonPremiere = isPremiere,
                                         isSeasonFinale = isFinale,
-                                        poster = posterUrl,
-                                        isLastEpisode = isFinale && meta?.status == "ended",
-                                        notificationsScheduled = false
+                                        poster = posterUrl
                                     )
                                 )
                             }
@@ -539,9 +523,7 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = MovieReleaseType.THEATER,
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
-                                    poster = moviePoster,
-                                    isLastEpisode = false,
-                                    notificationsScheduled = false
+                                    poster = moviePoster
                                 )
                             )
                         }
@@ -567,9 +549,7 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = MovieReleaseType.DIGITAL,
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
-                                    poster = moviePoster,
-                                    isLastEpisode = false,
-                                    notificationsScheduled = false
+                                    poster = moviePoster
                                 )
                             )
                         }
@@ -580,14 +560,53 @@ class SimklRepository(private val context: Context) {
             }
         }
 
-        val finalDbItems = itemsMap.values.toList()
+        // Compare old and new values: only write changes to the database
+        val itemsToInsert = mutableListOf<CalendarItem>()
+        val itemsToUpdate = mutableListOf<CalendarItem>()
 
-        calendarDao.clearCalendarItems()
-        if (finalDbItems.isNotEmpty()) {
-            calendarDao.insertCalendarItems(finalDbItems)
-            Log.d("SimklRepository", "Successfully synchronized ${finalDbItems.size} calendar items")
+        for ((key, workingItem) in itemsMap) {
+            val original = originalExistingMap[key]
+            if (original == null) {
+                itemsToInsert.add(workingItem)
+            } else if (workingItem != original) {
+                itemsToUpdate.add(workingItem)
+            }
+        }
 
-            // Initialize default notification settings for new shows while preserving user's existing settings
+        // Identify items that are no longer tracked in user's watchlist
+        val itemsToDelete = existingDbItems.filter { item ->
+            val isTracked = when (item.type) {
+                MediaType.TV -> trackedShowIds.contains(item.simklId)
+                MediaType.ANIME -> trackedAnimeIds.contains(item.simklId)
+                MediaType.MOVIE -> trackedMovieIds.contains(item.simklId)
+            }
+            !isTracked
+        }
+
+        if (itemsToDelete.isNotEmpty()) {
+            calendarDao.deleteCalendarItems(itemsToDelete)
+            Log.d("SimklRepository", "Deleted ${itemsToDelete.size} untracked calendar items from DB")
+        }
+
+        if (itemsToInsert.isNotEmpty()) {
+            calendarDao.insertCalendarItems(itemsToInsert)
+            Log.d("SimklRepository", "Inserted ${itemsToInsert.size} new calendar items into DB")
+        }
+
+        if (itemsToUpdate.isNotEmpty()) {
+            calendarDao.updateCalendarItems(itemsToUpdate)
+            Log.d("SimklRepository", "Updated ${itemsToUpdate.size} changed calendar items in DB")
+        }
+
+        val totalDbChanges = itemsToDelete.size + itemsToInsert.size + itemsToUpdate.size
+        if (totalDbChanges == 0) {
+            Log.d("SimklRepository", "Calendar sync complete: no changes detected, skipped DB writes")
+        } else {
+            Log.d("SimklRepository", "Calendar sync complete: applied $totalDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated, ${itemsToDelete.size} deleted)")
+        }
+
+        // Initialize default notification settings for newly inserted shows
+        if (itemsToInsert.isNotEmpty()) {
             try {
                 val notifPrefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
                 val defaultAiring = notifPrefs.getBoolean("default_notify_airing", false)
@@ -595,14 +614,12 @@ class SimklRepository(private val context: Context) {
                 val defaultMovieTheater = notifPrefs.getBoolean("default_notify_movie_theater", false)
                 val defaultMovieDigital = notifPrefs.getBoolean("default_notify_movie_digital", true)
 
-                val distinctShows = finalDbItems.groupBy { it.simklId }
+                val distinctShows = itemsToInsert.groupBy { it.simklId }
                 val newSettings = distinctShows.map { (showId, items) ->
                     val sample = items.first()
                     val isMovie = sample.type == MediaType.MOVIE
                     NotificationSetting(
                         showId = showId,
-                        showTitle = sample.title,
-                        type = sample.type,
                         notifyEveryEpisode = if (isMovie) defaultMovieTheater else defaultAiring,
                         notifyAiredLastEpisode = if (isMovie) defaultMovieDigital else defaultSeasonFinished
                     )
@@ -611,10 +628,10 @@ class SimklRepository(private val context: Context) {
             } catch (e: Exception) {
                 Log.e("SimklRepository", "Error initializing default notification settings", e)
             }
+        }
 
+        if (totalDbChanges > 0) {
             com.example.receiver.NotificationScheduler.scheduleAllNotifications(context)
-        } else {
-            Log.w("SimklRepository", "No calendar items retrieved from CDN or sync")
         }
     }
 
@@ -633,7 +650,6 @@ class SimklRepository(private val context: Context) {
             val updatedDate = newItem.date // Keep latest date/time from API (handles rescheduled / refined dates)
             val updatedPremiere = newItem.isSeasonPremiere || existing.isSeasonPremiere
             val updatedFinale = newItem.isSeasonFinale || existing.isSeasonFinale
-            val updatedLastEpisode = newItem.isLastEpisode || existing.isLastEpisode
             val updatedReleaseType = newItem.movieReleaseType ?: existing.movieReleaseType
 
             // If air date was rescheduled to the future, allow notification to trigger again
@@ -651,7 +667,6 @@ class SimklRepository(private val context: Context) {
                 movieReleaseType = updatedReleaseType,
                 isSeasonPremiere = updatedPremiere,
                 isSeasonFinale = updatedFinale,
-                isLastEpisode = updatedLastEpisode,
                 isNotified = updatedNotified
             )
         }

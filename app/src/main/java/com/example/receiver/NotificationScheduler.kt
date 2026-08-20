@@ -43,8 +43,6 @@ object NotificationScheduler {
                 val isMovie = item.type == MediaType.MOVIE
                 val setting = settingsMap[item.simklId] ?: NotificationSetting(
                     showId = item.simklId,
-                    showTitle = item.title,
-                    type = item.type,
                     notifyEveryEpisode = if (isMovie) defaultMovieTheater else defaultAiring,
                     notifyAiredLastEpisode = if (isMovie) defaultMovieDigital else defaultSeasonFinished
                 )
@@ -96,7 +94,7 @@ object NotificationScheduler {
         setting: NotificationSetting,
         totalEpisodesInSeason: Int? = null
     ) {
-        val isFinale = item.isSeasonFinale || item.isLastEpisode
+        val isFinale = item.isSeasonFinale
         val isEnabled = if (item.type == MediaType.MOVIE) {
             if (item.movieReleaseType == MovieReleaseType.THEATER) {
                 setting.notifyEveryEpisode

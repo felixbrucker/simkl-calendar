@@ -218,7 +218,7 @@ class NotificationReceiver : BroadcastReceiver() {
             episodeName: String?,
             season: Int?,
             episodeNumber: Int?,
-            isLastEpisode: Boolean,
+            isFinale: Boolean = false,
             type: MediaType = MediaType.TV,
             totalEpisodes: Int? = null,
             movieReleaseType: MovieReleaseType? = null
@@ -229,7 +229,7 @@ class NotificationReceiver : BroadcastReceiver() {
                 episodeTitle = episodeName,
                 season = season,
                 episodeNumber = episodeNumber,
-                isFinale = isLastEpisode,
+                isFinale = isFinale,
                 totalEpisodes = totalEpisodes,
                 movieReleaseType = movieReleaseType
             )
