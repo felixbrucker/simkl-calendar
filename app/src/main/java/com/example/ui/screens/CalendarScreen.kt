@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -57,6 +58,7 @@ fun CalendarScreen(
     val moviesFilter by viewModel.showMovies.collectAsState()
     val premieresOnly by viewModel.onlySeasonPremieres.collectAsState()
     val finalesOnly by viewModel.onlySeasonFinales.collectAsState()
+    val digitalDvdOnly by viewModel.onlyDigitalDvd.collectAsState()
 
     val username = userToken?.username ?: "Guest"
 
@@ -184,17 +186,18 @@ fun CalendarScreen(
                     )
                 }
 
-                // Subtype Row filters (Season Premiere / Season Finale highlights)
+                // Subtype Row filters (Season Premiere / Season Finale / Digital & DVD highlights)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
                         selected = premieresOnly,
                         onClick = { viewModel.onlySeasonPremieres.value = !premieresOnly },
-                        label = { Text("Season Premiere 🎉") },
+                        label = { Text("Season Premiere") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Color(0xFFE8DEF8),
                             selectedLabelColor = Color(0xFF1D192B),
@@ -207,7 +210,7 @@ fun CalendarScreen(
                     FilterChip(
                         selected = finalesOnly,
                         onClick = { viewModel.onlySeasonFinales.value = !finalesOnly },
-                        label = { Text("Season Finale 🍿") },
+                        label = { Text("Season Finale") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Color(0xFFB3261E),
                             selectedLabelColor = Color.White,
@@ -215,6 +218,19 @@ fun CalendarScreen(
                             labelColor = Color(0xFFCAC4D0)
                         ),
                         modifier = Modifier.testTag("filter_finales_toggle")
+                    )
+
+                    FilterChip(
+                        selected = digitalDvdOnly,
+                        onClick = { viewModel.onlyDigitalDvd.value = !digitalDvdOnly },
+                        label = { Text("Digital / DVD") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF4F378B),
+                            selectedLabelColor = Color(0xFFEADDFF),
+                            containerColor = Color(0xFF313033),
+                            labelColor = Color(0xFFCAC4D0)
+                        ),
+                        modifier = Modifier.testTag("filter_digital_dvd_toggle")
                     )
                 }
 
@@ -252,6 +268,7 @@ fun CalendarScreen(
                                 viewModel.showMovies.value = true
                                 viewModel.onlySeasonPremieres.value = false
                                 viewModel.onlySeasonFinales.value = false
+                                viewModel.onlyDigitalDvd.value = false
                             },
                         ) {
                             Text("Reset Active Filters", color = Color(0xFFD0BCFF))

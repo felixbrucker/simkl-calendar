@@ -7,6 +7,7 @@ import com.example.data.database.CalendarItem
 import com.example.data.database.NotificationSetting
 import com.example.data.database.UserToken
 import com.example.data.model.MediaType
+import com.example.data.model.MovieReleaseType
 import com.example.data.repository.SimklRepository
 import com.example.receiver.NotificationReceiver
 import kotlinx.coroutines.flow.*
@@ -31,6 +32,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val showMovies = MutableStateFlow(true)
     val onlySeasonPremieres = MutableStateFlow(false)
     val onlySeasonFinales = MutableStateFlow(false)
+    val onlyDigitalDvd = MutableStateFlow(false)
 
     // Combined filtered calendar list reactive flow
     @Suppress("UNCHECKED_CAST")
@@ -40,7 +42,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         showAnime,
         showMovies,
         onlySeasonPremieres,
-        onlySeasonFinales
+        onlySeasonFinales,
+        onlyDigitalDvd
     ) { flows ->
         val items = flows[0] as List<CalendarItem>
         val tv = flows[1] as Boolean
@@ -48,6 +51,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val movies = flows[3] as Boolean
         val premieres = flows[4] as Boolean
         val finales = flows[5] as Boolean
+        val digitalDvd = flows[6] as Boolean
 
         items.filter { item ->
             // Category filter
@@ -57,15 +61,14 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 MediaType.MOVIE -> movies
             }
 
-            // Premiere/Finale filter
-            val matchesType = if (premieres && finales) {
-                item.isSeasonPremiere || item.isSeasonFinale
-            } else if (premieres) {
-                item.isSeasonPremiere
-            } else if (finales) {
-                item.isSeasonFinale
-            } else {
+            // Premiere / Finale / Digital-DVD Subtype filter
+            val hasSubtypeFilter = premieres || finales || digitalDvd
+            val matchesType = if (!hasSubtypeFilter) {
                 true
+            } else {
+                (premieres && item.isSeasonPremiere) ||
+                (finales && item.isSeasonFinale) ||
+                (digitalDvd && item.type == MediaType.MOVIE && item.movieReleaseType == MovieReleaseType.DIGITAL)
             }
 
             matchesCategory && matchesType

@@ -88,7 +88,7 @@ class NotificationReceiver : BroadcastReceiver() {
         ): Pair<String, String> {
             return if (type == MediaType.MOVIE) {
                 if (movieReleaseType == MovieReleaseType.THEATER) {
-                    "Movie In Theaters Today" to "$showTitle is now playing in theaters!"
+                    "Movie In Theaters Today" to "$showTitle is now in theaters!"
                 } else {
                     "Movie Released Today" to "$showTitle is now available on Digital / DVD!"
                 }
@@ -100,14 +100,14 @@ class NotificationReceiver : BroadcastReceiver() {
                 } else null
 
                 val finaleTag = if (type == MediaType.ANIME) {
-                    if (episodeCountStr != null) " ($episodeCountStr)" else ""
+                    if (episodeCountStr != null) ": $episodeCountStr" else ""
                 } else {
                     if (season != null && episodeCountStr != null) {
-                        " (Season $season, $episodeCountStr)"
+                        " Season $season: $episodeCountStr"
                     } else if (season != null) {
-                        " (Season $season)"
+                        " Season $season"
                     } else if (episodeCountStr != null) {
-                        " ($episodeCountStr)"
+                        ": $episodeCountStr"
                     } else ""
                 }
                 val message = "$showTitle$finaleTag"
