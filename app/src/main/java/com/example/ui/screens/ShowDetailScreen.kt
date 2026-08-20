@@ -82,6 +82,20 @@ fun ShowDetailScreen(
         }
     }
 
+    val theatricalItem = remember(showScheduleItems, activeItem) {
+        if (activeItem?.type == MediaType.MOVIE) {
+            showScheduleItems.firstOrNull { it.movieReleaseType == MovieReleaseType.THEATER }
+                ?: if (activeItem.movieReleaseType == MovieReleaseType.THEATER) activeItem else null
+        } else null
+    }
+
+    val digitalItem = remember(showScheduleItems, activeItem) {
+        if (activeItem?.type == MediaType.MOVIE) {
+            showScheduleItems.firstOrNull { it.movieReleaseType == MovieReleaseType.DIGITAL }
+                ?: if (activeItem.movieReleaseType == MovieReleaseType.DIGITAL) activeItem else null
+        } else null
+    }
+
     val settingsList by viewModel.notificationSettings.collectAsState()
     val showSetting = remember(settingsList, activeItem) {
         if (activeItem != null) settingsList.firstOrNull { it.showId == activeItem.simklId } else null
@@ -230,27 +244,70 @@ fun ShowDetailScreen(
                                 fontSize = 15.sp
                             )
 
-                            val dateLabel = if (activeItem.type == MediaType.MOVIE) {
-                                if (activeItem.movieReleaseType == MovieReleaseType.THEATER) "Theatrical Release" else "Digital / DVD Release"
-                            } else "Air Date"
-                            val formattedDateTime = if (activeItem.type == MediaType.MOVIE) {
-                                DateUtil.formatDisplayDate(activeItem.date)
-                            } else {
-                                DateUtil.formatDisplayDateTime(activeItem.date)
-                            }
+                            if (activeItem.type == MediaType.MOVIE) {
+                                if (theatricalItem != null) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().testTag("movie_theatrical_release_row"),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Theatrical Release", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                        Text(
+                                            text = DateUtil.formatDisplayDate(theatricalItem.date),
+                                            color = Color(0xFFE6E1E5),
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(dateLabel, color = Color(0xFFCAC4D0), fontSize = 14.sp)
-                                Text(
-                                    text = formattedDateTime,
-                                    color = Color(0xFFE6E1E5),
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp
-                                )
+                                if (digitalItem != null) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().testTag("movie_digital_release_row"),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Digital / DVD Release", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                        Text(
+                                            text = DateUtil.formatDisplayDate(digitalItem.date),
+                                            color = Color(0xFFE6E1E5),
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
+
+                                if (theatricalItem == null && digitalItem == null) {
+                                    val dateLabel = if (activeItem.movieReleaseType == MovieReleaseType.THEATER) "Theatrical Release" else "Digital / DVD Release"
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(dateLabel, color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                        Text(
+                                            text = DateUtil.formatDisplayDate(activeItem.date),
+                                            color = Color(0xFFE6E1E5),
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                val formattedDateTime = DateUtil.formatDisplayDateTime(activeItem.date)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Air Date", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                    Text(
+                                        text = formattedDateTime,
+                                        color = Color(0xFFE6E1E5),
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp
+                                    )
+                                }
                             }
 
                             // Season and Episode Slug positioned above Episode Name

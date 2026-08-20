@@ -72,7 +72,12 @@ object DateUtil {
         val localDate = date.atZone(zone).toLocalDate()
 
         val diffDays = ChronoUnit.DAYS.between(today, localDate)
-        val displayFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault())
+        val pattern = if (localDate.year != today.year) {
+            "EEEE, MMMM d, yyyy"
+        } else {
+            "EEEE, MMMM d"
+        }
+        val displayFormatter = DateTimeFormatter.ofPattern(pattern, Locale.getDefault())
         val dateLabel = localDate.format(displayFormatter).uppercase(Locale.getDefault())
 
         return when (diffDays) {
