@@ -14,6 +14,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.browser.auth.AuthTabIntent
+import androidx.browser.customtabs.CustomTabsClient
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -48,36 +50,24 @@ class MainActivity : ComponentActivity() {
 
     private fun handleAuthTabResult(result: AuthTabIntent.AuthResult) {
         val resultUri = result.resultUri
-        when (result.resultCode) {
-            AuthTabIntent.RESULT_OK -> {
-                if (resultUri != null) {
-                    handleOAuthUri(resultUri)
-                } else {
-                    Toast.makeText(this, "Authentication succeeded but no redirect data received.", Toast.LENGTH_LONG).show()
-                }
-            }
-            AuthTabIntent.RESULT_CANCELED -> {
-                Toast.makeText(this, "Authentication cancelled", Toast.LENGTH_SHORT).show()
-            }
-            AuthTabIntent.RESULT_VERIFICATION_FAILED -> {
-                Toast.makeText(this, "Authentication verification failed.", Toast.LENGTH_LONG).show()
-            }
-            else -> {
-                if (resultUri != null) {
-                    handleOAuthUri(resultUri)
-                }
-            }
+        if (result.resultCode == AuthTabIntent.RESULT_OK && resultUri != null) {
+            handleOAuthUri(resultUri)
         }
     }
 
     fun launchAuthTab(url: String, redirectScheme: String = "simklcalendar") {
-        try {
+        val uri = Uri.parse(url)
+        val packageName = CustomTabsClient.getPackageName(this, null)
+
+        // Open the Authorization URI in an Auth Tab if supported by the default browser.
+        if (packageName != null && CustomTabsClient.isAuthTabSupported(this, packageName)) {
             val authTabIntent = AuthTabIntent.Builder().build()
-            authTabIntent.launch(authTabLauncher, Uri.parse(url), redirectScheme)
-        } catch (e: Exception) {
-            // Graceful fallback to standard intent if AuthTab launch encounters unexpected environment issues
-            val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-            startActivity(fallbackIntent)
+            authTabIntent.launch(authTabLauncher, uri, redirectScheme)
+        } else {
+            // Fall back to a Custom Tab.
+            val customTabsIntent = CustomTabsIntent.Builder().build()
+            customTabsIntent.intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            customTabsIntent.launchUrl(this, uri)
         }
     }
 
