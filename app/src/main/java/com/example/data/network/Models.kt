@@ -70,7 +70,6 @@ data class SimklMedia(
 @JsonClass(generateAdapter = true)
 data class SimklIds(
     @Json(name = "simkl") val simkl: Int,
-    @Json(name = "simkl_id") val simklId: Int? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -115,7 +114,7 @@ data class SimklMovieDetailResponse(
     @Json(name = "poster") val poster: String? = null,
     @Json(name = "released") val released: String? = null,
     @Json(name = "release_dates") val releaseDates: List<SimklMovieReleaseDateCountry>? = null,
-    @Json(name = "ids") val ids: SimklIds? = null
+    @Json(name = "ids") val ids: SimklIds
 ) {
     /**
      * Extracts Digital (type 4), Physical / DVD (type 5), or TV (type 6) release date from the release_dates timeline.

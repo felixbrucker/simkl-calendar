@@ -161,7 +161,7 @@ class SimklRepository(private val context: Context) {
                 )
             )
             val accessToken = response.accessToken
-            if (accessToken.isNullOrEmpty()) {
+            if (accessToken.isEmpty()) {
                 Log.e("SimklRepository", "OAuth returned empty access token")
                 return@withContext false
             }
@@ -180,7 +180,7 @@ class SimklRepository(private val context: Context) {
                     clientId = clientId
                 )
                 // In Simkl POST /users/settings, user profile contains "name" (which holds username)
-                userResponse.user?.name ?: "SimklUser"
+                userResponse.user.name
             } catch (e: Exception) {
                 Log.e("SimklRepository", "Could not fetch user profile details, using default name", e)
                 "SimklUser"
@@ -253,15 +253,15 @@ class SimklRepository(private val context: Context) {
 
                 // Process TV Shows
                 syncResponse.shows?.forEach { item ->
-                    val media = item.show ?: return@forEach
-                    val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
+                    val media = item.show
+                    val simklId = media.ids.simkl
                     val status = WatchlistStatus.fromString(item.status)
                     if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
                         newTracked.add(
                             TrackedWatchlistItem(
                                 simklId = simklId,
                                 type = MediaType.TV,
-                                title = media.title ?: "Untitled",
+                                title = media.title,
                                 poster = ImageUtil.formatPosterUrl(media.poster)
                             )
                         )
@@ -272,15 +272,15 @@ class SimklRepository(private val context: Context) {
 
                 // Process Anime
                 syncResponse.anime?.forEach { item ->
-                    val media = item.show ?: return@forEach
-                    val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
+                    val media = item.show
+                    val simklId = media.ids.simkl
                     val status = WatchlistStatus.fromString(item.status)
                     if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
                         newTracked.add(
                             TrackedWatchlistItem(
                                 simklId = simklId,
                                 type = MediaType.ANIME,
-                                title = media.title ?: "Untitled",
+                                title = media.title,
                                 poster = ImageUtil.formatPosterUrl(media.poster)
                             )
                         )
@@ -291,15 +291,15 @@ class SimklRepository(private val context: Context) {
 
                 // Process Movies
                 syncResponse.movies?.forEach { item ->
-                    val media = item.movie ?: return@forEach
-                    val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
+                    val media = item.movie
+                    val simklId = media.ids.simkl
                     val status = WatchlistStatus.fromString(item.status)
                     if (status == WatchlistStatus.PLAN_TO_WATCH || status == WatchlistStatus.WATCHING) {
                         newTracked.add(
                             TrackedWatchlistItem(
                                 simklId = simklId,
                                 type = MediaType.MOVIE,
-                                title = media.title ?: "Untitled",
+                                title = media.title,
                                 poster = ImageUtil.formatPosterUrl(media.poster)
                             )
                         )
@@ -385,7 +385,7 @@ class SimklRepository(private val context: Context) {
                     val entries = response.calendar
                     if (entries.isEmpty()) continue
 
-                    val metadataMap = response.metadata ?: emptyMap()
+                    val metadataMap = response.metadata
 
                     for (entry in entries) {
                         val simklId = entry.simklId
@@ -451,7 +451,7 @@ class SimklRepository(private val context: Context) {
                             val epNum = ep?.episode ?: 1
                             val epTitle = ep?.title
 
-                            val isPremiere = (seasonNum == 1 && epNum == 1) || epNum == 1
+                            val isPremiere = epNum == 1
                             val isExplicitFinale = entry.finaleType != null && entry.finaleType != 0
                             val isMetadataFinale = meta?.totalEpisodes != null &&
                                 meta.totalEpisodes > 1 &&
@@ -503,7 +503,6 @@ class SimklRepository(private val context: Context) {
                         authorization = bearer,
                         clientId = clientId
                     )
-                    val movieTitle = movieDetail.title ?: allTrackedItems.find { it.simklId == movieId }?.title ?: "Untitled"
                     val moviePoster = ImageUtil.formatPosterUrl(movieDetail.poster ?: allTrackedItems.find { it.simklId == movieId }?.poster)
 
                     // 1. Process Theatrical release date from regular released property
@@ -513,7 +512,7 @@ class SimklRepository(private val context: Context) {
                                 CalendarItem(
                                     primaryKey = "v2_${movieId}_theater",
                                     simklId = movieId,
-                                    title = movieTitle,
+                                    title = movieDetail.title,
                                     episodeTitle = null,
                                     season = null,
                                     episodeNumber = null,
@@ -535,7 +534,7 @@ class SimklRepository(private val context: Context) {
                                 CalendarItem(
                                     primaryKey = "v2_${movieId}_digital",
                                     simklId = movieId,
-                                    title = movieTitle,
+                                    title = movieDetail.title,
                                     episodeTitle = null,
                                     season = null,
                                     episodeNumber = null,
