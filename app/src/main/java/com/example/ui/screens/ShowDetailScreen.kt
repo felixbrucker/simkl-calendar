@@ -68,14 +68,14 @@ fun ShowDetailScreen(
 
     val activeItem = remember(allItems, activeItemKey, itemKey) {
         allItems.firstOrNull { it.primaryKey == activeItemKey }
-            ?: allItems.firstOrNull { it.id.toString() == activeItemKey }
+            ?: allItems.firstOrNull { it.simklId.toString() == activeItemKey }
             ?: allItems.firstOrNull { it.primaryKey == itemKey }
-            ?: allItems.firstOrNull { it.id.toString() == itemKey }
+            ?: allItems.firstOrNull { it.simklId.toString() == itemKey }
     }
 
     val showScheduleItems = remember(allItems, activeItem) {
         if (activeItem != null) {
-            allItems.filter { it.id == activeItem.id }
+            allItems.filter { it.simklId == activeItem.simklId }
                 .sortedWith(compareBy<CalendarItem> { it.date }.thenBy { it.season }.thenBy { it.episodeNumber })
         } else {
             emptyList()
@@ -84,7 +84,7 @@ fun ShowDetailScreen(
 
     val settingsList by viewModel.notificationSettings.collectAsState()
     val showSetting = remember(settingsList, activeItem) {
-        if (activeItem != null) settingsList.firstOrNull { it.showId == activeItem.id } else null
+        if (activeItem != null) settingsList.firstOrNull { it.showId == activeItem.simklId } else null
     }
 
     val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
@@ -441,7 +441,7 @@ fun ShowDetailScreen(
                                 MediaType.ANIME -> "anime"
                                 MediaType.TV -> "tv"
                             }
-                            val simklUrl = "https://simkl.com/$urlType/${activeItem.id}"
+                            val simklUrl = "https://simkl.com/$urlType/${activeItem.simklId}"
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(simklUrl))
                             context.startActivity(intent)
                         },
@@ -495,7 +495,7 @@ fun ShowDetailScreen(
                                             notifyEveryEpisode = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
-                                                showId = activeItem.id,
+                                                showId = activeItem.simklId,
                                                 title = activeItem.title,
                                                 type = activeItem.type,
                                                 notifyEpisode = isChecked,
@@ -524,7 +524,7 @@ fun ShowDetailScreen(
                                             notifySeasonFinished = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
-                                                showId = activeItem.id,
+                                                showId = activeItem.simklId,
                                                 title = activeItem.title,
                                                 type = activeItem.type,
                                                 notifyEpisode = notifyEveryEpisode,
@@ -551,7 +551,7 @@ fun ShowDetailScreen(
                                             notifyEveryEpisode = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
-                                                showId = activeItem.id,
+                                                showId = activeItem.simklId,
                                                 title = activeItem.title,
                                                 type = activeItem.type,
                                                 notifyEpisode = isChecked,
@@ -580,7 +580,7 @@ fun ShowDetailScreen(
                                             notifySeasonFinished = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
-                                                showId = activeItem.id,
+                                                showId = activeItem.simklId,
                                                 title = activeItem.title,
                                                 type = activeItem.type,
                                                 notifyEpisode = notifyEveryEpisode,

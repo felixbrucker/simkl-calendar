@@ -436,7 +436,7 @@ fun CalendarItemCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clickable(onClick = onClick)
-            .testTag("calendar_item_card_${item.id}")
+            .testTag("calendar_item_card_${item.simklId}")
     ) {
         Row(
             modifier = Modifier

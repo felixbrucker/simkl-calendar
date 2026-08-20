@@ -17,8 +17,8 @@ data class UserToken(
 
 @Entity(tableName = "calendar_items")
 data class CalendarItem(
-    @PrimaryKey val primaryKey: String, // Constructed as "v2_showId_season_episode_epoch" or movie "v2_movieId_releaseType_epoch"
-    val id: Int, // Simkl main ID
+    @PrimaryKey val primaryKey: String, // e.g. "v2_${simklId}_${season}_${episodeNumber}" or "v2_${simklId}_theater" / "v2_${simklId}_digital"
+    val simklId: Int, // Unique ID for Simkl
     val title: String, // Show or Movie title
     val episodeTitle: String?, // Strictly episode title (null for movies)
     val season: Int?, // Season number (null for movies)
@@ -29,7 +29,6 @@ data class CalendarItem(
     val isSeasonPremiere: Boolean,
     val isSeasonFinale: Boolean,
     val poster: String?, // URL for show poster image
-    val simklId: Int?, // Unique ID for Simkl
     val isLastEpisode: Boolean = false, // Season finished airing
     val notificationsScheduled: Boolean = false, // Track alarm status
     val isNotified: Boolean = false // Track whether notification has been dispatched

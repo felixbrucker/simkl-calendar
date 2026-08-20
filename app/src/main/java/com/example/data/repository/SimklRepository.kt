@@ -152,7 +152,6 @@ class SimklRepository(private val context: Context) {
             
             // 1. Exchange code for access token via POST /oauth/token using PKCE flow
             val response = apiService.getAccessToken(
-                apiKey = clientId,
                 request = OAuthTokenRequest(
                     code = code,
                     clientId = clientId,
@@ -177,7 +176,6 @@ class SimklRepository(private val context: Context) {
             val username = try {
                 val userResponse = apiService.getUserSettings(
                     authorization = "Bearer $accessToken",
-                    apiKey = clientId,
                     clientId = clientId
                 )
                 // In Simkl POST /users/settings, user profile contains "name" (which holds username)
@@ -230,114 +228,109 @@ class SimklRepository(private val context: Context) {
         val bearer = "Bearer ${userToken.accessToken}"
 
         // Two-Phase Sync for authenticated users
-        if (bearer != null) {
-            try {
-                // Phase 1: Check /sync/activities to see if any library changes occurred
-                val activities = apiService.getSyncActivities(
+        try {
+            // Phase 1: Check /sync/activities to see if any library changes occurred
+            val activities = apiService.getSyncActivities(
+                authorization = bearer,
+                clientId = clientId
+            )
+
+            val currentActivitiesTimestamp = activities.all
+            val savedTimestamp = syncPrefs.getString("last_activities_all", null)
+
+            val shouldFetchDeltas = force || savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
+
+            if (shouldFetchDeltas) {
+                val dateFromParam = if (force) null else savedTimestamp
+                Log.d("SimklRepository", "Two-Phase Sync: Calling /sync/all-items with date_from=$dateFromParam (saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
+
+                val syncResponse = apiService.getSyncAllItems(
                     authorization = bearer,
-                    apiKey = clientId,
-                    clientId = clientId
+                    clientId = clientId,
+                    dateFrom = dateFromParam
                 )
 
-                val currentActivitiesTimestamp = activities.all
-                val savedTimestamp = syncPrefs.getString("last_activities_all", null)
-                val validStatuses = setOf("watching", "plantowatch", "plan_to_watch")
+                val newTracked = mutableListOf<TrackedWatchlistItem>()
 
-                val shouldFetchDeltas = force || savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
-
-                if (shouldFetchDeltas) {
-                    val dateFromParam = if (force) null else savedTimestamp
-                    Log.d("SimklRepository", "Two-Phase Sync: Calling /sync/all-items with date_from=$dateFromParam (saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
-
-                    val syncResponse = apiService.getSyncAllItems(
-                        authorization = bearer,
-                        apiKey = clientId,
-                        clientId = clientId,
-                        dateFrom = dateFromParam
-                    )
-
-                    val newTracked = mutableListOf<TrackedWatchlistItem>()
-
-                    // Process TV Shows
-                    syncResponse.shows?.forEach { item ->
-                        val media = item.show ?: return@forEach
-                        val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
-                        val status = WatchlistStatus.fromString(item.status)
-                        if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
-                            newTracked.add(
-                                TrackedWatchlistItem(
-                                    id = simklId,
-                                    type = MediaType.TV,
-                                    status = status,
-                                    title = media.title ?: "Untitled",
-                                    poster = ImageUtil.formatPosterUrl(media.poster)
-                                )
+                // Process TV Shows
+                syncResponse.shows?.forEach { item ->
+                    val media = item.show ?: return@forEach
+                    val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
+                    val status = WatchlistStatus.fromString(item.status)
+                    if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
+                        newTracked.add(
+                            TrackedWatchlistItem(
+                                id = simklId,
+                                type = MediaType.TV,
+                                status = status,
+                                title = media.title ?: "Untitled",
+                                poster = ImageUtil.formatPosterUrl(media.poster)
                             )
-                        } else if (dateFromParam != null) {
-                            watchlistDao.deleteItem(simklId)
-                        }
+                        )
+                    } else if (dateFromParam != null) {
+                        watchlistDao.deleteItem(simklId)
                     }
-
-                    // Process Anime
-                    syncResponse.anime?.forEach { item ->
-                        val media = item.show ?: return@forEach
-                        val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
-                        val status = WatchlistStatus.fromString(item.status)
-                        if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
-                            newTracked.add(
-                                TrackedWatchlistItem(
-                                    id = simklId,
-                                    type = MediaType.ANIME,
-                                    status = status,
-                                    title = media.title ?: "Untitled",
-                                    poster = ImageUtil.formatPosterUrl(media.poster)
-                                )
-                            )
-                        } else if (dateFromParam != null) {
-                            watchlistDao.deleteItem(simklId)
-                        }
-                    }
-
-                    // Process Movies
-                    syncResponse.movies?.forEach { item ->
-                        val media = item.movie ?: return@forEach
-                        val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
-                        val status = WatchlistStatus.fromString(item.status)
-                        if (status == WatchlistStatus.PLAN_TO_WATCH || status == WatchlistStatus.WATCHING) {
-                            newTracked.add(
-                                TrackedWatchlistItem(
-                                    id = simklId,
-                                    type = MediaType.MOVIE,
-                                    status = status,
-                                    title = media.title ?: "Untitled",
-                                    poster = ImageUtil.formatPosterUrl(media.poster)
-                                )
-                            )
-                        } else if (dateFromParam != null) {
-                            watchlistDao.deleteItem(simklId)
-                        }
-                    }
-
-                    if (dateFromParam == null) {
-                        watchlistDao.clearAll()
-                    }
-                    if (newTracked.isNotEmpty()) {
-                        watchlistDao.insertOrUpdateItems(newTracked)
-                    }
-
-                    if (!currentActivitiesTimestamp.isNullOrEmpty()) {
-                        syncPrefs.edit().putString("last_activities_all", currentActivitiesTimestamp).apply()
-                    }
-                } else {
-                    Log.d("SimklRepository", "Two-Phase Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
                 }
-            } catch (e: Exception) {
-                Log.e("SimklRepository", "Error during two-phase sync activities check", e)
+
+                // Process Anime
+                syncResponse.anime?.forEach { item ->
+                    val media = item.show ?: return@forEach
+                    val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
+                    val status = WatchlistStatus.fromString(item.status)
+                    if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
+                        newTracked.add(
+                            TrackedWatchlistItem(
+                                id = simklId,
+                                type = MediaType.ANIME,
+                                status = status,
+                                title = media.title ?: "Untitled",
+                                poster = ImageUtil.formatPosterUrl(media.poster)
+                            )
+                        )
+                    } else if (dateFromParam != null) {
+                        watchlistDao.deleteItem(simklId)
+                    }
+                }
+
+                // Process Movies
+                syncResponse.movies?.forEach { item ->
+                    val media = item.movie ?: return@forEach
+                    val simklId = media.ids?.simkl ?: media.ids?.simklId ?: return@forEach
+                    val status = WatchlistStatus.fromString(item.status)
+                    if (status == WatchlistStatus.PLAN_TO_WATCH || status == WatchlistStatus.WATCHING) {
+                        newTracked.add(
+                            TrackedWatchlistItem(
+                                id = simklId,
+                                type = MediaType.MOVIE,
+                                status = status,
+                                title = media.title ?: "Untitled",
+                                poster = ImageUtil.formatPosterUrl(media.poster)
+                            )
+                        )
+                    } else if (dateFromParam != null) {
+                        watchlistDao.deleteItem(simklId)
+                    }
+                }
+
+                if (dateFromParam == null) {
+                    watchlistDao.clearAll()
+                }
+                if (newTracked.isNotEmpty()) {
+                    watchlistDao.insertOrUpdateItems(newTracked)
+                }
+
+                if (!currentActivitiesTimestamp.isNullOrEmpty()) {
+                    syncPrefs.edit().putString("last_activities_all", currentActivitiesTimestamp).apply()
+                }
+            } else {
+                Log.d("SimklRepository", "Two-Phase Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
             }
+        } catch (e: Exception) {
+            Log.e("SimklRepository", "Error during two-phase sync activities check", e)
         }
 
         // Load local tracked items
-        val allTrackedItems = if (bearer != null) watchlistDao.getAllTrackedItems() else emptyList()
+        val allTrackedItems = watchlistDao.getAllTrackedItems()
         val trackedShowIds = allTrackedItems.filter { it.type == MediaType.TV }.map { it.id }.toSet()
         val trackedAnimeIds = allTrackedItems.filter { it.type == MediaType.ANIME }.map { it.id }.toSet()
         val trackedMovieIds = allTrackedItems.filter { it.type == MediaType.MOVIE }.map { it.id }.toSet()
@@ -378,15 +371,13 @@ class SimklRepository(private val context: Context) {
                             val simklId = entry.simklId ?: return@forEach
                             val meta = metadataMap[simklId.toString()] ?: metadataMap[simklId.toString().lowercase()]
 
-                            // If user is authenticated, only include items from their watchlist ("watching" and "plan to watch")
-                            if (bearer != null) {
-                                val isTracked = when (defaultType) {
-                                    MediaType.TV -> trackedShowIds.contains(simklId)
-                                    MediaType.ANIME -> trackedAnimeIds.contains(simklId)
-                                    MediaType.MOVIE -> trackedMovieIds.contains(simklId)
-                                }
-                                if (!isTracked) return@forEach
+                            // Only include items from user's watchlist ("watching" and "plan to watch")
+                            val isTracked = when (defaultType) {
+                                MediaType.TV -> trackedShowIds.contains(simklId)
+                                MediaType.ANIME -> trackedAnimeIds.contains(simklId)
+                                MediaType.MOVIE -> trackedMovieIds.contains(simklId)
                             }
+                            if (!isTracked) return@forEach
 
                             val title = meta?.title ?: allTrackedItems.find { it.id == simklId }?.title ?: "Untitled"
                             val posterRaw = meta?.poster ?: allTrackedItems.find { it.id == simklId }?.poster
@@ -398,15 +389,13 @@ class SimklRepository(private val context: Context) {
                                 if (!theaterDateStr.isNullOrBlank()) {
                                     val theaterInstant = DateUtil.parseToInstant(theaterDateStr)
                                     if (theaterInstant != null) {
-                                        val theaterKey = "v2_${simklId}_theater_${theaterInstant.toEpochMilli()}"
-                                        val alreadyAdded = dbItems.any {
-                                            it.primaryKey == theaterKey || (it.id == simklId && it.movieReleaseType == MovieReleaseType.THEATER && it.date == theaterInstant)
-                                        }
+                                        val theaterKey = "v2_${simklId}_theater"
+                                        val alreadyAdded = dbItems.any { it.primaryKey == theaterKey }
                                         if (!alreadyAdded) {
                                             dbItems.add(
                                                 CalendarItem(
                                                     primaryKey = theaterKey,
-                                                    id = simklId,
+                                                    simklId = simklId,
                                                     title = title,
                                                     episodeTitle = null,
                                                     season = null,
@@ -417,7 +406,6 @@ class SimklRepository(private val context: Context) {
                                                     isSeasonPremiere = false,
                                                     isSeasonFinale = false,
                                                     poster = posterUrl,
-                                                    simklId = simklId,
                                                     isLastEpisode = false,
                                                     notificationsScheduled = false
                                                 )
@@ -427,19 +415,17 @@ class SimklRepository(private val context: Context) {
                                 }
 
                                 // 2. Process Digital / DVD Release from metadata if available
-                                val dvdDateStr = meta?.dvd?.takeIf { it.isNotBlank() }
+                                val dvdDateStr = meta?.dvdDate?.takeIf { it.isNotBlank() }
                                 if (!dvdDateStr.isNullOrBlank()) {
                                     val dvdInstant = DateUtil.parseToInstant(dvdDateStr)
                                     if (dvdInstant != null) {
-                                        val digitalKey = "v2_${simklId}_digital_${dvdInstant.toEpochMilli()}"
-                                        val alreadyAdded = dbItems.any {
-                                            it.primaryKey == digitalKey || (it.id == simklId && it.movieReleaseType == MovieReleaseType.DIGITAL && it.date == dvdInstant)
-                                        }
+                                        val digitalKey = "v2_${simklId}_digital"
+                                        val alreadyAdded = dbItems.any { it.primaryKey == digitalKey }
                                         if (!alreadyAdded) {
                                             dbItems.add(
                                                 CalendarItem(
                                                     primaryKey = digitalKey,
-                                                    id = simklId,
+                                                    simklId = simklId,
                                                     title = title,
                                                     episodeTitle = null,
                                                     season = null,
@@ -450,7 +436,6 @@ class SimklRepository(private val context: Context) {
                                                     isSeasonPremiere = false,
                                                     isSeasonFinale = false,
                                                     poster = posterUrl,
-                                                    simklId = simklId,
                                                     isLastEpisode = false,
                                                     notificationsScheduled = false
                                                 )
@@ -459,34 +444,31 @@ class SimklRepository(private val context: Context) {
                                     }
                                 }
                             } else {
-                                val rawDateStr = entry.date ?: return@forEach
+                                val rawDateStr = entry.date
                                 val instant = DateUtil.parseToInstant(rawDateStr) ?: return@forEach
 
                                 val ep = entry.episode
-                                val seasonNum = ep?.season
-                                val epNum = ep?.episode
+                                val seasonNum = ep?.season ?: if (defaultType == MediaType.ANIME) null else 1
+                                val epNum = ep?.episode ?: 1
                                 val epTitle = ep?.title
 
                                 val isPremiere = (seasonNum == 1 && epNum == 1) || epNum == 1
-                                val isExplicitFinale = entry.finaleType != null && entry.finaleType.toString() != "0" && entry.finaleType.toString() != "null"
+                                val isExplicitFinale = entry.finaleType != null && entry.finaleType != 0
                                 val isMetadataFinale = meta?.totalEpisodes != null &&
                                     meta.totalEpisodes > 1 &&
-                                    epNum != null &&
                                     epNum > 1 &&
                                     epNum >= meta.totalEpisodes
                                 val isFinale = isExplicitFinale || isMetadataFinale
 
-                                val keyUnique = "v2_${simklId}_${seasonNum ?: 0}_${epNum ?: 0}_${instant.toEpochMilli()}"
+                                val keyUnique = if (seasonNum != null) "v2_${simklId}_${seasonNum}_${epNum}" else "v2_${simklId}_${epNum}"
 
-                                val alreadyAdded = dbItems.any {
-                                    it.primaryKey == keyUnique || (it.id == simklId && it.season == seasonNum && it.episodeNumber == epNum && it.date == instant)
-                                }
+                                val alreadyAdded = dbItems.any { it.primaryKey == keyUnique }
 
                                 if (!alreadyAdded) {
                                     dbItems.add(
                                         CalendarItem(
                                             primaryKey = keyUnique,
-                                            id = simklId,
+                                            simklId = simklId,
                                             title = title,
                                             episodeTitle = epTitle,
                                             season = seasonNum,
@@ -497,7 +479,6 @@ class SimklRepository(private val context: Context) {
                                             isSeasonPremiere = isPremiere,
                                             isSeasonFinale = isFinale,
                                             poster = posterUrl,
-                                            simklId = simklId,
                                             isLastEpisode = isFinale && meta?.status == "ended",
                                             notificationsScheduled = false
                                         )
@@ -513,14 +494,10 @@ class SimklRepository(private val context: Context) {
         }
 
         // Fetch movie details for all tracked movies without a DVD/digital release date yet
-        val candidateMovieIds = if (bearer != null) {
-            trackedMovieIds
-        } else {
-            dbItems.filter { it.type == MediaType.MOVIE }.map { it.id }.toSet()
-        }
+        val candidateMovieIds = trackedMovieIds
 
         val moviesWithoutDigital = candidateMovieIds.filter { movieId ->
-            !dbItems.any { it.id == movieId && it.type == MediaType.MOVIE && it.movieReleaseType == MovieReleaseType.DIGITAL }
+            !dbItems.any { it.simklId == movieId && it.type == MediaType.MOVIE && it.movieReleaseType == MovieReleaseType.DIGITAL }
         }
 
         if (moviesWithoutDigital.isNotEmpty()) {
@@ -530,37 +507,33 @@ class SimklRepository(private val context: Context) {
                     val movieDetail = apiService.getMovieDetails(
                         movieId = movieId,
                         authorization = bearer,
-                        apiKey = clientId,
                         clientId = clientId
                     )
                     val movieTitle = movieDetail.title ?: allTrackedItems.find { it.id == movieId }?.title ?: "Untitled"
                     val moviePoster = ImageUtil.formatPosterUrl(movieDetail.poster ?: allTrackedItems.find { it.id == movieId }?.poster)
 
-                    // Check Theater release date from detail if not yet in dbItems
-                    val theaterStr = movieDetail.released?.takeIf { it.isNotBlank() }
-                    if (!theaterStr.isNullOrBlank()) {
-                        val theaterInstant = DateUtil.parseToInstant(theaterStr)
-                        if (theaterInstant != null) {
-                            val theaterKey = "v2_${movieId}_theater_${theaterInstant.toEpochMilli()}"
-                            val alreadyAdded = dbItems.any {
-                                it.primaryKey == theaterKey || (it.id == movieId && it.movieReleaseType == MovieReleaseType.THEATER && it.date == theaterInstant)
-                            }
+                    // Extract Digital / DVD release date from release_dates
+                    val digitalStr = movieDetail.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }
+                    if (!digitalStr.isNullOrBlank()) {
+                        val digitalInstant = DateUtil.parseToInstant(digitalStr)
+                        if (digitalInstant != null) {
+                            val digitalKey = "v2_${movieId}_digital"
+                            val alreadyAdded = dbItems.any { it.primaryKey == digitalKey }
                             if (!alreadyAdded) {
                                 dbItems.add(
                                     CalendarItem(
-                                        primaryKey = theaterKey,
-                                        id = movieId,
+                                        primaryKey = digitalKey,
+                                        simklId = movieId,
                                         title = movieTitle,
                                         episodeTitle = null,
                                         season = null,
                                         episodeNumber = null,
-                                        date = theaterInstant,
+                                        date = digitalInstant,
                                         type = MediaType.MOVIE,
-                                        movieReleaseType = MovieReleaseType.THEATER,
+                                        movieReleaseType = MovieReleaseType.DIGITAL,
                                         isSeasonPremiere = false,
                                         isSeasonFinale = false,
                                         poster = moviePoster,
-                                        simklId = movieId,
                                         isLastEpisode = false,
                                         notificationsScheduled = false
                                     )
@@ -601,7 +574,7 @@ class SimklRepository(private val context: Context) {
                 val defaultMovieTheater = notifPrefs.getBoolean("default_notify_movie_theater", false)
                 val defaultMovieDigital = notifPrefs.getBoolean("default_notify_movie_digital", true)
 
-                val distinctShows = finalDbItems.groupBy { it.id }
+                val distinctShows = finalDbItems.groupBy { it.simklId }
                 val newSettings = distinctShows.map { (showId, items) ->
                     val sample = items.first()
                     val isMovie = sample.type == MediaType.MOVIE

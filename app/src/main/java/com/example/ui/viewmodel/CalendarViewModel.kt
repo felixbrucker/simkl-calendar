@@ -33,6 +33,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val onlySeasonFinales = MutableStateFlow(false)
 
     // Combined filtered calendar list reactive flow
+    @Suppress("UNCHECKED_CAST")
     val filteredCalendarItems: StateFlow<List<CalendarItem>> = combine(
         repository.calendarItems,
         showTv,

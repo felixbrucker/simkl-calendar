@@ -5,7 +5,6 @@ import retrofit2.http.*
 interface SimklApiService {
     @POST("oauth/token")
     suspend fun getAccessToken(
-        @Header("simkl-api-key") apiKey: String? = null,
         @Header("User-Agent") userAgent: String = "simkl-calendar/1.0",
         @Body request: OAuthTokenRequest
     ): OAuthTokenResponse
@@ -13,7 +12,6 @@ interface SimklApiService {
     @POST("users/settings")
     suspend fun getUserSettings(
         @Header("Authorization") authorization: String? = null,
-        @Header("simkl-api-key") apiKey: String? = null,
         @Header("User-Agent") userAgent: String = "simkl-calendar/1.0",
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = "simkl-calendar",
@@ -32,7 +30,6 @@ interface SimklApiService {
     @GET("sync/activities")
     suspend fun getSyncActivities(
         @Header("Authorization") authorization: String? = null,
-        @Header("simkl-api-key") apiKey: String? = null,
         @Header("User-Agent") userAgent: String = "simkl-calendar/1.0",
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = "simkl-calendar",
@@ -42,7 +39,6 @@ interface SimklApiService {
     @GET("sync/all-items")
     suspend fun getSyncAllItems(
         @Header("Authorization") authorization: String? = null,
-        @Header("simkl-api-key") apiKey: String? = null,
         @Header("User-Agent") userAgent: String = "simkl-calendar/1.0",
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = "simkl-calendar",
@@ -56,7 +52,6 @@ interface SimklApiService {
     suspend fun getMovieDetails(
         @Path("id") movieId: Int,
         @Header("Authorization") authorization: String? = null,
-        @Header("simkl-api-key") apiKey: String? = null,
         @Header("User-Agent") userAgent: String = "simkl-calendar/1.0",
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = "simkl-calendar",

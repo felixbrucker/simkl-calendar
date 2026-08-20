@@ -90,7 +90,7 @@ class DateUtilTest {
     fun testNotificationContentFormatting() {
         val tvFinaleItem = com.example.data.database.CalendarItem(
             primaryKey = "key_1",
-            id = 101,
+            simklId = 101,
             title = "Succession",
             episodeTitle = "With Open Eyes",
             season = 4,
@@ -100,7 +100,6 @@ class DateUtilTest {
             isSeasonPremiere = false,
             isSeasonFinale = true,
             poster = null,
-            simklId = 101,
             isLastEpisode = true
         )
 
@@ -116,7 +115,7 @@ class DateUtilTest {
 
         val animeFinaleItem = com.example.data.database.CalendarItem(
             primaryKey = "key_2",
-            id = 202,
+            simklId = 202,
             title = "Demon Slayer",
             episodeTitle = "Hashira",
             season = 4,
@@ -126,7 +125,6 @@ class DateUtilTest {
             isSeasonPremiere = false,
             isSeasonFinale = true,
             poster = null,
-            simklId = 202,
             isLastEpisode = true
         )
 
@@ -142,7 +140,7 @@ class DateUtilTest {
 
         val movieTheaterItem = com.example.data.database.CalendarItem(
             primaryKey = "key_3",
-            id = 303,
+            simklId = 303,
             title = "Dune: Part Two",
             episodeTitle = null,
             season = null,
@@ -153,7 +151,6 @@ class DateUtilTest {
             isSeasonPremiere = false,
             isSeasonFinale = false,
             poster = null,
-            simklId = 303,
             isLastEpisode = false
         )
 
@@ -167,7 +164,7 @@ class DateUtilTest {
 
         val movieDigitalItem = com.example.data.database.CalendarItem(
             primaryKey = "key_4",
-            id = 303,
+            simklId = 303,
             title = "Dune: Part Two",
             episodeTitle = null,
             season = null,
@@ -178,7 +175,6 @@ class DateUtilTest {
             isSeasonPremiere = false,
             isSeasonFinale = false,
             poster = null,
-            simklId = 303,
             isLastEpisode = false
         )
 
@@ -189,5 +185,47 @@ class DateUtilTest {
         )
         assertEquals("Movie Released Today", movieDigitalTitle)
         assertEquals("Dune: Part Two is now available on Digital / DVD!", movieDigitalMsg)
+    }
+
+    @Test
+    fun testSimklMovieDetailReleaseDatesExtraction() {
+        val detail = com.example.data.network.SimklMovieDetailResponse(
+            title = "Inception",
+            ids = com.example.data.network.SimklIds(simkl = 12345),
+            releaseDates = listOf(
+                com.example.data.network.SimklMovieReleaseDateCountry(
+                    iso31661 = "US",
+                    results = listOf(
+                        com.example.data.network.SimklMovieReleaseResult(type = 1, releaseDate = "2010-07-13"),
+                        com.example.data.network.SimklMovieReleaseResult(type = 3, releaseDate = "2010-07-16"),
+                        com.example.data.network.SimklMovieReleaseResult(type = 5, releaseDate = "2010-12-07")
+                    )
+                ),
+                com.example.data.network.SimklMovieReleaseDateCountry(
+                    iso31661 = "GB",
+                    results = listOf(
+                        com.example.data.network.SimklMovieReleaseResult(type = 1, releaseDate = "2010-07-08"),
+                        com.example.data.network.SimklMovieReleaseResult(type = 3, releaseDate = "2010-07-16")
+                    )
+                )
+            )
+        )
+
+        val extractedDate = detail.extractDigitalOrDvdReleaseDate()
+        assertEquals("2010-12-07", extractedDate)
+
+        val tvMovieDetail = com.example.data.network.SimklMovieDetailResponse(
+            title = "TV Film",
+            ids = com.example.data.network.SimklIds(simkl = 67890),
+            releaseDates = listOf(
+                com.example.data.network.SimklMovieReleaseDateCountry(
+                    iso31661 = "US",
+                    results = listOf(
+                        com.example.data.network.SimklMovieReleaseResult(type = 6, releaseDate = "2024-05-01")
+                    )
+                )
+            )
+        )
+        assertEquals("2024-05-01", tvMovieDetail.extractDigitalOrDvdReleaseDate())
     }
 }

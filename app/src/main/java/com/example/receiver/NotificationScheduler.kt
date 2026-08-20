@@ -36,19 +36,19 @@ object NotificationScheduler {
 
             Log.d(TAG, "Scheduling notifications: found ${settings.size} custom show settings and ${allItems.size} calendar items")
 
-            val allEpisodesMap = allItems.groupBy { it.id to (if (it.type == MediaType.ANIME) null else it.season) }
+            val allEpisodesMap = allItems.groupBy { it.simklId to (if (it.type == MediaType.ANIME) null else it.season) }
 
             for (item in allItems) {
                 // Per-item setting in database always takes precedence over new item defaults
                 val isMovie = item.type == MediaType.MOVIE
-                val setting = settingsMap[item.id] ?: NotificationSetting(
-                    showId = item.id,
+                val setting = settingsMap[item.simklId] ?: NotificationSetting(
+                    showId = item.simklId,
                     showTitle = item.title,
                     type = item.type,
                     notifyEveryEpisode = if (isMovie) defaultMovieTheater else defaultAiring,
                     notifyAiredLastEpisode = if (isMovie) defaultMovieDigital else defaultSeasonFinished
                 )
-                val seasonItems = allEpisodesMap[item.id to (if (item.type == MediaType.ANIME) null else item.season)]
+                val seasonItems = allEpisodesMap[item.simklId to (if (item.type == MediaType.ANIME) null else item.season)]
                 val totalEpisodesInSeason = seasonItems?.mapNotNull { it.episodeNumber }?.maxOrNull() ?: item.episodeNumber
                 scheduleOrDispatchItem(context, db, item, setting, totalEpisodesInSeason)
             }
