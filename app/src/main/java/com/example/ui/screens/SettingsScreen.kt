@@ -55,6 +55,12 @@ fun SettingsScreen(
     var enableDefaultSeasonFinished by remember {
         mutableStateOf(prefs.getBoolean("default_notify_season_finished", true))
     }
+    var enableDefaultMovieTheater by remember {
+        mutableStateOf(prefs.getBoolean("default_notify_movie_theater", false))
+    }
+    var enableDefaultMovieDigital by remember {
+        mutableStateOf(prefs.getBoolean("default_notify_movie_digital", true))
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -135,24 +141,33 @@ fun SettingsScreen(
                     Text("Default Alerts (New Items)", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "Sets default alert preferences when new shows or movies are synced. Individual show settings in Release Details will always take precedence.",
+                        "Sets default alert preferences when new shows or movies are synced. Individual settings in Release Details will always take precedence.",
                         color = Color(0xFFCAC4D0),
                         fontSize = 12.sp,
                         lineHeight = 16.sp
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // Broadcast toggle 1
+                    // TV Shows & Anime Section Header
+                    Text(
+                        text = "TV Shows & Anime",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD0BCFF),
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Show toggle 1: Airing Notifications
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Airing Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text("Default to alert as soon as each episode/movie is ready to stream.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                            Text("Default to alert as soon as each episode is ready to stream.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
                         }
                         Switch(
                             checked = enableDefaultAiring,
@@ -167,13 +182,11 @@ fun SettingsScreen(
                         )
                     }
 
-                    Divider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
-
-                    // Broadcast toggle 2
+                    // Show toggle 2: Season Finished Airing
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -191,6 +204,67 @@ fun SettingsScreen(
                                 if (it) checkAndRequestPermission()
                             },
                             modifier = Modifier.testTag("season_finished_notification_switch")
+                        )
+                    }
+
+                    Divider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+                    // Movies Section Header
+                    Text(
+                        text = "Movies",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFF2B8B5),
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Movie toggle 1: Theater Release Notifications
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Theater Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Text("Default to notify on the movie's theatrical release date.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = enableDefaultMovieTheater,
+                            onCheckedChange = { 
+                                enableDefaultMovieTheater = it
+                                prefs.edit()
+                                    .putBoolean("default_notify_movie_theater", it)
+                                    .apply()
+                                if (it) checkAndRequestPermission()
+                            },
+                            modifier = Modifier.testTag("movie_theater_notification_switch")
+                        )
+                    }
+
+                    // Movie toggle 2: Digital / DVD Release Notifications
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Digital / DVD Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Text("Default to notify when the movie releases digitally or on DVD.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = enableDefaultMovieDigital,
+                            onCheckedChange = { 
+                                enableDefaultMovieDigital = it
+                                prefs.edit()
+                                    .putBoolean("default_notify_movie_digital", it)
+                                    .apply()
+                                if (it) checkAndRequestPermission()
+                            },
+                            modifier = Modifier.testTag("movie_digital_notification_switch")
                         )
                     }
                 }
@@ -260,6 +334,56 @@ fun SettingsScreen(
                         Icon(Icons.Default.MovieFilter, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFD0BCFF))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Simulate Season Finished Alert", color = Color(0xFFD0BCFF))
+                    }
+
+                    Button(
+                        onClick = {
+                            checkAndRequestPermission()
+                            NotificationReceiver.triggerEpisodeNotification(
+                                context,
+                                showTitle = "Dune: Part Two",
+                                episodeName = "Theater Release",
+                                season = null,
+                                episodeNumber = null,
+                                isLastEpisode = false,
+                                type = "movie"
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("simulate_movie_theater_alert_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4A2525),
+                            contentColor = Color(0xFFF2B8B5)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.LocalMovies, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFF2B8B5))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Simulate Movie Theater Alert", color = Color(0xFFF2B8B5))
+                    }
+
+                    Button(
+                        onClick = {
+                            checkAndRequestPermission()
+                            NotificationReceiver.triggerEpisodeNotification(
+                                context,
+                                showTitle = "Dune: Part Two",
+                                episodeName = "Digital / DVD Release",
+                                season = null,
+                                episodeNumber = null,
+                                isLastEpisode = false,
+                                type = "movie"
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("simulate_movie_digital_alert_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF1B3B2B),
+                            contentColor = Color(0xFFA8DAB5)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.VideoLibrary, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFA8DAB5))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Simulate Movie Digital / DVD Alert", color = Color(0xFFA8DAB5))
                     }
                 }
             }

@@ -95,3 +95,18 @@ data class SyncMovieItem(
     @Json(name = "movie") val movie: SimklMedia? = null
 )
 
+@JsonClass(generateAdapter = true)
+data class SimklMovieDetailResponse(
+    @Json(name = "title") val title: String? = null,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "poster") val poster: String? = null,
+    @Json(name = "overview") val overview: String? = null,
+    @Json(name = "runtime") val runtime: Int? = null,
+    @Json(name = "released") val released: String? = null,
+    @Json(name = "release_date") val releaseDate: String? = null,
+    @Json(name = "dvd") val dvd: String? = null,
+    @Json(name = "dvd_release_date") val dvdReleaseDate: String? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "ids") val ids: SimklIds? = null
+)
+

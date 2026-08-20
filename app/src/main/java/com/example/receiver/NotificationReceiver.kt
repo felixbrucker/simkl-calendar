@@ -85,9 +85,16 @@ class NotificationReceiver : BroadcastReceiver() {
             totalEpisodes: Int? = null
         ): Pair<String, String> {
             return if (type == "movie") {
-                val title = "Movie Released Today"
-                val message = "$showTitle is now available!"
-                title to message
+                val isTheater = episodeTitle?.contains("theater", ignoreCase = true) == true
+                if (isTheater) {
+                    val title = "Movie In Theaters Today"
+                    val message = "$showTitle is now playing in theaters!"
+                    title to message
+                } else {
+                    val title = "Movie Released Today"
+                    val message = "$showTitle is now available on Digital / DVD!"
+                    title to message
+                }
             } else if (isFinale) {
                 val title = "Season finished airing"
                 val total = totalEpisodes ?: episodeNumber

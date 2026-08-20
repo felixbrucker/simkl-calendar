@@ -29,6 +29,8 @@ object NotificationScheduler {
             val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
             val defaultAiring = prefs.getBoolean("default_notify_airing", false)
             val defaultSeasonFinished = prefs.getBoolean("default_notify_season_finished", true)
+            val defaultMovieTheater = prefs.getBoolean("default_notify_movie_theater", false)
+            val defaultMovieDigital = prefs.getBoolean("default_notify_movie_digital", true)
 
             Log.d(TAG, "Scheduling notifications: found ${settings.size} custom show settings and ${allItems.size} calendar items")
 
@@ -37,13 +39,12 @@ object NotificationScheduler {
             for (item in allItems) {
                 // Per-item setting in database always takes precedence over new item defaults
                 val isMovie = item.type == "movie"
-                val movieDefault = defaultAiring || defaultSeasonFinished
                 val setting = settingsMap[item.id] ?: NotificationSetting(
                     showId = item.id,
                     showTitle = item.title,
                     type = item.type,
-                    notifyEveryEpisode = if (isMovie) movieDefault else defaultAiring,
-                    notifyAiredLastEpisode = if (isMovie) movieDefault else defaultSeasonFinished
+                    notifyEveryEpisode = if (isMovie) defaultMovieTheater else defaultAiring,
+                    notifyAiredLastEpisode = if (isMovie) defaultMovieDigital else defaultSeasonFinished
                 )
                 val seasonItems = allEpisodesMap[item.id to (if (item.type == "anime") null else item.season)]
                 val totalEpisodesInSeason = seasonItems?.mapNotNull { it.episodeNumber }?.maxOrNull() ?: item.episodeNumber
@@ -95,7 +96,8 @@ object NotificationScheduler {
     ) {
         val isFinale = item.isSeasonFinale || item.isLastEpisode
         val isEnabled = if (item.type == "movie") {
-            setting.notifyEveryEpisode
+            val isTheater = item.episodeTitle?.contains("theater", ignoreCase = true) == true
+            if (isTheater) setting.notifyEveryEpisode else setting.notifyAiredLastEpisode
         } else if (isFinale) {
             setting.notifyAiredLastEpisode || setting.notifyEveryEpisode
         } else {

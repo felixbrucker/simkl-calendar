@@ -533,7 +533,7 @@ fun CalendarItemCard(
                     )
                 } else {
                     Text(
-                        text = "Digital / DVD Release",
+                        text = item.episodeTitle?.takeIf { it.isNotBlank() } ?: "Movie Release",
                         fontSize = 13.sp,
                         color = Color(0xFFF2B8B5)
                     )
@@ -558,21 +558,6 @@ fun CalendarItemCard(
                                 color = Color(0xFFD0BCFF)
                             )
                         }
-                    }
-                }
-
-                // Ready to Binge badge
-                if (item.isLastEpisode) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .background(Color(0xFF381E72), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Icon(Icons.Default.Movie, contentDescription = null, modifier = Modifier.size(12.dp), tint = Color(0xFFD0BCFF))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("🍿 READY TO BINGE", fontSize = 10.sp, color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold)
                     }
                 }
             }

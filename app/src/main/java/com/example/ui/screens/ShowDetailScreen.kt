@@ -88,15 +88,16 @@ fun ShowDetailScreen(
     val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
     val defaultAiring = prefs.getBoolean("default_notify_airing", false)
     val defaultSeasonFinished = prefs.getBoolean("default_notify_season_finished", true)
+    val defaultMovieTheater = prefs.getBoolean("default_notify_movie_theater", false)
+    val defaultMovieDigital = prefs.getBoolean("default_notify_movie_digital", true)
     val isMovie = activeItem?.type == "movie"
-    val defaultMovieNotify = defaultAiring || defaultSeasonFinished
 
     // Individual notification toggle flows
-    var notifyEveryEpisode by remember(showSetting, defaultAiring, defaultMovieNotify, isMovie) {
-        mutableStateOf(showSetting?.notifyEveryEpisode ?: (if (isMovie) defaultMovieNotify else defaultAiring))
+    var notifyEveryEpisode by remember(showSetting, defaultAiring, defaultMovieTheater, isMovie) {
+        mutableStateOf(showSetting?.notifyEveryEpisode ?: (if (isMovie) defaultMovieTheater else defaultAiring))
     }
-    var notifySeasonFinished by remember(showSetting, defaultSeasonFinished, defaultMovieNotify, isMovie) {
-        mutableStateOf(showSetting?.notifyAiredLastEpisode ?: (if (isMovie) defaultMovieNotify else defaultSeasonFinished))
+    var notifySeasonFinished by remember(showSetting, defaultSeasonFinished, defaultMovieDigital, isMovie) {
+        mutableStateOf(showSetting?.notifyAiredLastEpisode ?: (if (isMovie) defaultMovieDigital else defaultSeasonFinished))
     }
 
     LaunchedEffect(showSetting) {
@@ -227,7 +228,9 @@ fun ShowDetailScreen(
                                 fontSize = 15.sp
                             )
 
-                            val dateLabel = if (activeItem.type == "movie") "Digital / DVD Release" else "Air Date"
+                            val dateLabel = if (activeItem.type == "movie") {
+                                if (activeItem.episodeTitle?.contains("theater", ignoreCase = true) == true) "Theatrical Release" else "Digital / DVD Release"
+                            } else "Air Date"
                             val formattedDateTime = if (activeItem.type == "movie") {
                                 DateUtil.formatDisplayDate(activeItem.date)
                             } else {
@@ -326,7 +329,7 @@ fun ShowDetailScreen(
                         }
                     }
 
-                    // If there are multiple scheduled episodes for this show, display an episode selector / list
+                    // If there are multiple scheduled episodes/releases for this show/movie, display a selector / list
                     if (showScheduleItems.size > 1) {
                         Card(
                             shape = RoundedCornerShape(12.dp),
@@ -335,7 +338,7 @@ fun ShowDetailScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Scheduled Episodes (${showScheduleItems.size})",
+                                    text = if (activeItem.type == "movie") "Scheduled Releases (${showScheduleItems.size})" else "Scheduled Episodes (${showScheduleItems.size})",
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFE6E1E5),
                                     fontSize = 15.sp
@@ -346,8 +349,14 @@ fun ShowDetailScreen(
                                     val isSelected = epItem.primaryKey == activeItem.primaryKey
                                     val s = epItem.season ?: 1
                                     val e = epItem.episodeNumber ?: 1
-                                    val epTag = if (epItem.type == "anime") "Ep $e" else String.format(Locale.US, "S%02dE%02d", s, e)
-                                    val epDate = DateUtil.formatDisplayDateTime(epItem.date)
+                                    val epTag = if (epItem.type == "movie") {
+                                        if (epItem.episodeTitle?.contains("theater", ignoreCase = true) == true) "THEATER" else "DIGITAL / DVD"
+                                    } else if (epItem.type == "anime") {
+                                        "Ep $e"
+                                    } else {
+                                        String.format(Locale.US, "S%02dE%02d", s, e)
+                                    }
+                                    val epDate = if (epItem.type == "movie") DateUtil.formatDisplayDate(epItem.date) else DateUtil.formatDisplayDateTime(epItem.date)
 
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
@@ -389,7 +398,7 @@ fun ShowDetailScreen(
 
                                                 Column {
                                                     Text(
-                                                        text = epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "Episode $e",
+                                                        text = epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: (if (epItem.type == "movie") "Movie Release" else "Episode $e"),
                                                         color = Color(0xFFE6E1E5),
                                                         fontSize = 13.sp,
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -453,7 +462,7 @@ fun ShowDetailScreen(
                         )
                     }
 
-                    // Per-Show Notification Settings
+                    // Per-Show / Per-Movie Notification Settings
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
@@ -520,30 +529,59 @@ fun ShowDetailScreen(
                                     )
                                 }
                             } else {
+                                // Movie Theater Release Toggle
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Release Notification", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                        Text("Send reminder notification on movie release day.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                                        Text("Theater Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                        Text("Notify me when the movie releases in theaters.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
                                     }
                                     Switch(
                                         checked = notifyEveryEpisode,
                                         onCheckedChange = { isChecked ->
                                             notifyEveryEpisode = isChecked
-                                            notifySeasonFinished = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
                                                 showId = activeItem.id,
                                                 title = activeItem.title,
                                                 type = activeItem.type,
                                                 notifyEpisode = isChecked,
+                                                notifySeasonFinished = notifySeasonFinished
+                                            )
+                                        },
+                                        modifier = Modifier.testTag("detail_notify_movie_theater_switch")
+                                    )
+                                }
+
+                                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+
+                                // Movie Digital / DVD Release Toggle
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Digital / DVD Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                        Text("Notify me when the movie is available on digital or DVD.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                                    }
+                                    Switch(
+                                        checked = notifySeasonFinished,
+                                        onCheckedChange = { isChecked ->
+                                            notifySeasonFinished = isChecked
+                                            if (isChecked) checkAndRequestNotificationPermission()
+                                            viewModel.toggleNotification(
+                                                showId = activeItem.id,
+                                                title = activeItem.title,
+                                                type = activeItem.type,
+                                                notifyEpisode = notifyEveryEpisode,
                                                 notifySeasonFinished = isChecked
                                             )
                                         },
-                                        modifier = Modifier.testTag("detail_notify_movie_switch")
+                                        modifier = Modifier.testTag("detail_notify_movie_digital_switch")
                                     )
                                 }
                             }

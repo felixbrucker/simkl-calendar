@@ -51,4 +51,16 @@ interface SimklApiService {
         @Query("next_watch_info") nextWatchInfo: String = "yes",
         @Query("date_from") dateFrom: String? = null
     ): SyncAllItemsResponse
+
+    @GET("movies/{id}")
+    suspend fun getMovieDetails(
+        @Path("id") movieId: Int,
+        @Header("Authorization") authorization: String? = null,
+        @Header("simkl-api-key") apiKey: String? = null,
+        @Header("User-Agent") userAgent: String = "simkl-calendar/1.0",
+        @Query("client_id") clientId: String? = null,
+        @Query("app-name") appName: String = "simkl-calendar",
+        @Query("app-version") appVersion: String = "1.0",
+        @Query("extended") extended: String = "full"
+    ): SimklMovieDetailResponse
 }
