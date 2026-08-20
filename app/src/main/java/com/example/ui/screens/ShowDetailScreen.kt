@@ -98,7 +98,7 @@ fun ShowDetailScreen(
 
     val settingsList by viewModel.notificationSettings.collectAsState()
     val showSetting = remember(settingsList, activeItem) {
-        if (activeItem != null) settingsList.firstOrNull { it.showId == activeItem.simklId } else null
+        if (activeItem != null) settingsList.firstOrNull { it.simklId == activeItem.simklId } else null
     }
 
     val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
@@ -552,7 +552,7 @@ fun ShowDetailScreen(
                                             notifyEveryEpisode = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
-                                                showId = activeItem.simklId,
+                                                simklId = activeItem.simklId,
                                                 notifyEpisode = isChecked,
                                                 notifySeasonFinished = notifySeasonFinished
                                             )
@@ -579,7 +579,7 @@ fun ShowDetailScreen(
                                             notifySeasonFinished = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
-                                                showId = activeItem.simklId,
+                                                simklId = activeItem.simklId,
                                                 notifyEpisode = notifyEveryEpisode,
                                                 notifySeasonFinished = isChecked
                                             )
@@ -604,7 +604,7 @@ fun ShowDetailScreen(
                                             notifyEveryEpisode = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
-                                                showId = activeItem.simklId,
+                                                simklId = activeItem.simklId,
                                                 notifyEpisode = isChecked,
                                                 notifySeasonFinished = notifySeasonFinished
                                             )
@@ -631,7 +631,7 @@ fun ShowDetailScreen(
                                             notifySeasonFinished = isChecked
                                             if (isChecked) checkAndRequestNotificationPermission()
                                             viewModel.toggleNotification(
-                                                showId = activeItem.simklId,
+                                                simklId = activeItem.simklId,
                                                 notifyEpisode = notifyEveryEpisode,
                                                 notifySeasonFinished = isChecked
                                             )

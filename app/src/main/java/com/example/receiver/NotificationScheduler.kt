@@ -26,7 +26,7 @@ object NotificationScheduler {
         try {
             val db = AppDatabase.getDatabase(context)
             val settings = db.notificationSettingDao().getAllSettingsList()
-            val settingsMap = settings.associateBy { it.showId }
+            val settingsMap = settings.associateBy { it.simklId }
             val allItems = db.calendarItemDao().getAllCalendarItemsList()
             val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
             val defaultAiring = prefs.getBoolean("default_notify_airing", false)
@@ -42,7 +42,7 @@ object NotificationScheduler {
                 // Per-item setting in database always takes precedence over new item defaults
                 val isMovie = item.type == MediaType.MOVIE
                 val setting = settingsMap[item.simklId] ?: NotificationSetting(
-                    showId = item.simklId,
+                    simklId = item.simklId,
                     notifyEveryEpisode = if (isMovie) defaultMovieTheater else defaultAiring,
                     notifyAiredLastEpisode = if (isMovie) defaultMovieDigital else defaultSeasonFinished
                 )
@@ -58,11 +58,11 @@ object NotificationScheduler {
     /**
      * Schedules notifications specifically for a single show when its settings change.
      */
-    suspend fun scheduleNotificationsForShow(context: Context, showId: Int) = withContext(Dispatchers.IO) {
+    suspend fun scheduleNotificationsForShow(context: Context, simklId: Int) = withContext(Dispatchers.IO) {
         try {
             val db = AppDatabase.getDatabase(context)
-            val setting = db.notificationSettingDao().getSettingForShow(showId)
-            val showItems = db.calendarItemDao().getItemsForShow(showId)
+            val setting = db.notificationSettingDao().getSettingForShow(simklId)
+            val showItems = db.calendarItemDao().getItemsForShow(simklId)
 
             if (setting == null || (!setting.notifyEveryEpisode && !setting.notifyAiredLastEpisode)) {
                 // Cancel all alarms for this show
@@ -73,8 +73,8 @@ object NotificationScheduler {
             }
 
             // Reset notified status for upcoming/today's items for this show so newly enabled alerts fire
-            db.calendarItemDao().resetNotifiedForShow(showId)
-            val updatedShowItems = db.calendarItemDao().getItemsForShow(showId)
+            db.calendarItemDao().resetNotifiedForShow(simklId)
+            val updatedShowItems = db.calendarItemDao().getItemsForShow(simklId)
             val showEpisodesMap = updatedShowItems.groupBy { if (it.type == MediaType.ANIME) null else it.season }
 
             for (item in updatedShowItems) {
@@ -83,7 +83,7 @@ object NotificationScheduler {
                 scheduleOrDispatchItem(context, db, item, setting, totalEpisodesInSeason)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error scheduling notifications for show $showId", e)
+            Log.e(TAG, "Error scheduling notifications for show $simklId", e)
         }
     }
 
@@ -95,16 +95,14 @@ object NotificationScheduler {
         totalEpisodesInSeason: Int? = null
     ) {
         val isFinale = item.isSeasonFinale
-        val isEnabled = if (item.type == MediaType.MOVIE) {
-            if (item.movieReleaseType == MovieReleaseType.THEATER) {
+        val isEnabled = when {
+            item.type == MediaType.MOVIE -> if (item.movieReleaseType == MovieReleaseType.THEATER) {
                 setting.notifyEveryEpisode
             } else {
                 setting.notifyAiredLastEpisode
             }
-        } else if (isFinale) {
-            setting.notifyAiredLastEpisode || setting.notifyEveryEpisode
-        } else {
-            setting.notifyEveryEpisode
+            isFinale -> setting.notifyAiredLastEpisode || setting.notifyEveryEpisode
+            else -> setting.notifyEveryEpisode
         }
 
         if (!isEnabled) {
@@ -136,15 +134,18 @@ object NotificationScheduler {
                 message = message,
                 notificationId = notificationId
             )
-        } else {
-            // Already reached air time -> if recent (within 48 hours or today) and not yet notified in DB, trigger immediately
-            val fortyEightHoursMillis = 48 * 60 * 60 * 1000L
-            if ((now - triggerTime) < fortyEightHoursMillis && !item.isNotified) {
-                NotificationReceiver.showNotification(context, title, message, notificationId)
-                db.calendarItemDao().markItemAsNotified(item.primaryKey)
-                Log.d(TAG, "Dispatched immediate notification for recently reached air date: ${item.title}")
-            }
+            return
         }
+
+        // Already reached air time -> if recent (within 48 hours or today) and not yet notified in DB, trigger immediately
+        val fortyEightHoursMillis = 48 * 60 * 60 * 1000L
+        if ((now - triggerTime) >= fortyEightHoursMillis || item.isNotified) {
+            return
+        }
+
+        NotificationReceiver.showNotification(context, title, message, notificationId)
+        db.calendarItemDao().markItemAsNotified(item.primaryKey)
+        Log.d(TAG, "Dispatched immediate notification for recently reached air date: ${item.title}")
     }
 
     private fun scheduleAlarm(

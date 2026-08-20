@@ -86,45 +86,40 @@ class NotificationReceiver : BroadcastReceiver() {
             totalEpisodes: Int? = null,
             movieReleaseType: MovieReleaseType? = null
         ): Pair<String, String> {
-            return if (type == MediaType.MOVIE) {
-                if (movieReleaseType == MovieReleaseType.THEATER) {
+            if (type == MediaType.MOVIE) {
+                return if (movieReleaseType == MovieReleaseType.THEATER) {
                     "Movie In Theaters Today" to "$showTitle is now in theaters!"
                 } else {
                     "Movie Released Today" to "$showTitle is now available on Digital / DVD!"
                 }
-            } else if (isFinale) {
+            }
+
+            if (isFinale) {
                 val title = "Season finished airing"
                 val total = totalEpisodes ?: episodeNumber
-                val episodeCountStr = if (total != null) {
-                    "$total ${if (total == 1) "Episode" else "Episodes"}"
-                } else null
+                val episodeCountStr = total?.let { "$it ${if (it == 1) "Episode" else "Episodes"}" }
 
-                val finaleTag = if (type == MediaType.ANIME) {
-                    if (episodeCountStr != null) ": $episodeCountStr" else ""
-                } else {
-                    if (season != null && episodeCountStr != null) {
-                        " Season $season: $episodeCountStr"
-                    } else if (season != null) {
-                        " Season $season"
-                    } else if (episodeCountStr != null) {
-                        ": $episodeCountStr"
-                    } else ""
+                val finaleTag = when {
+                    type == MediaType.ANIME -> if (episodeCountStr != null) ": $episodeCountStr" else ""
+                    season != null && episodeCountStr != null -> " Season $season: $episodeCountStr"
+                    season != null -> " Season $season"
+                    episodeCountStr != null -> ": $episodeCountStr"
+                    else -> ""
                 }
                 val message = "$showTitle$finaleTag"
-                title to message
-            } else {
-                val title = "New Episode Released"
-                val epLabel = if (type == MediaType.ANIME) {
-                    if (episodeNumber != null) " (Episode $episodeNumber)" else ""
-                } else if (season != null && episodeNumber != null) {
-                    String.format(Locale.US, " (S%02dE%02d)", season, episodeNumber)
-                } else if (episodeNumber != null) {
-                    " (Episode $episodeNumber)"
-                } else ""
-                val epName = if (!episodeTitle.isNullOrBlank()) " \"$episodeTitle\"" else ""
-                val message = "$showTitle$epLabel$epName is now airing."
-                title to message
+                return title to message
             }
+
+            val title = "New Episode Released"
+            val epLabel = when {
+                type == MediaType.ANIME && episodeNumber != null -> " (Episode $episodeNumber)"
+                season != null && episodeNumber != null -> String.format(Locale.US, " (S%02dE%02d)", season, episodeNumber)
+                episodeNumber != null -> " (Episode $episodeNumber)"
+                else -> ""
+            }
+            val epName = if (!episodeTitle.isNullOrBlank()) " \"$episodeTitle\"" else ""
+            val message = "$showTitle$epLabel$epName is now airing."
+            return title to message
         }
 
         /**

@@ -27,8 +27,8 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items ORDER BY date ASC")
     suspend fun getAllCalendarItemsList(): List<CalendarItem>
 
-    @Query("SELECT * FROM calendar_items WHERE simklId = :showId ORDER BY date ASC")
-    suspend fun getItemsForShow(showId: Int): List<CalendarItem>
+    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC")
+    suspend fun getItemsForShow(simklId: Int): List<CalendarItem>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCalendarItems(items: List<CalendarItem>)
@@ -48,8 +48,8 @@ interface CalendarItemDao {
     @Query("UPDATE calendar_items SET isNotified = 1 WHERE primaryKey = :primaryKey")
     suspend fun markItemAsNotified(primaryKey: String)
 
-    @Query("UPDATE calendar_items SET isNotified = 0 WHERE simklId = :showId")
-    suspend fun resetNotifiedForShow(showId: Int)
+    @Query("UPDATE calendar_items SET isNotified = 0 WHERE simklId = :simklId")
+    suspend fun resetNotifiedForShow(simklId: Int)
 
     @Query("UPDATE calendar_items SET isNotified = 0")
     suspend fun resetAllNotified()
@@ -63,8 +63,8 @@ interface NotificationSettingDao {
     @Query("SELECT * FROM notification_settings")
     suspend fun getAllSettingsList(): List<NotificationSetting>
 
-    @Query("SELECT * FROM notification_settings WHERE showId = :showId LIMIT 1")
-    suspend fun getSettingForShow(showId: Int): NotificationSetting?
+    @Query("SELECT * FROM notification_settings WHERE simklId = :simklId LIMIT 1")
+    suspend fun getSettingForShow(simklId: Int): NotificationSetting?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveSetting(setting: NotificationSetting)
@@ -72,8 +72,8 @@ interface NotificationSettingDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSettings(settings: List<NotificationSetting>)
 
-    @Query("DELETE FROM notification_settings WHERE showId = :showId")
-    suspend fun deleteSetting(showId: Int)
+    @Query("DELETE FROM notification_settings WHERE simklId = :simklId")
+    suspend fun deleteSetting(simklId: Int)
 }
 
 @Dao
@@ -87,8 +87,8 @@ interface WatchlistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateItems(items: List<TrackedWatchlistItem>)
 
-    @Query("DELETE FROM tracked_watchlist_items WHERE id = :id")
-    suspend fun deleteItem(id: Int)
+    @Query("DELETE FROM tracked_watchlist_items WHERE simklId = :simklId")
+    suspend fun deleteItem(simklId: Int)
 
     @Query("DELETE FROM tracked_watchlist_items")
     suspend fun clearAll()

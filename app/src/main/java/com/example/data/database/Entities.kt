@@ -28,18 +28,37 @@ data class CalendarItem(
     val isSeasonFinale: Boolean,
     val poster: String?, // URL for show poster image
     val isNotified: Boolean = false // Track whether notification has been dispatched
-)
+) {
+    fun updatedWith(newItem: CalendarItem): CalendarItem {
+        val isDateRescheduledToFuture = this.date != newItem.date && newItem.date.isAfter(Instant.now())
+        val updatedNotified = if (isDateRescheduledToFuture) false else this.isNotified
+
+        return this.copy(
+            title = newItem.title,
+            episodeTitle = newItem.episodeTitle,
+            season = newItem.season,
+            episodeNumber = newItem.episodeNumber,
+            date = newItem.date,
+            poster = newItem.poster,
+            type = newItem.type,
+            movieReleaseType = newItem.movieReleaseType,
+            isSeasonPremiere = newItem.isSeasonPremiere,
+            isSeasonFinale = newItem.isSeasonFinale,
+            isNotified = updatedNotified
+        )
+    }
+}
 
 @Entity(tableName = "notification_settings")
 data class NotificationSetting(
-    @PrimaryKey val showId: Int, // Simkl ID
+    @PrimaryKey val simklId: Int, // Simkl ID
     val notifyEveryEpisode: Boolean = false,
     val notifyAiredLastEpisode: Boolean = true
 )
 
 @Entity(tableName = "tracked_watchlist_items")
 data class TrackedWatchlistItem(
-    @PrimaryKey val id: Int, // Simkl ID
+    @PrimaryKey val simklId: Int, // Simkl ID
     val type: MediaType,
     val title: String,
     val poster: String? = null

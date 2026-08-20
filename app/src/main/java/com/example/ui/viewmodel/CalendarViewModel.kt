@@ -140,13 +140,13 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun toggleNotification(
-        showId: Int,
+        simklId: Int,
         notifyEpisode: Boolean,
         notifySeasonFinished: Boolean
     ) {
         viewModelScope.launch {
             repository.toggleNotificationSetting(
-                showId = showId,
+                simklId = simklId,
                 notifyEveryEpisode = notifyEpisode,
                 notifyAiredLastEpisode = notifySeasonFinished
             )
