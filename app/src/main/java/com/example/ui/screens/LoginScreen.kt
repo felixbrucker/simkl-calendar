@@ -39,6 +39,7 @@ import com.example.ui.viewmodel.CalendarViewModel
 fun LoginScreen(
     viewModel: CalendarViewModel,
     onLoginSuccess: () -> Unit,
+    onLaunchAuthTab: ((url: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -144,8 +145,12 @@ fun LoginScreen(
                                     oauthError = null
                                     val authUrl = viewModel.createAuthorizationUrl("simklcalendar://auth")
                                     if (authUrl != null) {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
-                                        context.startActivity(intent)
+                                        if (onLaunchAuthTab != null) {
+                                            onLaunchAuthTab(authUrl)
+                                        } else {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
+                                            context.startActivity(intent)
+                                        }
                                     } else {
                                         oauthError = "Could not initialize PKCE OAuth flow"
                                     }
