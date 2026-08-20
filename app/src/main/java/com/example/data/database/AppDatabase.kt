@@ -1,6 +1,7 @@
 package com.example.data.database
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -62,7 +63,10 @@ class Converters {
 @Database(
     entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class],
     version = 7,
-    exportSchema = false
+    exportSchema = true,
+    autoMigrations = [
+        // AutoMigration specifications can be declared here (e.g. AutoMigration(from = 7, to = 8))
+    ]
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -82,7 +86,6 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "simkl_calendar_database"
                 )
-                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

@@ -36,6 +36,8 @@ import com.example.data.database.CalendarItem
 import com.example.data.model.MediaType
 import com.example.data.model.MovieReleaseType
 import com.example.data.util.DateUtil
+import com.example.data.util.PosterSize
+import com.example.data.util.toPosterUrl
 import com.example.ui.viewmodel.CalendarViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -469,7 +471,7 @@ fun CalendarItemCard(
                     .background(Color(0xFF313033))
             ) {
                 AsyncImage(
-                    model = item.poster,
+                    model = item.poster.toPosterUrl(PosterSize.COMPACT),
                     contentDescription = "${item.title} Poster",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),

@@ -38,6 +38,8 @@ import com.example.data.database.CalendarItem
 import com.example.data.model.MediaType
 import com.example.data.model.MovieReleaseType
 import com.example.data.util.DateUtil
+import com.example.data.util.PosterSize
+import com.example.data.util.toPosterUrl
 import com.example.ui.viewmodel.CalendarViewModel
 import java.util.Locale
 
@@ -161,7 +163,7 @@ fun ShowDetailScreen(
                         .height(260.dp)
                 ) {
                     AsyncImage(
-                        model = activeItem.poster,
+                        model = activeItem.poster.toPosterUrl(PosterSize.WIDE),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()

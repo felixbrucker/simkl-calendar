@@ -14,7 +14,6 @@ import com.example.data.model.WatchlistStatus
 import com.example.data.network.OAuthTokenRequest
 import com.example.data.network.SimklApiService
 import com.example.data.util.DateUtil
-import com.example.data.util.ImageUtil
 import com.example.data.util.PkceUtil
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -262,7 +261,7 @@ class SimklRepository(private val context: Context) {
                                 simklId = simklId,
                                 type = MediaType.TV,
                                 title = media.title,
-                                poster = ImageUtil.formatPosterUrl(media.poster)
+                                poster = media.poster
                             )
                         )
                     } else if (dateFromParam != null) {
@@ -281,7 +280,7 @@ class SimklRepository(private val context: Context) {
                                 simklId = simklId,
                                 type = MediaType.ANIME,
                                 title = media.title,
-                                poster = ImageUtil.formatPosterUrl(media.poster)
+                                poster = media.poster
                             )
                         )
                     } else if (dateFromParam != null) {
@@ -300,7 +299,7 @@ class SimklRepository(private val context: Context) {
                                 simklId = simklId,
                                 type = MediaType.MOVIE,
                                 title = media.title,
-                                poster = ImageUtil.formatPosterUrl(media.poster)
+                                poster = media.poster
                             )
                         )
                     } else if (dateFromParam != null) {
@@ -399,7 +398,6 @@ class SimklRepository(private val context: Context) {
                         val meta = metadataMap[simklId.toString()] ?: metadataMap[simklId.toString().lowercase()]
                         val title = meta?.title ?: allTrackedItems.find { it.simklId == simklId }?.title ?: "Untitled"
                         val posterRaw = meta?.poster ?: allTrackedItems.find { it.simklId == simklId }?.poster
-                        val posterUrl = ImageUtil.formatPosterUrl(posterRaw)
 
                         if (defaultType == MediaType.MOVIE) {
                             // 1. Process Theater Release
@@ -417,7 +415,7 @@ class SimklRepository(private val context: Context) {
                                         movieReleaseType = MovieReleaseType.THEATER,
                                         isSeasonPremiere = false,
                                         isSeasonFinale = false,
-                                        poster = posterUrl
+                                        poster = posterRaw
                                     )
                                 )
                             }
@@ -438,7 +436,7 @@ class SimklRepository(private val context: Context) {
                                             movieReleaseType = MovieReleaseType.DIGITAL,
                                             isSeasonPremiere = false,
                                             isSeasonFinale = false,
-                                            poster = posterUrl
+                                            poster = posterRaw
                                         )
                                     )
                                 }
@@ -474,7 +472,7 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = null,
                                     isSeasonPremiere = isPremiere,
                                     isSeasonFinale = isFinale,
-                                    poster = posterUrl
+                                    poster = posterRaw
                                 )
                             )
                         }
@@ -503,7 +501,7 @@ class SimklRepository(private val context: Context) {
                         authorization = bearer,
                         clientId = clientId
                     )
-                    val moviePoster = ImageUtil.formatPosterUrl(movieDetail.poster ?: allTrackedItems.find { it.simklId == movieId }?.poster)
+                    val moviePoster = movieDetail.poster ?: allTrackedItems.find { it.simklId == movieId }?.poster
 
                     // 1. Process Theatrical release date from regular released property
                     movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
