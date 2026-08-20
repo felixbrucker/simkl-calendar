@@ -16,7 +16,7 @@ fun String?.toPosterUrl(size: PosterSize = PosterSize.COMPACT): String {
             PosterSize.COMPACT -> size.suffix
             else -> ""
         }
-        return "https://simkl.in/poster_no_pic${size.suffix}.webp"
+        return "https://simkl.in/poster_no_pic$suffix.png"
     }
 
     return "https://simkl.in/posters/${this}${size.suffix}.webp"

@@ -535,8 +535,10 @@ fun CalendarItemCard(
                 when (item.type) {
                     MediaType.ANIME -> {
                         val epNum = item.episodeNumber ?: 1
+                        val epLabel = String.format(Locale.US, "E%02d", epNum)
+                        val epTitle = item.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
                         Text(
-                            text = "Episode $epNum",
+                            text = "$epLabel: $epTitle",
                             fontSize = 13.sp,
                             color = Color(0xFFCAC4D0),
                             maxLines = 1,
@@ -547,8 +549,9 @@ fun CalendarItemCard(
                         val epSeason = item.season ?: 1
                         val epNum = item.episodeNumber ?: 1
                         val epLabel = String.format(Locale.US, "S%02d • E%02d", epSeason, epNum)
+                        val epTitle = item.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
                         Text(
-                            text = "$epLabel : ${item.episodeTitle ?: "TBD"}",
+                            text = "$epLabel: $epTitle",
                             fontSize = 13.sp,
                             color = Color(0xFFCAC4D0),
                             maxLines = 1,

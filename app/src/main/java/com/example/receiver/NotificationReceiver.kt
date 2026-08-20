@@ -101,8 +101,8 @@ class NotificationReceiver : BroadcastReceiver() {
 
                 val finaleTag = when {
                     type == MediaType.ANIME -> if (episodeCountStr != null) ": $episodeCountStr" else ""
-                    season != null && episodeCountStr != null -> " Season $season: $episodeCountStr"
-                    season != null -> " Season $season"
+                    season != null && episodeCountStr != null -> String.format(Locale.US, " S%02d: $episodeCountStr", season)
+                    season != null -> String.format(Locale.US, " S%02d", season)
                     episodeCountStr != null -> ": $episodeCountStr"
                     else -> ""
                 }
@@ -112,12 +112,12 @@ class NotificationReceiver : BroadcastReceiver() {
 
             val title = "New Episode Released"
             val epLabel = when {
-                type == MediaType.ANIME && episodeNumber != null -> " (Episode $episodeNumber)"
-                season != null && episodeNumber != null -> String.format(Locale.US, " (S%02dE%02d)", season, episodeNumber)
-                episodeNumber != null -> " (Episode $episodeNumber)"
+                type == MediaType.ANIME && episodeNumber != null -> String.format(Locale.US, " E%02d", episodeNumber)
+                season != null && episodeNumber != null -> String.format(Locale.US, " S%02dE%02d", season, episodeNumber)
+                episodeNumber != null -> String.format(Locale.US, " E%02d", episodeNumber)
                 else -> ""
             }
-            val epName = if (!episodeTitle.isNullOrBlank()) " \"$episodeTitle\"" else ""
+            val epName = if (!episodeTitle.isNullOrBlank()) ": \"$episodeTitle\"" else ""
             val message = "$showTitle$epLabel$epName is now airing."
             return title to message
         }

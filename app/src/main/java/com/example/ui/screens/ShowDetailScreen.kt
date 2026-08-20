@@ -317,7 +317,7 @@ fun ShowDetailScreen(
                                 val sNum = activeItem.season ?: 1
                                 val eNum = activeItem.episodeNumber ?: 1
                                 val (slugLabel, slugValue) = if (activeItem.type == MediaType.ANIME) {
-                                    "Episode" to "Episode $eNum"
+                                    "Episode" to String.format(Locale.US, "E%02d", eNum)
                                 } else {
                                     "Season & Episode" to String.format(Locale.US, "S%02dE%02d", sNum, eNum)
                                 }
@@ -336,30 +336,20 @@ fun ShowDetailScreen(
                                     )
                                 }
 
-                                if (!activeItem.episodeTitle.isNullOrBlank()) {
-                                    val titleText = activeItem.episodeTitle
-                                    val isGenericAnimeTitle = activeItem.type == MediaType.ANIME && (
-                                        titleText.equals("Episode $eNum", ignoreCase = true) ||
-                                        titleText.equals("Ep $eNum", ignoreCase = true) ||
-                                        titleText.equals("Ep. $eNum", ignoreCase = true)
+                                val titleText = activeItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Episode Name", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                    Text(
+                                        text = titleText,
+                                        color = Color(0xFFE6E1E5),
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.sp,
+                                        maxLines = 2
                                     )
-
-                                    if (!isGenericAnimeTitle) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text("Episode Name", color = Color(0xFFCAC4D0), fontSize = 14.sp)
-                                            Text(
-                                                text = titleText,
-                                                color = Color(0xFFE6E1E5),
-                                                fontWeight = FontWeight.Medium,
-                                                fontSize = 14.sp,
-                                                maxLines = 2
-                                            )
-                                        }
-                                    }
                                 }
                             }
 
@@ -413,7 +403,7 @@ fun ShowDetailScreen(
                                     val epTag = if (epItem.type == MediaType.MOVIE) {
                                         if (epItem.movieReleaseType == MovieReleaseType.THEATER) "THEATER" else "DIGITAL / DVD"
                                     } else if (epItem.type == MediaType.ANIME) {
-                                        "Ep $e"
+                                        String.format(Locale.US, "E%02d", e)
                                     } else {
                                         String.format(Locale.US, "S%02dE%02d", s, e)
                                     }
@@ -462,7 +452,7 @@ fun ShowDetailScreen(
                                                         text = if (epItem.type == MediaType.MOVIE) {
                                                             epItem.movieReleaseType?.displayName ?: "Movie Release"
                                                         } else {
-                                                            epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "Episode $e"
+                                                            epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
                                                         },
                                                         color = Color(0xFFE6E1E5),
                                                         fontSize = 13.sp,
