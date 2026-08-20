@@ -29,6 +29,8 @@ import com.example.data.model.MediaType
 import com.example.data.model.MovieReleaseType
 import com.example.ui.viewmodel.CalendarViewModel
 import com.example.receiver.NotificationReceiver
+import com.example.worker.SyncCalendarWorker
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +66,10 @@ fun SettingsScreen(
     }
     var enableDefaultMovieDigital by remember {
         mutableStateOf(prefs.getBoolean("default_notify_movie_digital", true))
+    }
+
+    var syncIntervalHours by remember {
+        mutableStateOf(prefs.getInt("sync_interval_hours", 12).toFloat())
     }
 
     Scaffold(
@@ -134,6 +140,90 @@ fun SettingsScreen(
                 }
             }
 
+
+            // Background Sync Interval Configuration Card
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Sync,
+                                contentDescription = null,
+                                tint = Color(0xFFD0BCFF),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Background Sync Interval",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE6E1E5),
+                                fontSize = 16.sp
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF4A4458)
+                        ) {
+                            Text(
+                                text = "${syncIntervalHours.roundToInt()} hrs",
+                                color = Color(0xFFD0BCFF),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp).testTag("sync_interval_value_badge")
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Sets how frequently the app runs background checks to discover new episode releases and sync your watchlist.",
+                        color = Color(0xFFCAC4D0),
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Slider(
+                        value = syncIntervalHours,
+                        onValueChange = { newValue ->
+                            syncIntervalHours = newValue
+                        },
+                        onValueChangeFinished = {
+                            val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
+                            prefs.edit().putInt("sync_interval_hours", roundedHours).apply()
+                            SyncCalendarWorker.enqueuePeriodicSync(context, roundedHours.toLong())
+                        },
+                        valueRange = 1f..24f,
+                        steps = 22, // 1 to 24 with 1-hour increments -> 22 discrete intermediate steps
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFFD0BCFF),
+                            activeTrackColor = Color(0xFFD0BCFF),
+                            inactiveTrackColor = Color(0xFF49454F),
+                            activeTickColor = Color.Transparent,
+                            inactiveTickColor = Color.Transparent
+                        ),
+                        modifier = Modifier.fillMaxWidth().testTag("sync_interval_slider")
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("1 hour (frequent)", color = Color(0xFF938F99), fontSize = 11.sp)
+                        Text("12 hours (default)", color = Color(0xFF938F99), fontSize = 11.sp)
+                        Text("24 hours (daily)", color = Color(0xFF938F99), fontSize = 11.sp)
+                    }
+                }
+            }
 
             // Notification Setup Defaults Card
             Card(

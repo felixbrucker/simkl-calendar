@@ -493,16 +493,17 @@ class SimklRepository(private val context: Context) {
             }
         }
 
-        // Fetch movie details for all tracked movies without a DVD/digital release date yet
+        // Fetch movie details for all tracked movies missing either theatrical or DVD/digital release dates
         val candidateMovieIds = trackedMovieIds
 
-        val moviesWithoutDigital = candidateMovieIds.filter { movieId ->
-            !dbItems.any { it.simklId == movieId && it.type == MediaType.MOVIE && it.movieReleaseType == MovieReleaseType.DIGITAL }
+        val moviesNeedingDetails = candidateMovieIds.filter { movieId ->
+            !dbItems.any { it.simklId == movieId && it.type == MediaType.MOVIE && it.movieReleaseType == MovieReleaseType.DIGITAL } ||
+            !dbItems.any { it.simklId == movieId && it.type == MediaType.MOVIE && it.movieReleaseType == MovieReleaseType.THEATER }
         }
 
-        if (moviesWithoutDigital.isNotEmpty()) {
-            Log.d("SimklRepository", "Fetching details for ${moviesWithoutDigital.size} movies missing DVD/digital release dates")
-            for (movieId in moviesWithoutDigital) {
+        if (moviesNeedingDetails.isNotEmpty()) {
+            Log.d("SimklRepository", "Fetching details for ${moviesNeedingDetails.size} movies missing release dates")
+            for (movieId in moviesNeedingDetails) {
                 try {
                     val movieDetail = apiService.getMovieDetails(
                         movieId = movieId,
@@ -512,7 +513,37 @@ class SimklRepository(private val context: Context) {
                     val movieTitle = movieDetail.title ?: allTrackedItems.find { it.id == movieId }?.title ?: "Untitled"
                     val moviePoster = ImageUtil.formatPosterUrl(movieDetail.poster ?: allTrackedItems.find { it.id == movieId }?.poster)
 
-                    // Extract Digital / DVD release date from release_dates
+                    // 1. Process Theatrical release date from regular released property
+                    val releasedStr = movieDetail.released?.takeIf { it.isNotBlank() }
+                    if (!releasedStr.isNullOrBlank()) {
+                        val theaterInstant = DateUtil.parseToInstant(releasedStr)
+                        if (theaterInstant != null) {
+                            val theaterKey = "v2_${movieId}_theater"
+                            val alreadyAdded = dbItems.any { it.primaryKey == theaterKey }
+                            if (!alreadyAdded) {
+                                dbItems.add(
+                                    CalendarItem(
+                                        primaryKey = theaterKey,
+                                        simklId = movieId,
+                                        title = movieTitle,
+                                        episodeTitle = null,
+                                        season = null,
+                                        episodeNumber = null,
+                                        date = theaterInstant,
+                                        type = MediaType.MOVIE,
+                                        movieReleaseType = MovieReleaseType.THEATER,
+                                        isSeasonPremiere = false,
+                                        isSeasonFinale = false,
+                                        poster = moviePoster,
+                                        isLastEpisode = false,
+                                        notificationsScheduled = false
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    // 2. Extract Digital / DVD release date from release_dates timeline
                     val digitalStr = movieDetail.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }
                     if (!digitalStr.isNullOrBlank()) {
                         val digitalInstant = DateUtil.parseToInstant(digitalStr)

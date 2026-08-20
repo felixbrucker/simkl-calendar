@@ -216,6 +216,7 @@ class DateUtilTest {
 
         val tvMovieDetail = com.example.data.network.SimklMovieDetailResponse(
             title = "TV Film",
+            released = "2024-04-15",
             ids = com.example.data.network.SimklIds(simkl = 67890),
             releaseDates = listOf(
                 com.example.data.network.SimklMovieReleaseDateCountry(
@@ -226,6 +227,23 @@ class DateUtilTest {
                 )
             )
         )
+        assertEquals("2024-04-15", tvMovieDetail.released)
         assertEquals("2024-05-01", tvMovieDetail.extractDigitalOrDvdReleaseDate())
+    }
+
+    @Test
+    fun testDateHeaderIncludesYearForDifferentYear() {
+        val currentYear = LocalDate.now().year
+        val pastDateInstant = LocalDate.of(currentYear - 2, 5, 12)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+        val header = DateUtil.formatAiringDateHeader(pastDateInstant)
+        assertTrue("Header should contain year ${currentYear - 2}: $header", header.contains("${currentYear - 2}"))
+
+        val futureDateInstant = LocalDate.of(currentYear + 3, 11, 20)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+        val futureHeader = DateUtil.formatAiringDateHeader(futureDateInstant)
+        assertTrue("Header should contain year ${currentYear + 3}: $futureHeader", futureHeader.contains("${currentYear + 3}"))
     }
 }

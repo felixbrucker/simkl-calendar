@@ -113,8 +113,9 @@ data class SimklMovieReleaseDateCountry(
 data class SimklMovieDetailResponse(
     @Json(name = "title") val title: String,
     @Json(name = "poster") val poster: String? = null,
-    @Json(name = "release_dates") val releaseDates: List<SimklMovieReleaseDateCountry>,
-    @Json(name = "ids") val ids: SimklIds
+    @Json(name = "released") val released: String? = null,
+    @Json(name = "release_dates") val releaseDates: List<SimklMovieReleaseDateCountry>? = null,
+    @Json(name = "ids") val ids: SimklIds? = null
 ) {
     /**
      * Extracts Digital (type 4), Physical / DVD (type 5), or TV (type 6) release date from the release_dates timeline.

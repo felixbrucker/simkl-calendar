@@ -44,7 +44,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         NotificationReceiver.createNotificationChannel(this)
-        SyncCalendarWorker.enqueuePeriodicSync(this)
+        val syncPrefs = getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE)
+        val syncIntervalHours = syncPrefs.getInt("sync_interval_hours", 12).toLong()
+        SyncCalendarWorker.enqueuePeriodicSync(this, syncIntervalHours)
 
         handleOAuthIntent(intent)
 

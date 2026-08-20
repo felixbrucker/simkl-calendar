@@ -41,15 +41,16 @@ class SyncCalendarWorker(
         const val UNIQUE_WORK_NAME = "simkl_periodic_calendar_sync"
 
         /**
-         * Enqueues a periodic background sync every 12 hours with network connectivity requirement.
+         * Enqueues a periodic background sync with configurable interval (in hours, min 1 hour or 15 mins for WorkManager).
          * Runs reliably even when the app is in background or closed.
          */
-        fun enqueuePeriodicSync(context: Context) {
+        fun enqueuePeriodicSync(context: Context, intervalHours: Long = 12) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
 
-            val syncRequest = PeriodicWorkRequestBuilder<SyncCalendarWorker>(12, TimeUnit.HOURS)
+            val effectiveInterval = intervalHours.coerceAtLeast(1)
+            val syncRequest = PeriodicWorkRequestBuilder<SyncCalendarWorker>(effectiveInterval, TimeUnit.HOURS)
                 .setConstraints(constraints)
                 .build()
 
@@ -58,7 +59,7 @@ class SyncCalendarWorker(
                 ExistingPeriodicWorkPolicy.UPDATE,
                 syncRequest
             )
-            Log.d(TAG, "Enqueued 12-hour periodic background calendar sync work")
+            Log.d(TAG, "Enqueued $effectiveInterval-hour periodic background calendar sync work")
         }
     }
 }
