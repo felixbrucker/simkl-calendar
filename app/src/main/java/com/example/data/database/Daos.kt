@@ -105,6 +105,9 @@ interface WatchedEpisodeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWatchedEpisodes(episodes: List<WatchedEpisode>)
 
+    @Delete
+    suspend fun deleteWatchedEpisodes(episodes: List<WatchedEpisode>)
+
     @Query("DELETE FROM watched_episodes WHERE simklId = :simklId")
     suspend fun deleteWatchedForShow(simklId: Int)
 

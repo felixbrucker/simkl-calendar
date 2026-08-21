@@ -254,6 +254,7 @@ class SimklRepository(private val context: Context) {
 
                 val newTracked = mutableListOf<TrackedWatchlistItem>()
                 val newWatchedEpisodes = mutableListOf<WatchedEpisode>()
+                val toDeleteWatchedEpisodes = mutableListOf<WatchedEpisode>()
 
                 fun extractWatched(simklId: Int, seasons: List<SyncSeasonItem>?) {
                     seasons?.forEach { seasonItem ->
@@ -267,6 +268,15 @@ class SimklRepository(private val context: Context) {
                                         season = sNum,
                                         episodeNumber = epItem.number,
                                         watchedAt = watchedInstant
+                                    )
+                                )
+                            } else {
+                                toDeleteWatchedEpisodes.add(
+                                    WatchedEpisode(
+                                        simklId = simklId,
+                                        season = sNum,
+                                        episodeNumber = epItem.number,
+                                        watchedAt = null
                                     )
                                 )
                             }
@@ -346,6 +356,9 @@ class SimklRepository(private val context: Context) {
                 }
                 if (newWatchedEpisodes.isNotEmpty()) {
                     watchedDao.insertWatchedEpisodes(newWatchedEpisodes)
+                }
+                if (toDeleteWatchedEpisodes.isNotEmpty()) {
+                    watchedDao.deleteWatchedEpisodes(toDeleteWatchedEpisodes)
                 }
 
                 if (!currentActivitiesTimestamp.isNullOrEmpty()) {
