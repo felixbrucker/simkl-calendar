@@ -28,7 +28,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -131,7 +130,7 @@ fun ShowDetailScreen(
             TopAppBar(
                 title = { Text("Release Details", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("back_to_calendar_button")) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFFE6E1E5))
                     }
                 },
@@ -249,7 +248,7 @@ fun ShowDetailScreen(
                             if (activeItem.type == MediaType.MOVIE) {
                                 if (theatricalItem != null) {
                                     Row(
-                                        modifier = Modifier.fillMaxWidth().testTag("movie_theatrical_release_row"),
+                                        modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -265,7 +264,7 @@ fun ShowDetailScreen(
 
                                 if (digitalItem != null) {
                                     Row(
-                                        modifier = Modifier.fillMaxWidth().testTag("movie_digital_release_row"),
+                                        modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -420,7 +419,6 @@ fun ShowDetailScreen(
                                             .fillMaxWidth()
                                             .padding(vertical = 4.dp)
                                             .clickable { activeItemKey = epItem.primaryKey }
-                                            .testTag("schedule_episode_row_${epItem.primaryKey}")
                                     ) {
                                         Row(
                                             modifier = Modifier
@@ -495,8 +493,7 @@ fun ShowDetailScreen(
                             context.startActivity(intent)
                         },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("open_on_simkl_button"),
+                            .fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF4F378B),
                             contentColor = Color(0xFFEADDFF)
@@ -548,8 +545,7 @@ fun ShowDetailScreen(
                                                 notifyEpisode = isChecked,
                                                 notifySeasonFinished = notifySeasonFinished
                                             )
-                                        },
-                                        modifier = Modifier.testTag("detail_notify_episode_switch")
+                                        }
                                     )
                                 }
 
@@ -575,8 +571,7 @@ fun ShowDetailScreen(
                                                 notifyEpisode = notifyEveryEpisode,
                                                 notifySeasonFinished = isChecked
                                             )
-                                        },
-                                        modifier = Modifier.testTag("detail_notify_season_finished_switch")
+                                        }
                                     )
                                 }
                             } else {
@@ -600,8 +595,7 @@ fun ShowDetailScreen(
                                                 notifyEpisode = isChecked,
                                                 notifySeasonFinished = notifySeasonFinished
                                             )
-                                        },
-                                        modifier = Modifier.testTag("detail_notify_movie_theater_switch")
+                                        }
                                     )
                                 }
 
@@ -627,8 +621,7 @@ fun ShowDetailScreen(
                                                 notifyEpisode = notifyEveryEpisode,
                                                 notifySeasonFinished = isChecked
                                             )
-                                        },
-                                        modifier = Modifier.testTag("detail_notify_movie_digital_switch")
+                                        }
                                     )
                                 }
                             }

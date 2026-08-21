@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -108,8 +107,7 @@ fun CalendarScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier.testTag("settings_button")
+                        onClick = onNavigateToSettings
                     ) {
                         Icon(
                             imageVector = Icons.Default.Settings,
@@ -132,7 +130,6 @@ fun CalendarScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .testTag("pull_to_refresh_box")
         ) {
             Column(
                 modifier = Modifier.fillMaxSize()
@@ -155,8 +152,7 @@ fun CalendarScreen(
                             selectedLabelColor = Color(0xFF1A237E),
                             containerColor = Color(0xFF313033),
                             labelColor = Color(0xFFCAC4D0)
-                        ),
-                        modifier = Modifier.testTag("filter_tv_toggle")
+                        )
                     )
                     
                     // Anime Toggle
@@ -169,8 +165,7 @@ fun CalendarScreen(
                             selectedLabelColor = Color(0xFF1D192B),
                             containerColor = Color(0xFF313033),
                             labelColor = Color(0xFFCAC4D0)
-                        ),
-                        modifier = Modifier.testTag("filter_anime_toggle")
+                        )
                     )
 
                     // Movies Toggle
@@ -183,8 +178,7 @@ fun CalendarScreen(
                             selectedLabelColor = Color(0xFF601410),
                             containerColor = Color(0xFF313033),
                             labelColor = Color(0xFFCAC4D0)
-                        ),
-                        modifier = Modifier.testTag("filter_movies_toggle")
+                        )
                     )
                 }
 
@@ -205,8 +199,7 @@ fun CalendarScreen(
                             selectedLabelColor = Color(0xFF1D192B),
                             containerColor = Color(0xFF313033),
                             labelColor = Color(0xFFCAC4D0)
-                        ),
-                        modifier = Modifier.testTag("filter_premieres_toggle")
+                        )
                     )
 
                     FilterChip(
@@ -218,8 +211,7 @@ fun CalendarScreen(
                             selectedLabelColor = Color.White,
                             containerColor = Color(0xFF313033),
                             labelColor = Color(0xFFCAC4D0)
-                        ),
-                        modifier = Modifier.testTag("filter_finales_toggle")
+                        )
                     )
 
                     FilterChip(
@@ -231,8 +223,7 @@ fun CalendarScreen(
                             selectedLabelColor = Color(0xFFEADDFF),
                             containerColor = Color(0xFF313033),
                             labelColor = Color(0xFFCAC4D0)
-                        ),
-                        modifier = Modifier.testTag("filter_digital_dvd_toggle")
+                        )
                     )
                 }
 
@@ -298,7 +289,6 @@ fun CalendarScreen(
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 6.dp)
                                     .clickable { showEarlierReleases = !showEarlierReleases }
-                                    .testTag("toggle_earlier_releases_button")
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -455,7 +445,6 @@ fun CalendarItemCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clickable(onClick = onClick)
-            .testTag("calendar_item_card_${item.simklId}")
     ) {
         Row(
             modifier = Modifier

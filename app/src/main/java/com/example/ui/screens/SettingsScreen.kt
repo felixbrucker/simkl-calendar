@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,7 +77,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = { Text("Settings & Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("back_button")) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFFE6E1E5))
                     }
                 },
@@ -128,11 +127,13 @@ fun SettingsScreen(
                                 viewModel.logoutUser() 
                                 onNavigateBack()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.testTag("settings_logout_button")
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            ),
+                            shape = RoundedCornerShape(8.dp)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Logout", fontSize = 14.sp)
                         }
@@ -177,7 +178,7 @@ fun SettingsScreen(
                                 color = Color(0xFFD0BCFF),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp).testTag("sync_interval_value_badge")
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
                     }
@@ -211,7 +212,7 @@ fun SettingsScreen(
                             activeTickColor = Color.Transparent,
                             inactiveTickColor = Color.Transparent
                         ),
-                        modifier = Modifier.fillMaxWidth().testTag("sync_interval_slider")
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Row(
@@ -271,8 +272,7 @@ fun SettingsScreen(
                                     .putBoolean("default_notify_airing", it)
                                     .apply()
                                 if (it) checkAndRequestPermission()
-                            },
-                            modifier = Modifier.testTag("air_notification_switch")
+                            }
                         )
                     }
 
@@ -296,8 +296,7 @@ fun SettingsScreen(
                                     .putBoolean("default_notify_season_finished", it)
                                     .apply()
                                 if (it) checkAndRequestPermission()
-                            },
-                            modifier = Modifier.testTag("season_finished_notification_switch")
+                            }
                         )
                     }
 
@@ -332,8 +331,7 @@ fun SettingsScreen(
                                     .putBoolean("default_notify_movie_theater", it)
                                     .apply()
                                 if (it) checkAndRequestPermission()
-                            },
-                            modifier = Modifier.testTag("movie_theater_notification_switch")
+                            }
                         )
                     }
 
@@ -356,130 +354,9 @@ fun SettingsScreen(
                                 prefs.edit()
                                     .putBoolean("default_notify_movie_digital", it)
                                     .apply()
-                                if (it) checkAndRequestPermission()
-                            },
-                            modifier = Modifier.testTag("movie_digital_notification_switch")
+                                 if (it) checkAndRequestPermission()
+                            }
                         )
-                    }
-                }
-            }
-
-            // Manual Debug / Trigger Testing segment
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text("Test Notification Channel Drivers", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
-                    Text("Directly fire alerts to verify delivery on your active Android device or emulator drawer instantly.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Button(
-                        onClick = {
-                            checkAndRequestPermission()
-                            NotificationReceiver.triggerEpisodeNotification(
-                                context,
-                                showTitle = "Demon Slayer: Kimetsu no Yaiba",
-                                episodeName = "The Hashira Training",
-                                season = 4,
-                                episodeNumber = 1,
-                                isFinale = false,
-                                type = MediaType.ANIME
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth().testTag("simulate_episode_alert_button"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF49454F),
-                            contentColor = Color(0xFFE6E1E5)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFE6E1E5))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Simulate Episode Alert", color = Color(0xFFE6E1E5))
-                    }
-
-                    Button(
-                        onClick = {
-                            checkAndRequestPermission()
-                            NotificationReceiver.triggerEpisodeNotification(
-                                context,
-                                showTitle = "Succession",
-                                episodeName = "With Open Eyes",
-                                season = 4,
-                                episodeNumber = 10,
-                                isFinale = true,
-                                type = MediaType.TV,
-                                totalEpisodes = 10
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth().testTag("simulate_season_finished_alert_button"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF381E72),
-                            contentColor = Color(0xFFD0BCFF)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.MovieFilter, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFD0BCFF))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Simulate Season Finished Alert", color = Color(0xFFD0BCFF))
-                    }
-
-                    Button(
-                        onClick = {
-                            checkAndRequestPermission()
-                            NotificationReceiver.triggerEpisodeNotification(
-                                context,
-                                showTitle = "Dune: Part Two",
-                                episodeName = null,
-                                season = null,
-                                episodeNumber = null,
-                                isFinale = false,
-                                type = MediaType.MOVIE,
-                                movieReleaseType = MovieReleaseType.THEATER
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth().testTag("simulate_movie_theater_alert_button"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4A2525),
-                            contentColor = Color(0xFFF2B8B5)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.LocalMovies, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFF2B8B5))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Simulate Movie Theater Alert", color = Color(0xFFF2B8B5))
-                    }
-
-                    Button(
-                        onClick = {
-                            checkAndRequestPermission()
-                            NotificationReceiver.triggerEpisodeNotification(
-                                context,
-                                showTitle = "Dune: Part Two",
-                                episodeName = null,
-                                season = null,
-                                episodeNumber = null,
-                                isFinale = false,
-                                type = MediaType.MOVIE,
-                                movieReleaseType = MovieReleaseType.DIGITAL
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth().testTag("simulate_movie_digital_alert_button"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF1B3B2B),
-                            contentColor = Color(0xFFA8DAB5)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.VideoLibrary, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFA8DAB5))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Simulate Movie Digital / DVD Alert", color = Color(0xFFA8DAB5))
                     }
                 }
             }
