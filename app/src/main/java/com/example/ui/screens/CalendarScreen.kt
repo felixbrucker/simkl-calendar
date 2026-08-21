@@ -1,8 +1,11 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -11,6 +14,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -21,11 +27,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,10 +53,18 @@ import com.example.data.util.DateUtil
 import com.example.data.util.PosterSize
 import com.example.data.util.toPosterUrl
 import com.example.ui.viewmodel.CalendarViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+private enum class SearchBarDisplayMode {
+    DEFAULT,
+    EXPANDED,
+    DOCKED
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun CalendarScreen(
     viewModel: CalendarViewModel,
@@ -52,6 +75,7 @@ fun CalendarScreen(
     val items by viewModel.filteredCalendarItems.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val userToken by viewModel.userToken.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
     // Filters states
     val tvFilter by viewModel.showTv.collectAsState()
@@ -64,6 +88,44 @@ fun CalendarScreen(
     val username = userToken?.username ?: "Guest"
 
     var showEarlierReleases by remember { mutableStateOf(false) }
+
+    // Search UI State
+    var isSearchActive by remember { mutableStateOf(false) }
+    var isSearchFocused by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val coroutineScope = rememberCoroutineScope()
+
+    // Monitor IME visibility to handle keyboard dismiss
+    val isImeVisible = WindowInsets.isImeVisible
+    LaunchedEffect(isImeVisible) {
+        if (!isImeVisible && isSearchFocused) {
+            focusManager.clearFocus()
+            isSearchFocused = false
+            if (searchQuery.isBlank()) {
+                isSearchActive = false
+            }
+        }
+    }
+
+    // Determine current display mode
+    val searchDisplayMode = when {
+        isSearchActive || isSearchFocused -> SearchBarDisplayMode.EXPANDED
+        searchQuery.isNotBlank() -> SearchBarDisplayMode.DOCKED
+        else -> SearchBarDisplayMode.DEFAULT
+    }
+
+    // Back handler to exit search or clear query
+    BackHandler(enabled = isSearchActive || searchQuery.isNotBlank()) {
+        if (searchQuery.isNotBlank()) {
+            viewModel.clearSearchQuery()
+        }
+        isSearchActive = false
+        isSearchFocused = false
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
 
     // Separate earlier releases from today/upcoming releases
     val (earlierItems, upcomingItems) = remember(items) {
@@ -87,27 +149,215 @@ fun CalendarScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column(
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "Simkl Calendar",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Hi, $username • Tracked Schedule",
-                            fontSize = 12.sp,
-                            color = Color(0xFFCAC4D0),
-                            fontWeight = FontWeight.Normal,
-                            lineHeight = 16.sp
-                        )
+                    AnimatedContent(
+                        targetState = searchDisplayMode,
+                        transitionSpec = {
+                            if (targetState == SearchBarDisplayMode.EXPANDED) {
+                                (slideInHorizontally(animationSpec = tween(280)) { width -> width } + fadeIn(animationSpec = tween(250))) togetherWith
+                                (slideOutHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeOut(animationSpec = tween(200)))
+                            } else if (initialState == SearchBarDisplayMode.EXPANDED && targetState == SearchBarDisplayMode.DEFAULT) {
+                                (slideInHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeIn(animationSpec = tween(200))) togetherWith
+                                (slideOutHorizontally(animationSpec = tween(280)) { width -> width } + fadeOut(animationSpec = tween(250)))
+                            } else {
+                                fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
+                            }
+                        },
+                        label = "top_bar_search_transition"
+                    ) { mode ->
+                        when (mode) {
+                            SearchBarDisplayMode.EXPANDED -> {
+                                // Full slide-out focused search input field
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(44.dp)
+                                        .clip(RoundedCornerShape(22.dp))
+                                        .background(Color(0xFF2B2930))
+                                        .border(1.dp, Color(0xFFD0BCFF), RoundedCornerShape(22.dp))
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search active",
+                                        tint = Color(0xFFD0BCFF),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    BasicTextField(
+                                        value = searchQuery,
+                                        onValueChange = { viewModel.setSearchQuery(it) },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .focusRequester(focusRequester)
+                                            .onFocusChanged { state ->
+                                                isSearchFocused = state.isFocused
+                                            }
+                                            .testTag("search_input_field"),
+                                        singleLine = true,
+                                        textStyle = TextStyle(
+                                            color = Color(0xFFE6E1E5),
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Normal
+                                        ),
+                                        cursorBrush = SolidColor(Color(0xFFD0BCFF)),
+                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                        keyboardActions = KeyboardActions(
+                                            onSearch = {
+                                                focusManager.clearFocus()
+                                                keyboardController?.hide()
+                                                isSearchFocused = false
+                                                if (searchQuery.isBlank()) {
+                                                    isSearchActive = false
+                                                }
+                                            }
+                                        ),
+                                        decorationBox = { innerTextField ->
+                                            Box(contentAlignment = Alignment.CenterStart) {
+                                                if (searchQuery.isEmpty()) {
+                                                    Text(
+                                                        text = "Search show, episode, movie...",
+                                                        color = Color(0xFF938F99),
+                                                        fontSize = 14.sp
+                                                    )
+                                                }
+                                                innerTextField()
+                                            }
+                                        }
+                                    )
+
+                                    IconButton(
+                                        onClick = {
+                                            viewModel.clearSearchQuery()
+                                            isSearchActive = false
+                                            isSearchFocused = false
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                        },
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .testTag("clear_search_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Delete search query",
+                                            tint = Color(0xFFCAC4D0),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            SearchBarDisplayMode.DOCKED -> {
+                                // Slid-back docked search bar visible with query, tap to edit, X to clear
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(40.dp)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color(0xFF2B2930))
+                                        .border(1.dp, Color(0xFF79747E), RoundedCornerShape(20.dp))
+                                        .clickable {
+                                            isSearchActive = true
+                                            coroutineScope.launch {
+                                                delay(50)
+                                                focusRequester.requestFocus()
+                                                keyboardController?.show()
+                                            }
+                                        }
+                                        .padding(start = 12.dp, end = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search",
+                                        tint = Color(0xFFD0BCFF),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    Text(
+                                        text = searchQuery,
+                                        color = Color(0xFFE6E1E5),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    IconButton(
+                                        onClick = {
+                                            viewModel.clearSearchQuery()
+                                            isSearchActive = false
+                                            isSearchFocused = false
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                        },
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .testTag("clear_search_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Delete search query",
+                                            tint = Color(0xFFCAC4D0),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            SearchBarDisplayMode.DEFAULT -> {
+                                // Standard Calendar Title & Subtitle
+                                Column(
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "Simkl Calendar",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "Hi, $username • Tracked Schedule",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFFCAC4D0),
+                                        fontWeight = FontWeight.Normal,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                            }
+                        }
                     }
                 },
                 actions = {
+                    if (searchDisplayMode == SearchBarDisplayMode.DEFAULT) {
+                        IconButton(
+                            onClick = {
+                                isSearchActive = true
+                                coroutineScope.launch {
+                                    delay(100)
+                                    focusRequester.requestFocus()
+                                    keyboardController?.show()
+                                }
+                            },
+                            modifier = Modifier.testTag("search_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search Calendar",
+                                tint = Color.White
+                            )
+                        }
+                    }
+
                     IconButton(
-                        onClick = onNavigateToSettings
+                        onClick = onNavigateToSettings,
+                        modifier = Modifier.testTag("settings_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Settings,
@@ -227,7 +477,38 @@ fun CalendarScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                // Search Results Status Pill (when searching)
+                if (searchQuery.isNotBlank()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Results for \"$searchQuery\" (${items.size})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFD0BCFF)
+                        )
+                        Text(
+                            text = "Clear",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFF2B8B5),
+                            modifier = Modifier.clickable {
+                                viewModel.clearSearchQuery()
+                                isSearchActive = false
+                                isSearchFocused = false
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Calendar Group list
                 if (items.isEmpty()) {
@@ -239,36 +520,54 @@ fun CalendarScreen(
                             .padding(32.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.CalendarToday,
-                            contentDescription = null,
-                            tint = Color(0xFF3E3D4F),
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "No releases found matching filters",
-                            color = Color(0xFFA5A3B1),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TextButton(
-                            onClick = {
-                                viewModel.showTv.value = true
-                                viewModel.showAnime.value = true
-                                viewModel.showMovies.value = true
-                                viewModel.onlySeasonPremieres.value = false
-                                viewModel.onlySeasonFinales.value = false
-                                viewModel.onlyDigitalDvd.value = false
-                            },
-                        ) {
-                            Text("Reset Active Filters", color = Color(0xFFD0BCFF))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = if (searchQuery.isNotBlank()) Icons.Default.SearchOff else Icons.Default.CalendarToday,
+                                contentDescription = null,
+                                tint = Color(0xFF3E3D4F),
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                if (searchQuery.isNotBlank()) {
+                                    "No releases found matching \"$searchQuery\""
+                                } else {
+                                    "No releases found matching filters"
+                                },
+                                color = Color(0xFFA5A3B1),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            if (searchQuery.isNotBlank()) {
+                                TextButton(
+                                    onClick = {
+                                        viewModel.clearSearchQuery()
+                                        isSearchActive = false
+                                        isSearchFocused = false
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                    }
+                                ) {
+                                    Text("Clear Search Query", color = Color(0xFFD0BCFF))
+                                }
+                            } else {
+                                TextButton(
+                                    onClick = {
+                                        viewModel.showTv.value = true
+                                        viewModel.showAnime.value = true
+                                        viewModel.showMovies.value = true
+                                        viewModel.onlySeasonPremieres.value = false
+                                        viewModel.onlySeasonFinales.value = false
+                                        viewModel.onlyDigitalDvd.value = false
+                                    },
+                                ) {
+                                    Text("Reset Active Filters", color = Color(0xFFD0BCFF))
+                                }
+                            }
                         }
                     }
-                }
-            } else {
+                } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     contentPadding = PaddingValues(bottom = 16.dp)
@@ -315,7 +614,11 @@ fun CalendarScreen(
                                                 color = Color(0xFFE6E1E5)
                                             )
                                             Text(
-                                                text = "${earlierItems.size} past ${if (earlierItems.size == 1) "release" else "releases"} hidden by default",
+                                                text = if (searchQuery.isNotBlank()) {
+                                                    "${earlierItems.size} matching past ${if (earlierItems.size == 1) "release" else "releases"}"
+                                                } else {
+                                                    "${earlierItems.size} past ${if (earlierItems.size == 1) "release" else "releases"} hidden by default"
+                                                },
                                                 fontSize = 12.sp,
                                                 color = Color(0xFFCAC4D0)
                                             )
@@ -406,14 +709,25 @@ fun CalendarScreen(
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
-                                        "No upcoming releases for active filters",
+                                        if (searchQuery.isNotBlank()) {
+                                            "No upcoming releases matching \"$searchQuery\""
+                                        } else {
+                                            "No upcoming releases for active filters"
+                                        },
                                         color = Color(0xFFA5A3B1),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     TextButton(onClick = { showEarlierReleases = true }) {
-                                        Text("View ${earlierItems.size} Earlier Releases", color = Color(0xFFD0BCFF))
+                                        Text(
+                                            if (searchQuery.isNotBlank()) {
+                                                "View ${earlierItems.size} Matching Earlier Releases"
+                                            } else {
+                                                "View ${earlierItems.size} Earlier Releases"
+                                            },
+                                            color = Color(0xFFD0BCFF)
+                                        )
                                     }
                                 }
                             }

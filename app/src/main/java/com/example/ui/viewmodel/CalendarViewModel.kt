@@ -33,6 +33,15 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val onlySeasonPremieres = MutableStateFlow(false)
     val onlySeasonFinales = MutableStateFlow(false)
     val onlyDigitalDvd = MutableStateFlow(false)
+    val searchQuery = MutableStateFlow("")
+
+    fun setSearchQuery(query: String) {
+        searchQuery.value = query
+    }
+
+    fun clearSearchQuery() {
+        searchQuery.value = ""
+    }
 
     // Combined filtered calendar list reactive flow
     @Suppress("UNCHECKED_CAST")
@@ -43,7 +52,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         showMovies,
         onlySeasonPremieres,
         onlySeasonFinales,
-        onlyDigitalDvd
+        onlyDigitalDvd,
+        searchQuery
     ) { flows ->
         val items = flows[0] as List<CalendarItem>
         val tv = flows[1] as Boolean
@@ -52,6 +62,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val premieres = flows[4] as Boolean
         val finales = flows[5] as Boolean
         val digitalDvd = flows[6] as Boolean
+        val query = (flows[7] as String).trim()
 
         items.filter { item ->
             // Category filter
@@ -71,7 +82,15 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 (digitalDvd && item.type == MediaType.MOVIE && item.movieReleaseType == MovieReleaseType.DIGITAL)
             }
 
-            matchesCategory && matchesType
+            // Search query filter matching show/movie title or episode title
+            val matchesQuery = if (query.isEmpty()) {
+                true
+            } else {
+                item.title.contains(query, ignoreCase = true) ||
+                (item.episodeTitle?.contains(query, ignoreCase = true) == true)
+            }
+
+            matchesCategory && matchesType && matchesQuery
         }.sortedWith(compareBy<CalendarItem> { it.date }.thenBy { it.title })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
