@@ -157,4 +157,53 @@ data class SimklMovieDetailResponse(
     }
 }
 
+// POST /sync/history models
+@JsonClass(generateAdapter = true)
+data class SyncHistoryRequest(
+    @Json(name = "movies") val movies: List<SyncHistoryMovieItem>? = null,
+    @Json(name = "shows") val shows: List<SyncHistoryShowItem>? = null,
+    @Json(name = "anime") val anime: List<SyncHistoryShowItem>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncHistoryMovieItem(
+    @Json(name = "ids") val ids: SimklIds,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "watched_at") val watchedAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncHistoryShowItem(
+    @Json(name = "ids") val ids: SimklIds,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "seasons") val seasons: List<SyncHistorySeasonItem>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncHistorySeasonItem(
+    @Json(name = "number") val number: Int,
+    @Json(name = "episodes") val episodes: List<SyncHistoryEpisodeItem>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncHistoryEpisodeItem(
+    @Json(name = "number") val number: Int,
+    @Json(name = "watched_at") val watchedAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncHistoryResponse(
+    @Json(name = "added") val added: SyncHistoryAddedResult? = null,
+    @Json(name = "not_found") val notFound: Map<String, Any>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncHistoryAddedResult(
+    @Json(name = "movies") val movies: Int? = null,
+    @Json(name = "shows") val shows: Int? = null,
+    @Json(name = "anime") val anime: Int? = null,
+    @Json(name = "episodes") val episodes: Int? = null
+)
+
+
 

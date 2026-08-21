@@ -26,6 +26,12 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val allCalendarItems: StateFlow<List<CalendarItem>> = repository.calendarItems
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val watchedEpisodes: StateFlow<List<com.example.data.database.WatchedEpisode>> = repository.watchedEpisodes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _isMarkingWatched = MutableStateFlow(false)
+    val isMarkingWatched: StateFlow<Boolean> = _isMarkingWatched.asStateFlow()
+
     // Filtering State Flows
     val showTv = MutableStateFlow(true)
     val showAnime = MutableStateFlow(true)
@@ -185,6 +191,72 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     fun rescheduleAllNotifications() {
         viewModelScope.launch {
             com.example.receiver.NotificationScheduler.scheduleAllNotifications(getApplication())
+        }
+    }
+
+    fun markEpisodeWatched(
+        simklId: Int,
+        season: Int?,
+        episodeNumber: Int,
+        mediaType: MediaType,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            _isMarkingWatched.value = true
+            val result = repository.markEpisodeWatched(
+                simklId = simklId,
+                season = season,
+                episodeNumber = episodeNumber,
+                mediaType = mediaType
+            )
+            _isMarkingWatched.value = false
+            if (result.isSuccess) {
+                val epText = if (season != null) "S${season}E${episodeNumber}" else "E${episodeNumber}"
+                onResult(true, "Marked $epText as watched!")
+            } else {
+                val errorMsg = result.exceptionOrNull()?.message ?: "Failed to mark episode as watched"
+                onResult(false, errorMsg)
+            }
+        }
+    }
+
+    fun markSeasonWatched(
+        simklId: Int,
+        season: Int,
+        mediaType: MediaType,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            _isMarkingWatched.value = true
+            val result = repository.markSeasonWatched(
+                simklId = simklId,
+                season = season,
+                mediaType = mediaType
+            )
+            _isMarkingWatched.value = false
+            if (result.isSuccess) {
+                onResult(true, "Marked Season $season as watched!")
+            } else {
+                val errorMsg = result.exceptionOrNull()?.message ?: "Failed to mark season as watched"
+                onResult(false, errorMsg)
+            }
+        }
+    }
+
+    fun markMovieWatched(
+        simklId: Int,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            _isMarkingWatched.value = true
+            val result = repository.markMovieWatched(simklId = simklId)
+            _isMarkingWatched.value = false
+            if (result.isSuccess) {
+                onResult(true, "Marked movie as watched!")
+            } else {
+                val errorMsg = result.exceptionOrNull()?.message ?: "Failed to mark movie as watched"
+                onResult(false, errorMsg)
+            }
         }
     }
 

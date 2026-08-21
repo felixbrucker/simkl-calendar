@@ -53,6 +53,15 @@ interface CalendarItemDao {
 
     @Query("UPDATE calendar_items SET isNotified = 0")
     suspend fun resetAllNotified()
+
+    @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL) OR (:season IS NULL AND (season = 1 OR season IS NULL))) AND episodeNumber = :episodeNumber")
+    suspend fun markEpisodeWatched(simklId: Int, season: Int?, episodeNumber: Int, watchedAt: java.time.Instant?)
+
+    @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL))")
+    suspend fun markSeasonWatched(simklId: Int, season: Int, watchedAt: java.time.Instant?)
+
+    @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId")
+    suspend fun markMovieWatched(simklId: Int, watchedAt: java.time.Instant?)
 }
 
 @Dao
@@ -97,7 +106,13 @@ interface WatchlistDao {
 @Dao
 interface WatchedEpisodeDao {
     @Query("SELECT * FROM watched_episodes")
+    fun getAllWatchedEpisodesFlow(): Flow<List<WatchedEpisode>>
+
+    @Query("SELECT * FROM watched_episodes")
     suspend fun getAllWatchedEpisodes(): List<WatchedEpisode>
+
+    @Query("SELECT * FROM watched_episodes WHERE simklId = :simklId")
+    fun getWatchedEpisodesForShowFlow(simklId: Int): Flow<List<WatchedEpisode>>
 
     @Query("SELECT * FROM watched_episodes WHERE simklId = :simklId")
     suspend fun getWatchedEpisodesForShow(simklId: Int): List<WatchedEpisode>
@@ -114,4 +129,5 @@ interface WatchedEpisodeDao {
     @Query("DELETE FROM watched_episodes")
     suspend fun clearAll()
 }
+
 

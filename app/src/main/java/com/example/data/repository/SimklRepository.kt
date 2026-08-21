@@ -14,6 +14,13 @@ import com.example.data.model.MovieReleaseType
 import com.example.data.model.WatchlistStatus
 import com.example.data.network.OAuthTokenRequest
 import com.example.data.network.SimklApiService
+import com.example.data.network.SimklIds
+import com.example.data.network.SyncEpisodeItem
+import com.example.data.network.SyncHistoryEpisodeItem
+import com.example.data.network.SyncHistoryMovieItem
+import com.example.data.network.SyncHistoryRequest
+import com.example.data.network.SyncHistorySeasonItem
+import com.example.data.network.SyncHistoryShowItem
 import com.example.data.network.SyncSeasonItem
 import com.example.data.util.DateUtil
 import com.example.data.util.PkceUtil
@@ -44,6 +51,8 @@ class SimklRepository(private val context: Context) {
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
     val calendarItems: Flow<List<CalendarItem>> = calendarDao.getAllCalendarItems()
     val notificationSettings: Flow<List<NotificationSetting>> = settingDao.getAllSettings()
+    val watchedEpisodes: Flow<List<WatchedEpisode>> = watchedDao.getAllWatchedEpisodesFlow()
+
 
     private val moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())
@@ -675,4 +684,214 @@ class SimklRepository(private val context: Context) {
             com.example.receiver.NotificationScheduler.scheduleAllNotifications(context)
         }
     }
+
+    suspend fun markEpisodeWatched(
+        simklId: Int,
+        season: Int?,
+        episodeNumber: Int,
+        mediaType: MediaType
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userToken = tokenDao.getActiveToken()
+            if (userToken == null || userToken.accessToken.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("User is not logged in"))
+            }
+
+            val bearer = "Bearer ${userToken.accessToken}"
+            val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
+            val effectiveSeason = season ?: 1
+
+            val request = if (mediaType == MediaType.ANIME) {
+                SyncHistoryRequest(
+                    anime = listOf(
+                        SyncHistoryShowItem(
+                            ids = SimklIds(simkl = simklId),
+                            seasons = listOf(
+                                SyncHistorySeasonItem(
+                                    number = effectiveSeason,
+                                    episodes = listOf(
+                                        SyncHistoryEpisodeItem(number = episodeNumber)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            } else {
+                SyncHistoryRequest(
+                    shows = listOf(
+                        SyncHistoryShowItem(
+                            ids = SimklIds(simkl = simklId),
+                            seasons = listOf(
+                                SyncHistorySeasonItem(
+                                    number = effectiveSeason,
+                                    episodes = listOf(
+                                        SyncHistoryEpisodeItem(number = episodeNumber)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            }
+
+            apiService.markHistoryWatched(
+                authorization = bearer,
+                clientId = clientId,
+                request = request
+            )
+
+            // Update local database immediately
+            val now = Instant.now()
+            watchedDao.insertWatchedEpisodes(
+                listOf(
+                    WatchedEpisode(
+                        simklId = simklId,
+                        season = effectiveSeason,
+                        episodeNumber = episodeNumber,
+                        watchedAt = now
+                    )
+                )
+            )
+            calendarDao.markEpisodeWatched(
+                simklId = simklId,
+                season = season,
+                episodeNumber = episodeNumber,
+                watchedAt = now
+            )
+
+            // Trigger background sync to refresh any metadata/activities
+            syncCalendar(force = false)
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("SimklRepository", "Failed to mark episode S${season}E${episodeNumber} as watched for simklId $simklId", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun markSeasonWatched(
+        simklId: Int,
+        season: Int,
+        mediaType: MediaType
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userToken = tokenDao.getActiveToken()
+            if (userToken == null || userToken.accessToken.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("User is not logged in"))
+            }
+
+            val bearer = "Bearer ${userToken.accessToken}"
+            val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
+
+            val request = if (mediaType == MediaType.ANIME) {
+                SyncHistoryRequest(
+                    anime = listOf(
+                        SyncHistoryShowItem(
+                            ids = SimklIds(simkl = simklId),
+                            seasons = listOf(
+                                SyncHistorySeasonItem(
+                                    number = season
+                                )
+                            )
+                        )
+                    )
+                )
+            } else {
+                SyncHistoryRequest(
+                    shows = listOf(
+                        SyncHistoryShowItem(
+                            ids = SimklIds(simkl = simklId),
+                            seasons = listOf(
+                                SyncHistorySeasonItem(
+                                    number = season
+                                )
+                            )
+                        )
+                    )
+                )
+            }
+
+            apiService.markHistoryWatched(
+                authorization = bearer,
+                clientId = clientId,
+                request = request
+            )
+
+            // Update local database immediately
+            val now = Instant.now()
+            val showCalendarItems = calendarDao.getItemsForShow(simklId)
+            val seasonEpisodes = showCalendarItems.filter { (it.season ?: 1) == season }
+
+            if (seasonEpisodes.isNotEmpty()) {
+                val newWatched = seasonEpisodes.mapNotNull { item ->
+                    item.episodeNumber?.let { epNum ->
+                        WatchedEpisode(
+                            simklId = simklId,
+                            season = season,
+                            episodeNumber = epNum,
+                            watchedAt = now
+                        )
+                    }
+                }
+                if (newWatched.isNotEmpty()) {
+                    watchedDao.insertWatchedEpisodes(newWatched)
+                }
+            }
+
+            calendarDao.markSeasonWatched(
+                simklId = simklId,
+                season = season,
+                watchedAt = now
+            )
+
+            // Trigger background sync
+            syncCalendar(force = false)
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("SimklRepository", "Failed to mark season $season as watched for simklId $simklId", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun markMovieWatched(
+        simklId: Int
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userToken = tokenDao.getActiveToken()
+            if (userToken == null || userToken.accessToken.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("User is not logged in"))
+            }
+
+            val bearer = "Bearer ${userToken.accessToken}"
+            val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
+
+            val request = SyncHistoryRequest(
+                movies = listOf(
+                    SyncHistoryMovieItem(
+                        ids = SimklIds(simkl = simklId)
+                    )
+                )
+            )
+
+            apiService.markHistoryWatched(
+                authorization = bearer,
+                clientId = clientId,
+                request = request
+            )
+
+            val now = Instant.now()
+            calendarDao.markMovieWatched(simklId = simklId, watchedAt = now)
+
+            // Trigger background sync
+            syncCalendar(force = false)
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("SimklRepository", "Failed to mark movie as watched for simklId $simklId", e)
+            Result.failure(e)
+        }
+    }
 }
+
