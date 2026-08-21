@@ -93,7 +93,6 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "simkl_calendar_database"
                 )
-                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance
