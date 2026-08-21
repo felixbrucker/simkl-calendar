@@ -45,6 +45,7 @@ interface SimklApiService {
         @Query("app-version") appVersion: String = "1.0",
         @Query("extended") extended: String = "full",
         @Query("next_watch_info") nextWatchInfo: String = "yes",
+        @Query("episode_watched_at") episodeWatchedAt: String = "yes",
         @Query("date_from") dateFrom: String? = null
     ): SyncAllItemsResponse
 

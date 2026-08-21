@@ -8,11 +8,13 @@ import com.example.data.database.CalendarItem
 import com.example.data.database.NotificationSetting
 import com.example.data.database.TrackedWatchlistItem
 import com.example.data.database.UserToken
+import com.example.data.database.WatchedEpisode
 import com.example.data.model.MediaType
 import com.example.data.model.MovieReleaseType
 import com.example.data.model.WatchlistStatus
 import com.example.data.network.OAuthTokenRequest
 import com.example.data.network.SimklApiService
+import com.example.data.network.SyncSeasonItem
 import com.example.data.util.DateUtil
 import com.example.data.util.PkceUtil
 import com.squareup.moshi.Moshi
@@ -35,6 +37,7 @@ class SimklRepository(private val context: Context) {
     private val calendarDao = db.calendarItemDao()
     private val settingDao = db.notificationSettingDao()
     private val watchlistDao = db.watchlistDao()
+    private val watchedDao = db.watchedEpisodeDao()
     private val authPrefs = context.getSharedPreferences("simkl_pkce_auth", Context.MODE_PRIVATE)
     private val syncPrefs = context.getSharedPreferences("simkl_sync_prefs", Context.MODE_PRIVATE)
 
@@ -118,6 +121,7 @@ class SimklRepository(private val context: Context) {
         tokenDao.clearUserToken()
         calendarDao.clearCalendarItems()
         watchlistDao.clearAll()
+        watchedDao.clearAll()
         syncPrefs.edit().clear().apply()
     }
 
@@ -249,12 +253,34 @@ class SimklRepository(private val context: Context) {
                 )
 
                 val newTracked = mutableListOf<TrackedWatchlistItem>()
+                val newWatchedEpisodes = mutableListOf<WatchedEpisode>()
+
+                fun extractWatched(simklId: Int, seasons: List<SyncSeasonItem>?) {
+                    seasons?.forEach { seasonItem ->
+                        val sNum = seasonItem.number
+                        seasonItem.episodes?.forEach { epItem ->
+                            if (!epItem.watchedAt.isNullOrBlank()) {
+                                val watchedInstant = DateUtil.parseToInstant(epItem.watchedAt)
+                                newWatchedEpisodes.add(
+                                    WatchedEpisode(
+                                        simklId = simklId,
+                                        season = sNum,
+                                        episodeNumber = epItem.number,
+                                        watchedAt = watchedInstant
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Process TV Shows
                 syncResponse.shows?.forEach { item ->
                     val media = item.show
                     val simklId = media.ids.simkl
                     val status = WatchlistStatus.fromString(item.status)
+                    extractWatched(simklId, item.seasons)
+
                     if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
                         newTracked.add(
                             TrackedWatchlistItem(
@@ -266,6 +292,7 @@ class SimklRepository(private val context: Context) {
                         )
                     } else if (dateFromParam != null) {
                         watchlistDao.deleteItem(simklId)
+                        watchedDao.deleteWatchedForShow(simklId)
                     }
                 }
 
@@ -274,6 +301,8 @@ class SimklRepository(private val context: Context) {
                     val media = item.show
                     val simklId = media.ids.simkl
                     val status = WatchlistStatus.fromString(item.status)
+                    extractWatched(simklId, item.seasons)
+
                     if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
                         newTracked.add(
                             TrackedWatchlistItem(
@@ -285,6 +314,7 @@ class SimklRepository(private val context: Context) {
                         )
                     } else if (dateFromParam != null) {
                         watchlistDao.deleteItem(simklId)
+                        watchedDao.deleteWatchedForShow(simklId)
                     }
                 }
 
@@ -309,9 +339,13 @@ class SimklRepository(private val context: Context) {
 
                 if (dateFromParam == null) {
                     watchlistDao.clearAll()
+                    watchedDao.clearAll()
                 }
                 if (newTracked.isNotEmpty()) {
                     watchlistDao.insertOrUpdateItems(newTracked)
+                }
+                if (newWatchedEpisodes.isNotEmpty()) {
+                    watchedDao.insertWatchedEpisodes(newWatchedEpisodes)
                 }
 
                 if (!currentActivitiesTimestamp.isNullOrEmpty()) {
@@ -329,6 +363,14 @@ class SimklRepository(private val context: Context) {
         val trackedShowIds = allTrackedItems.filter { it.type == MediaType.TV }.map { it.simklId }.toSet()
         val trackedAnimeIds = allTrackedItems.filter { it.type == MediaType.ANIME }.map { it.simklId }.toSet()
         val trackedMovieIds = allTrackedItems.filter { it.type == MediaType.MOVIE }.map { it.simklId }.toSet()
+
+        // Load all watched episodes to match with calendar entries
+        val allWatchedList = try {
+            watchedDao.getAllWatchedEpisodes()
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val watchedLookup = allWatchedList.groupBy { it.simklId }
 
         // Load existing local calendar items to perform incremental diff comparison
         val existingDbItems = try {
@@ -459,6 +501,12 @@ class SimklRepository(private val context: Context) {
 
                             val keyUnique = if (seasonNum != null) "v2_${simklId}_${seasonNum}_${epNum}" else "v2_${simklId}_${epNum}"
 
+                            val showWatchedList = watchedLookup[simklId]
+                            val watchedEntry = showWatchedList?.firstOrNull {
+                                (it.season == (seasonNum ?: 1) || (seasonNum == null && (it.season == 1 || it.season == 0))) && it.episodeNumber == epNum
+                            }
+                            val epWatchedTimestamp = watchedEntry?.watchedAt
+
                             processCalendarItem(
                                 CalendarItem(
                                     primaryKey = keyUnique,
@@ -472,7 +520,8 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = null,
                                     isSeasonPremiere = isPremiere,
                                     isSeasonFinale = isFinale,
-                                    poster = posterRaw
+                                    poster = posterRaw,
+                                    watchedAt = epWatchedTimestamp
                                 )
                             )
                         }

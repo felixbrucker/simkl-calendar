@@ -1,5 +1,6 @@
 package com.example.data.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.example.data.model.MediaType
@@ -27,8 +28,12 @@ data class CalendarItem(
     val isSeasonPremiere: Boolean,
     val isSeasonFinale: Boolean,
     val poster: String?, // URL for show poster image
-    val isNotified: Boolean = false // Track whether notification has been dispatched
+    val isNotified: Boolean = false, // Track whether notification has been dispatched
+    val watchedAt: Instant? = null // Timestamp of when the episode was watched
 ) {
+    val isWatched: Boolean
+        get() = watchedAt != null
+
     fun updatedWith(newItem: CalendarItem): CalendarItem {
         val isDateRescheduledToFuture = this.date != newItem.date && newItem.date.isAfter(Instant.now())
         val updatedNotified = if (isDateRescheduledToFuture) false else this.isNotified
@@ -44,7 +49,8 @@ data class CalendarItem(
             movieReleaseType = newItem.movieReleaseType,
             isSeasonPremiere = newItem.isSeasonPremiere,
             isSeasonFinale = newItem.isSeasonFinale,
-            isNotified = updatedNotified
+            isNotified = updatedNotified,
+            watchedAt = newItem.watchedAt
         )
     }
 }
@@ -62,6 +68,14 @@ data class TrackedWatchlistItem(
     val type: MediaType,
     val title: String,
     val poster: String? = null
+)
+
+@Entity(tableName = "watched_episodes", primaryKeys = ["simklId", "season", "episodeNumber"])
+data class WatchedEpisode(
+    val simklId: Int,
+    val season: Int,
+    val episodeNumber: Int,
+    val watchedAt: Instant? = null
 )
 
 

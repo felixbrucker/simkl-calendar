@@ -13,13 +13,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -229,6 +232,52 @@ fun ShowDetailScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Watched Episode Highlight Banner
+                    if (activeItem.isWatched) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF1B3828),
+                            border = BorderStroke(1.dp, Color(0xFF48A36E)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(Color(0xFF2E6543), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Watched",
+                                        tint = Color(0xFF7CE49F),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Watched Episode",
+                                        color = Color(0xFF7CE49F),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    val formattedWatchedAt = activeItem.watchedAt?.let { instant ->
+                                        DateUtil.formatDisplayDateTime(instant)
+                                    }
+                                    Text(
+                                        text = if (formattedWatchedAt != null) "Watched on $formattedWatchedAt" else "Marked as watched on Simkl",
+                                        color = Color(0xFFC3EED3),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
@@ -350,6 +399,40 @@ fun ShowDetailScreen(
                                         maxLines = 2
                                     )
                                 }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Watch Status", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                    if (activeItem.isWatched) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = Color(0xFF7CE49F),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = "Watched",
+                                                color = Color(0xFF7CE49F),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            text = "Unwatched",
+                                            color = Color(0xFFCAC4D0),
+                                            fontWeight = FontWeight.Normal,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
                             }
 
                             // Prem/Finale labels
@@ -443,6 +526,32 @@ fun ShowDetailScreen(
                                                         fontSize = 11.sp,
                                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                     )
+                                                }
+
+                                                if (epItem.isWatched) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = Color(0xFF1E3A2B),
+                                                        contentColor = Color(0xFF7CE49F)
+                                                    ) {
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Check,
+                                                                contentDescription = null,
+                                                                modifier = Modifier.size(10.dp),
+                                                                tint = Color(0xFF7CE49F)
+                                                            )
+                                                            Text(
+                                                                text = "WATCHED",
+                                                                fontSize = 9.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                                    }
                                                 }
 
                                                 Column {

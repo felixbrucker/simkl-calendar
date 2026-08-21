@@ -1,0 +1,242 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 8,
+    "identityHash": "3306003653966d4166346826b5edc182",
+    "entities": [
+      {
+        "tableName": "user_token",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `accessToken` TEXT NOT NULL, `username` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accessToken",
+            "columnName": "accessToken",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "calendar_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`primaryKey` TEXT NOT NULL, `simklId` INTEGER NOT NULL, `title` TEXT NOT NULL, `episodeTitle` TEXT, `season` INTEGER, `episodeNumber` INTEGER, `date` INTEGER NOT NULL, `type` TEXT NOT NULL, `movieReleaseType` TEXT, `isSeasonPremiere` INTEGER NOT NULL, `isSeasonFinale` INTEGER NOT NULL, `poster` TEXT, `isNotified` INTEGER NOT NULL, `isWatched` INTEGER NOT NULL DEFAULT 0, `watchedAt` TEXT, PRIMARY KEY(`primaryKey`))",
+        "fields": [
+          {
+            "fieldPath": "primaryKey",
+            "columnName": "primaryKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "simklId",
+            "columnName": "simklId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "episodeTitle",
+            "columnName": "episodeTitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "season",
+            "columnName": "season",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "episodeNumber",
+            "columnName": "episodeNumber",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "movieReleaseType",
+            "columnName": "movieReleaseType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isSeasonPremiere",
+            "columnName": "isSeasonPremiere",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSeasonFinale",
+            "columnName": "isSeasonFinale",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "poster",
+            "columnName": "poster",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isNotified",
+            "columnName": "isNotified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isWatched",
+            "columnName": "isWatched",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "watchedAt",
+            "columnName": "watchedAt",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "primaryKey"
+          ]
+        }
+      },
+      {
+        "tableName": "notification_settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`simklId` INTEGER NOT NULL, `notifyEveryEpisode` INTEGER NOT NULL, `notifyAiredLastEpisode` INTEGER NOT NULL, PRIMARY KEY(`simklId`))",
+        "fields": [
+          {
+            "fieldPath": "simklId",
+            "columnName": "simklId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notifyEveryEpisode",
+            "columnName": "notifyEveryEpisode",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notifyAiredLastEpisode",
+            "columnName": "notifyAiredLastEpisode",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "simklId"
+          ]
+        }
+      },
+      {
+        "tableName": "tracked_watchlist_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`simklId` INTEGER NOT NULL, `type` TEXT NOT NULL, `title` TEXT NOT NULL, `poster` TEXT, PRIMARY KEY(`simklId`))",
+        "fields": [
+          {
+            "fieldPath": "simklId",
+            "columnName": "simklId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "poster",
+            "columnName": "poster",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "simklId"
+          ]
+        }
+      },
+      {
+        "tableName": "watched_episodes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`simklId` INTEGER NOT NULL, `season` INTEGER NOT NULL, `episodeNumber` INTEGER NOT NULL, `watchedAt` TEXT, PRIMARY KEY(`simklId`, `season`, `episodeNumber`))",
+        "fields": [
+          {
+            "fieldPath": "simklId",
+            "columnName": "simklId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "season",
+            "columnName": "season",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "episodeNumber",
+            "columnName": "episodeNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "watchedAt",
+            "columnName": "watchedAt",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "simklId",
+            "season",
+            "episodeNumber"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3306003653966d4166346826b5edc182')"
+    ]
+  }
+}

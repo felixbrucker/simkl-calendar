@@ -26,6 +26,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -753,11 +754,17 @@ fun CalendarItemCard(
 
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(
+            containerColor = if (item.isWatched) Color(0xFF232227) else Color(0xFF2B2930)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (item.isWatched) Color(0xFF38353D) else Color(0xFF49454F)
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
+            .alpha(if (item.isWatched) 0.6f else 1f)
             .clickable(onClick = onClick)
     ) {
         Row(
@@ -805,6 +812,33 @@ fun CalendarItemCard(
                         contentColor = categoryColor
                     ) {
                         Text(item.type.displayName.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
+                    }
+
+                    // Watched badge
+                    if (item.isWatched) {
+                        Badge(
+                            containerColor = Color(0xFF1E3A2B),
+                            contentColor = Color(0xFF7CE49F)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Watched",
+                                    modifier = Modifier.size(10.dp),
+                                    tint = Color(0xFF7CE49F)
+                                )
+                                Text(
+                                    text = "WATCHED",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF7CE49F)
+                                )
+                            }
+                        }
                     }
 
                     // Premiere badge

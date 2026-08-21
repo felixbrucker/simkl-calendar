@@ -94,3 +94,21 @@ interface WatchlistDao {
     suspend fun clearAll()
 }
 
+@Dao
+interface WatchedEpisodeDao {
+    @Query("SELECT * FROM watched_episodes")
+    suspend fun getAllWatchedEpisodes(): List<WatchedEpisode>
+
+    @Query("SELECT * FROM watched_episodes WHERE simklId = :simklId")
+    suspend fun getWatchedEpisodesForShow(simklId: Int): List<WatchedEpisode>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWatchedEpisodes(episodes: List<WatchedEpisode>)
+
+    @Query("DELETE FROM watched_episodes WHERE simklId = :simklId")
+    suspend fun deleteWatchedForShow(simklId: Int)
+
+    @Query("DELETE FROM watched_episodes")
+    suspend fun clearAll()
+}
+

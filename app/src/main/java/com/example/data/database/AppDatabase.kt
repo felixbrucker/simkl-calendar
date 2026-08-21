@@ -3,10 +3,12 @@ package com.example.data.database
 import android.content.Context
 import androidx.room.AutoMigration
 import androidx.room.Database
+import androidx.room.DeleteColumn
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.AutoMigrationSpec
 import com.example.data.model.MediaType
 import com.example.data.model.MovieReleaseType
 import com.example.data.model.WatchlistStatus
@@ -61,19 +63,24 @@ class Converters {
 }
 
 @Database(
-    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class],
-    version = 7,
+    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class],
+    version = 10,
     exportSchema = true,
     autoMigrations = [
-        // AutoMigration specifications can be declared here (e.g. AutoMigration(from = 7, to = 8))
+        AutoMigration(from = 7, to = 8),
+        AutoMigration(from = 8, to = 9, spec = AppDatabase.Migration8To9::class)
     ]
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    @DeleteColumn(tableName = "calendar_items", columnName = "isWatched")
+    class Migration8To9 : AutoMigrationSpec
+
     abstract fun userTokenDao(): UserTokenDao
     abstract fun calendarItemDao(): CalendarItemDao
     abstract fun notificationSettingDao(): NotificationSettingDao
     abstract fun watchlistDao(): WatchlistDao
+    abstract fun watchedEpisodeDao(): WatchedEpisodeDao
 
     companion object {
         @Volatile
@@ -86,6 +93,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "simkl_calendar_database"
                 )
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

@@ -87,7 +87,20 @@ data class SyncAllItemsResponse(
 @JsonClass(generateAdapter = true)
 data class SyncShowItem(
     @Json(name = "status") val status: String,
-    @Json(name = "show") val show: SimklMedia
+    @Json(name = "show") val show: SimklMedia,
+    @Json(name = "seasons") val seasons: List<SyncSeasonItem>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncSeasonItem(
+    @Json(name = "number") val number: Int,
+    @Json(name = "episodes") val episodes: List<SyncEpisodeItem>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncEpisodeItem(
+    @Json(name = "number") val number: Int,
+    @Json(name = "watched_at") val watchedAt: String? = null
 )
 
 @JsonClass(generateAdapter = true)
