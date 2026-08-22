@@ -62,6 +62,9 @@ interface CalendarItemDao {
 
     @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId")
     suspend fun markMovieWatched(simklId: Int, watchedAt: java.time.Instant?)
+
+    @Query("DELETE FROM calendar_items WHERE watchedAt IS NOT NULL AND watchedAt < :cutoff")
+    suspend fun deleteWatchedItemsOlderThan(cutoff: java.time.Instant): Int
 }
 
 @Dao

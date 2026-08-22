@@ -10,8 +10,34 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import java.util.TimeZone
+import java.text.SimpleDateFormat
 
 object DateUtil {
+
+    /**
+     * Parses an HTTP date string (e.g. from Last-Modified header in RFC 1123 format) into an Instant.
+     */
+    fun parseHttpDateToInstant(httpDateStr: String?): Instant? {
+        if (httpDateStr.isNullOrBlank()) return null
+        val trimmed = httpDateStr.trim()
+        return try {
+            Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(trimmed))
+        } catch (_: Exception) {
+            try {
+                val sdf = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("GMT")
+                }
+                sdf.parse(trimmed)?.toInstant()
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    fun parseHttpDateToMillis(httpDateStr: String?): Long? {
+        return parseHttpDateToInstant(httpDateStr)?.toEpochMilli()
+    }
 
     /**
      * Parses an ISO 8601 date/time string into a native Instant object.

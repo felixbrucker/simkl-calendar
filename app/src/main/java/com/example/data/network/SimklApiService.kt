@@ -22,10 +22,11 @@ interface SimklApiService {
     suspend fun getV2Calendar(
         @Url url: String,
         @Header("User-Agent") userAgent: String = "simkl-calendar/1.0",
+        @Header("If-Modified-Since") ifModifiedSince: String? = null,
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = "simkl-calendar",
         @Query("app-version") appVersion: String = "1.0"
-    ): SimklV2CalendarResponse
+    ): retrofit2.Response<SimklV2CalendarResponse>
 
     @GET("sync/activities")
     suspend fun getSyncActivities(

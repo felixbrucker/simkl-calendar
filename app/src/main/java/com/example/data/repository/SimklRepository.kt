@@ -230,15 +230,44 @@ class SimklRepository(private val context: Context) {
     }
 
     suspend fun syncCalendar(force: Boolean = false) = withContext(Dispatchers.IO) {
+        val watchlistChanged = syncWatchlist(force)
+        // If force or calendar jsons haven't been synced in >6h, sync calendar jsons
+        syncCalendarJsons(force)
+    }
+
+    /**
+     * Cleans up old calendar items that have been watched over a month ago (30 days).
+     * Unwatched episodes remain in the calendar indefinitely so users don't miss past unaired/unwatched episodes.
+     */
+    suspend fun cleanupOldWatchedCalendarItems(cutoffDays: Long = 30): Int = withContext(Dispatchers.IO) {
+        try {
+            val cutoff = Instant.now().minus(cutoffDays, java.time.temporal.ChronoUnit.DAYS)
+            val deletedCount = calendarDao.deleteWatchedItemsOlderThan(cutoff)
+            if (deletedCount > 0) {
+                Log.d("SimklRepository", "Cleaned up $deletedCount old watched calendar items (watched over $cutoffDays days ago)")
+            }
+            deletedCount
+        } catch (e: Exception) {
+            Log.e("SimklRepository", "Error cleaning up old watched calendar items", e)
+            0
+        }
+    }
+
+    /**
+     * Performs lightweight watchlist and watched history synchronization.
+     * Uses /sync/activities timestamp to determine if changes exist.
+     * Only transfers tiny JSON payloads on delta updates.
+     */
+    suspend fun syncWatchlist(force: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken()
         if (userToken == null || userToken.accessToken.isEmpty()) {
-            Log.d("SimklRepository", "No authenticated user token found, skipping sync.")
-            return@withContext
+            Log.d("SimklRepository", "No authenticated user token found, skipping watchlist sync.")
+            return@withContext false
         }
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
         val bearer = "Bearer ${userToken.accessToken}"
+        var changesDetected = false
 
-        // Two-Phase Sync for authenticated users
         try {
             // Phase 1: Check /sync/activities to see if any library changes occurred
             val activities = apiService.getSyncActivities(
@@ -253,7 +282,7 @@ class SimklRepository(private val context: Context) {
 
             if (shouldFetchDeltas) {
                 val dateFromParam = if (force) null else savedTimestamp
-                Log.d("SimklRepository", "Two-Phase Sync: Calling /sync/all-items with date_from=$dateFromParam (saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
+                Log.d("SimklRepository", "Watchlist Sync: Calling /sync/all-items with date_from=$dateFromParam (saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
                 val syncResponse = apiService.getSyncAllItems(
                     authorization = bearer,
@@ -365,26 +394,78 @@ class SimklRepository(private val context: Context) {
                 }
                 if (newWatchedEpisodes.isNotEmpty()) {
                     watchedDao.insertWatchedEpisodes(newWatchedEpisodes)
+                    for (watched in newWatchedEpisodes) {
+                        calendarDao.markEpisodeWatched(
+                            simklId = watched.simklId,
+                            season = watched.season,
+                            episodeNumber = watched.episodeNumber,
+                            watchedAt = watched.watchedAt
+                        )
+                    }
                 }
                 if (toDeleteWatchedEpisodes.isNotEmpty()) {
                     watchedDao.deleteWatchedEpisodes(toDeleteWatchedEpisodes)
+                    for (unwatched in toDeleteWatchedEpisodes) {
+                        calendarDao.markEpisodeWatched(
+                            simklId = unwatched.simklId,
+                            season = unwatched.season,
+                            episodeNumber = unwatched.episodeNumber,
+                            watchedAt = null
+                        )
+                    }
+                }
+
+                // Remove calendar items for shows no longer tracked
+                val allTracked = watchlistDao.getAllTrackedItems()
+                val trackedIds = allTracked.map { it.simklId }.toSet()
+                val existingCalendar = calendarDao.getAllCalendarItemsList()
+                val itemsToRemove = existingCalendar.filter { !trackedIds.contains(it.simklId) }
+                if (itemsToRemove.isNotEmpty()) {
+                    calendarDao.deleteCalendarItems(itemsToRemove)
+                    Log.d("SimklRepository", "Deleted ${itemsToRemove.size} untracked calendar items during watchlist sync")
                 }
 
                 if (!currentActivitiesTimestamp.isNullOrEmpty()) {
                     syncPrefs.edit().putString("last_activities_all", currentActivitiesTimestamp).apply()
                 }
+                changesDetected = true
             } else {
-                Log.d("SimklRepository", "Two-Phase Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
+                Log.d("SimklRepository", "Watchlist Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
             }
         } catch (e: Exception) {
-            Log.e("SimklRepository", "Error during two-phase sync activities check", e)
+            Log.e("SimklRepository", "Error during watchlist sync", e)
         }
+
+        // Automatic cleanup of old watched calendar items (> 30 days)
+        cleanupOldWatchedCalendarItems()
+
+        changesDetected
+    }
+
+    /**
+     * Synchronizes CDN calendar JSON files (TV, Anime, Movies) covering past month (-1) to next 5 months.
+     * Checks Last-Modified response header and only downloads files when their Last-Modified was over 6 hours ago.
+     * Skips inserting episodes that were already watched over a month ago to prevent calendar backlog clutter.
+     */
+    suspend fun syncCalendarJsons(force: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+        val userToken = tokenDao.getActiveToken()
+        if (userToken == null || userToken.accessToken.isEmpty()) {
+            Log.d("SimklRepository", "No authenticated user token found, skipping calendar json sync.")
+            return@withContext false
+        }
+        val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
+        val bearer = "Bearer ${userToken.accessToken}"
 
         // Load local tracked items
         val allTrackedItems = watchlistDao.getAllTrackedItems()
         val trackedShowIds = allTrackedItems.filter { it.type == MediaType.TV }.map { it.simklId }.toSet()
         val trackedAnimeIds = allTrackedItems.filter { it.type == MediaType.ANIME }.map { it.simklId }.toSet()
         val trackedMovieIds = allTrackedItems.filter { it.type == MediaType.MOVIE }.map { it.simklId }.toSet()
+
+        if (allTrackedItems.isEmpty()) {
+            Log.d("SimklRepository", "No tracked items in watchlist, skipping calendar json sync.")
+            return@withContext false
+        }
 
         // Load all watched episodes to match with calendar entries
         val allWatchedList = try {
@@ -419,6 +500,10 @@ class SimklRepository(private val context: Context) {
             }
         }
 
+        val SIX_HOURS_MILLIS = 6 * 60 * 60 * 1000L
+        val nowMillis = System.currentTimeMillis()
+        val oneMonthAgo = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS)
+
         // 2. Fetch CDN Calendars for past month (-1) through next 5 months (TV, Anime, Movies) from data.simkl.in
         val currentCal = java.util.Calendar.getInstance()
         val monthsToFetch = (-1..5).map { offset ->
@@ -437,18 +522,56 @@ class SimklRepository(private val context: Context) {
             "movie_release" to MediaType.MOVIE
         )
 
+        var hasNewData = false
+
         for ((year, month) in monthsToFetch) {
             for ((endpointType, defaultType) in mediaTypes) {
                 val url = "https://data.simkl.in/calendar/v2/$year/$month/$endpointType.json"
+                val lastModifiedPrefKey = "cal_json_last_mod_${year}_${month}_$endpointType"
+                val lastModifiedHeaderKey = "cal_json_header_${year}_${month}_$endpointType"
+
+                val lastModifiedTimestamp = syncPrefs.getLong(lastModifiedPrefKey, 0L)
+                val savedHeader = syncPrefs.getString(lastModifiedHeaderKey, null)
+
+                // Only sync calendar jsons when their last modified was over 6h in the past
+                val isOver6Hours = (nowMillis - lastModifiedTimestamp) >= SIX_HOURS_MILLIS
+                if (!force && lastModifiedTimestamp > 0L && !isOver6Hours) {
+                    continue
+                }
+
                 try {
                     val response = apiService.getV2Calendar(
                         url = url,
+                        ifModifiedSince = if (!force) savedHeader else null,
                         clientId = clientId
                     )
-                    val entries = response.calendar
+
+                    if (response.code() == 304) {
+                        Log.d("SimklRepository", "Calendar JSON $url not modified (HTTP 304)")
+                        syncPrefs.edit().putLong(lastModifiedPrefKey, nowMillis).apply()
+                        continue
+                    }
+
+                    if (!response.isSuccessful) {
+                        Log.w("SimklRepository", "HTTP ${response.code()} for calendar JSON $url")
+                        continue
+                    }
+
+                    val calendarResponse = response.body() ?: continue
+                    hasNewData = true
+
+                    // Track Last-Modified header from response
+                    val responseLastModifiedHeader = response.headers()["Last-Modified"]
+                    val parsedHeaderMillis = DateUtil.parseHttpDateToMillis(responseLastModifiedHeader) ?: nowMillis
+                    syncPrefs.edit()
+                        .putLong(lastModifiedPrefKey, parsedHeaderMillis)
+                        .putString(lastModifiedHeaderKey, responseLastModifiedHeader ?: "")
+                        .apply()
+
+                    val entries = calendarResponse.calendar
                     if (entries.isEmpty()) continue
 
-                    val metadataMap = response.metadata
+                    val metadataMap = calendarResponse.metadata
 
                     for (entry in entries) {
                         val simklId = entry.simklId
@@ -528,6 +651,11 @@ class SimklRepository(private val context: Context) {
                                 (it.season == (seasonNum ?: 1) || (seasonNum == null && (it.season == 1 || it.season == 0))) && it.episodeNumber == epNum
                             }
                             val epWatchedTimestamp = watchedEntry?.watchedAt
+
+                            // Automatic cleanup filter: Omit episodes that have already been watched over 1 month ago
+                            if (epWatchedTimestamp != null && epWatchedTimestamp.isBefore(oneMonthAgo)) {
+                                continue
+                            }
 
                             processCalendarItem(
                                 CalendarItem(
@@ -648,6 +776,9 @@ class SimklRepository(private val context: Context) {
             Log.d("SimklRepository", "Updated ${itemsToUpdate.size} changed calendar items in DB")
         }
 
+        // Cleanup any old watched items from calendar table
+        cleanupOldWatchedCalendarItems()
+
         val totalDbChanges = itemsToDelete.size + itemsToInsert.size + itemsToUpdate.size
         if (totalDbChanges == 0) {
             Log.d("SimklRepository", "Calendar sync complete: no changes detected, skipped DB writes")
@@ -683,6 +814,8 @@ class SimklRepository(private val context: Context) {
         if (totalDbChanges > 0) {
             com.example.receiver.NotificationScheduler.scheduleAllNotifications(context)
         }
+
+        hasNewData || totalDbChanges > 0
     }
 
     suspend fun markEpisodeWatched(
@@ -760,8 +893,8 @@ class SimklRepository(private val context: Context) {
                 watchedAt = now
             )
 
-            // Trigger background sync to refresh any metadata/activities
-            syncCalendar(force = false)
+            // Trigger background watchlist sync to refresh metadata/activities
+            syncWatchlist(force = false)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -845,8 +978,8 @@ class SimklRepository(private val context: Context) {
                 watchedAt = now
             )
 
-            // Trigger background sync
-            syncCalendar(force = false)
+            // Trigger background watchlist sync
+            syncWatchlist(force = false)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -884,8 +1017,8 @@ class SimklRepository(private val context: Context) {
             val now = Instant.now()
             calendarDao.markMovieWatched(simklId = simklId, watchedAt = now)
 
-            // Trigger background sync
-            syncCalendar(force = false)
+            // Trigger background watchlist sync
+            syncWatchlist(force = false)
 
             Result.success(Unit)
         } catch (e: Exception) {
