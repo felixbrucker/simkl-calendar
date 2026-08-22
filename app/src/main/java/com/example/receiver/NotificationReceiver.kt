@@ -458,11 +458,69 @@ class NotificationReceiver : BroadcastReceiver() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
 
+            // Check database watched status for this item/season/movie
+            val db = try { AppDatabase.getDatabase(context) } catch (e: Exception) { null }
+            var isAlreadyWatched = false
+            var watchedBadge: String? = null
+
+            if (db != null) {
+                try {
+                    val calItem = itemKey?.let { db.calendarItemDao().findItem(it) }
+                    if (type == MediaType.MOVIE) {
+                        val isMovieWatched = calItem?.isWatched == true ||
+                            (simklId != null && db.calendarItemDao().getItemsForShow(simklId).any { it.isWatched })
+                        if (isMovieWatched) {
+                            isAlreadyWatched = true
+                            watchedBadge = "Watched"
+                        }
+                    } else if (isFinale) {
+                        val targetSeason = season ?: 1
+                        val showCalItems = if (simklId != null) db.calendarItemDao().getItemsForShow(simklId) else emptyList()
+                        val showWatched = if (simklId != null) db.watchedEpisodeDao().getWatchedEpisodesForShow(simklId) else emptyList()
+                        val epInSeason = showCalItems.filter { (it.season ?: 1) == targetSeason }
+                        val isSeasonWatched = if (epInSeason.isNotEmpty()) {
+                            epInSeason.all { it.isWatched }
+                        } else {
+                            showWatched.any { it.season == targetSeason } || calItem?.isWatched == true
+                        }
+                        if (isSeasonWatched) {
+                            isAlreadyWatched = true
+                            val seasonsSet = mutableSetOf<Int>()
+                            showCalItems.forEach { item -> item.season?.let { if (it > 0) seasonsSet.add(it) } }
+                            showWatched.forEach { w -> if (w.season > 0) seasonsSet.add(w.season) }
+                            seasonsSet.add(targetSeason)
+                            val sortedSeasons = seasonsSet.sorted()
+                            val isLastSeason = sortedSeasons.isNotEmpty() && targetSeason == sortedSeasons.last()
+                            val allSeasonsWatched = sortedSeasons.all { sNum ->
+                                val eps = showCalItems.filter { (it.season ?: 1) == sNum }
+                                val wEps = showWatched.filter { it.season == sNum }
+                                if (eps.isNotEmpty()) eps.all { it.isWatched } else wEps.isNotEmpty()
+                            }
+                            val isShowCompleted = isLastSeason && allSeasonsWatched
+                            val seasonLabel = MediaFormatter.formatSeasonLabel(type, targetSeason)
+                            watchedBadge = if (isShowCompleted) "Show Completed" else "$seasonLabel Watched"
+                        }
+                    } else {
+                        val targetSeason = season ?: 1
+                        val targetEp = episodeNumber ?: 1
+                        val showWatched = if (simklId != null) db.watchedEpisodeDao().getWatchedEpisodesForShow(simklId) else emptyList()
+                        val isEpWatched = calItem?.isWatched == true ||
+                            showWatched.any { it.season == targetSeason && it.episodeNumber == targetEp } ||
+                            (simklId != null && db.calendarItemDao().getItemsForShow(simklId).any { (it.season ?: 1) == targetSeason && (it.episodeNumber ?: 1) == targetEp && it.isWatched })
+                        if (isEpWatched) {
+                            isAlreadyWatched = true
+                            watchedBadge = "Watched"
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking watched status for notification", e)
+                }
+            }
+
             val builder = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setContentText(message)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setDefaults(NotificationCompat.DEFAULT_ALL)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
@@ -470,13 +528,20 @@ class NotificationReceiver : BroadcastReceiver() {
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
 
+            if (isAlreadyWatched && watchedBadge != null) {
+                builder.setSubText(watchedBadge)
+                builder.setStyle(NotificationCompat.BigTextStyle().bigText(message).setSummaryText(watchedBadge))
+            } else {
+                builder.setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            }
+
             val posterBitmap = loadPosterBitmap(context, poster)
             if (posterBitmap != null) {
                 builder.setLargeIcon(posterBitmap)
             }
 
-            // Add notification action buttons directly in the notification
-            if (simklId != null && simklId > 0) {
+            // Add notification action buttons directly in the notification if not already watched
+            if (!isAlreadyWatched && simklId != null && simklId > 0) {
                 if (type == MediaType.MOVIE) {
                     // Movie Notification: "Mark as Watched"
                     val markMovieIntent = Intent(context, NotificationReceiver::class.java).apply {
