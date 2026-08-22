@@ -40,6 +40,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val onlySeasonFinales = MutableStateFlow(false)
     val onlyDigitalDvd = MutableStateFlow(false)
     val excludeWatched = MutableStateFlow(false)
+    val showEarlierReleases = MutableStateFlow(false)
     val searchQuery = MutableStateFlow("")
 
     fun setSearchQuery(query: String) {

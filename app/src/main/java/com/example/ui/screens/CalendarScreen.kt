@@ -86,10 +86,9 @@ fun CalendarScreen(
     val finalesOnly by viewModel.onlySeasonFinales.collectAsState()
     val digitalDvdOnly by viewModel.onlyDigitalDvd.collectAsState()
     val excludeWatched by viewModel.excludeWatched.collectAsState()
+    val showEarlierReleases by viewModel.showEarlierReleases.collectAsState()
 
     val username = userToken?.username ?: "Guest"
-
-    var showEarlierReleases by remember { mutableStateOf(false) }
 
     // Search UI State
     var isSearchActive by remember { mutableStateOf(false) }
@@ -613,7 +612,7 @@ fun CalendarScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 6.dp)
-                                    .clickable { showEarlierReleases = !showEarlierReleases }
+                                    .clickable { viewModel.showEarlierReleases.value = !showEarlierReleases }
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -745,7 +744,7 @@ fun CalendarScreen(
                                         fontWeight = FontWeight.Medium
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    TextButton(onClick = { showEarlierReleases = true }) {
+                                    TextButton(onClick = { viewModel.showEarlierReleases.value = true }) {
                                         Text(
                                             if (searchQuery.isNotBlank()) {
                                                 "View ${earlierItems.size} Matching Earlier Releases"

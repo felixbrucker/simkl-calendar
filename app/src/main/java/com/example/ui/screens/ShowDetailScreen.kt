@@ -580,6 +580,10 @@ fun ShowDetailScreen(
                             String.format(Locale.US, "S%02dE%02d", sNum, eNum)
                         }
 
+                        val isAnimeSingleSeason = activeItem.type == MediaType.ANIME &&
+                                (activeItem.season == null || activeItem.season == 1) &&
+                                availableSeasons.size <= 1
+
                         val (isSeasonFullyWatched, _, _) = getSeasonWatchStatus(sNum)
 
                         @Composable
@@ -670,7 +674,10 @@ fun ShowDetailScreen(
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Season $sNum Watched", fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = if (isAnimeSingleSeason) "Season Watched" else "Season $sNum Watched",
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 } else {
                                     Icon(
                                         imageVector = Icons.Default.Check,
@@ -678,7 +685,10 @@ fun ShowDetailScreen(
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Mark Season $sNum as Watched", fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = if (isAnimeSingleSeason) "Mark this Season as Watched" else "Mark Season $sNum as Watched",
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
                         }
