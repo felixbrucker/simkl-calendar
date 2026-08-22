@@ -127,7 +127,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun syncLocalCalendar(force: Boolean = false) {
+    fun syncLocalCalendar() {
         viewModelScope.launch {
             val token = repository.getActiveUserToken()
             if (token == null || token.accessToken.isNullOrEmpty()) {
@@ -136,7 +136,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             _isSyncing.value = true
             _syncError.value = null
             try {
-                repository.syncCalendar(force)
+                repository.syncCalendar()
             } catch (e: Exception) {
                 _syncError.value = e.message ?: "Failed to sync calendar"
             } finally {

@@ -378,7 +378,7 @@ fun CalendarScreen(
     ) { innerPadding ->
         PullToRefreshBox(
             isRefreshing = isSyncing,
-            onRefresh = { viewModel.syncLocalCalendar(force = true) },
+            onRefresh = { viewModel.syncLocalCalendar() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)

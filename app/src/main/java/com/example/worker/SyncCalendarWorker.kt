@@ -23,7 +23,7 @@ class SyncCalendarWorker(
         return try {
             val repository = SimklRepository(applicationContext)
             // Perform full calendar synchronization
-            repository.syncCalendar(force = false)
+            repository.syncCalendar()
 
             // Reschedule and dispatch any notifications that have reached their air date
             NotificationScheduler.scheduleAllNotifications(applicationContext)
