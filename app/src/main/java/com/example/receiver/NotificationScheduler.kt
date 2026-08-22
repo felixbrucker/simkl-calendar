@@ -132,7 +132,15 @@ object NotificationScheduler {
                 triggerAtMillis = triggerTime,
                 title = title,
                 message = message,
-                notificationId = notificationId
+                notificationId = notificationId,
+                simklId = item.simklId,
+                season = item.season,
+                episodeNumber = item.episodeNumber,
+                type = item.type,
+                isFinale = isFinale,
+                showTitle = item.title,
+                movieReleaseType = item.movieReleaseType,
+                poster = item.poster
             )
             return
         }
@@ -143,7 +151,20 @@ object NotificationScheduler {
             return
         }
 
-        NotificationReceiver.showNotification(context, title, message, notificationId)
+        NotificationReceiver.showNotification(
+            context = context,
+            title = title,
+            message = message,
+            notificationId = notificationId,
+            itemKey = item.primaryKey,
+            simklId = item.simklId,
+            season = item.season,
+            episodeNumber = item.episodeNumber,
+            type = item.type,
+            isFinale = isFinale,
+            showTitle = item.title,
+            poster = item.poster
+        )
         db.calendarItemDao().markItemAsNotified(item.primaryKey)
         Log.d(TAG, "Dispatched immediate notification for recently reached air date: ${item.title}")
     }
@@ -154,7 +175,15 @@ object NotificationScheduler {
         triggerAtMillis: Long,
         title: String,
         message: String,
-        notificationId: Int
+        notificationId: Int,
+        simklId: Int,
+        season: Int?,
+        episodeNumber: Int?,
+        type: MediaType,
+        isFinale: Boolean,
+        showTitle: String,
+        movieReleaseType: MovieReleaseType?,
+        poster: String? = null
     ) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
 
@@ -165,6 +194,14 @@ object NotificationScheduler {
             putExtra(NotificationReceiver.EXTRA_MESSAGE, message)
             putExtra(NotificationReceiver.EXTRA_ID, notificationId)
             putExtra(NotificationReceiver.EXTRA_ITEM_KEY, itemKey)
+            putExtra(NotificationReceiver.EXTRA_SIMKL_ID, simklId)
+            if (season != null) putExtra(NotificationReceiver.EXTRA_SEASON, season)
+            if (episodeNumber != null) putExtra(NotificationReceiver.EXTRA_EPISODE_NUMBER, episodeNumber)
+            putExtra(NotificationReceiver.EXTRA_MEDIA_TYPE, type.name)
+            putExtra(NotificationReceiver.EXTRA_IS_FINALE, isFinale)
+            putExtra(NotificationReceiver.EXTRA_SHOW_TITLE, showTitle)
+            if (movieReleaseType != null) putExtra(NotificationReceiver.EXTRA_MOVIE_RELEASE_TYPE, movieReleaseType.name)
+            if (poster != null) putExtra(NotificationReceiver.EXTRA_POSTER, poster)
         }
 
         val requestCode = Math.abs(itemKey.hashCode())

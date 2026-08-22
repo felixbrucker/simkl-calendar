@@ -9,6 +9,7 @@ import com.example.data.database.UserToken
 import com.example.data.model.MediaType
 import com.example.data.model.MovieReleaseType
 import com.example.data.repository.SimklRepository
+import com.example.data.util.MediaFormatter
 import com.example.receiver.NotificationReceiver
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -31,6 +32,17 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     private val _isMarkingWatched = MutableStateFlow(false)
     val isMarkingWatched: StateFlow<Boolean> = _isMarkingWatched.asStateFlow()
+
+    private val _pendingDetailKey = MutableStateFlow<String?>(null)
+    val pendingDetailKey: StateFlow<String?> = _pendingDetailKey.asStateFlow()
+
+    fun setPendingDetailKey(key: String) {
+        _pendingDetailKey.value = key
+    }
+
+    fun clearPendingDetailKey() {
+        _pendingDetailKey.value = null
+    }
 
     // Filtering State Flows
     val showTv = MutableStateFlow(true)
@@ -200,6 +212,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         season: Int?,
         episodeNumber: Int,
         mediaType: MediaType,
+        showTitle: String? = null,
         onResult: (Boolean, String) -> Unit = { _, _ -> }
     ) {
         viewModelScope.launch {
@@ -212,8 +225,13 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             )
             _isMarkingWatched.value = false
             if (result.isSuccess) {
-                val epText = if (season != null) "S${season}E${episodeNumber}" else "E${episodeNumber}"
-                onResult(true, "Marked $epText as watched!")
+                val message = MediaFormatter.formatEpisodeWatchedToast(
+                    showTitle = showTitle,
+                    mediaType = mediaType,
+                    season = season,
+                    episodeNumber = episodeNumber
+                )
+                onResult(true, message)
             } else {
                 val errorMsg = result.exceptionOrNull()?.message ?: "Failed to mark episode as watched"
                 onResult(false, errorMsg)
@@ -225,6 +243,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         simklId: Int,
         season: Int,
         mediaType: MediaType,
+        showTitle: String? = null,
         onResult: (Boolean, String) -> Unit = { _, _ -> }
     ) {
         viewModelScope.launch {
@@ -237,8 +256,13 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             _isMarkingWatched.value = false
             if (result.isSuccess) {
                 val isCompleted = result.getOrDefault(false)
-                val completionSuffix = if (isCompleted) " (Show Completed!)" else ""
-                onResult(true, "Marked Season $season as watched$completionSuffix!")
+                val message = MediaFormatter.formatSeasonWatchedToast(
+                    showTitle = showTitle,
+                    mediaType = mediaType,
+                    season = season,
+                    isCompleted = isCompleted
+                )
+                onResult(true, message)
             } else {
                 val errorMsg = result.exceptionOrNull()?.message ?: "Failed to mark season as watched"
                 onResult(false, errorMsg)
@@ -248,6 +272,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun markMovieWatched(
         simklId: Int,
+        showTitle: String? = null,
         onResult: (Boolean, String) -> Unit = { _, _ -> }
     ) {
         viewModelScope.launch {
@@ -255,26 +280,12 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             val result = repository.markMovieWatched(simklId = simklId)
             _isMarkingWatched.value = false
             if (result.isSuccess) {
-                onResult(true, "Marked movie as watched!")
+                val message = MediaFormatter.formatMovieWatchedToast(showTitle)
+                onResult(true, message)
             } else {
                 val errorMsg = result.exceptionOrNull()?.message ?: "Failed to mark movie as watched"
                 onResult(false, errorMsg)
             }
-        }
-    }
-
-    fun testTriggerNotification(item: CalendarItem) {
-        viewModelScope.launch {
-            NotificationReceiver.triggerEpisodeNotification(
-                getApplication(),
-                showTitle = item.title,
-                episodeName = item.episodeTitle,
-                season = item.season,
-                episodeNumber = item.episodeNumber,
-                isFinale = item.isSeasonFinale,
-                type = item.type,
-                movieReleaseType = item.movieReleaseType
-            )
         }
     }
 }

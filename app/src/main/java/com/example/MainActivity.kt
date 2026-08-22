@@ -31,6 +31,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.receiver.NotificationReceiver
 import com.example.worker.SyncCalendarWorker
 import com.example.ui.screens.CalendarScreen
@@ -80,6 +81,7 @@ class MainActivity : ComponentActivity() {
         SyncCalendarWorker.enqueuePeriodicSync(this, syncIntervalHours)
 
         handleOAuthIntent(intent)
+        handleNotificationNavigation(intent)
 
         setContent {
             MyApplicationTheme {
@@ -97,12 +99,31 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleOAuthIntent(intent)
+        handleNotificationNavigation(intent)
     }
 
     private fun handleOAuthIntent(intent: Intent?) {
         val uri: Uri? = intent?.data
         if (uri != null) {
             handleOAuthUri(uri)
+        }
+    }
+
+    private fun handleNotificationNavigation(intent: Intent?) {
+        if (intent == null) return
+        val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
+            ?: if (intent.data?.scheme == "simklcalendar" && intent.data?.host == "detail") {
+                intent.data?.lastPathSegment?.let { segment ->
+                    try {
+                        java.net.URLDecoder.decode(segment, "UTF-8")
+                    } catch (_: Exception) {
+                        segment
+                    }
+                }
+            } else null
+
+        if (!itemKey.isNullOrEmpty()) {
+            viewModel.setPendingDetailKey(itemKey)
         }
     }
 
@@ -116,7 +137,7 @@ class MainActivity : ComponentActivity() {
                     state = state,
                     redirectUri = "simklcalendar://auth",
                     onSuccess = {
-                        Toast.makeText(this, "Successfully authenticated with Simkl!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Successfully authenticated with Simkl", Toast.LENGTH_SHORT).show()
                     },
                     onFailure = {
                         Toast.makeText(this, "Authentication failed. Please try again.", Toast.LENGTH_LONG).show()
@@ -124,6 +145,10 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_ITEM_KEY = "extra_item_key"
     }
 }
 
@@ -134,7 +159,20 @@ fun SimklCalendarApp(
 ) {
     val navController = rememberNavController()
     val userToken by viewModel.userToken.collectAsState()
+    val pendingDetailKey by viewModel.pendingDetailKey.collectAsState()
     val context = LocalContext.current
+
+    // Automatically navigate to detail when an item key is provided via notification or deep link
+    LaunchedEffect(pendingDetailKey, userToken) {
+        val targetKey = pendingDetailKey
+        if (targetKey != null && userToken != null) {
+            val encodedKey = java.net.URLEncoder.encode(targetKey, "UTF-8")
+            navController.navigate("detail/$encodedKey") {
+                launchSingleTop = true
+            }
+            viewModel.clearPendingDetailKey()
+        }
+    }
 
     // Request notification permission on Android 13+ (API 33+)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -202,7 +240,8 @@ fun SimklCalendarApp(
             // 4. Show Details screen
             composable(
                 route = "detail/{itemKey}",
-                arguments = listOf(navArgument("itemKey") { type = NavType.StringType })
+                arguments = listOf(navArgument("itemKey") { type = NavType.StringType }),
+                deepLinks = listOf(navDeepLink { uriPattern = "simklcalendar://detail/{itemKey}" })
             ) { backStackEntry ->
                 val rawKey = backStackEntry.arguments?.getString("itemKey") ?: ""
                 val itemKey = try {

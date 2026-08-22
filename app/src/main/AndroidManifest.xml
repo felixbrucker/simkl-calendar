@@ -36,13 +36,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Support deep linking back for Simkl OAuth callback -->
+            <!-- Support deep linking back for Simkl OAuth callback and Show Details -->
             <intent-filter android:label="Simkl Calendar OAuth Callback">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="simklcalendar" android:host="auth" />
                 <data android:scheme="simklcalendar" android:host="oauth" />
+                <data android:scheme="simklcalendar" android:host="detail" />
             </intent-filter>
         </activity>
 
@@ -54,6 +55,9 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="com.example.ACTION_AIR_DATE_ALERT" />
+                <action android:name="com.example.ACTION_MARK_EPISODE_WATCHED" />
+                <action android:name="com.example.ACTION_MARK_SEASON_WATCHED" />
+                <action android:name="com.example.ACTION_MARK_MOVIE_WATCHED" />
             </intent-filter>
         </receiver>
     </application>

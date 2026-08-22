@@ -46,7 +46,12 @@ import com.example.data.database.CalendarItem
 import com.example.data.model.MediaType
 import com.example.data.model.MovieReleaseType
 import com.example.data.util.DateUtil
+import com.example.data.util.MediaFormatter
 import com.example.data.util.PosterSize
+import com.example.data.util.formattedEpisodeCode
+import com.example.data.util.formattedEpisodeLabel
+import com.example.data.util.formattedEpisodeSlugHeader
+import com.example.data.util.formattedSeasonLabel
 import com.example.data.util.toPosterUrl
 import com.example.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.launch
@@ -426,13 +431,8 @@ fun ShowDetailScreen(
 
                             // Season and Episode Slug positioned above Episode Name
                             if (activeItem.type != MediaType.MOVIE) {
-                                val sNum = activeItem.season ?: 1
-                                val eNum = activeItem.episodeNumber ?: 1
-                                val (slugLabel, slugValue) = if (activeItem.type == MediaType.ANIME) {
-                                    "Episode" to String.format(Locale.US, "E%02d", eNum)
-                                } else {
-                                    "Season & Episode" to String.format(Locale.US, "S%02dE%02d", sNum, eNum)
-                                }
+                                val slugLabel = activeItem.formattedEpisodeSlugHeader
+                                val slugValue = activeItem.formattedEpisodeCode
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -531,7 +531,10 @@ fun ShowDetailScreen(
                         // Mark Movie as Watched Button
                         Button(
                             onClick = {
-                                viewModel.markMovieWatched(simklId = activeItem.simklId) { success, msg ->
+                                viewModel.markMovieWatched(
+                                    simklId = activeItem.simklId,
+                                    showTitle = activeItem.title
+                                ) { success, msg ->
                                     scope.launch { snackbarHostState.showSnackbar(msg) }
                                 }
                             },
@@ -574,15 +577,8 @@ fun ShowDetailScreen(
                     } else {
                         val sNum = activeItem.season ?: 1
                         val eNum = activeItem.episodeNumber ?: 1
-                        val epLabel = if (activeItem.type == MediaType.ANIME) {
-                            String.format(Locale.US, "Episode %02d", eNum)
-                        } else {
-                            String.format(Locale.US, "S%02dE%02d", sNum, eNum)
-                        }
-
-                        val isAnimeSingleSeason = activeItem.type == MediaType.ANIME &&
-                                (activeItem.season == null || activeItem.season == 1) &&
-                                availableSeasons.size <= 1
+                        val epLabel = activeItem.formattedEpisodeLabel
+                        val seasonLabel = activeItem.formattedSeasonLabel
 
                         val (isSeasonFullyWatched, _, _) = getSeasonWatchStatus(sNum)
 
@@ -594,7 +590,8 @@ fun ShowDetailScreen(
                                         simklId = activeItem.simklId,
                                         season = activeItem.season,
                                         episodeNumber = eNum,
-                                        mediaType = activeItem.type
+                                        mediaType = activeItem.type,
+                                        showTitle = activeItem.title
                                     ) { success, msg ->
                                         scope.launch { snackbarHostState.showSnackbar(msg) }
                                     }
@@ -644,7 +641,8 @@ fun ShowDetailScreen(
                                     viewModel.markSeasonWatched(
                                         simklId = activeItem.simklId,
                                         season = sNum,
-                                        mediaType = activeItem.type
+                                        mediaType = activeItem.type,
+                                        showTitle = activeItem.title
                                     ) { success, msg ->
                                         scope.launch { snackbarHostState.showSnackbar(msg) }
                                     }
@@ -675,7 +673,7 @@ fun ShowDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = if (isAnimeSingleSeason) "Season Watched" else "Season $sNum Watched",
+                                        text = "$seasonLabel Watched",
                                         fontWeight = FontWeight.Bold
                                     )
                                 } else {
@@ -686,7 +684,7 @@ fun ShowDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = if (isAnimeSingleSeason) "Mark this Season as Watched" else "Mark Season $sNum as Watched",
+                                        text = "Mark $seasonLabel as Watched",
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -766,14 +764,10 @@ fun ShowDetailScreen(
 
                                 showScheduleItems.forEach { epItem ->
                                     val isSelected = epItem.primaryKey == activeItem.primaryKey
-                                    val s = epItem.season ?: 1
-                                    val e = epItem.episodeNumber ?: 1
                                     val epTag = if (epItem.type == MediaType.MOVIE) {
                                         if (epItem.movieReleaseType == MovieReleaseType.THEATER) "THEATER" else "DIGITAL / DVD"
-                                    } else if (epItem.type == MediaType.ANIME) {
-                                        String.format(Locale.US, "E%02d", e)
                                     } else {
-                                        String.format(Locale.US, "S%02dE%02d", s, e)
+                                        epItem.formattedEpisodeCode
                                     }
                                     val epDate = if (epItem.type == MediaType.MOVIE) DateUtil.formatDisplayDate(epItem.date) else DateUtil.formatDisplayDateTime(epItem.date)
 

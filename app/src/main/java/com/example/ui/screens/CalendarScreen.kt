@@ -52,6 +52,7 @@ import com.example.data.model.MediaType
 import com.example.data.model.MovieReleaseType
 import com.example.data.util.DateUtil
 import com.example.data.util.PosterSize
+import com.example.data.util.formattedEpisodeCardBadge
 import com.example.data.util.toPosterUrl
 import com.example.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.delay
@@ -894,22 +895,8 @@ fun CalendarItemCard(
                 Spacer(modifier = Modifier.height(2.dp))
 
                 when (item.type) {
-                    MediaType.ANIME -> {
-                        val epNum = item.episodeNumber ?: 1
-                        val epLabel = String.format(Locale.US, "E%02d", epNum)
-                        val epTitle = item.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
-                        Text(
-                            text = "$epLabel: $epTitle",
-                            fontSize = 13.sp,
-                            color = Color(0xFFCAC4D0),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    MediaType.TV -> {
-                        val epSeason = item.season ?: 1
-                        val epNum = item.episodeNumber ?: 1
-                        val epLabel = String.format(Locale.US, "S%02d • E%02d", epSeason, epNum)
+                    MediaType.ANIME, MediaType.TV -> {
+                        val epLabel = item.formattedEpisodeCardBadge
                         val epTitle = item.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
                         Text(
                             text = "$epLabel: $epTitle",

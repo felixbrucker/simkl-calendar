@@ -6,20 +6,32 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import android.widget.Toast
+import androidx.core.graphics.drawable.toBitmap
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.example.MainActivity
 import com.example.R
 import com.example.data.database.AppDatabase
 import com.example.data.database.CalendarItem
 import com.example.data.model.MediaType
 import com.example.data.model.MovieReleaseType
+import com.example.data.repository.SimklRepository
+import com.example.data.util.MediaFormatter
+import com.example.data.util.PosterSize
+import com.example.data.util.toPosterUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.URLEncoder
 import java.util.Locale
 
 class NotificationReceiver : BroadcastReceiver() {
@@ -43,22 +55,249 @@ class NotificationReceiver : BroadcastReceiver() {
             return
         }
 
+        when (action) {
+            ACTION_MARK_EPISODE_WATCHED -> {
+                handleMarkEpisodeWatched(context, intent)
+                return
+            }
+            ACTION_MARK_SEASON_WATCHED -> {
+                handleMarkSeasonWatched(context, intent)
+                return
+            }
+            ACTION_MARK_MOVIE_WATCHED -> {
+                handleMarkMovieWatched(context, intent)
+                return
+            }
+        }
+
         val title = intent.getStringExtra(EXTRA_TITLE) ?: "Upcoming Airing!"
         val message = intent.getStringExtra(EXTRA_MESSAGE) ?: "An episode is ready to stream."
         val id = intent.getIntExtra(EXTRA_ID, 999)
         val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
+        val simklId = if (intent.hasExtra(EXTRA_SIMKL_ID)) intent.getIntExtra(EXTRA_SIMKL_ID, 0).takeIf { it != 0 } else null
+        val season = if (intent.hasExtra(EXTRA_SEASON)) intent.getIntExtra(EXTRA_SEASON, -1).takeIf { it != -1 } else null
+        val episodeNumber = if (intent.hasExtra(EXTRA_EPISODE_NUMBER)) intent.getIntExtra(EXTRA_EPISODE_NUMBER, -1).takeIf { it != -1 } else null
+        val mediaTypeName = intent.getStringExtra(EXTRA_MEDIA_TYPE)
+        val mediaType = mediaTypeName?.let { runCatching { MediaType.valueOf(it) }.getOrNull() } ?: MediaType.TV
+        val isFinale = intent.getBooleanExtra(EXTRA_IS_FINALE, false)
+        val showTitle = intent.getStringExtra(EXTRA_SHOW_TITLE)
+        val poster = intent.getStringExtra(EXTRA_POSTER)
 
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                var resolvedPoster = poster
                 if (itemKey != null) {
                     val db = AppDatabase.getDatabase(context)
                     db.calendarItemDao().markItemAsNotified(itemKey)
+                    if (resolvedPoster == null) {
+                        resolvedPoster = db.calendarItemDao().findItem(itemKey)?.poster
+                    }
                 }
-                showNotification(context, title, message, id)
+                showNotification(
+                    context = context,
+                    title = title,
+                    message = message,
+                    notificationId = id,
+                    itemKey = itemKey,
+                    simklId = simklId,
+                    season = season,
+                    episodeNumber = episodeNumber,
+                    type = mediaType,
+                    isFinale = isFinale,
+                    showTitle = showTitle,
+                    poster = resolvedPoster
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling broadcast notification in receiver", e)
-                showNotification(context, title, message, id)
+                showNotification(
+                    context = context,
+                    title = title,
+                    message = message,
+                    notificationId = id,
+                    itemKey = itemKey,
+                    simklId = simklId,
+                    season = season,
+                    episodeNumber = episodeNumber,
+                    type = mediaType,
+                    isFinale = isFinale,
+                    showTitle = showTitle,
+                    poster = poster
+                )
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private fun handleMarkEpisodeWatched(context: Context, intent: Intent) {
+        val simklId = intent.getIntExtra(EXTRA_SIMKL_ID, 0)
+        val season = if (intent.hasExtra(EXTRA_SEASON)) intent.getIntExtra(EXTRA_SEASON, -1).takeIf { it != -1 } else null
+        val episodeNumber = intent.getIntExtra(EXTRA_EPISODE_NUMBER, 1)
+        val mediaTypeName = intent.getStringExtra(EXTRA_MEDIA_TYPE)
+        val mediaType = mediaTypeName?.let { runCatching { MediaType.valueOf(it) }.getOrNull() } ?: MediaType.TV
+        val notificationId = intent.getIntExtra(EXTRA_ID, 0)
+        val showTitle = intent.getStringExtra(EXTRA_SHOW_TITLE)
+        val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
+        val originalTitle = intent.getStringExtra(EXTRA_TITLE)
+        val originalMessage = intent.getStringExtra(EXTRA_MESSAGE)
+        val poster = intent.getStringExtra(EXTRA_POSTER)
+
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                var resolvedPoster = poster
+                if (resolvedPoster == null && itemKey != null) {
+                    val db = AppDatabase.getDatabase(context)
+                    resolvedPoster = db.calendarItemDao().findItem(itemKey)?.poster
+                }
+
+                val repo = SimklRepository(context)
+                val result = repo.markEpisodeWatched(
+                    simklId = simklId,
+                    season = season,
+                    episodeNumber = episodeNumber,
+                    mediaType = mediaType
+                )
+
+                if (result.isSuccess) {
+                    val statusBadge = "Watched"
+                    updateNotificationResult(
+                        context = context,
+                        notificationId = notificationId,
+                        title = originalTitle ?: showTitle ?: "Episode",
+                        message = originalMessage ?: "Episode marked as watched",
+                        badgeStatus = statusBadge,
+                        itemKey = itemKey,
+                        poster = resolvedPoster
+                    )
+                } else {
+                    val err = result.exceptionOrNull()?.message ?: "Failed to mark as watched"
+                    updateNotificationResult(
+                        context = context,
+                        notificationId = notificationId,
+                        title = originalTitle ?: showTitle ?: "Episode",
+                        message = originalMessage ?: err,
+                        badgeStatus = "Failed to mark as watched",
+                        itemKey = itemKey,
+                        poster = resolvedPoster
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error marking episode as watched from notification action", e)
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private fun handleMarkSeasonWatched(context: Context, intent: Intent) {
+        val simklId = intent.getIntExtra(EXTRA_SIMKL_ID, 0)
+        val season = intent.getIntExtra(EXTRA_SEASON, 1)
+        val mediaTypeName = intent.getStringExtra(EXTRA_MEDIA_TYPE)
+        val mediaType = mediaTypeName?.let { runCatching { MediaType.valueOf(it) }.getOrNull() } ?: MediaType.TV
+        val notificationId = intent.getIntExtra(EXTRA_ID, 0)
+        val showTitle = intent.getStringExtra(EXTRA_SHOW_TITLE)
+        val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
+        val originalTitle = intent.getStringExtra(EXTRA_TITLE)
+        val originalMessage = intent.getStringExtra(EXTRA_MESSAGE)
+        val poster = intent.getStringExtra(EXTRA_POSTER)
+
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                var resolvedPoster = poster
+                if (resolvedPoster == null && itemKey != null) {
+                    val db = AppDatabase.getDatabase(context)
+                    resolvedPoster = db.calendarItemDao().findItem(itemKey)?.poster
+                }
+
+                val repo = SimklRepository(context)
+                val result = repo.markSeasonWatched(
+                    simklId = simklId,
+                    season = season,
+                    mediaType = mediaType
+                )
+
+                if (result.isSuccess) {
+                    val isCompleted = result.getOrDefault(false)
+                    val seasonLabel = MediaFormatter.formatSeasonLabel(mediaType, season)
+                    val statusBadge = if (isCompleted) "Show Completed" else "$seasonLabel Watched"
+                    updateNotificationResult(
+                        context = context,
+                        notificationId = notificationId,
+                        title = originalTitle ?: showTitle ?: "Season",
+                        message = originalMessage ?: "Season marked as watched",
+                        badgeStatus = statusBadge,
+                        itemKey = itemKey,
+                        poster = resolvedPoster
+                    )
+                } else {
+                    val err = result.exceptionOrNull()?.message ?: "Failed to mark season as watched"
+                    updateNotificationResult(
+                        context = context,
+                        notificationId = notificationId,
+                        title = originalTitle ?: showTitle ?: "Season",
+                        message = originalMessage ?: err,
+                        badgeStatus = "Failed to mark season as watched",
+                        itemKey = itemKey,
+                        poster = resolvedPoster
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error marking season as watched from notification action", e)
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private fun handleMarkMovieWatched(context: Context, intent: Intent) {
+        val simklId = intent.getIntExtra(EXTRA_SIMKL_ID, 0)
+        val notificationId = intent.getIntExtra(EXTRA_ID, 0)
+        val showTitle = intent.getStringExtra(EXTRA_SHOW_TITLE)
+        val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
+        val originalTitle = intent.getStringExtra(EXTRA_TITLE)
+        val originalMessage = intent.getStringExtra(EXTRA_MESSAGE)
+        val poster = intent.getStringExtra(EXTRA_POSTER)
+
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                var resolvedPoster = poster
+                if (resolvedPoster == null && itemKey != null) {
+                    val db = AppDatabase.getDatabase(context)
+                    resolvedPoster = db.calendarItemDao().findItem(itemKey)?.poster
+                }
+
+                val repo = SimklRepository(context)
+                val result = repo.markMovieWatched(simklId = simklId)
+
+                if (result.isSuccess) {
+                    val statusBadge = "Watched"
+                    updateNotificationResult(
+                        context = context,
+                        notificationId = notificationId,
+                        title = originalTitle ?: showTitle ?: "Movie",
+                        message = originalMessage ?: "Movie marked as watched",
+                        badgeStatus = statusBadge,
+                        itemKey = itemKey,
+                        poster = resolvedPoster
+                    )
+                } else {
+                    val err = result.exceptionOrNull()?.message ?: "Failed to mark movie as watched"
+                    updateNotificationResult(
+                        context = context,
+                        notificationId = notificationId,
+                        title = originalTitle ?: showTitle ?: "Movie",
+                        message = originalMessage ?: err,
+                        badgeStatus = "Failed to mark movie as watched",
+                        itemKey = itemKey,
+                        poster = resolvedPoster
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error marking movie as watched from notification action", e)
             } finally {
                 pendingResult.finish()
             }
@@ -68,10 +307,23 @@ class NotificationReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "NotificationReceiver"
         const val CHANNEL_ID = "simkl_episode_notifications"
+        const val ACTION_AIR_DATE_ALERT = "com.example.ACTION_AIR_DATE_ALERT"
+        const val ACTION_MARK_EPISODE_WATCHED = "com.example.ACTION_MARK_EPISODE_WATCHED"
+        const val ACTION_MARK_SEASON_WATCHED = "com.example.ACTION_MARK_SEASON_WATCHED"
+        const val ACTION_MARK_MOVIE_WATCHED = "com.example.ACTION_MARK_MOVIE_WATCHED"
+
         const val EXTRA_TITLE = "extra_title"
         const val EXTRA_MESSAGE = "extra_message"
         const val EXTRA_ID = "extra_id"
         const val EXTRA_ITEM_KEY = "extra_item_key"
+        const val EXTRA_SIMKL_ID = "extra_simkl_id"
+        const val EXTRA_SEASON = "extra_season"
+        const val EXTRA_EPISODE_NUMBER = "extra_episode_number"
+        const val EXTRA_MEDIA_TYPE = "extra_media_type"
+        const val EXTRA_IS_FINALE = "extra_is_finale"
+        const val EXTRA_SHOW_TITLE = "extra_show_title"
+        const val EXTRA_MOVIE_RELEASE_TYPE = "extra_movie_release_type"
+        const val EXTRA_POSTER = "extra_poster"
 
         /**
          * Formats notification title and message from raw parameters using type-safe enums.
@@ -86,40 +338,16 @@ class NotificationReceiver : BroadcastReceiver() {
             totalEpisodes: Int? = null,
             movieReleaseType: MovieReleaseType? = null
         ): Pair<String, String> {
-            if (type == MediaType.MOVIE) {
-                return if (movieReleaseType == MovieReleaseType.THEATER) {
-                    "Movie In Theaters Today" to "$showTitle is now in theaters!"
-                } else {
-                    "Movie Released Today" to "$showTitle is now available on Digital / DVD!"
-                }
-            }
-
-            if (isFinale) {
-                val title = "Season finished airing"
-                val total = totalEpisodes ?: episodeNumber
-                val episodeCountStr = total?.let { "$it ${if (it == 1) "Episode" else "Episodes"}" }
-
-                val finaleTag = when {
-                    type == MediaType.ANIME -> if (episodeCountStr != null) ": $episodeCountStr" else ""
-                    season != null && episodeCountStr != null -> String.format(Locale.US, " S%02d: $episodeCountStr", season)
-                    season != null -> String.format(Locale.US, " S%02d", season)
-                    episodeCountStr != null -> ": $episodeCountStr"
-                    else -> ""
-                }
-                val message = "$showTitle$finaleTag"
-                return title to message
-            }
-
-            val title = "New Episode Released"
-            val epLabel = when {
-                type == MediaType.ANIME && episodeNumber != null -> String.format(Locale.US, " E%02d", episodeNumber)
-                season != null && episodeNumber != null -> String.format(Locale.US, " S%02dE%02d", season, episodeNumber)
-                episodeNumber != null -> String.format(Locale.US, " E%02d", episodeNumber)
-                else -> ""
-            }
-            val epName = if (!episodeTitle.isNullOrBlank()) ": \"$episodeTitle\"" else ""
-            val message = "$showTitle$epLabel$epName is now airing."
-            return title to message
+            return MediaFormatter.formatNotificationContent(
+                showTitle = showTitle,
+                type = type,
+                episodeTitle = episodeTitle,
+                season = season,
+                episodeNumber = episodeNumber,
+                isFinale = isFinale,
+                totalEpisodes = totalEpisodes,
+                movieReleaseType = movieReleaseType
+            )
         }
 
         /**
@@ -142,6 +370,27 @@ class NotificationReceiver : BroadcastReceiver() {
             )
         }
 
+        suspend fun loadPosterBitmap(context: Context, poster: String?): Bitmap? = withContext(Dispatchers.IO) {
+            if (poster.isNullOrBlank()) return@withContext null
+            try {
+                val posterUrl = poster.toPosterUrl(PosterSize.COMPACT)
+                val imageLoader = ImageLoader.Builder(context).build()
+                val request = ImageRequest.Builder(context)
+                    .data(posterUrl)
+                    .allowHardware(false)
+                    .build()
+                val result = imageLoader.execute(request)
+                if (result is SuccessResult) {
+                    result.drawable.toBitmap()
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load poster bitmap for notification", e)
+                null
+            }
+        }
+
         fun createNotificationChannel(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val name = "Simkl Calendar Alerts"
@@ -159,7 +408,20 @@ class NotificationReceiver : BroadcastReceiver() {
             }
         }
 
-        fun showNotification(context: Context, title: String, message: String, notificationId: Int) {
+        suspend fun showNotification(
+            context: Context,
+            title: String,
+            message: String,
+            notificationId: Int,
+            itemKey: String? = null,
+            simklId: Int? = null,
+            season: Int? = null,
+            episodeNumber: Int? = null,
+            type: MediaType = MediaType.TV,
+            isFinale: Boolean = false,
+            showTitle: String? = null,
+            poster: String? = null
+        ) {
             createNotificationChannel(context)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -176,8 +438,18 @@ class NotificationReceiver : BroadcastReceiver() {
                 }
             }
 
+            // Open Intent -> opens MainActivity and directly navigates to the episode/movie detail screen
             val openIntent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                if (!itemKey.isNullOrEmpty()) {
+                    putExtra(MainActivity.EXTRA_ITEM_KEY, itemKey)
+                    val encodedKey = try {
+                        URLEncoder.encode(itemKey, "UTF-8")
+                    } catch (_: Exception) {
+                        itemKey
+                    }
+                    data = Uri.parse("simklcalendar://detail/$encodedKey")
+                }
             }
             val pendingIntent = PendingIntent.getActivity(
                 context,
@@ -198,6 +470,90 @@ class NotificationReceiver : BroadcastReceiver() {
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
 
+            val posterBitmap = loadPosterBitmap(context, poster)
+            if (posterBitmap != null) {
+                builder.setLargeIcon(posterBitmap)
+            }
+
+            // Add notification action buttons directly in the notification
+            if (simklId != null && simklId > 0) {
+                if (type == MediaType.MOVIE) {
+                    // Movie Notification: "Mark as Watched"
+                    val markMovieIntent = Intent(context, NotificationReceiver::class.java).apply {
+                        action = ACTION_MARK_MOVIE_WATCHED
+                        putExtra(EXTRA_SIMKL_ID, simklId)
+                        putExtra(EXTRA_ID, notificationId)
+                        putExtra(EXTRA_ITEM_KEY, itemKey)
+                        putExtra(EXTRA_SHOW_TITLE, showTitle ?: title)
+                        putExtra(EXTRA_TITLE, title)
+                        putExtra(EXTRA_MESSAGE, message)
+                        if (poster != null) putExtra(EXTRA_POSTER, poster)
+                    }
+                    val markMoviePendingIntent = PendingIntent.getBroadcast(
+                        context,
+                        notificationId * 10 + 1,
+                        markMovieIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    builder.addAction(
+                        R.drawable.ic_check,
+                        "Mark as Watched",
+                        markMoviePendingIntent
+                    )
+                } else if (isFinale) {
+                    // Finale Notification: "Mark Season as Watched"
+                    val markSeasonIntent = Intent(context, NotificationReceiver::class.java).apply {
+                        action = ACTION_MARK_SEASON_WATCHED
+                        putExtra(EXTRA_SIMKL_ID, simklId)
+                        putExtra(EXTRA_SEASON, season ?: 1)
+                        putExtra(EXTRA_MEDIA_TYPE, type.name)
+                        putExtra(EXTRA_ID, notificationId)
+                        putExtra(EXTRA_ITEM_KEY, itemKey)
+                        putExtra(EXTRA_SHOW_TITLE, showTitle ?: title)
+                        putExtra(EXTRA_TITLE, title)
+                        putExtra(EXTRA_MESSAGE, message)
+                        if (poster != null) putExtra(EXTRA_POSTER, poster)
+                    }
+                    val markSeasonPendingIntent = PendingIntent.getBroadcast(
+                        context,
+                        notificationId * 10 + 2,
+                        markSeasonIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    builder.addAction(
+                        R.drawable.ic_done_all,
+                        "Mark Season as Watched",
+                        markSeasonPendingIntent
+                    )
+                } else {
+                    // Regular Episode Notification: "Mark as Watched"
+                    val markEpIntent = Intent(context, NotificationReceiver::class.java).apply {
+                        action = ACTION_MARK_EPISODE_WATCHED
+                        putExtra(EXTRA_SIMKL_ID, simklId)
+                        putExtra(EXTRA_SEASON, season)
+                        putExtra(EXTRA_EPISODE_NUMBER, episodeNumber ?: 1)
+                        putExtra(EXTRA_MEDIA_TYPE, type.name)
+                        putExtra(EXTRA_ID, notificationId)
+                        putExtra(EXTRA_ITEM_KEY, itemKey)
+                        putExtra(EXTRA_SHOW_TITLE, showTitle ?: title)
+                        putExtra(EXTRA_TITLE, title)
+                        putExtra(EXTRA_MESSAGE, message)
+                        if (poster != null) putExtra(EXTRA_POSTER, poster)
+                    }
+                    val markEpPendingIntent = PendingIntent.getBroadcast(
+                        context,
+                        notificationId * 10 + 1,
+                        markEpIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    builder.addAction(
+                        R.drawable.ic_check,
+                        "Mark as Watched",
+                        markEpPendingIntent
+                    )
+                }
+            }
+
             try {
                 val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 notificationManager.notify(notificationId, builder.build())
@@ -207,30 +563,62 @@ class NotificationReceiver : BroadcastReceiver() {
             }
         }
 
-        fun triggerEpisodeNotification(
+        suspend fun updateNotificationResult(
             context: Context,
-            showTitle: String,
-            episodeName: String?,
-            season: Int?,
-            episodeNumber: Int?,
-            isFinale: Boolean = false,
-            type: MediaType = MediaType.TV,
-            totalEpisodes: Int? = null,
-            movieReleaseType: MovieReleaseType? = null
+            notificationId: Int,
+            title: String,
+            message: String,
+            badgeStatus: String,
+            itemKey: String?,
+            poster: String? = null
         ) {
-            val (title, message) = formatNotificationContent(
-                showTitle = showTitle,
-                type = type,
-                episodeTitle = episodeName,
-                season = season,
-                episodeNumber = episodeNumber,
-                isFinale = isFinale,
-                totalEpisodes = totalEpisodes,
-                movieReleaseType = movieReleaseType
+            if (notificationId == 0) return
+
+            val openIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                if (!itemKey.isNullOrEmpty()) {
+                    putExtra(MainActivity.EXTRA_ITEM_KEY, itemKey)
+                    val encodedKey = try {
+                        URLEncoder.encode(itemKey, "UTF-8")
+                    } catch (_: Exception) {
+                        itemKey
+                    }
+                    data = Uri.parse("simklcalendar://detail/$encodedKey")
+                }
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                notificationId,
+                openIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-            val id = Math.abs(showTitle.hashCode() + (episodeNumber ?: 1))
-            showNotification(context, title, message, id)
+            val updatedNotificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setSubText(badgeStatus)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(message).setSummaryText(badgeStatus))
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setOnlyAlertOnce(true)
+
+            val posterBitmap = loadPosterBitmap(context, poster)
+            if (posterBitmap != null) {
+                updatedNotificationBuilder.setLargeIcon(posterBitmap)
+            }
+
+            try {
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.notify(notificationId, updatedNotificationBuilder.build())
+                Log.d(TAG, "Successfully updated notification id=$notificationId with badge: $badgeStatus")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating notification with result", e)
+            }
         }
     }
 }
+
