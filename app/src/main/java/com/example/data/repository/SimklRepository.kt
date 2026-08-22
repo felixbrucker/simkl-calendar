@@ -907,7 +907,7 @@ class SimklRepository(private val context: Context) {
         simklId: Int,
         season: Int,
         mediaType: MediaType
-    ): Result<Unit> = withContext(Dispatchers.IO) {
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val userToken = tokenDao.getActiveToken()
             if (userToken == null || userToken.accessToken.isEmpty()) {
@@ -917,11 +917,37 @@ class SimklRepository(private val context: Context) {
             val bearer = "Bearer ${userToken.accessToken}"
             val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
 
+            // Determine if show should be marked as "completed"
+            val showCalendarItems = calendarDao.getItemsForShow(simklId)
+            val showWatchedItems = watchedDao.getWatchedEpisodesForShow(simklId)
+
+            val seasonsSet = mutableSetOf<Int>()
+            showCalendarItems.forEach { item -> item.season?.let { if (it > 0) seasonsSet.add(it) } }
+            showWatchedItems.forEach { w -> if (w.season > 0) seasonsSet.add(w.season) }
+            seasonsSet.add(season)
+            val sortedSeasons = seasonsSet.sorted()
+            val isLastSeason = sortedSeasons.isNotEmpty() && season == sortedSeasons.last()
+            val prevSeasons = sortedSeasons.filter { it < season }
+            val allPrevWatched = prevSeasons.all { sNum ->
+                val epInSeason = showCalendarItems.filter { (it.season ?: 1) == sNum }
+                val watchedInSeason = showWatchedItems.filter { it.season == sNum }
+                if (epInSeason.isNotEmpty()) {
+                    epInSeason.all { it.isWatched }
+                } else {
+                    watchedInSeason.isNotEmpty()
+                }
+            }
+            val shouldMarkCompleted = isLastSeason && allPrevWatched
+
+            val statusValue = if (shouldMarkCompleted) "completed" else null
+            Log.d("SimklRepository", "Marking season $season as watched for simklId $simklId (isCompleted=$shouldMarkCompleted, status=$statusValue)")
+
             val request = if (mediaType == MediaType.ANIME) {
                 SyncHistoryRequest(
                     anime = listOf(
                         SyncHistoryShowItem(
                             ids = SimklIds(simkl = simklId),
+                            status = statusValue,
                             seasons = listOf(
                                 SyncHistorySeasonItem(
                                     number = season
@@ -935,6 +961,7 @@ class SimklRepository(private val context: Context) {
                     shows = listOf(
                         SyncHistoryShowItem(
                             ids = SimklIds(simkl = simklId),
+                            status = statusValue,
                             seasons = listOf(
                                 SyncHistorySeasonItem(
                                     number = season
@@ -953,7 +980,6 @@ class SimklRepository(private val context: Context) {
 
             // Update local database immediately
             val now = Instant.now()
-            val showCalendarItems = calendarDao.getItemsForShow(simklId)
             val seasonEpisodes = showCalendarItems.filter { (it.season ?: 1) == season }
 
             if (seasonEpisodes.isNotEmpty()) {
@@ -981,7 +1007,7 @@ class SimklRepository(private val context: Context) {
             // Trigger background watchlist sync
             syncWatchlist()
 
-            Result.success(Unit)
+            Result.success(shouldMarkCompleted)
         } catch (e: Exception) {
             Log.e("SimklRepository", "Failed to mark season $season as watched for simklId $simklId", e)
             Result.failure(e)

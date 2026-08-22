@@ -235,7 +235,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             )
             _isMarkingWatched.value = false
             if (result.isSuccess) {
-                onResult(true, "Marked Season $season as watched!")
+                val isCompleted = result.getOrDefault(false)
+                val completionSuffix = if (isCompleted) " (Show Completed!)" else ""
+                onResult(true, "Marked Season $season as watched$completionSuffix!")
             } else {
                 val errorMsg = result.exceptionOrNull()?.message ?: "Failed to mark season as watched"
                 onResult(false, errorMsg)

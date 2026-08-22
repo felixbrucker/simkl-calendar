@@ -17,10 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -151,42 +147,6 @@ fun ShowDetailScreen(
         } else {
             Triple(false, false, "Unwatched")
         }
-    }
-
-    // Default season index from active episode
-    val initialSeasonIndex = remember(availableSeasons, activeItem?.season) {
-        val targetSeason = activeItem?.season ?: availableSeasons.firstOrNull() ?: 1
-        val idx = availableSeasons.indexOf(targetSeason)
-        if (idx >= 0) idx else 0
-    }
-
-    val seasonWheelListState = androidx.compose.foundation.lazy.rememberLazyListState(initialSeasonIndex)
-
-    // Synchronize scroll when active item changes
-    LaunchedEffect(initialSeasonIndex) {
-        seasonWheelListState.scrollToItem(initialSeasonIndex)
-    }
-
-    // Current centered season derived from visible items in the wheel
-    val currentSelectedSeasonIndex by remember {
-        derivedStateOf {
-            val layoutInfo = seasonWheelListState.layoutInfo
-            val visibleItems = layoutInfo.visibleItemsInfo
-            if (visibleItems.isEmpty()) {
-                0
-            } else {
-                val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
-                val closest = visibleItems.minByOrNull { item ->
-                    val itemCenter = item.offset + item.size / 2
-                    kotlin.math.abs(itemCenter - viewportCenter)
-                }
-                closest?.index?.coerceIn(0, availableSeasons.size - 1) ?: 0
-            }
-        }
-    }
-
-    val selectedSeasonNumber = availableSeasons.getOrElse(currentSelectedSeasonIndex) {
-        availableSeasons.firstOrNull() ?: 1
     }
 
     val theatricalItem = remember(showScheduleItems, activeItem) {
@@ -636,10 +596,7 @@ fun ShowDetailScreen(
                                     String.format(Locale.US, "S%02dE%02d", sNum, eNum)
                                 }
 
-                                val (isSeasonFullyWatched, isSeasonPartiallyWatched, _) = getSeasonWatchStatus(selectedSeasonNumber)
-                                val itemHeightDp = 38.dp
-                                val visibleWheelHeightDp = itemHeightDp * 3
-                                val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = seasonWheelListState)
+                                val (isSeasonFullyWatched, _, _) = getSeasonWatchStatus(sNum)
 
                                 @Composable
                                 fun EpisodeWatchSection(modifier: Modifier = Modifier) {
@@ -655,7 +612,7 @@ fun ShowDetailScreen(
                                             }
                                         },
                                         enabled = !isMarkingWatched && !activeItem.isWatched,
-                                        modifier = modifier.fillMaxWidth(),
+                                        modifier = modifier.fillMaxWidth().height(48.dp),
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = if (activeItem.isWatched) Color(0xFF2E6543) else Color(0xFF381E72),
                                             contentColor = if (activeItem.isWatched) Color(0xFF7CE49F) else Color(0xFFEADDFF),
@@ -694,236 +651,61 @@ fun ShowDetailScreen(
 
                                 @Composable
                                 fun SeasonWatchSection(modifier: Modifier = Modifier) {
-                                    // Side-by-side Drumwheel Picker & Mark Season as Watched Button
-                                    Row(
-                                        modifier = modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Button(
+                                        onClick = {
+                                            viewModel.markSeasonWatched(
+                                                simklId = activeItem.simklId,
+                                                season = sNum,
+                                                mediaType = activeItem.type
+                                            ) { success, msg ->
+                                                scope.launch { snackbarHostState.showSnackbar(msg) }
+                                            }
+                                        },
+                                        enabled = !isMarkingWatched && !isSeasonFullyWatched,
+                                        modifier = modifier.fillMaxWidth().height(48.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isSeasonFullyWatched) Color(0xFF2E6543) else Color(0xFF4F378B),
+                                            contentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFFEADDFF),
+                                            disabledContainerColor = if (isSeasonFullyWatched) Color(0xFF1E3A2B) else Color(0xFF3B383E),
+                                            disabledContentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFF79747E)
+                                        ),
+                                        shape = RoundedCornerShape(10.dp)
                                     ) {
-                                            // Left: Drumwheel Selector
-                                            Surface(
-                                                shape = RoundedCornerShape(12.dp),
-                                                color = Color(0xFF1C1B1F),
-                                                border = BorderStroke(
-                                                    1.dp,
-                                                    if (isSeasonFullyWatched) Color(0xFF49454F) else Color(0xFF6750A4)
-                                                ),
-                                                modifier = Modifier.weight(0.44f)
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(visibleWheelHeightDp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    // Center Highlight indicator band
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .height(itemHeightDp)
-                                                            .background(
-                                                                if (isSeasonFullyWatched) Color(0xFF332D3B) else Color(0xFF381E72).copy(alpha = 0.5f),
-                                                                shape = RoundedCornerShape(8.dp)
-                                                            )
-                                                            .border(
-                                                                1.dp,
-                                                                if (isSeasonFullyWatched) Color(0xFF49454F) else Color(0xFF9A82DB).copy(alpha = 0.6f),
-                                                                shape = RoundedCornerShape(8.dp)
-                                                            )
-                                                    )
-
-                                                    // Scrollable Drum List
-                                                    LazyColumn(
-                                                        state = seasonWheelListState,
-                                                        flingBehavior = snapFlingBehavior,
-                                                        contentPadding = PaddingValues(vertical = itemHeightDp),
-                                                        modifier = Modifier.fillMaxSize(),
-                                                        horizontalAlignment = Alignment.CenterHorizontally
-                                                    ) {
-                                                        itemsIndexed(availableSeasons) { index, sNum ->
-                                                            val (isFully, isPartial, _) = getSeasonWatchStatus(sNum)
-                                                            val isSelected = index == currentSelectedSeasonIndex
-
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .fillMaxWidth()
-                                                                    .height(itemHeightDp)
-                                                                    .clickable {
-                                                                        scope.launch {
-                                                                            seasonWheelListState.animateScrollToItem(index)
-                                                                        }
-                                                                    },
-                                                                contentAlignment = Alignment.Center
-                                                            ) {
-                                                                Row(
-                                                                    verticalAlignment = Alignment.CenterVertically,
-                                                                    horizontalArrangement = Arrangement.Center,
-                                                                    modifier = Modifier.padding(horizontal = 8.dp)
-                                                                ) {
-                                                                    Text(
-                                                                        text = "Season $sNum",
-                                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                                        fontSize = if (isSelected) 15.sp else 13.sp,
-                                                                        color = when {
-                                                                            isFully -> if (isSelected) Color(0xFF8E8895) else Color(0xFF5E5964)
-                                                                            isSelected -> Color(0xFFFFFFFF)
-                                                                            else -> Color(0xFFCAC4D0).copy(alpha = 0.6f)
-                                                                        }
-                                                                    )
-
-                                                                    if (isFully) {
-                                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                                        Surface(
-                                                                            shape = RoundedCornerShape(4.dp),
-                                                                            color = if (isSelected) Color(0xFF3E3A44) else Color(0xFF2C2930)
-                                                                        ) {
-                                                                            Text(
-                                                                                text = "✓",
-                                                                                fontSize = 10.sp,
-                                                                                fontWeight = FontWeight.Bold,
-                                                                                color = if (isSelected) Color(0xFF9E98A5) else Color(0xFF6E6975),
-                                                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                                            )
-                                                                        }
-                                                                    } else if (isPartial) {
-                                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                                        Surface(
-                                                                            shape = RoundedCornerShape(4.dp),
-                                                                            color = Color(0xFF4C273B)
-                                                                        ) {
-                                                                            Text(
-                                                                                text = "½",
-                                                                                fontSize = 10.sp,
-                                                                                fontWeight = FontWeight.Bold,
-                                                                                color = Color(0xFFFFD8E4),
-                                                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                                            )
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
-                                                    // Top & Bottom Gradient shadows for drum curvature illusion
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .height(itemHeightDp)
-                                                            .align(Alignment.TopCenter)
-                                                            .background(
-                                                                Brush.verticalGradient(
-                                                                    colors = listOf(Color(0xFF1C1B1F), Color.Transparent)
-                                                                )
-                                                            )
-                                                    )
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .height(itemHeightDp)
-                                                            .align(Alignment.BottomCenter)
-                                                            .background(
-                                                                Brush.verticalGradient(
-                                                                    colors = listOf(Color.Transparent, Color(0xFF1C1B1F))
-                                                                )
-                                                            )
-                                                    )
-                                                }
-                                            }
-
-                                            // Right: Mark Season as Watched Button
-                                            Button(
-                                                onClick = {
-                                                    viewModel.markSeasonWatched(
-                                                        simklId = activeItem.simklId,
-                                                        season = selectedSeasonNumber,
-                                                        mediaType = activeItem.type
-                                                    ) { success, msg ->
-                                                        scope.launch { snackbarHostState.showSnackbar(msg) }
-                                                    }
-                                                },
-                                                enabled = !isMarkingWatched && !isSeasonFullyWatched,
-                                                modifier = Modifier
-                                                    .weight(0.56f)
-                                                    .height(visibleWheelHeightDp),
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = Color(0xFF4F378B),
-                                                    contentColor = Color(0xFFEADDFF),
-                                                    disabledContainerColor = Color(0xFF3B383E),
-                                                    disabledContentColor = Color(0xFF79747E)
-                                                ),
-                                                shape = RoundedCornerShape(12.dp)
-                                            ) {
-                                                Column(
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.Center,
-                                                    modifier = Modifier.padding(horizontal = 4.dp)
-                                                ) {
-                                                    if (isMarkingWatched) {
-                                                        CircularProgressIndicator(
-                                                            modifier = Modifier.size(20.dp),
-                                                            strokeWidth = 2.dp,
-                                                            color = Color(0xFFEADDFF)
-                                                        )
-                                                        Spacer(modifier = Modifier.height(6.dp))
-                                                        Text(
-                                                            text = "Updating...",
-                                                            fontWeight = FontWeight.Bold,
-                                                            fontSize = 12.sp,
-                                                            textAlign = TextAlign.Center
-                                                        )
-                                                    } else if (isSeasonFullyWatched) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.CheckCircle,
-                                                            contentDescription = null,
-                                                            modifier = Modifier.size(22.dp),
-                                                            tint = Color(0xFF7CE49F)
-                                                        )
-                                                        Spacer(modifier = Modifier.height(4.dp))
-                                                        Text(
-                                                            text = "Season $selectedSeasonNumber",
-                                                            fontWeight = FontWeight.Bold,
-                                                            fontSize = 13.sp,
-                                                            textAlign = TextAlign.Center
-                                                        )
-                                                        Text(
-                                                            text = "Watched",
-                                                            fontSize = 11.sp,
-                                                            color = Color(0xFF7CE49F),
-                                                            fontWeight = FontWeight.SemiBold
-                                                        )
-                                                    } else {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Check,
-                                                            contentDescription = null,
-                                                            modifier = Modifier.size(22.dp)
-                                                        )
-                                                        Spacer(modifier = Modifier.height(4.dp))
-                                                        Text(
-                                                            text = "Mark Season $selectedSeasonNumber",
-                                                            fontWeight = FontWeight.Bold,
-                                                            fontSize = 13.sp,
-                                                            textAlign = TextAlign.Center
-                                                        )
-                                                        Text(
-                                                            text = "as Watched",
-                                                            fontWeight = FontWeight.Medium,
-                                                            fontSize = 11.sp,
-                                                            textAlign = TextAlign.Center
-                                                        )
-                                                    }
-                                                }
-                                            }
+                                        if (isMarkingWatched) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                strokeWidth = 2.dp,
+                                                color = Color(0xFFEADDFF)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
+                                        } else if (isSeasonFullyWatched) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Season $sNum Watched", fontWeight = FontWeight.Bold)
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Mark Season $sNum as Watched", fontWeight = FontWeight.Bold)
                                         }
                                     }
+                                }
 
                                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                                     val isWide = maxWidth >= 600.dp
                                     if (isWide) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                            verticalAlignment = Alignment.Top
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             EpisodeWatchSection(modifier = Modifier.weight(1f))
                                             SeasonWatchSection(modifier = Modifier.weight(1f))
@@ -931,10 +713,9 @@ fun ShowDetailScreen(
                                     } else {
                                         Column(
                                             modifier = Modifier.fillMaxWidth(),
-                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
                                             EpisodeWatchSection(modifier = Modifier.fillMaxWidth())
-                                            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 2.dp))
                                             SeasonWatchSection(modifier = Modifier.fillMaxWidth())
                                         }
                                     }
