@@ -9,6 +9,9 @@ on:
       - '**'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
@@ -65,11 +68,16 @@ jobs:
             gradle assembleRelease --stacktrace
           fi
 
-      - name: Upload Release APK Artifact
-        uses: actions/upload-artifact@v7
+      - name: Publish Nightly Release
+        uses: softprops/action-gh-release@v3
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
-          name: simkl-calendar-release-apk
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
-          retention-days: 14
-          archive: false
+          tag_name: nightly
+          name: "Nightly Build"
+          body: |
+            Automated nightly release.
+            Commit: ${{ github.sha }}
+          prerelease: true
+          files: app/build/outputs/apk/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
