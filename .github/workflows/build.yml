@@ -72,4 +72,4 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14
-          compression-level: 0
+          archive: false
