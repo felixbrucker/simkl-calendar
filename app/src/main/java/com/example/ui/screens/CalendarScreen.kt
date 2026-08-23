@@ -53,7 +53,10 @@ import com.example.data.model.MovieReleaseType
 import com.example.data.util.DateUtil
 import com.example.data.util.PosterSize
 import com.example.data.util.formattedEpisodeCardBadge
+import com.example.data.util.formattedEpisodeLabel
+import com.example.data.util.formattedSeasonLabel
 import com.example.data.util.toPosterUrl
+import com.example.R
 import com.example.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -146,8 +149,11 @@ fun CalendarScreen(
         }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -681,9 +687,41 @@ fun CalendarScreen(
                                 }
 
                                 items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
-                                    CalendarItemCard(
+                                    SwipeableCalendarItemCard(
                                         item = item,
-                                        onClick = { onNavigateToShowDetail(item.primaryKey) }
+                                        onClick = { onNavigateToShowDetail(item.primaryKey) },
+                                        onMarkEpisodeWatched = {
+                                            if (item.type == MediaType.MOVIE) {
+                                                viewModel.markMovieWatched(
+                                                    simklId = item.simklId,
+                                                    showTitle = item.title
+                                                ) { _, msg ->
+                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                }
+                                            } else {
+                                                viewModel.markEpisodeWatched(
+                                                    simklId = item.simklId,
+                                                    season = item.season,
+                                                    episodeNumber = item.episodeNumber ?: 1,
+                                                    mediaType = item.type,
+                                                    showTitle = item.title
+                                                ) { _, msg ->
+                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                }
+                                            }
+                                        },
+                                        onMarkSeasonWatched = {
+                                            if (item.type != MediaType.MOVIE) {
+                                                viewModel.markSeasonWatched(
+                                                    simklId = item.simklId,
+                                                    season = item.season ?: 1,
+                                                    mediaType = item.type,
+                                                    showTitle = item.title
+                                                ) { _, msg ->
+                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                }
+                                            }
+                                        }
                                     )
                                 }
                             }
@@ -711,9 +749,41 @@ fun CalendarScreen(
                             }
 
                             items(dayItems, key = { it.primaryKey }) { item ->
-                                CalendarItemCard(
+                                SwipeableCalendarItemCard(
                                     item = item,
-                                    onClick = { onNavigateToShowDetail(item.primaryKey) }
+                                    onClick = { onNavigateToShowDetail(item.primaryKey) },
+                                    onMarkEpisodeWatched = {
+                                        if (item.type == MediaType.MOVIE) {
+                                            viewModel.markMovieWatched(
+                                                simklId = item.simklId,
+                                                showTitle = item.title
+                                            ) { _, msg ->
+                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                            }
+                                        } else {
+                                            viewModel.markEpisodeWatched(
+                                                simklId = item.simklId,
+                                                season = item.season,
+                                                episodeNumber = item.episodeNumber ?: 1,
+                                                mediaType = item.type,
+                                                showTitle = item.title
+                                            ) { _, msg ->
+                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                            }
+                                        }
+                                    },
+                                    onMarkSeasonWatched = {
+                                        if (item.type != MediaType.MOVIE) {
+                                            viewModel.markSeasonWatched(
+                                                simklId = item.simklId,
+                                                season = item.season ?: 1,
+                                                mediaType = item.type,
+                                                showTitle = item.title
+                                            ) { _, msg ->
+                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                            }
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -769,7 +839,8 @@ fun CalendarScreen(
 @Composable
 fun CalendarItemCard(
     item: CalendarItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val categoryColor = when (item.type) {
         MediaType.ANIME -> Color(0xFFD0BCFF)
@@ -786,9 +857,7 @@ fun CalendarItemCard(
             1.dp,
             if (item.isWatched) Color(0xFF38353D) else Color(0xFF49454F)
         ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+        modifier = modifier
             .alpha(if (item.isWatched) 0.6f else 1f)
             .clickable(onClick = onClick)
     ) {
@@ -938,5 +1007,129 @@ fun CalendarItemCard(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SwipeableCalendarItemCard(
+    item: CalendarItem,
+    onClick: () -> Unit,
+    onMarkEpisodeWatched: () -> Unit,
+    onMarkSeasonWatched: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (item.isWatched) {
+        CalendarItemCard(
+            item = item,
+            onClick = onClick,
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+        )
+        return
+    }
+
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            when (dismissValue) {
+                SwipeToDismissBoxValue.EndToStart -> {
+                    // Swiped Left -> Mark this episode as watched
+                    onMarkEpisodeWatched()
+                    false
+                }
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    // Swiped Right -> Mark the season as watched (only available on anime/shows)
+                    if (item.type != MediaType.MOVIE) {
+                        onMarkSeasonWatched()
+                    }
+                    false
+                }
+                SwipeToDismissBoxValue.Settled -> false
+            }
+        },
+        positionalThreshold = { totalDistance -> totalDistance * 0.35f }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        enableDismissFromStartToEnd = !item.isWatched && item.type != MediaType.MOVIE,
+        enableDismissFromEndToStart = !item.isWatched,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val isStartToEnd = direction == SwipeToDismissBoxValue.StartToEnd
+            val isEndToStart = direction == SwipeToDismissBoxValue.EndToStart
+
+            val backgroundColor = when {
+                isStartToEnd && item.type != MediaType.MOVIE -> Color(0xFF004D40) // Season watched: deep teal
+                isEndToStart -> Color(0xFF1B4D3E) // Episode watched: deep green
+                else -> Color.Transparent
+            }
+
+            val icon = when {
+                isStartToEnd && item.type != MediaType.MOVIE -> painterResource(id = R.drawable.ic_done_all)
+                isEndToStart -> painterResource(id = R.drawable.ic_check)
+                else -> null
+            }
+
+            val label = when {
+                isStartToEnd && item.type != MediaType.MOVIE -> "Mark season as watched"
+                isEndToStart -> "Mark as watched"
+                else -> ""
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(backgroundColor)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = if (isStartToEnd) Alignment.CenterStart else Alignment.CenterEnd
+            ) {
+                if (icon != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (isStartToEnd) {
+                            Icon(
+                                painter = icon,
+                                contentDescription = label,
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = label,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        } else {
+                            Text(
+                                text = label,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Icon(
+                                painter = icon,
+                                contentDescription = label,
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    ) {
+        CalendarItemCard(
+            item = item,
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
