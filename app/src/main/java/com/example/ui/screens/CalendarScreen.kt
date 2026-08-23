@@ -1033,13 +1033,13 @@ fun SwipeableCalendarItemCard(
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
             when (dismissValue) {
-                SwipeToDismissBoxValue.EndToStart -> {
-                    // Swiped Left -> Mark this episode as watched
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    // Swiped Right -> Mark this episode as watched
                     onMarkEpisodeWatched()
                     false
                 }
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    // Swiped Right -> Mark the season as watched (only available on anime/shows)
+                SwipeToDismissBoxValue.EndToStart -> {
+                    // Swiped Left -> Mark the season as watched (only available on anime/shows)
                     if (item.type != MediaType.MOVIE) {
                         onMarkSeasonWatched()
                     }
@@ -1056,28 +1056,28 @@ fun SwipeableCalendarItemCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
-        enableDismissFromStartToEnd = !item.isWatched && item.type != MediaType.MOVIE,
-        enableDismissFromEndToStart = !item.isWatched,
+        enableDismissFromStartToEnd = !item.isWatched,
+        enableDismissFromEndToStart = !item.isWatched && item.type != MediaType.MOVIE,
         backgroundContent = {
             val direction = dismissState.dismissDirection
             val isStartToEnd = direction == SwipeToDismissBoxValue.StartToEnd
             val isEndToStart = direction == SwipeToDismissBoxValue.EndToStart
 
             val backgroundColor = when {
-                isStartToEnd && item.type != MediaType.MOVIE -> Color(0xFF004D40) // Season watched: deep teal
-                isEndToStart -> Color(0xFF1B4D3E) // Episode watched: deep green
+                isStartToEnd -> Color(0xFF1B4D3E) // Episode watched: deep green
+                isEndToStart && item.type != MediaType.MOVIE -> Color(0xFF004D40) // Season watched: deep teal
                 else -> Color.Transparent
             }
 
             val icon = when {
-                isStartToEnd && item.type != MediaType.MOVIE -> painterResource(id = R.drawable.ic_done_all)
-                isEndToStart -> painterResource(id = R.drawable.ic_check)
+                isStartToEnd -> painterResource(id = R.drawable.ic_check)
+                isEndToStart && item.type != MediaType.MOVIE -> painterResource(id = R.drawable.ic_done_all)
                 else -> null
             }
 
             val label = when {
-                isStartToEnd && item.type != MediaType.MOVIE -> "Mark season as watched"
-                isEndToStart -> "Mark as watched"
+                isStartToEnd -> "Mark as watched"
+                isEndToStart && item.type != MediaType.MOVIE -> "Mark season as watched"
                 else -> ""
             }
 
