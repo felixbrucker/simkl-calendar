@@ -51,7 +51,6 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val onlySeasonPremieres = MutableStateFlow(false)
     val onlySeasonFinales = MutableStateFlow(false)
     val onlyDigitalDvd = MutableStateFlow(false)
-    val excludeWatched = MutableStateFlow(false)
     val showEarlierReleases = MutableStateFlow(false)
     val searchQuery = MutableStateFlow("")
 
@@ -73,7 +72,6 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         onlySeasonPremieres,
         onlySeasonFinales,
         onlyDigitalDvd,
-        excludeWatched,
         searchQuery
     ) { flows ->
         val items = flows[0] as List<CalendarItem>
@@ -83,8 +81,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val premieres = flows[4] as Boolean
         val finales = flows[5] as Boolean
         val digitalDvd = flows[6] as Boolean
-        val excludeWatchedOnly = flows[7] as Boolean
-        val query = (flows[8] as String).trim()
+        val query = (flows[7] as String).trim()
 
         items.filter { item ->
             // Category filter
@@ -104,12 +101,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 (digitalDvd && item.type == MediaType.MOVIE && item.movieReleaseType == MovieReleaseType.DIGITAL)
             }
 
-            // Exclude watched episodes / releases filter
-            val matchesWatched = if (excludeWatchedOnly) {
-                !item.isWatched
-            } else {
-                true
-            }
+            // Always exclude watched episodes / releases
+            val matchesWatched = !item.isWatched
 
             // Search query filter matching show/movie title or episode title
             val matchesQuery = if (query.isEmpty()) {

@@ -89,7 +89,6 @@ fun CalendarScreen(
     val premieresOnly by viewModel.onlySeasonPremieres.collectAsState()
     val finalesOnly by viewModel.onlySeasonFinales.collectAsState()
     val digitalDvdOnly by viewModel.onlyDigitalDvd.collectAsState()
-    val excludeWatched by viewModel.excludeWatched.collectAsState()
     val showEarlierReleases by viewModel.showEarlierReleases.collectAsState()
 
     val username = userToken?.username ?: "Guest"
@@ -440,7 +439,7 @@ fun CalendarScreen(
                     )
                 }
 
-                // Subtype Row filters (Season Premiere / Season Finale / Digital & DVD highlights / Exclude Watched)
+                // Subtype Row filters (Season Premiere / Season Finale / Digital & DVD highlights)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -448,29 +447,6 @@ fun CalendarScreen(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    FilterChip(
-                        selected = excludeWatched,
-                        onClick = { viewModel.excludeWatched.value = !excludeWatched },
-                        label = { Text("Exclude Watched") },
-                        leadingIcon = if (excludeWatched) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Default.VisibilityOff,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        } else null,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF1E3A2B),
-                            selectedLabelColor = Color(0xFF7CE49F),
-                            selectedLeadingIconColor = Color(0xFF7CE49F),
-                            containerColor = Color(0xFF313033),
-                            labelColor = Color(0xFFCAC4D0)
-                        ),
-                        modifier = Modifier.testTag("filter_chip_exclude_watched")
-                    )
-
                     FilterChip(
                         selected = premieresOnly,
                         onClick = { viewModel.onlySeasonPremieres.value = !premieresOnly },
@@ -591,7 +567,6 @@ fun CalendarScreen(
                                         viewModel.onlySeasonPremieres.value = false
                                         viewModel.onlySeasonFinales.value = false
                                         viewModel.onlyDigitalDvd.value = false
-                                        viewModel.excludeWatched.value = false
                                     },
                                 ) {
                                     Text("Reset Active Filters", color = Color(0xFFD0BCFF))
