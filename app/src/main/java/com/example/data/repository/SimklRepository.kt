@@ -58,7 +58,19 @@ class SimklRepository(private val context: Context) {
         .addLast(KotlinJsonAdapterFactory())
         .build()
 
+    private val appName = BuildConfig.APP_NAME
+    private val appVersion = BuildConfig.VERSION_NAME
+    private val userAgent = "$appName/$appVersion"
+
     private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .header("User-Agent", userAgent)
+                .header("app-name", appName)
+                .header("app-version", appVersion)
+                .build()
+            chain.proceed(request)
+        }
         .addInterceptor { chain ->
             val request = chain.request()
             val url = request.url.toString()
