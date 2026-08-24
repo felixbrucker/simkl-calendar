@@ -395,7 +395,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        "Forces a full re-synchronization of your complete SIMKL watchlist and watched history from scratch, ignoring any saved timestamp.",
+                        "Forces a full re-synchronization of your complete SIMKL watchlist and watched history from scratch.",
                         color = Color(0xFFCAC4D0),
                         fontSize = 12.sp,
                         lineHeight = 16.sp
