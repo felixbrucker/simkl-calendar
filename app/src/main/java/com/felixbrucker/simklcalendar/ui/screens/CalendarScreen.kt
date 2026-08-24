@@ -663,6 +663,7 @@ fun CalendarScreen(
 
                                 items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
                                     SwipeableCalendarItemCard(
+                                        modifier = Modifier.animateItem(),
                                         item = item,
                                         onClick = { onNavigateToShowDetail(item.primaryKey) },
                                         onMarkEpisodeWatched = {
@@ -784,6 +785,7 @@ fun CalendarScreen(
 
                             items(dayItems, key = { it.primaryKey }) { item ->
                                 SwipeableCalendarItemCard(
+                                    modifier = Modifier.animateItem(),
                                     item = item,
                                     onClick = { onNavigateToShowDetail(item.primaryKey) },
                                     onMarkEpisodeWatched = {
