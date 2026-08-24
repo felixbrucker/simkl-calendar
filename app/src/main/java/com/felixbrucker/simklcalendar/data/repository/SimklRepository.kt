@@ -294,12 +294,11 @@ class SimklRepository(private val context: Context) {
             val shouldFetchDeltas = savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
 
             if (shouldFetchDeltas) {
-                Log.d("SimklRepository", "Watchlist Sync: Calling /sync/all-items with date_from=$savedTimestamp (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
+                Log.d("SimklRepository", "Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
                 val syncResponse = apiService.getSyncAllItems(
                     authorization = bearer,
-                    clientId = clientId,
-                    dateFrom = savedTimestamp
+                    clientId = clientId
                 )
 
                 val newTracked = mutableListOf<TrackedWatchlistItem>()
@@ -391,7 +390,28 @@ class SimklRepository(private val context: Context) {
                     watchlistDao.clearAll()
                     watchedDao.clearAll()
                     calendarDao.markAllUnwatched()
+                } else {
+                    // Remove any WatchedEpisode entities in our DB that aren't present in the list returned by the API
+                    val existingWatched = watchedDao.getAllWatchedEpisodes()
+                    val newWatchedKeys = newWatchedEpisodes.map { "${it.simklId}_${it.season}_${it.episodeNumber}" }.toSet()
+                    val watchedToRemove = existingWatched.filter {
+                        "${it.simklId}_${it.season}_${it.episodeNumber}" !in newWatchedKeys
+                    }
+
+                    if (watchedToRemove.isNotEmpty()) {
+                        watchedDao.deleteWatchedEpisodes(watchedToRemove)
+                        for (removed in watchedToRemove) {
+                            calendarDao.markEpisodeWatched(
+                                simklId = removed.simklId,
+                                season = removed.season,
+                                episodeNumber = removed.episodeNumber,
+                                watchedAt = null
+                            )
+                        }
+                        Log.d("SimklRepository", "Removed ${watchedToRemove.size} WatchedEpisode entities not present in API response")
+                    }
                 }
+
                 if (newTracked.isNotEmpty()) {
                     watchlistDao.insertOrUpdateItems(newTracked)
                 }
