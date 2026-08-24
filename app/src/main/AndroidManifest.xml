@@ -54,10 +54,10 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="com.example.ACTION_AIR_DATE_ALERT" />
-                <action android:name="com.example.ACTION_MARK_EPISODE_WATCHED" />
-                <action android:name="com.example.ACTION_MARK_SEASON_WATCHED" />
-                <action android:name="com.example.ACTION_MARK_MOVIE_WATCHED" />
+                <action android:name="com.felixbrucker.simklcalendar.ACTION_AIR_DATE_ALERT" />
+                <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_EPISODE_WATCHED" />
+                <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_SEASON_WATCHED" />
+                <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_MOVIE_WATCHED" />
             </intent-filter>
         </receiver>
     </application>

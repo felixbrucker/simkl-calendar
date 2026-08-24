@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.felixbrucker.simklcalendar"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.simklcalendar.uxytdz"
+    applicationId = "com.felixbrucker.simklcalendar"
     minSdk = 26
     targetSdk = 36
     versionCode = 1
