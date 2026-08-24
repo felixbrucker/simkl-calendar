@@ -535,7 +535,25 @@ fun ShowDetailScreen(
                                     simklId = activeItem.simklId,
                                     showTitle = activeItem.title
                                 ) { success, msg ->
-                                    scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    if (success) {
+                                        scope.launch {
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = msg,
+                                                actionLabel = "Revert",
+                                                duration = SnackbarDuration.Short
+                                            )
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                viewModel.markMovieUnwatched(
+                                                    simklId = activeItem.simklId,
+                                                    showTitle = activeItem.title
+                                                ) { _, revertMsg ->
+                                                    scope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
                                 }
                             },
                             enabled = !isMarkingWatched && !activeItem.isWatched,
@@ -593,7 +611,28 @@ fun ShowDetailScreen(
                                         mediaType = activeItem.type,
                                         showTitle = activeItem.title
                                     ) { success, msg ->
-                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                        if (success) {
+                                            scope.launch {
+                                                val result = snackbarHostState.showSnackbar(
+                                                    message = msg,
+                                                    actionLabel = "Revert",
+                                                    duration = SnackbarDuration.Short
+                                                )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    viewModel.markEpisodeUnwatched(
+                                                        simklId = activeItem.simklId,
+                                                        season = activeItem.season,
+                                                        episodeNumber = eNum,
+                                                        mediaType = activeItem.type,
+                                                        showTitle = activeItem.title
+                                                    ) { _, revertMsg ->
+                                                        scope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            scope.launch { snackbarHostState.showSnackbar(msg) }
+                                        }
                                     }
                                 },
                                 enabled = !isMarkingWatched && !activeItem.isWatched,
@@ -644,7 +683,27 @@ fun ShowDetailScreen(
                                         mediaType = activeItem.type,
                                         showTitle = activeItem.title
                                     ) { success, msg ->
-                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                        if (success) {
+                                            scope.launch {
+                                                val result = snackbarHostState.showSnackbar(
+                                                    message = msg,
+                                                    actionLabel = "Revert",
+                                                    duration = SnackbarDuration.Short
+                                                )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    viewModel.markSeasonUnwatched(
+                                                        simklId = activeItem.simklId,
+                                                        season = sNum,
+                                                        mediaType = activeItem.type,
+                                                        showTitle = activeItem.title
+                                                    ) { _, revertMsg ->
+                                                        scope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            scope.launch { snackbarHostState.showSnackbar(msg) }
+                                        }
                                     }
                                 },
                                 enabled = !isMarkingWatched && !isSeasonFullyWatched,

@@ -281,4 +281,106 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
+
+    fun markEpisodeUnwatched(
+        simklId: Int,
+        season: Int?,
+        episodeNumber: Int,
+        mediaType: MediaType,
+        showTitle: String? = null,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            _isMarkingWatched.value = true
+            val result = repository.markEpisodeUnwatched(
+                simklId = simklId,
+                season = season,
+                episodeNumber = episodeNumber,
+                mediaType = mediaType
+            )
+            _isMarkingWatched.value = false
+            if (result.isSuccess) {
+                val message = MediaFormatter.formatEpisodeUnwatchedToast(
+                    showTitle = showTitle,
+                    mediaType = mediaType,
+                    season = season,
+                    episodeNumber = episodeNumber
+                )
+                onResult(true, message)
+            } else {
+                val errorMsg = result.exceptionOrNull()?.message ?: "Failed to mark episode as unwatched"
+                onResult(false, errorMsg)
+            }
+        }
+    }
+
+    fun markSeasonUnwatched(
+        simklId: Int,
+        season: Int,
+        mediaType: MediaType,
+        showTitle: String? = null,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            _isMarkingWatched.value = true
+            val result = repository.markSeasonUnwatched(
+                simklId = simklId,
+                season = season,
+                mediaType = mediaType
+            )
+            _isMarkingWatched.value = false
+            if (result.isSuccess) {
+                val message = MediaFormatter.formatSeasonUnwatchedToast(
+                    showTitle = showTitle,
+                    mediaType = mediaType,
+                    season = season
+                )
+                onResult(true, message)
+            } else {
+                val errorMsg = result.exceptionOrNull()?.message ?: "Failed to mark season as unwatched"
+                onResult(false, errorMsg)
+            }
+        }
+    }
+
+    fun markMovieUnwatched(
+        simklId: Int,
+        showTitle: String? = null,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            _isMarkingWatched.value = true
+            val result = repository.markMovieUnwatched(simklId = simklId)
+            _isMarkingWatched.value = false
+            if (result.isSuccess) {
+                val message = MediaFormatter.formatMovieUnwatchedToast(showTitle)
+                onResult(true, message)
+            } else {
+                val errorMsg = result.exceptionOrNull()?.message ?: "Failed to mark movie as unwatched"
+                onResult(false, errorMsg)
+            }
+        }
+    }
+
+    private val _isForceSyncing = MutableStateFlow(false)
+    val isForceSyncing: StateFlow<Boolean> = _isForceSyncing.asStateFlow()
+
+    fun forceWatchlistResync(onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val token = repository.getActiveUserToken()
+            if (token == null || token.accessToken.isEmpty()) {
+                onComplete(false, "User is not logged in")
+                return@launch
+            }
+            _isForceSyncing.value = true
+            try {
+                repository.forceWatchlistResync()
+                _isForceSyncing.value = false
+                onComplete(true, "Watchlist re-synced successfully")
+            } catch (e: Exception) {
+                _isForceSyncing.value = false
+                onComplete(false, e.message ?: "Failed to re-sync watchlist")
+            }
+        }
+    }
 }

@@ -129,6 +129,12 @@ interface WatchedEpisodeDao {
     @Query("DELETE FROM watched_episodes WHERE simklId = :simklId")
     suspend fun deleteWatchedForShow(simklId: Int)
 
+    @Query("DELETE FROM watched_episodes WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) AND episodeNumber = :episodeNumber")
+    suspend fun deleteWatchedEpisode(simklId: Int, season: Int, episodeNumber: Int)
+
+    @Query("DELETE FROM watched_episodes WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL))")
+    suspend fun deleteWatchedSeason(simklId: Int, season: Int)
+
     @Query("DELETE FROM watched_episodes")
     suspend fun clearAll()
 }

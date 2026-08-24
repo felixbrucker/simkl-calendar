@@ -670,8 +670,26 @@ fun CalendarScreen(
                                                 viewModel.markMovieWatched(
                                                     simklId = item.simklId,
                                                     showTitle = item.title
-                                                ) { _, msg ->
-                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                ) { success, msg ->
+                                                    if (success) {
+                                                        coroutineScope.launch {
+                                                            val result = snackbarHostState.showSnackbar(
+                                                                message = msg,
+                                                                actionLabel = "Revert",
+                                                                duration = SnackbarDuration.Short
+                                                            )
+                                                            if (result == SnackbarResult.ActionPerformed) {
+                                                                viewModel.markMovieUnwatched(
+                                                                    simklId = item.simklId,
+                                                                    showTitle = item.title
+                                                                ) { _, revertMsg ->
+                                                                    coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                                }
+                                                            }
+                                                        }
+                                                    } else {
+                                                        coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                    }
                                                 }
                                             } else {
                                                 viewModel.markEpisodeWatched(
@@ -680,8 +698,29 @@ fun CalendarScreen(
                                                     episodeNumber = item.episodeNumber ?: 1,
                                                     mediaType = item.type,
                                                     showTitle = item.title
-                                                ) { _, msg ->
-                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                ) { success, msg ->
+                                                    if (success) {
+                                                        coroutineScope.launch {
+                                                            val result = snackbarHostState.showSnackbar(
+                                                                message = msg,
+                                                                actionLabel = "Revert",
+                                                                duration = SnackbarDuration.Short
+                                                            )
+                                                            if (result == SnackbarResult.ActionPerformed) {
+                                                                viewModel.markEpisodeUnwatched(
+                                                                    simklId = item.simklId,
+                                                                    season = item.season,
+                                                                    episodeNumber = item.episodeNumber ?: 1,
+                                                                    mediaType = item.type,
+                                                                    showTitle = item.title
+                                                                ) { _, revertMsg ->
+                                                                    coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                                }
+                                                            }
+                                                        }
+                                                    } else {
+                                                        coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                    }
                                                 }
                                             }
                                         },
@@ -692,8 +731,28 @@ fun CalendarScreen(
                                                     season = item.season ?: 1,
                                                     mediaType = item.type,
                                                     showTitle = item.title
-                                                ) { _, msg ->
-                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                ) { success, msg ->
+                                                    if (success) {
+                                                        coroutineScope.launch {
+                                                            val result = snackbarHostState.showSnackbar(
+                                                                message = msg,
+                                                                actionLabel = "Revert",
+                                                                duration = SnackbarDuration.Short
+                                                            )
+                                                            if (result == SnackbarResult.ActionPerformed) {
+                                                                viewModel.markSeasonUnwatched(
+                                                                    simklId = item.simklId,
+                                                                    season = item.season ?: 1,
+                                                                    mediaType = item.type,
+                                                                    showTitle = item.title
+                                                                ) { _, revertMsg ->
+                                                                    coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                                }
+                                                            }
+                                                        }
+                                                    } else {
+                                                        coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                    }
                                                 }
                                             }
                                         }
@@ -732,8 +791,26 @@ fun CalendarScreen(
                                             viewModel.markMovieWatched(
                                                 simklId = item.simklId,
                                                 showTitle = item.title
-                                            ) { _, msg ->
-                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                            ) { success, msg ->
+                                                if (success) {
+                                                    coroutineScope.launch {
+                                                        val result = snackbarHostState.showSnackbar(
+                                                            message = msg,
+                                                            actionLabel = "Revert",
+                                                            duration = SnackbarDuration.Short
+                                                        )
+                                                        if (result == SnackbarResult.ActionPerformed) {
+                                                            viewModel.markMovieUnwatched(
+                                                                simklId = item.simklId,
+                                                                showTitle = item.title
+                                                            ) { _, revertMsg ->
+                                                                coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                            }
+                                                        }
+                                                    }
+                                                } else {
+                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                }
                                             }
                                         } else {
                                             viewModel.markEpisodeWatched(
@@ -742,8 +819,29 @@ fun CalendarScreen(
                                                 episodeNumber = item.episodeNumber ?: 1,
                                                 mediaType = item.type,
                                                 showTitle = item.title
-                                            ) { _, msg ->
-                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                            ) { success, msg ->
+                                                if (success) {
+                                                    coroutineScope.launch {
+                                                        val result = snackbarHostState.showSnackbar(
+                                                            message = msg,
+                                                            actionLabel = "Revert",
+                                                            duration = SnackbarDuration.Short
+                                                        )
+                                                        if (result == SnackbarResult.ActionPerformed) {
+                                                            viewModel.markEpisodeUnwatched(
+                                                                simklId = item.simklId,
+                                                                season = item.season,
+                                                                episodeNumber = item.episodeNumber ?: 1,
+                                                                mediaType = item.type,
+                                                                showTitle = item.title
+                                                            ) { _, revertMsg ->
+                                                                coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                            }
+                                                        }
+                                                    }
+                                                } else {
+                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                }
                                             }
                                         }
                                     },
@@ -754,8 +852,28 @@ fun CalendarScreen(
                                                 season = item.season ?: 1,
                                                 mediaType = item.type,
                                                 showTitle = item.title
-                                            ) { _, msg ->
-                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                            ) { success, msg ->
+                                                if (success) {
+                                                    coroutineScope.launch {
+                                                        val result = snackbarHostState.showSnackbar(
+                                                            message = msg,
+                                                            actionLabel = "Revert",
+                                                            duration = SnackbarDuration.Short
+                                                        )
+                                                        if (result == SnackbarResult.ActionPerformed) {
+                                                            viewModel.markSeasonUnwatched(
+                                                                simklId = item.simklId,
+                                                                season = item.season ?: 1,
+                                                                mediaType = item.type,
+                                                                showTitle = item.title
+                                                            ) { _, revertMsg ->
+                                                                coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                            }
+                                                        }
+                                                    }
+                                                } else {
+                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                                }
                                             }
                                         }
                                     }

@@ -70,5 +70,15 @@ interface SimklApiService {
         @Query("app-version") appVersion: String = "1.0",
         @Body request: SyncHistoryRequest
     ): SyncHistoryResponse
+
+    @POST("sync/history/remove")
+    suspend fun markHistoryUnwatched(
+        @Header("Authorization") authorization: String? = null,
+        @Header("User-Agent") userAgent: String = "simkl-calendar/1.0",
+        @Query("client_id") clientId: String? = null,
+        @Query("app-name") appName: String = "simkl-calendar",
+        @Query("app-version") appVersion: String = "1.0",
+        @Body request: SyncHistoryRequest
+    ): SyncHistoryResponse
 }
 

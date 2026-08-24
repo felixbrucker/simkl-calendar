@@ -145,6 +145,45 @@ object MediaFormatter {
     }
 
     /**
+     * Formats the toast message when an episode is marked as unwatched.
+     */
+    fun formatEpisodeUnwatchedToast(
+        showTitle: String?,
+        mediaType: MediaType,
+        season: Int?,
+        episodeNumber: Int
+    ): String {
+        val epCode = formatEpisodeCode(mediaType, season, episodeNumber)
+        val prefix = if (!showTitle.isNullOrBlank()) "$showTitle $epCode" else epCode
+        return "Marked $prefix as unwatched"
+    }
+
+    /**
+     * Formats the toast message when a season is marked as unwatched.
+     */
+    fun formatSeasonUnwatchedToast(
+        showTitle: String?,
+        mediaType: MediaType,
+        season: Int?
+    ): String {
+        val sNum = season ?: 1
+        val target = if (isAnimeSeasonOne(mediaType, season)) {
+            if (!showTitle.isNullOrBlank()) showTitle else "anime"
+        } else {
+            if (!showTitle.isNullOrBlank()) "$showTitle Season $sNum" else "Season $sNum"
+        }
+        return "Marked $target as unwatched"
+    }
+
+    /**
+     * Formats the toast message when a movie is marked as unwatched.
+     */
+    fun formatMovieUnwatchedToast(showTitle: String?): String {
+        val target = if (!showTitle.isNullOrBlank()) showTitle else "Movie"
+        return "Marked $target as unwatched"
+    }
+
+    /**
      * Formats notification content (title & message).
      */
     fun formatNotificationContent(

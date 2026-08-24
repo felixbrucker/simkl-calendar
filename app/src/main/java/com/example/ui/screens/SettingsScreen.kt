@@ -29,6 +29,7 @@ import com.example.data.model.MovieReleaseType
 import com.example.ui.viewmodel.CalendarViewModel
 import com.example.receiver.NotificationReceiver
 import com.example.worker.SyncCalendarWorker
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,8 +72,13 @@ fun SettingsScreen(
         mutableStateOf(prefs.getInt("sync_interval_hours", 12).toFloat())
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val isForceSyncing by viewModel.isForceSyncing.collectAsState()
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Settings & Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
@@ -357,6 +363,81 @@ fun SettingsScreen(
                                  if (it) checkAndRequestPermission()
                             }
                         )
+                    }
+                }
+            }
+
+            // Force Watchlist Re-Sync Card
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.CloudSync,
+                            contentDescription = null,
+                            tint = Color(0xFFD0BCFF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Watchlist Synchronization",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE6E1E5),
+                            fontSize = 16.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Forces a full re-synchronization of your complete SIMKL watchlist and watched history from scratch, ignoring any saved timestamp.",
+                        color = Color(0xFFCAC4D0),
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            viewModel.forceWatchlistResync { success, message ->
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(message)
+                                }
+                            }
+                        },
+                        enabled = !isForceSyncing,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4F378B),
+                            contentColor = Color(0xFFEADDFF),
+                            disabledContainerColor = Color(0xFF3B383E),
+                            disabledContentColor = Color(0xFF79747E)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        if (isForceSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = Color(0xFFEADDFF)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Re-syncing Watchlist...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        } else {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Force Watchlist Re-Sync", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
                     }
                 }
             }

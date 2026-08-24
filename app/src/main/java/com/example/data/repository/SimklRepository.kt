@@ -258,7 +258,7 @@ class SimklRepository(private val context: Context) {
      * Uses /sync/activities timestamp to determine if changes exist.
      * Only transfers tiny JSON payloads on delta updates.
      */
-    suspend fun syncWatchlist(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun syncWatchlist(forceFullSync: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken()
         if (userToken == null || userToken.accessToken.isEmpty()) {
             Log.d("SimklRepository", "No authenticated user token found, skipping watchlist sync.")
@@ -276,13 +276,13 @@ class SimklRepository(private val context: Context) {
             )
 
             val currentActivitiesTimestamp = activities.all
-            val savedTimestamp = syncPrefs.getString("last_activities_all", null)
+            val savedTimestamp = if (forceFullSync) null else syncPrefs.getString("last_activities_all", null)
 
             val shouldFetchDeltas = savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
 
             if (shouldFetchDeltas) {
                 val dateFromParam = savedTimestamp
-                Log.d("SimklRepository", "Watchlist Sync: Calling /sync/all-items with date_from=$dateFromParam (saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
+                Log.d("SimklRepository", "Watchlist Sync: Calling /sync/all-items with date_from=$dateFromParam (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
                 val syncResponse = apiService.getSyncAllItems(
                     authorization = bearer,
@@ -1051,6 +1051,199 @@ class SimklRepository(private val context: Context) {
             Log.e("SimklRepository", "Failed to mark movie as watched for simklId $simklId", e)
             Result.failure(e)
         }
+    }
+
+    suspend fun markEpisodeUnwatched(
+        simklId: Int,
+        season: Int?,
+        episodeNumber: Int,
+        mediaType: MediaType
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userToken = tokenDao.getActiveToken()
+            if (userToken == null || userToken.accessToken.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("User is not logged in"))
+            }
+
+            val bearer = "Bearer ${userToken.accessToken}"
+            val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
+            val effectiveSeason = season ?: 1
+
+            val request = if (mediaType == MediaType.ANIME) {
+                SyncHistoryRequest(
+                    anime = listOf(
+                        SyncHistoryShowItem(
+                            ids = SimklIds(simkl = simklId),
+                            seasons = listOf(
+                                SyncHistorySeasonItem(
+                                    number = effectiveSeason,
+                                    episodes = listOf(
+                                        SyncHistoryEpisodeItem(number = episodeNumber)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            } else {
+                SyncHistoryRequest(
+                    shows = listOf(
+                        SyncHistoryShowItem(
+                            ids = SimklIds(simkl = simklId),
+                            seasons = listOf(
+                                SyncHistorySeasonItem(
+                                    number = effectiveSeason,
+                                    episodes = listOf(
+                                        SyncHistoryEpisodeItem(number = episodeNumber)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            }
+
+            apiService.markHistoryUnwatched(
+                authorization = bearer,
+                clientId = clientId,
+                request = request
+            )
+
+            // Revert local changes immediately
+            watchedDao.deleteWatchedEpisode(
+                simklId = simklId,
+                season = effectiveSeason,
+                episodeNumber = episodeNumber
+            )
+            calendarDao.markEpisodeWatched(
+                simklId = simklId,
+                season = season,
+                episodeNumber = episodeNumber,
+                watchedAt = null
+            )
+
+            // Trigger background watchlist sync to refresh metadata/activities
+            syncWatchlist()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("SimklRepository", "Failed to mark episode S${season}E${episodeNumber} as unwatched for simklId $simklId", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun markSeasonUnwatched(
+        simklId: Int,
+        season: Int,
+        mediaType: MediaType
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userToken = tokenDao.getActiveToken()
+            if (userToken == null || userToken.accessToken.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("User is not logged in"))
+            }
+
+            val bearer = "Bearer ${userToken.accessToken}"
+            val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
+
+            val request = if (mediaType == MediaType.ANIME) {
+                SyncHistoryRequest(
+                    anime = listOf(
+                        SyncHistoryShowItem(
+                            ids = SimklIds(simkl = simklId),
+                            seasons = listOf(
+                                SyncHistorySeasonItem(
+                                    number = season
+                                )
+                            )
+                        )
+                    )
+                )
+            } else {
+                SyncHistoryRequest(
+                    shows = listOf(
+                        SyncHistoryShowItem(
+                            ids = SimklIds(simkl = simklId),
+                            seasons = listOf(
+                                SyncHistorySeasonItem(
+                                    number = season
+                                )
+                            )
+                        )
+                    )
+                )
+            }
+
+            apiService.markHistoryUnwatched(
+                authorization = bearer,
+                clientId = clientId,
+                request = request
+            )
+
+            // Revert local changes immediately
+            watchedDao.deleteWatchedSeason(
+                simklId = simklId,
+                season = season
+            )
+
+            calendarDao.markSeasonWatched(
+                simklId = simklId,
+                season = season,
+                watchedAt = null
+            )
+
+            // Trigger background watchlist sync
+            syncWatchlist()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("SimklRepository", "Failed to mark season $season as unwatched for simklId $simklId", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun markMovieUnwatched(
+        simklId: Int
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userToken = tokenDao.getActiveToken()
+            if (userToken == null || userToken.accessToken.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("User is not logged in"))
+            }
+
+            val bearer = "Bearer ${userToken.accessToken}"
+            val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
+
+            val request = SyncHistoryRequest(
+                movies = listOf(
+                    SyncHistoryMovieItem(
+                        ids = SimklIds(simkl = simklId)
+                    )
+                )
+            )
+
+            apiService.markHistoryUnwatched(
+                authorization = bearer,
+                clientId = clientId,
+                request = request
+            )
+
+            calendarDao.markMovieWatched(simklId = simklId, watchedAt = null)
+
+            // Trigger background watchlist sync
+            syncWatchlist()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("SimklRepository", "Failed to mark movie as unwatched for simklId $simklId", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun forceWatchlistResync(): Boolean = withContext(Dispatchers.IO) {
+        val changed = syncWatchlist(forceFullSync = true)
+        syncCalendarJsons()
+        changed
     }
 }
 
