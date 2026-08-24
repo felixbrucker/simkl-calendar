@@ -294,18 +294,16 @@ class SimklRepository(private val context: Context) {
             val shouldFetchDeltas = savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
 
             if (shouldFetchDeltas) {
-                val dateFromParam = savedTimestamp
-                Log.d("SimklRepository", "Watchlist Sync: Calling /sync/all-items with date_from=$dateFromParam (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
+                Log.d("SimklRepository", "Watchlist Sync: Calling /sync/all-items with date_from=$savedTimestamp (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
                 val syncResponse = apiService.getSyncAllItems(
                     authorization = bearer,
                     clientId = clientId,
-                    dateFrom = dateFromParam
+                    dateFrom = savedTimestamp
                 )
 
                 val newTracked = mutableListOf<TrackedWatchlistItem>()
                 val newWatchedEpisodes = mutableListOf<WatchedEpisode>()
-                val toDeleteWatchedEpisodes = mutableListOf<WatchedEpisode>()
 
                 fun extractWatched(simklId: Int, seasons: List<SyncSeasonItem>?) {
                     seasons?.forEach { seasonItem ->
@@ -319,15 +317,6 @@ class SimklRepository(private val context: Context) {
                                         season = sNum,
                                         episodeNumber = epItem.number,
                                         watchedAt = watchedInstant
-                                    )
-                                )
-                            } else {
-                                toDeleteWatchedEpisodes.add(
-                                    WatchedEpisode(
-                                        simklId = simklId,
-                                        season = sNum,
-                                        episodeNumber = epItem.number,
-                                        watchedAt = null
                                     )
                                 )
                             }
@@ -351,7 +340,7 @@ class SimklRepository(private val context: Context) {
                                 poster = media.poster
                             )
                         )
-                    } else if (dateFromParam != null) {
+                    } else if (savedTimestamp != null) {
                         watchlistDao.deleteItem(simklId)
                         watchedDao.deleteWatchedForShow(simklId)
                     }
@@ -373,7 +362,7 @@ class SimklRepository(private val context: Context) {
                                 poster = media.poster
                             )
                         )
-                    } else if (dateFromParam != null) {
+                    } else if (savedTimestamp != null) {
                         watchlistDao.deleteItem(simklId)
                         watchedDao.deleteWatchedForShow(simklId)
                     }
@@ -393,14 +382,15 @@ class SimklRepository(private val context: Context) {
                                 poster = media.poster
                             )
                         )
-                    } else if (dateFromParam != null) {
+                    } else if (savedTimestamp != null) {
                         watchlistDao.deleteItem(simklId)
                     }
                 }
 
-                if (dateFromParam == null) {
+                if (savedTimestamp == null) {
                     watchlistDao.clearAll()
                     watchedDao.clearAll()
+                    calendarDao.markAllUnwatched()
                 }
                 if (newTracked.isNotEmpty()) {
                     watchlistDao.insertOrUpdateItems(newTracked)
@@ -413,17 +403,6 @@ class SimklRepository(private val context: Context) {
                             season = watched.season,
                             episodeNumber = watched.episodeNumber,
                             watchedAt = watched.watchedAt
-                        )
-                    }
-                }
-                if (toDeleteWatchedEpisodes.isNotEmpty()) {
-                    watchedDao.deleteWatchedEpisodes(toDeleteWatchedEpisodes)
-                    for (unwatched in toDeleteWatchedEpisodes) {
-                        calendarDao.markEpisodeWatched(
-                            simklId = unwatched.simklId,
-                            season = unwatched.season,
-                            episodeNumber = unwatched.episodeNumber,
-                            watchedAt = null
                         )
                     }
                 }

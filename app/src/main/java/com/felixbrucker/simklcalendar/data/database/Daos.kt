@@ -65,6 +65,9 @@ interface CalendarItemDao {
 
     @Query("DELETE FROM calendar_items WHERE watchedAt IS NOT NULL AND watchedAt < :cutoff")
     suspend fun deleteWatchedItemsOlderThan(cutoff: java.time.Instant): Int
+
+    @Query("UPDATE calendar_items SET watchedAt = NULL")
+    suspend fun markAllUnwatched()
 }
 
 @Dao
