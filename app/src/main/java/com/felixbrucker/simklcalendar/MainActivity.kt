@@ -17,8 +17,6 @@ import androidx.browser.auth.AuthTabIntent
 import androidx.browser.customtabs.CustomTabsClient
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -194,12 +192,11 @@ fun SimklCalendarApp(
     // Determine initial active route depending on user authentication status
     val startDestination = if (userToken == null) "login" else "calendar"
 
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding)
-        ) {
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+        modifier = Modifier.fillMaxSize()
+    ) {
             // 1. Authentication Login (OAuth via AuthTab)
             composable("login") {
                 LoginScreen(
@@ -259,5 +256,4 @@ fun SimklCalendarApp(
             }
         }
     }
-}
 
