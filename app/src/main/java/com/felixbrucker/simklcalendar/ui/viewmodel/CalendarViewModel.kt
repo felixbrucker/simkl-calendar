@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisode
@@ -30,6 +31,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val watchedEpisodes: StateFlow<List<WatchedEpisode>> = repository.watchedEpisodes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val customSearchLinks: StateFlow<List<CustomSearchLink>> = repository.customSearchLinks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isMarkingWatched = MutableStateFlow(false)
@@ -385,4 +389,30 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
+
+    fun saveCustomSearchLink(link: CustomSearchLink, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            if (link.id == 0L) {
+                repository.insertSearchLink(link)
+            } else {
+                repository.updateSearchLink(link)
+            }
+            onComplete()
+        }
+    }
+
+    fun deleteCustomSearchLink(link: CustomSearchLink, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.deleteSearchLink(link)
+            onComplete()
+        }
+    }
+
+    fun deleteCustomSearchLinkById(id: Long, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.deleteSearchLinkById(id)
+            onComplete()
+        }
+    }
 }
+

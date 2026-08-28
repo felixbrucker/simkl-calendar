@@ -78,4 +78,95 @@ data class WatchedEpisode(
     val watchedAt: Instant? = null
 )
 
+@Entity(tableName = "custom_search_links")
+data class CustomSearchLink(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val subtitle: String? = null,
+    val urlTemplate: String,
+    val associatedTypes: List<MediaType> = listOf(MediaType.TV, MediaType.ANIME, MediaType.MOVIE)
+) {
+    /**
+     * Builds the complete URL by replacing supported placeholders with values from the given CalendarItem.
+     * Supported placeholders:
+     * - {TITLE} -> Show/Movie/Anime title (URL encoded)
+     * - {SEASON} -> Season number (e.g. "4")
+     * - {EPISODE} -> Episode number (e.g. "3")
+     * - {SEASON_SLUG} -> Season code (e.g. "S04")
+     * - {EPISODE_SLUG} -> Episode code (e.g. "S04E03" or "E03")
+     */
+    fun buildUrl(item: CalendarItem): String {
+        val rawTitle = item.title
+        val encodedTitle = try {
+            java.net.URLEncoder.encode(rawTitle, "UTF-8")
+        } catch (_: Exception) {
+            rawTitle
+        }
+
+        val seasonNumStr = item.season?.toString() ?: if (item.type != MediaType.MOVIE) "1" else ""
+        val episodeNumStr = item.episodeNumber?.toString() ?: ""
+
+        val seasonSlugStr = if (item.type == MediaType.MOVIE) {
+            ""
+        } else if (item.season != null && item.season > 0) {
+            String.format(java.util.Locale.US, "S%02d", item.season)
+        } else {
+            "S01"
+        }
+
+        val episodeSlugStr = if (item.type == MediaType.MOVIE) {
+            ""
+        } else if (item.season != null && item.episodeNumber != null) {
+            String.format(java.util.Locale.US, "S%02dE%02d", item.season, item.episodeNumber)
+        } else if (item.episodeNumber != null) {
+            String.format(java.util.Locale.US, "E%02d", item.episodeNumber)
+        } else {
+            ""
+        }
+
+        var result = urlTemplate
+
+        // Replace supported {CAPSLOCK PLACEHOLDER} tokens (case-insensitive for user convenience)
+        result = result.replace("{TITLE}", encodedTitle, ignoreCase = true)
+        result = result.replace("{EPISODE_SLUG}", episodeSlugStr, ignoreCase = true)
+        result = result.replace("{SEASON_SLUG}", seasonSlugStr, ignoreCase = true)
+        result = result.replace("{SEASON}", seasonNumStr, ignoreCase = true)
+        result = result.replace("{EPISODE}", episodeNumStr, ignoreCase = true)
+
+        val trimmed = result.trim()
+        return if (!trimmed.startsWith("http://", ignoreCase = true) && !trimmed.startsWith("https://", ignoreCase = true)) {
+            "https://$trimmed"
+        } else {
+            trimmed
+        }
+    }
+
+    /**
+     * Extracts domain/host from the urlTemplate to fetch favicon.
+     */
+    fun extractDomain(): String {
+        return try {
+            val cleanUrl = if (urlTemplate.startsWith("http://", ignoreCase = true) || urlTemplate.startsWith("https://", ignoreCase = true)) {
+                urlTemplate
+            } else {
+                "https://$urlTemplate"
+            }
+            val uri = android.net.Uri.parse(cleanUrl)
+            val host = uri.host ?: ""
+            if (host.isNotBlank()) host else cleanUrl.substringBefore("/").substringBefore("?")
+        } catch (_: Exception) {
+            urlTemplate.substringBefore("/").substringBefore("?")
+        }
+    }
+
+    /**
+     * Returns Google's favicon service URL for this link's domain.
+     */
+    fun getFaviconUrl(): String {
+        val domain = extractDomain()
+        return "https://www.google.com/s2/favicons?domain=$domain&sz=64"
+    }
+}
+
+
 

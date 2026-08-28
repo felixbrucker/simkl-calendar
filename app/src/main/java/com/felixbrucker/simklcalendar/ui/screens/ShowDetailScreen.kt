@@ -24,7 +24,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocalMovies
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
@@ -71,6 +73,7 @@ fun ShowDetailScreen(
     val allItems by viewModel.allCalendarItems.collectAsState()
     val allWatchedEpisodes by viewModel.watchedEpisodes.collectAsState()
     val isMarkingWatched by viewModel.isMarkingWatched.collectAsState()
+    val allSearchLinks by viewModel.customSearchLinks.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -803,6 +806,122 @@ fun ShowDetailScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
+                    }
+
+                    // Matching Custom Search Links
+                    val matchingSearchLinks = remember(allSearchLinks, activeItem) {
+                        allSearchLinks.filter { it.associatedTypes.contains(activeItem.type) }
+                    }
+
+                    if (matchingSearchLinks.isNotEmpty()) {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+                            border = BorderStroke(1.dp, Color(0xFF49454F))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD0BCFF),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "Custom Search Links",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFE6E1E5),
+                                        fontSize = 15.sp
+                                    )
+                                }
+
+                                matchingSearchLinks.forEach { link ->
+                                    val resolvedUrl = remember(link, activeItem) {
+                                        link.buildUrl(activeItem)
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFF1C1B1F),
+                                        border = BorderStroke(1.dp, Color(0xFF49454F)),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                try {
+                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(resolvedUrl))
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("Unable to open link: ${e.message}")
+                                                    }
+                                                }
+                                            }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = Color(0xFF2B2930),
+                                                    modifier = Modifier.size(32.dp)
+                                                ) {
+                                                    Box(
+                                                        contentAlignment = Alignment.Center,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    ) {
+                                                        AsyncImage(
+                                                            model = link.getFaviconUrl(),
+                                                            contentDescription = link.name,
+                                                            modifier = Modifier.size(20.dp),
+                                                            contentScale = ContentScale.Fit
+                                                        )
+                                                    }
+                                                }
+
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = link.name,
+                                                        color = Color(0xFFE6E1E5),
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 14.sp
+                                                    )
+                                                    if (!link.subtitle.isNullOrBlank()) {
+                                                        Text(
+                                                            text = link.subtitle,
+                                                            color = Color(0xFFCAC4D0),
+                                                            fontSize = 11.sp,
+                                                            maxLines = 1
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                                contentDescription = "Open ${link.name}",
+                                                tint = Color(0xFFD0BCFF),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // If there are multiple scheduled episodes/releases for this show/movie, display a selector / list

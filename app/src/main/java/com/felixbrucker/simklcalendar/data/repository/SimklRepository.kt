@@ -5,6 +5,7 @@ import android.util.Log
 import com.felixbrucker.simklcalendar.BuildConfig
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.UserToken
@@ -46,6 +47,7 @@ class SimklRepository(private val context: Context) {
     private val settingDao = db.notificationSettingDao()
     private val watchlistDao = db.watchlistDao()
     private val watchedDao = db.watchedEpisodeDao()
+    private val searchLinkDao = db.customSearchLinkDao()
     private val authPrefs = context.getSharedPreferences("simkl_pkce_auth", Context.MODE_PRIVATE)
     private val syncPrefs = context.getSharedPreferences("simkl_sync_prefs", Context.MODE_PRIVATE)
 
@@ -53,6 +55,24 @@ class SimklRepository(private val context: Context) {
     val calendarItems: Flow<List<CalendarItem>> = calendarDao.getAllCalendarItems()
     val notificationSettings: Flow<List<NotificationSetting>> = settingDao.getAllSettings()
     val watchedEpisodes: Flow<List<WatchedEpisode>> = watchedDao.getAllWatchedEpisodesFlow()
+    val customSearchLinks: Flow<List<CustomSearchLink>> = searchLinkDao.getAllSearchLinks()
+
+    suspend fun insertSearchLink(link: CustomSearchLink): Long = withContext(Dispatchers.IO) {
+        searchLinkDao.insertSearchLink(link)
+    }
+
+    suspend fun updateSearchLink(link: CustomSearchLink) = withContext(Dispatchers.IO) {
+        searchLinkDao.updateSearchLink(link)
+    }
+
+    suspend fun deleteSearchLink(link: CustomSearchLink) = withContext(Dispatchers.IO) {
+        searchLinkDao.deleteSearchLink(link)
+    }
+
+    suspend fun deleteSearchLinkById(id: Long) = withContext(Dispatchers.IO) {
+        searchLinkDao.deleteSearchLinkById(id)
+    }
+
 
 
     private val moshi = Moshi.Builder()

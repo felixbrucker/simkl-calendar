@@ -60,15 +60,30 @@ class Converters {
     fun toWatchlistStatus(value: String?): WatchlistStatus? {
         return value?.let { WatchlistStatus.fromKey(it) }
     }
+
+    @TypeConverter
+    fun fromMediaTypeList(types: List<MediaType>?): String? {
+        return types?.joinToString(",") { it.key }
+    }
+
+    @TypeConverter
+    fun toMediaTypeList(value: String?): List<MediaType>? {
+        if (value.isNullOrBlank()) return emptyList()
+        return value.split(",").mapNotNull { key ->
+            MediaType.entries.firstOrNull { it.key.equals(key.trim(), ignoreCase = true) }
+                ?: MediaType.fromKey(key.trim())
+        }
+    }
 }
 
 @Database(
-    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class],
-    version = 10,
+    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class],
+    version = 11,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
-        AutoMigration(from = 8, to = 9, spec = AppDatabase.Migration8To9::class)
+        AutoMigration(from = 8, to = 9, spec = AppDatabase.Migration8To9::class),
+        AutoMigration(from = 10, to = 11)
     ]
 )
 @TypeConverters(Converters::class)
@@ -81,6 +96,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun notificationSettingDao(): NotificationSettingDao
     abstract fun watchlistDao(): WatchlistDao
     abstract fun watchedEpisodeDao(): WatchedEpisodeDao
+    abstract fun customSearchLinkDao(): CustomSearchLinkDao
 
     companion object {
         @Volatile

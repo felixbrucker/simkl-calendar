@@ -142,4 +142,26 @@ interface WatchedEpisodeDao {
     suspend fun clearAll()
 }
 
+@Dao
+interface CustomSearchLinkDao {
+    @Query("SELECT * FROM custom_search_links ORDER BY id ASC")
+    fun getAllSearchLinks(): Flow<List<CustomSearchLink>>
+
+    @Query("SELECT * FROM custom_search_links ORDER BY id ASC")
+    suspend fun getAllSearchLinksList(): List<CustomSearchLink>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSearchLink(link: CustomSearchLink): Long
+
+    @Update
+    suspend fun updateSearchLink(link: CustomSearchLink)
+
+    @Delete
+    suspend fun deleteSearchLink(link: CustomSearchLink)
+
+    @Query("DELETE FROM custom_search_links WHERE id = :id")
+    suspend fun deleteSearchLinkById(id: Long)
+}
+
+
 
