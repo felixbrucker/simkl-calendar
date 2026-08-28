@@ -455,14 +455,6 @@ fun SettingsScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        "Supported placeholders: {TITLE}, {ROMAJI_TITLE}, {SEASON}, {EPISODE}, {SEASON_SLUG}, {EPISODE_SLUG}.",
-                        color = Color(0xFFCAC4D0),
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-
                     Spacer(modifier = Modifier.height(14.dp))
 
                     if (customSearchLinks.isEmpty()) {
@@ -736,7 +728,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = inputName,
                         onValueChange = { inputName = it },
-                        label = { Text("Name *") },
+                        label = { Text("Name") },
                         placeholder = { Text("e.g. Search Service") },
                         singleLine = true,
                         modifier = Modifier
@@ -760,7 +752,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = inputUrlTemplate,
                         onValueChange = { inputUrlTemplate = it },
-                        label = { Text("URL Template *") },
+                        label = { Text("URL Template") },
                         placeholder = { Text("https://example.com/search?q={TITLE}") },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -844,7 +836,7 @@ fun SettingsScreen(
                     // Associated Item Types
                     Column {
                         Text(
-                            text = "Associated Item Types *",
+                            text = "Associated Item Types",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFFE6E1E5)
