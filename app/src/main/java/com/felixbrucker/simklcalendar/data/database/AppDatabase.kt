@@ -83,6 +83,7 @@ class Converters {
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
         AutoMigration(from = 8, to = 9, spec = AppDatabase.Migration8To9::class),
+        AutoMigration(from = 9, to = 10),
         AutoMigration(from = 10, to = 11)
     ]
 )
@@ -109,6 +110,9 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "simkl_calendar_database"
                 )
+                // CRITICAL / DO NOT CHANGE: Never fallback to destructive migrations or drop user data on schema change.
+                // Always write explicit AutoMigration or Migration steps instead.
+                .fallbackToDestructiveMigration(false)
                 .build()
                 INSTANCE = instance
                 instance
