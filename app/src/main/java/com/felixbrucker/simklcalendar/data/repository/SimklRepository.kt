@@ -616,6 +616,7 @@ class SimklRepository(private val context: Context) {
 
                         val meta = metadataMap[simklId.toString()] ?: metadataMap[simklId.toString().lowercase()]
                         val title = meta?.title ?: allTrackedItems.find { it.simklId == simklId }?.title ?: "Untitled"
+                        val titleRomaji = meta?.titleRomaji
                         val posterRaw = meta?.poster ?: allTrackedItems.find { it.simklId == simklId }?.poster
 
                         if (defaultType == MediaType.MOVIE) {
@@ -626,6 +627,7 @@ class SimklRepository(private val context: Context) {
                                         primaryKey = "v2_${simklId}_theater",
                                         simklId = simklId,
                                         title = title,
+                                        titleRomaji = titleRomaji,
                                         episodeTitle = null,
                                         season = null,
                                         episodeNumber = null,
@@ -647,6 +649,7 @@ class SimklRepository(private val context: Context) {
                                             primaryKey = "v2_${simklId}_digital",
                                             simklId = simklId,
                                             title = title,
+                                            titleRomaji = titleRomaji,
                                             episodeTitle = null,
                                             season = null,
                                             episodeNumber = null,
@@ -694,6 +697,7 @@ class SimklRepository(private val context: Context) {
                                     primaryKey = keyUnique,
                                     simklId = simklId,
                                     title = title,
+                                    titleRomaji = titleRomaji,
                                     episodeTitle = epTitle,
                                     season = seasonNum,
                                     episodeNumber = epNum,

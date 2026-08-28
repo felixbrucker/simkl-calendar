@@ -24,7 +24,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -89,7 +91,7 @@ fun SettingsScreen(
 
     var inputName by remember { mutableStateOf("") }
     var inputSubtitle by remember { mutableStateOf("") }
-    var inputUrlTemplate by remember { mutableStateOf("") }
+    var inputUrlTemplate by remember { mutableStateOf(TextFieldValue("")) }
     var inputSelectedTypes by remember { mutableStateOf(setOf(MediaType.TV, MediaType.ANIME, MediaType.MOVIE)) }
     var formError by remember { mutableStateOf<String?>(null) }
 
@@ -97,7 +99,7 @@ fun SettingsScreen(
         editingLink = null
         inputName = ""
         inputSubtitle = ""
-        inputUrlTemplate = ""
+        inputUrlTemplate = TextFieldValue("")
         inputSelectedTypes = setOf(MediaType.TV, MediaType.ANIME, MediaType.MOVIE)
         formError = null
         showAddEditDialog = true
@@ -107,7 +109,10 @@ fun SettingsScreen(
         editingLink = link
         inputName = link.name
         inputSubtitle = link.subtitle ?: ""
-        inputUrlTemplate = link.urlTemplate
+        inputUrlTemplate = TextFieldValue(
+            text = link.urlTemplate,
+            selection = TextRange(link.urlTemplate.length)
+        )
         inputSelectedTypes = link.associatedTypes.toSet()
         formError = null
         showAddEditDialog = true
@@ -452,7 +457,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        "Supported placeholders: {TITLE}, {SEASON}, {EPISODE}, {SEASON_SLUG}, {EPISODE_SLUG}.",
+                        "Supported placeholders: {TITLE}, {ROMAJI_TITLE}, {SEASON}, {EPISODE}, {SEASON_SLUG}, {EPISODE_SLUG}.",
                         color = Color(0xFFCAC4D0),
                         fontSize = 12.sp,
                         lineHeight = 16.sp
@@ -762,6 +767,20 @@ fun SettingsScreen(
                             .testTag("custom_search_link_url_input")
                     )
 
+                    fun insertPlaceholder(placeholder: String) {
+                        val currentText = inputUrlTemplate.text
+                        val selection = inputUrlTemplate.selection
+                        val start = selection.min.coerceIn(0, currentText.length)
+                        val end = selection.max.coerceIn(0, currentText.length)
+
+                        val newText = currentText.substring(0, start) + placeholder + currentText.substring(end)
+                        val newCursorPos = start + placeholder.length
+                        inputUrlTemplate = TextFieldValue(
+                            text = newText,
+                            selection = TextRange(newCursorPos)
+                        )
+                    }
+
                     // Placeholder helper chips
                     Column {
                         Text(
@@ -775,13 +794,13 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            listOf("{TITLE}", "{EPISODE_SLUG}", "{SEASON_SLUG}").forEach { placeholder ->
+                            listOf("{TITLE}", "{ROMAJI_TITLE}", "{EPISODE_SLUG}").forEach { placeholder ->
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
                                     color = Color(0xFF2B2930),
                                     border = BorderStroke(1.dp, Color(0xFF49454F)),
                                     modifier = Modifier.clickable {
-                                        inputUrlTemplate += placeholder
+                                        insertPlaceholder(placeholder)
                                     }
                                 ) {
                                     Text(
@@ -799,13 +818,13 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            listOf("{SEASON}", "{EPISODE}").forEach { placeholder ->
+                            listOf("{SEASON_SLUG}", "{SEASON}", "{EPISODE}").forEach { placeholder ->
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
                                     color = Color(0xFF2B2930),
                                     border = BorderStroke(1.dp, Color(0xFF49454F)),
                                     modifier = Modifier.clickable {
-                                        inputUrlTemplate += placeholder
+                                        insertPlaceholder(placeholder)
                                     }
                                 ) {
                                     Text(
@@ -874,7 +893,7 @@ fun SettingsScreen(
                             formError = "Name cannot be blank"
                             return@Button
                         }
-                        if (inputUrlTemplate.isBlank()) {
+                        if (inputUrlTemplate.text.isBlank()) {
                             formError = "URL template cannot be blank"
                             return@Button
                         }
@@ -887,7 +906,7 @@ fun SettingsScreen(
                             id = editingLink?.id ?: 0L,
                             name = inputName.trim(),
                             subtitle = inputSubtitle.trim().takeIf { it.isNotBlank() },
-                            urlTemplate = inputUrlTemplate.trim(),
+                            urlTemplate = inputUrlTemplate.text.trim(),
                             associatedTypes = inputSelectedTypes.toList()
                         )
 

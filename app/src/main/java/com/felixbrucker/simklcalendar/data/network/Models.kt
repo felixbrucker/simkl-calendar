@@ -54,6 +54,7 @@ data class SimklV2Episode(
 @JsonClass(generateAdapter = true)
 data class SimklV2Metadata(
     @Json(name = "title") val title: String,
+    @Json(name = "title_romaji") val titleRomaji: String? = null,
     @Json(name = "poster") val poster: String? = null,
     @Json(name = "status") val status: String? = null,
     @Json(name = "total_episodes") val totalEpisodes: Int? = null,

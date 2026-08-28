@@ -1056,6 +1056,17 @@ fun CalendarItemCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
+                if (item.type == MediaType.ANIME && !item.titleRomaji.isNullOrBlank()) {
+                    Text(
+                        text = item.titleRomaji,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color(0xFFCAC4D0),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(2.dp))
 
                 when (item.type) {

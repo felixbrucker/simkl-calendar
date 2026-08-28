@@ -294,6 +294,16 @@ fun ShowDetailScreen(
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
                         )
+
+                        if (activeItem.type == MediaType.ANIME && !activeItem.titleRomaji.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = activeItem.titleRomaji,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = Color(0xFFCAC4D0)
+                            )
+                        }
                     }
                 }
 

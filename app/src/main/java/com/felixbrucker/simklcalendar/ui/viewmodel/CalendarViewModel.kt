@@ -110,11 +110,12 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             // Always exclude watched episodes / releases
             val matchesWatched = !item.isWatched
 
-            // Search query filter matching show/movie title or episode title
+            // Search query filter matching show/movie title, romaji title, or episode title
             val matchesQuery = if (query.isEmpty()) {
                 true
             } else {
                 item.title.contains(query, ignoreCase = true) ||
+                (item.titleRomaji?.contains(query, ignoreCase = true) == true) ||
                 (item.episodeTitle?.contains(query, ignoreCase = true) == true)
             }
 

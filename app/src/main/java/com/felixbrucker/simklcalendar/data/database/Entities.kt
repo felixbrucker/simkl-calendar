@@ -29,7 +29,8 @@ data class CalendarItem(
     val isSeasonFinale: Boolean,
     val poster: String?, // URL for show poster image
     val isNotified: Boolean = false, // Track whether notification has been dispatched
-    val watchedAt: Instant? = null // Timestamp of when the episode was watched
+    val watchedAt: Instant? = null, // Timestamp of when the episode was watched
+    val titleRomaji: String? = null // Romaji title for anime
 ) {
     val isWatched: Boolean
         get() = watchedAt != null
@@ -40,6 +41,7 @@ data class CalendarItem(
 
         return this.copy(
             title = newItem.title,
+            titleRomaji = newItem.titleRomaji ?: this.titleRomaji,
             episodeTitle = newItem.episodeTitle,
             season = newItem.season,
             episodeNumber = newItem.episodeNumber,
@@ -90,6 +92,7 @@ data class CustomSearchLink(
      * Builds the complete URL by replacing supported placeholders with values from the given CalendarItem.
      * Supported placeholders:
      * - {TITLE} -> Show/Movie/Anime title (URL encoded)
+     * - {ROMAJI_TITLE} -> Romaji anime title (URL encoded, falls back to regular title if not available)
      * - {SEASON} -> Season number (e.g. "4")
      * - {EPISODE} -> Episode number (e.g. "3")
      * - {SEASON_SLUG} -> Season code (e.g. "S04")
@@ -101,6 +104,13 @@ data class CustomSearchLink(
             java.net.URLEncoder.encode(rawTitle, "UTF-8")
         } catch (_: Exception) {
             rawTitle
+        }
+
+        val rawRomajiTitle = item.titleRomaji?.takeIf { it.isNotBlank() } ?: item.title
+        val encodedRomajiTitle = try {
+            java.net.URLEncoder.encode(rawRomajiTitle, "UTF-8")
+        } catch (_: Exception) {
+            rawRomajiTitle
         }
 
         val seasonNumStr = item.season?.toString() ?: if (item.type != MediaType.MOVIE) "1" else ""
@@ -127,6 +137,7 @@ data class CustomSearchLink(
         var result = urlTemplate
 
         // Replace supported {CAPSLOCK PLACEHOLDER} tokens (case-insensitive for user convenience)
+        result = result.replace("{ROMAJI_TITLE}", encodedRomajiTitle, ignoreCase = true)
         result = result.replace("{TITLE}", encodedTitle, ignoreCase = true)
         result = result.replace("{EPISODE_SLUG}", episodeSlugStr, ignoreCase = true)
         result = result.replace("{SEASON_SLUG}", seasonSlugStr, ignoreCase = true)
