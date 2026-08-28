@@ -909,35 +909,22 @@ fun SettingsScreen(
                             color = Color(0xFFCAC4D0)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Row(
+                        @OptIn(ExperimentalLayoutApi::class)
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            listOf("{TITLE}", "{ROMAJI_TITLE}", "{EPISODE_SLUG}").forEach { placeholder ->
-                                Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = Color(0xFF2B2930),
-                                    border = BorderStroke(1.dp, Color(0xFF49454F)),
-                                    modifier = Modifier.clickable {
-                                        insertPlaceholder(placeholder)
-                                    }
-                                ) {
-                                    Text(
-                                        text = placeholder,
-                                        color = Color(0xFFD0BCFF),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            listOf("{SEASON_SLUG}", "{SEASON}", "{EPISODE}").forEach { placeholder ->
+                            listOf(
+                                "{TITLE}",
+                                "{TITLE_URL_ENCODED}",
+                                "{TITLE_ROMAJI}",
+                                "{TITLE_ROMAJI_URL_ENCODED}",
+                                "{EPISODE_SLUG}",
+                                "{SEASON_SLUG}",
+                                "{SEASON}",
+                                "{EPISODE}"
+                            ).forEach { placeholder ->
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
                                     color = Color(0xFF2B2930),

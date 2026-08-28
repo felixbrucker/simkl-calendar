@@ -92,8 +92,10 @@ data class CustomSearchLink(
     /**
      * Builds the complete URL by replacing supported placeholders with values from the given CalendarItem.
      * Supported placeholders:
-     * - {TITLE} -> Show/Movie/Anime title (URL encoded)
-     * - {ROMAJI_TITLE} -> Romaji anime title (URL encoded, falls back to regular title if not available)
+     * - {TITLE} -> Show/Movie/Anime title (raw / unencoded)
+     * - {TITLE_URL_ENCODED} -> Show/Movie/Anime title (URL encoded)
+     * - {TITLE_ROMAJI} -> Romaji anime title (raw / unencoded, falls back to regular title if not available)
+     * - {TITLE_ROMAJI_URL_ENCODED} -> Romaji anime title (URL encoded, falls back to regular title if not available)
      * - {SEASON} -> Season number (e.g. "4")
      * - {EPISODE} -> Episode number (e.g. "3")
      * - {SEASON_SLUG} -> Season code (e.g. "S04")
@@ -138,8 +140,23 @@ data class CustomSearchLink(
         var result = urlTemplate
 
         // Replace supported {CAPSLOCK PLACEHOLDER} tokens (case-insensitive for user convenience)
-        result = result.replace("{ROMAJI_TITLE}", encodedRomajiTitle, ignoreCase = true)
-        result = result.replace("{TITLE}", encodedTitle, ignoreCase = true)
+        // More specific / longer tokens are replaced first to prevent partial matches
+        result = result.replace("{TITLE_ROMAJI_URL_ENCODED}", encodedRomajiTitle, ignoreCase = true)
+        result = result.replace("{TITLE_ROMAJI_ENCODED}", encodedRomajiTitle, ignoreCase = true)
+        result = result.replace("{TITLE_ROMAJI_URLENCODED}", encodedRomajiTitle, ignoreCase = true)
+        result = result.replace("{ROMAJI_TITLE_URL_ENCODED}", encodedRomajiTitle, ignoreCase = true)
+        result = result.replace("{ROMAJI_TITLE_ENCODED}", encodedRomajiTitle, ignoreCase = true)
+        result = result.replace("{ROMAJI_TITLE_URLENCODED}", encodedRomajiTitle, ignoreCase = true)
+
+        result = result.replace("{TITLE_URL_ENCODED}", encodedTitle, ignoreCase = true)
+        result = result.replace("{TITLE_ENCODED}", encodedTitle, ignoreCase = true)
+        result = result.replace("{TITLE_URLENCODED}", encodedTitle, ignoreCase = true)
+        result = result.replace("{ENCODED_TITLE}", encodedTitle, ignoreCase = true)
+
+        result = result.replace("{TITLE_ROMAJI}", rawRomajiTitle, ignoreCase = true)
+        result = result.replace("{ROMAJI_TITLE}", rawRomajiTitle, ignoreCase = true)
+        result = result.replace("{TITLE}", rawTitle, ignoreCase = true)
+
         result = result.replace("{EPISODE_SLUG}", episodeSlugStr, ignoreCase = true)
         result = result.replace("{SEASON_SLUG}", seasonSlugStr, ignoreCase = true)
         result = result.replace("{SEASON}", seasonNumStr, ignoreCase = true)
