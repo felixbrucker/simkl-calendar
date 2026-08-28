@@ -394,10 +394,22 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     fun saveCustomSearchLink(link: CustomSearchLink, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             if (link.id == 0L) {
-                repository.insertSearchLink(link)
+                val currentLinks = customSearchLinks.value
+                val nextPos = (currentLinks.maxOfOrNull { it.position } ?: -1) + 1
+                repository.insertSearchLink(link.copy(position = nextPos))
             } else {
                 repository.updateSearchLink(link)
             }
+            onComplete()
+        }
+    }
+
+    fun updateSearchLinksOrder(reorderedLinks: List<CustomSearchLink>, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            val updated = reorderedLinks.mapIndexed { index, link ->
+                link.copy(position = index)
+            }
+            repository.updateSearchLinks(updated)
             onComplete()
         }
     }

@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,14 +22,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
@@ -38,6 +44,7 @@ import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.receiver.NotificationReceiver
 import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker
 import kotlinx.coroutines.launch
+import java.util.Collections
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +91,18 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val isForceSyncing by viewModel.isForceSyncing.collectAsState()
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
+    val density = LocalDensity.current
+
+    var localLinks by remember { mutableStateOf<List<CustomSearchLink>>(emptyList()) }
+    var draggingItemId by remember { mutableStateOf<Long?>(null) }
+    var dragOffset by remember { mutableStateOf(0f) }
+    val itemHeights = remember { mutableStateMapOf<Long, Float>() }
+
+    LaunchedEffect(customSearchLinks) {
+        if (draggingItemId == null) {
+            localLinks = customSearchLinks
+        }
+    }
 
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingLink by remember { mutableStateOf<CustomSearchLink?>(null) }
@@ -457,7 +476,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    if (customSearchLinks.isEmpty()) {
+                    if (localLinks.isEmpty()) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = Color(0xFF1C1B1F),
@@ -494,22 +513,130 @@ fun SettingsScreen(
                         }
                     } else {
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            customSearchLinks.forEach { link ->
+                            if (localLinks.size > 1) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.padding(bottom = 2.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.DragHandle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF938F99),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "Drag the handle on any link to reorder",
+                                        color = Color(0xFF938F99),
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+
+                            localLinks.forEach { link ->
+                                val isDraggingThis = draggingItemId == link.id
+
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFF1C1B1F),
-                                    border = BorderStroke(1.dp, Color(0xFF49454F)),
-                                    modifier = Modifier.fillMaxWidth()
+                                    color = if (isDraggingThis) Color(0xFF36323D) else Color(0xFF1C1B1F),
+                                    border = BorderStroke(
+                                        width = if (isDraggingThis) 1.5.dp else 1.dp,
+                                        color = if (isDraggingThis) Color(0xFFD0BCFF) else Color(0xFF49454F)
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .zIndex(if (isDraggingThis) 10f else 1f)
+                                        .onGloballyPositioned { coordinates ->
+                                            itemHeights[link.id] = coordinates.size.height.toFloat()
+                                        }
+                                        .graphicsLayer {
+                                            translationY = if (isDraggingThis) dragOffset else 0f
+                                            scaleX = if (isDraggingThis) 1.02f else 1f
+                                            scaleY = if (isDraggingThis) 1.02f else 1f
+                                            shadowElevation = if (isDraggingThis) with(density) { 8.dp.toPx() } else 0f
+                                        }
+                                        .testTag("custom_search_link_item_${link.id}")
                                 ) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        // Drag Handle
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .testTag("drag_handle_${link.id}")
+                                                .pointerInput(link.id, localLinks) {
+                                                    detectVerticalDragGestures(
+                                                        onDragStart = {
+                                                            draggingItemId = link.id
+                                                            dragOffset = 0f
+                                                        },
+                                                        onVerticalDrag = { change, dragAmount ->
+                                                            change.consume()
+                                                            val currentId = draggingItemId ?: return@detectVerticalDragGestures
+                                                            val currentIdx = localLinks.indexOfFirst { it.id == currentId }
+                                                            if (currentIdx == -1) return@detectVerticalDragGestures
+
+                                                            dragOffset += dragAmount
+                                                            val currentHeight = itemHeights[currentId] ?: 120f
+                                                            val spacingPx = with(density) { 8.dp.toPx() }
+
+                                                            // Dragging down
+                                                            if (dragOffset > 0 && currentIdx < localLinks.size - 1) {
+                                                                val nextItem = localLinks[currentIdx + 1]
+                                                                val nextHeight = itemHeights[nextItem.id] ?: currentHeight
+                                                                val threshold = (currentHeight + nextHeight) / 2f + spacingPx / 2f
+                                                                if (dragOffset > threshold) {
+                                                                    val newList = localLinks.toMutableList()
+                                                                    Collections.swap(newList, currentIdx, currentIdx + 1)
+                                                                    localLinks = newList
+                                                                    dragOffset -= (nextHeight + spacingPx)
+                                                                }
+                                                            }
+                                                            // Dragging up
+                                                            else if (dragOffset < 0 && currentIdx > 0) {
+                                                                val prevItem = localLinks[currentIdx - 1]
+                                                                val prevHeight = itemHeights[prevItem.id] ?: currentHeight
+                                                                val threshold = -((currentHeight + prevHeight) / 2f + spacingPx / 2f)
+                                                                if (dragOffset < threshold) {
+                                                                    val newList = localLinks.toMutableList()
+                                                                    Collections.swap(newList, currentIdx, currentIdx - 1)
+                                                                    localLinks = newList
+                                                                    dragOffset += (prevHeight + spacingPx)
+                                                                }
+                                                            }
+                                                        },
+                                                        onDragEnd = {
+                                                            val finalLinks = localLinks
+                                                            draggingItemId = null
+                                                            dragOffset = 0f
+                                                            viewModel.updateSearchLinksOrder(finalLinks)
+                                                        },
+                                                        onDragCancel = {
+                                                            draggingItemId = null
+                                                            dragOffset = 0f
+                                                            localLinks = customSearchLinks
+                                                        }
+                                                    )
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.DragHandle,
+                                                contentDescription = "Drag to reorder ${link.name}",
+                                                tint = if (isDraggingThis) Color(0xFFD0BCFF) else Color(0xFF79747E),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(4.dp))
+
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -899,7 +1026,8 @@ fun SettingsScreen(
                             name = inputName.trim(),
                             subtitle = inputSubtitle.trim().takeIf { it.isNotBlank() },
                             urlTemplate = inputUrlTemplate.text.trim(),
-                            associatedTypes = inputSelectedTypes.toList()
+                            associatedTypes = inputSelectedTypes.toList(),
+                            position = editingLink?.position ?: 0
                         )
 
                         viewModel.saveCustomSearchLink(linkToSave) {

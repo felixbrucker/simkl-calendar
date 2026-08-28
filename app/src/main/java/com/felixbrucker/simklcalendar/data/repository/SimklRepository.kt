@@ -65,6 +65,10 @@ class SimklRepository(private val context: Context) {
         searchLinkDao.updateSearchLink(link)
     }
 
+    suspend fun updateSearchLinks(links: List<CustomSearchLink>) = withContext(Dispatchers.IO) {
+        searchLinkDao.updateSearchLinks(links)
+    }
+
     suspend fun deleteSearchLink(link: CustomSearchLink) = withContext(Dispatchers.IO) {
         searchLinkDao.deleteSearchLink(link)
     }

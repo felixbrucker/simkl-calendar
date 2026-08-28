@@ -86,7 +86,8 @@ data class CustomSearchLink(
     val name: String,
     val subtitle: String? = null,
     val urlTemplate: String,
-    val associatedTypes: List<MediaType> = listOf(MediaType.TV, MediaType.ANIME, MediaType.MOVIE)
+    val associatedTypes: List<MediaType> = listOf(MediaType.TV, MediaType.ANIME, MediaType.MOVIE),
+    @ColumnInfo(defaultValue = "0") val position: Int = 0
 ) {
     /**
      * Builds the complete URL by replacing supported placeholders with values from the given CalendarItem.
