@@ -559,7 +559,7 @@ fun SettingsScreen(
                                                 scaleY = if (isDraggingThis) 1.03f else 1f
                                                 shadowElevation = if (isDraggingThis) with(density) { 8.dp.toPx() } else 0f
                                             }
-                                            .pointerInput(link.id, localLinks) {
+                                            .pointerInput(link.id) {
                                                 detectDragGesturesAfterLongPress(
                                                     onDragStart = {
                                                         draggingItemId = link.id
@@ -614,9 +614,10 @@ fun SettingsScreen(
                                                         viewModel.updateSearchLinksOrder(finalLinks)
                                                     },
                                                     onDragCancel = {
+                                                        val finalLinks = localLinks
                                                         draggingItemId = null
                                                         dragOffset = 0f
-                                                        localLinks = customSearchLinks
+                                                        viewModel.updateSearchLinksOrder(finalLinks)
                                                     }
                                                 )
                                             }
