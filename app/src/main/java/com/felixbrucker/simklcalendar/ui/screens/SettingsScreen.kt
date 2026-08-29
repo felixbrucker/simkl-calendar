@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -93,16 +94,9 @@ fun SettingsScreen(
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
     val density = LocalDensity.current
 
-    var localLinks by remember(customSearchLinks) { mutableStateOf(customSearchLinks) }
-    var draggingItemId by remember { mutableStateOf<Long?>(null) }
-    var dragOffset by remember { mutableStateOf(0f) }
-    val itemHeights = remember { mutableStateMapOf<Long, Float>() }
-
-    LaunchedEffect(customSearchLinks) {
-        if (draggingItemId == null) {
-            localLinks = customSearchLinks
-        }
-    }
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableStateOf(0f) }
+    var itemSlotHeightPx by remember { mutableStateOf(0f) }
 
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingLink by remember { mutableStateOf<CustomSearchLink?>(null) }
@@ -476,7 +470,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    if (localLinks.isEmpty()) {
+                    if (customSearchLinks.isEmpty()) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = Color(0xFF1C1B1F),
@@ -516,7 +510,7 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            if (localLinks.size > 1) {
+                            if (customSearchLinks.size > 1) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -536,9 +530,30 @@ fun SettingsScreen(
                                 }
                             }
 
-                            localLinks.forEach { link ->
+                            val currentDragging = draggingIndex
+                            val effectiveSlotHeight = if (itemSlotHeightPx > 0f) itemSlotHeightPx else with(density) { 68.dp.toPx() }
+                            val targetIndex = if (currentDragging != null && effectiveSlotHeight > 0f) {
+                                (currentDragging + (dragOffsetY / effectiveSlotHeight).roundToInt())
+                                    .coerceIn(0, customSearchLinks.size - 1)
+                            } else null
+
+                            customSearchLinks.forEachIndexed { index, link ->
                                 key(link.id) {
-                                    val isDraggingThis = draggingItemId == link.id
+                                    val isDraggingThis = currentDragging == index
+                                    val visualTranslationY by animateFloatAsState(
+                                        targetValue = when {
+                                            isDraggingThis -> dragOffsetY
+                                            currentDragging != null && targetIndex != null -> {
+                                                when {
+                                                    currentDragging < targetIndex && index in (currentDragging + 1)..targetIndex -> -effectiveSlotHeight
+                                                    currentDragging > targetIndex && index in targetIndex until currentDragging -> effectiveSlotHeight
+                                                    else -> 0f
+                                                }
+                                            }
+                                            else -> 0f
+                                        },
+                                        label = "reorder_trans_${link.id}"
+                                    )
 
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
@@ -551,73 +566,41 @@ fun SettingsScreen(
                                             .fillMaxWidth()
                                             .zIndex(if (isDraggingThis) 10f else 1f)
                                             .onGloballyPositioned { coordinates ->
-                                                itemHeights[link.id] = coordinates.size.height.toFloat()
+                                                if (itemSlotHeightPx == 0f && coordinates.size.height > 0) {
+                                                    itemSlotHeightPx = coordinates.size.height.toFloat() + with(density) { 8.dp.toPx() }
+                                                }
                                             }
                                             .graphicsLayer {
-                                                translationY = if (isDraggingThis) dragOffset else 0f
+                                                translationY = visualTranslationY
                                                 scaleX = if (isDraggingThis) 1.03f else 1f
                                                 scaleY = if (isDraggingThis) 1.03f else 1f
                                                 shadowElevation = if (isDraggingThis) with(density) { 8.dp.toPx() } else 0f
                                             }
-                                            .pointerInput(link.id) {
+                                            .pointerInput(index) {
                                                 detectDragGesturesAfterLongPress(
                                                     onDragStart = {
-                                                        draggingItemId = link.id
-                                                        dragOffset = 0f
+                                                        draggingIndex = index
+                                                        dragOffsetY = 0f
                                                     },
                                                     onDrag = { change, dragAmount ->
                                                         change.consume()
-                                                        val currentId = draggingItemId ?: return@detectDragGesturesAfterLongPress
-                                                        var currentIdx = localLinks.indexOfFirst { it.id == currentId }
-                                                        if (currentIdx == -1) return@detectDragGesturesAfterLongPress
-
-                                                        dragOffset += dragAmount.y
-                                                        val currentHeight = itemHeights[currentId] ?: with(density) { 64.dp.toPx() }
-                                                        val spacingPx = with(density) { 8.dp.toPx() }
-
-                                                        // Move down across any number of rows
-                                                        while (currentIdx < localLinks.size - 1) {
-                                                            val nextItem = localLinks[currentIdx + 1]
-                                                            val nextHeight = itemHeights[nextItem.id] ?: currentHeight
-                                                            val threshold = (nextHeight + spacingPx) / 2f
-                                                            if (dragOffset > threshold) {
-                                                                val newList = localLinks.toMutableList()
-                                                                Collections.swap(newList, currentIdx, currentIdx + 1)
-                                                                localLinks = newList
-                                                                dragOffset -= (nextHeight + spacingPx)
-                                                                currentIdx++
-                                                            } else {
-                                                                break
-                                                            }
-                                                        }
-
-                                                        // Move up across any number of rows
-                                                        while (currentIdx > 0) {
-                                                            val prevItem = localLinks[currentIdx - 1]
-                                                            val prevHeight = itemHeights[prevItem.id] ?: currentHeight
-                                                            val threshold = -((prevHeight + spacingPx) / 2f)
-                                                            if (dragOffset < threshold) {
-                                                                val newList = localLinks.toMutableList()
-                                                                Collections.swap(newList, currentIdx, currentIdx - 1)
-                                                                localLinks = newList
-                                                                dragOffset += (prevHeight + spacingPx)
-                                                                currentIdx--
-                                                            } else {
-                                                                break
-                                                            }
-                                                        }
+                                                        dragOffsetY += dragAmount.y
                                                     },
                                                     onDragEnd = {
-                                                        val finalLinks = localLinks
-                                                        draggingItemId = null
-                                                        dragOffset = 0f
-                                                        viewModel.updateSearchLinksOrder(finalLinks)
+                                                        val from = draggingIndex
+                                                        val to = targetIndex
+                                                        if (from != null && to != null && from != to) {
+                                                            val updated = customSearchLinks.toMutableList().apply {
+                                                                add(to, removeAt(from))
+                                                            }
+                                                            viewModel.updateSearchLinksOrder(updated)
+                                                        }
+                                                        draggingIndex = null
+                                                        dragOffsetY = 0f
                                                     },
                                                     onDragCancel = {
-                                                        val finalLinks = localLinks
-                                                        draggingItemId = null
-                                                        dragOffset = 0f
-                                                        viewModel.updateSearchLinksOrder(finalLinks)
+                                                        draggingIndex = null
+                                                        dragOffsetY = 0f
                                                     }
                                                 )
                                             }
