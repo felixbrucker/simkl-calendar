@@ -59,7 +59,7 @@ import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ShowDetailScreen(
     viewModel: CalendarViewModel,
@@ -851,44 +851,41 @@ fun ShowDetailScreen(
                                     )
                                 }
 
-                                matchingSearchLinks.forEach { link ->
-                                    val resolvedUrl = remember(link, activeItem) {
-                                        link.buildUrl(activeItem)
-                                    }
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    matchingSearchLinks.forEach { link ->
+                                        val resolvedUrl = remember(link, activeItem) {
+                                            link.buildUrl(activeItem)
+                                        }
 
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Color(0xFF1C1B1F),
-                                        border = BorderStroke(1.dp, Color(0xFF49454F)),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                try {
-                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(resolvedUrl))
-                                                    context.startActivity(intent)
-                                                } catch (e: Exception) {
-                                                    scope.launch {
-                                                        snackbarHostState.showSnackbar("Unable to open link: ${e.message}")
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Color(0xFF1C1B1F),
+                                            border = BorderStroke(1.dp, Color(0xFF49454F)),
+                                            modifier = Modifier
+                                                .clickable {
+                                                    try {
+                                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(resolvedUrl))
+                                                        context.startActivity(intent)
+                                                    } catch (e: Exception) {
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Unable to open link: ${e.message}")
+                                                        }
                                                     }
                                                 }
-                                            }
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             Row(
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                modifier = Modifier.weight(1f)
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
                                                 Surface(
                                                     shape = RoundedCornerShape(6.dp),
                                                     color = Color(0xFF2B2930),
-                                                    modifier = Modifier.size(32.dp)
+                                                    modifier = Modifier.size(28.dp)
                                                 ) {
                                                     Box(
                                                         contentAlignment = Alignment.Center,
@@ -897,18 +894,18 @@ fun ShowDetailScreen(
                                                         AsyncImage(
                                                             model = link.getFaviconUrl(),
                                                             contentDescription = link.name,
-                                                            modifier = Modifier.size(20.dp),
+                                                            modifier = Modifier.size(18.dp),
                                                             contentScale = ContentScale.Fit
                                                         )
                                                     }
                                                 }
 
-                                                Column(modifier = Modifier.weight(1f)) {
+                                                Column {
                                                     Text(
                                                         text = link.name,
                                                         color = Color(0xFFE6E1E5),
                                                         fontWeight = FontWeight.Bold,
-                                                        fontSize = 14.sp
+                                                        fontSize = 13.sp
                                                     )
                                                     if (!link.subtitle.isNullOrBlank()) {
                                                         Text(
@@ -919,14 +916,14 @@ fun ShowDetailScreen(
                                                         )
                                                     }
                                                 }
-                                            }
 
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                                contentDescription = "Open ${link.name}",
-                                                tint = Color(0xFFD0BCFF),
-                                                modifier = Modifier.size(18.dp)
-                                            )
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                                    contentDescription = "Open ${link.name}",
+                                                    tint = Color(0xFFD0BCFF),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }

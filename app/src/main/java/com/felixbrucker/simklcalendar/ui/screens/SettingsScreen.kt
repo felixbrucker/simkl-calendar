@@ -94,6 +94,7 @@ fun SettingsScreen(
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
     val density = LocalDensity.current
 
+    var localLinks by remember(customSearchLinks) { mutableStateOf(customSearchLinks) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
     var itemSlotHeightPx by remember { mutableStateOf(0f) }
@@ -470,7 +471,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    if (customSearchLinks.isEmpty()) {
+                    if (localLinks.isEmpty()) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = Color(0xFF1C1B1F),
@@ -510,7 +511,7 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            if (customSearchLinks.size > 1) {
+                            if (localLinks.size > 1) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -530,14 +531,16 @@ fun SettingsScreen(
                                 }
                             }
 
+                            val currentLinksState by rememberUpdatedState(localLinks)
                             val currentDragging = draggingIndex
                             val effectiveSlotHeight = if (itemSlotHeightPx > 0f) itemSlotHeightPx else with(density) { 68.dp.toPx() }
+                            val currentSlotHeightState by rememberUpdatedState(effectiveSlotHeight)
                             val targetIndex = if (currentDragging != null && effectiveSlotHeight > 0f) {
                                 (currentDragging + (dragOffsetY / effectiveSlotHeight).roundToInt())
-                                    .coerceIn(0, customSearchLinks.size - 1)
+                                    .coerceIn(0, localLinks.size - 1)
                             } else null
 
-                            customSearchLinks.forEachIndexed { index, link ->
+                            localLinks.forEachIndexed { index, link ->
                                 key(link.id) {
                                     val isDraggingThis = currentDragging == index
                                     val visualTranslationY by animateFloatAsState(
@@ -576,10 +579,11 @@ fun SettingsScreen(
                                                 scaleY = if (isDraggingThis) 1.03f else 1f
                                                 shadowElevation = if (isDraggingThis) with(density) { 8.dp.toPx() } else 0f
                                             }
-                                            .pointerInput(index) {
+                                            .pointerInput(link.id) {
                                                 detectDragGesturesAfterLongPress(
                                                     onDragStart = {
-                                                        draggingIndex = index
+                                                        val idx = currentLinksState.indexOfFirst { it.id == link.id }
+                                                        draggingIndex = if (idx != -1) idx else index
                                                         dragOffsetY = 0f
                                                     },
                                                     onDrag = { change, dragAmount ->
@@ -588,11 +592,18 @@ fun SettingsScreen(
                                                     },
                                                     onDragEnd = {
                                                         val from = draggingIndex
-                                                        val to = targetIndex
+                                                        val slotH = currentSlotHeightState
+                                                        val links = currentLinksState
+                                                        val to = if (from != null && slotH > 0f && links.isNotEmpty()) {
+                                                            (from + (dragOffsetY / slotH).roundToInt())
+                                                                .coerceIn(0, links.size - 1)
+                                                        } else null
+
                                                         if (from != null && to != null && from != to) {
-                                                            val updated = customSearchLinks.toMutableList().apply {
+                                                            val updated = links.toMutableList().apply {
                                                                 add(to, removeAt(from))
                                                             }
+                                                            localLinks = updated
                                                             viewModel.updateSearchLinksOrder(updated)
                                                         }
                                                         draggingIndex = null
