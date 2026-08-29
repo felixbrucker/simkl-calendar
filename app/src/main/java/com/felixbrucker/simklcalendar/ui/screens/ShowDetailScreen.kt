@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -900,19 +902,29 @@ fun ShowDetailScreen(
                                                     }
                                                 }
 
-                                                Column {
+                                                Column(
+                                                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                                                ) {
                                                     Text(
                                                         text = link.name,
                                                         color = Color(0xFFE6E1E5),
                                                         fontWeight = FontWeight.Bold,
-                                                        fontSize = 13.sp
+                                                        fontSize = 13.sp,
+                                                        lineHeight = 15.sp,
+                                                        style = TextStyle(
+                                                            platformStyle = PlatformTextStyle(includeFontPadding = false)
+                                                        )
                                                     )
                                                     if (!link.subtitle.isNullOrBlank()) {
                                                         Text(
                                                             text = link.subtitle,
                                                             color = Color(0xFFCAC4D0),
                                                             fontSize = 11.sp,
-                                                            maxLines = 1
+                                                            lineHeight = 13.sp,
+                                                            maxLines = 1,
+                                                            style = TextStyle(
+                                                                platformStyle = PlatformTextStyle(includeFontPadding = false)
+                                                            )
                                                         )
                                                     }
                                                 }
