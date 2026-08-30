@@ -17,13 +17,14 @@ import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.network.OAuthTokenRequest
 import com.felixbrucker.simklcalendar.data.network.SimklApiService
 import com.felixbrucker.simklcalendar.data.network.SimklIds
-import com.felixbrucker.simklcalendar.data.network.SyncEpisodeItem
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryEpisodeItem
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryMovieItem
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryRequest
 import com.felixbrucker.simklcalendar.data.network.SyncHistorySeasonItem
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryShowItem
+import com.felixbrucker.simklcalendar.data.network.SyncMovieItem
 import com.felixbrucker.simklcalendar.data.network.SyncSeasonItem
+import com.felixbrucker.simklcalendar.data.network.SyncShowItem
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.PkceUtil
 import com.felixbrucker.simklcalendar.receiver.NotificationScheduler
@@ -39,6 +40,7 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import java.net.URLEncoder
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+import androidx.core.content.edit
 
 class SimklRepository(private val context: Context) {
 
@@ -149,11 +151,11 @@ class SimklRepository(private val context: Context) {
         val codeChallenge = PkceUtil.generateCodeChallenge(codeVerifier)
         val state = PkceUtil.generateState()
 
-        authPrefs.edit()
-            .putString("pkce_code_verifier", codeVerifier)
-            .putString("pkce_redirect_uri", redirectUri)
-            .putString("pkce_state", state)
-            .apply()
+        authPrefs.edit {
+            putString("pkce_code_verifier", codeVerifier)
+                .putString("pkce_redirect_uri", redirectUri)
+                .putString("pkce_state", state)
+        }
 
         val encodedRedirect = try {
             URLEncoder.encode(redirectUri, "UTF-8")
@@ -169,7 +171,7 @@ class SimklRepository(private val context: Context) {
         calendarDao.clearCalendarItems()
         watchlistDao.clearAll()
         watchedDao.clearAll()
-        syncPrefs.edit().clear().apply()
+        syncPrefs.edit { clear() }
     }
 
     suspend fun exchangeOAuthCode(
@@ -200,7 +202,7 @@ class SimklRepository(private val context: Context) {
                 Log.e("SimklRepository", "PKCE code_verifier is missing from local storage")
                 return@withContext false
             }
-            
+
             // 1. Exchange code for access token via POST /oauth/token using PKCE flow
             val response = apiService.getAccessToken(
                 request = OAuthTokenRequest(
@@ -217,12 +219,12 @@ class SimklRepository(private val context: Context) {
             }
 
             // Successfully received token: clear stored PKCE parameters
-            authPrefs.edit()
-                .remove("pkce_code_verifier")
-                .remove("pkce_redirect_uri")
-                .remove("pkce_state")
-                .apply()
-            
+            authPrefs.edit {
+                remove("pkce_code_verifier")
+                    .remove("pkce_redirect_uri")
+                    .remove("pkce_state")
+            }
+
             // 2. Fetch user profile from POST /users/settings to get the user's name
             val username = try {
                 val userResponse = apiService.getUserSettings(
@@ -263,12 +265,8 @@ class SimklRepository(private val context: Context) {
         tokenDao.getActiveToken()
     }
 
-    suspend fun getSettingForShow(simklId: Int): NotificationSetting? = withContext(Dispatchers.IO) {
-        settingDao.getSettingForShow(simklId)
-    }
-
     suspend fun syncCalendar() = withContext(Dispatchers.IO) {
-        val watchlistChanged = syncWatchlist()
+        syncWatchlist()
         // If calendar jsons haven't been synced in >6h, sync calendar jsons
         syncCalendarJsons()
     }
@@ -326,22 +324,26 @@ class SimklRepository(private val context: Context) {
                     clientId = clientId
                 )
 
-                val existingTracked = try {
-                    watchlistDao.getAllTrackedItems()
-                } catch (_: Exception) {
-                    emptyList()
-                }
+                val existingTracked = watchlistDao.getAllTrackedItems()
                 val existingTrackedMap = existingTracked.associateBy { it.simklId }
                 val trackedToInsert = mutableMapOf<Int, TrackedWatchlistItem>()
                 val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
-                val activeTrackedIds = mutableSetOf<Int>()
+                val trackedToDelete = mutableSetOf<Int>()
 
-                fun processTrackedItem(newItem: TrackedWatchlistItem) {
-                    activeTrackedIds.add(newItem.simklId)
+                fun processWatchlistItem(status: WatchlistStatus, newItem: TrackedWatchlistItem) {
                     val existing = existingTrackedMap[newItem.simklId]
+                    if (status != WatchlistStatus.WATCHING && status != WatchlistStatus.PLAN_TO_WATCH) {
+                        if (existing != null) {
+                            trackedToDelete.add(newItem.simklId)
+                        }
+
+                        return
+                    }
+
                     if (existing == null) {
                         val currentInsert = trackedToInsert[newItem.simklId]
                         trackedToInsert[newItem.simklId] = currentInsert?.updatedWith(newItem) ?: newItem
+
                         return
                     }
 
@@ -375,65 +377,38 @@ class SimklRepository(private val context: Context) {
 
                 // Process TV Shows
                 syncResponse.shows?.forEach { item ->
-                    val media = item.show
-                    val simklId = media.ids.simkl
-                    val status = WatchlistStatus.fromString(item.status)
-                    extractWatched(simklId, item.seasons)
-
-                    if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
-                        processTrackedItem(
-                            TrackedWatchlistItem(
-                                simklId = simklId,
-                                type = MediaType.TV,
-                                title = media.title,
-                                poster = media.poster
-                            )
-                        )
-                    }
+                    val trackedWatchlistItem = TrackedWatchlistItem.fromShowItem(item, type = MediaType.TV)
+                    extractWatched(trackedWatchlistItem.simklId, item.seasons)
+                    processWatchlistItem(
+                        status = WatchlistStatus.fromString(item.status),
+                        newItem = trackedWatchlistItem,
+                    )
                 }
 
                 // Process Anime
                 syncResponse.anime?.forEach { item ->
-                    val media = item.show
-                    val simklId = media.ids.simkl
-                    val status = WatchlistStatus.fromString(item.status)
-                    extractWatched(simklId, item.seasons)
-
-                    if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
-                        processTrackedItem(
-                            TrackedWatchlistItem(
-                                simklId = simklId,
-                                type = MediaType.ANIME,
-                                title = media.title,
-                                poster = media.poster
-                            )
-                        )
-                    }
+                    val trackedWatchlistItem = TrackedWatchlistItem.fromShowItem(item, type = MediaType.ANIME)
+                    extractWatched(trackedWatchlistItem.simklId, item.seasons)
+                    processWatchlistItem(
+                        status = WatchlistStatus.fromString(item.status),
+                        newItem = trackedWatchlistItem,
+                    )
                 }
 
                 // Process Movies
                 syncResponse.movies?.forEach { item ->
-                    val media = item.movie
-                    val simklId = media.ids.simkl
-                    val status = WatchlistStatus.fromString(item.status)
-                    if (status == WatchlistStatus.PLAN_TO_WATCH || status == WatchlistStatus.WATCHING) {
-                        processTrackedItem(
-                            TrackedWatchlistItem(
-                                simklId = simklId,
-                                type = MediaType.MOVIE,
-                                title = media.title,
-                                poster = media.poster
-                            )
-                        )
-                    }
+                    val trackedWatchlistItem = TrackedWatchlistItem.fromMovieItem(item)
+                    processWatchlistItem(
+                        status = WatchlistStatus.fromString(item.status),
+                        newItem = trackedWatchlistItem,
+                    )
                 }
 
                 // Remove tracked items no longer in user's active watchlist
-                val trackedToDelete = existingTracked.filter { it.simklId !in activeTrackedIds }
                 if (trackedToDelete.isNotEmpty()) {
-                    for (item in trackedToDelete) {
-                        watchlistDao.deleteItem(item.simklId)
-                        watchedDao.deleteWatchedForShow(item.simklId)
+                    for (simklId in trackedToDelete) {
+                        watchlistDao.deleteItem(simklId)
+                        watchedDao.deleteWatchedForShow(simklId)
                     }
                     Log.d("SimklRepository", "Deleted ${trackedToDelete.size} untracked watchlist items from DB")
                 }
@@ -495,7 +470,7 @@ class SimklRepository(private val context: Context) {
                 }
 
                 if (!currentActivitiesTimestamp.isNullOrEmpty()) {
-                    syncPrefs.edit().putString("last_activities_all", currentActivitiesTimestamp).apply()
+                    syncPrefs.edit { putString("last_activities_all", currentActivitiesTimestamp) }
                 }
                 changesDetected = true
             } else {
@@ -516,7 +491,7 @@ class SimklRepository(private val context: Context) {
      * Checks Last-Modified response header and only downloads files when their Last-Modified was over 6 hours ago.
      * Skips inserting episodes that were already watched over a month ago to prevent calendar backlog clutter.
      */
-    suspend fun syncCalendarJsons(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun syncCalendarJsons(forceFullSync: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken()
         if (userToken == null || userToken.accessToken.isEmpty()) {
             Log.d("SimklRepository", "No authenticated user token found, skipping calendar json sync.")
@@ -539,19 +514,11 @@ class SimklRepository(private val context: Context) {
         }
 
         // Load all watched episodes to match with calendar entries
-        val allWatchedList = try {
-            watchedDao.getAllWatchedEpisodes()
-        } catch (_: Exception) {
-            emptyList()
-        }
+        val allWatchedList = watchedDao.getAllWatchedEpisodes()
         val watchedLookup = allWatchedList.groupBy { it.simklId }
 
         // Load existing local calendar items to perform incremental diff comparison
-        val existingDbItems = try {
-            calendarDao.getAllCalendarEntities()
-        } catch (_: Exception) {
-            emptyList()
-        }
+        val existingDbItems = calendarDao.getAllCalendarEntities()
         val existingItemsMap = existingDbItems.associateBy { it.primaryKey }
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
@@ -613,8 +580,8 @@ class SimklRepository(private val context: Context) {
                 val lastModifiedPrefKey = "cal_json_last_mod_${year}_${month}_$endpointType"
                 val lastModifiedHeaderKey = "cal_json_header_${year}_${month}_$endpointType"
 
-                val lastModifiedTimestamp = syncPrefs.getLong(lastModifiedPrefKey, 0L)
-                val savedHeader = syncPrefs.getString(lastModifiedHeaderKey, null)
+                val lastModifiedTimestamp = if (forceFullSync) 0L else syncPrefs.getLong(lastModifiedPrefKey, 0L)
+                val savedHeader = if (forceFullSync) null else syncPrefs.getString(lastModifiedHeaderKey, null)
 
                 // Only sync calendar jsons when their last modified was over 6h in the past
                 val isOver6Hours = (nowMillis - lastModifiedTimestamp) >= SIX_HOURS_MILLIS
@@ -631,7 +598,7 @@ class SimklRepository(private val context: Context) {
 
                     if (response.code() == 304) {
                         Log.d("SimklRepository", "Calendar JSON $url not modified (HTTP 304)")
-                        syncPrefs.edit().putLong(lastModifiedPrefKey, nowMillis).apply()
+                        syncPrefs.edit { putLong(lastModifiedPrefKey, nowMillis) }
                         continue
                     }
 
@@ -646,10 +613,10 @@ class SimklRepository(private val context: Context) {
                     // Track Last-Modified header from response
                     val responseLastModifiedHeader = response.headers()["Last-Modified"]
                     val parsedHeaderMillis = DateUtil.parseHttpDateToMillis(responseLastModifiedHeader) ?: nowMillis
-                    syncPrefs.edit()
-                        .putLong(lastModifiedPrefKey, parsedHeaderMillis)
-                        .putString(lastModifiedHeaderKey, responseLastModifiedHeader ?: "")
-                        .apply()
+                    syncPrefs.edit {
+                        putLong(lastModifiedPrefKey, parsedHeaderMillis)
+                            .putString(lastModifiedHeaderKey, responseLastModifiedHeader ?: "")
+                    }
 
                     val entries = calendarResponse.calendar
                     if (entries.isEmpty()) continue
@@ -671,7 +638,7 @@ class SimklRepository(private val context: Context) {
                                 TrackedWatchlistItem(
                                     simklId = simklId,
                                     type = defaultType,
-                                    title = meta.title ?: "",
+                                    title = meta.title,
                                     titleRomaji = meta.titleRomaji,
                                     poster = meta.poster
                                 )
@@ -1326,8 +1293,29 @@ class SimklRepository(private val context: Context) {
 
     suspend fun forceWatchlistResync(): Boolean = withContext(Dispatchers.IO) {
         val changed = syncWatchlist(forceFullSync = true)
-        syncCalendarJsons()
+        syncCalendarJsons(forceFullSync = true)
         changed
     }
 }
 
+fun TrackedWatchlistItem.Companion.fromShowItem(item: SyncShowItem, type: MediaType): TrackedWatchlistItem {
+    val media = item.show
+
+    return TrackedWatchlistItem(
+        simklId = media.ids.simkl,
+        type = type,
+        title = media.title,
+        poster = media.poster
+    )
+}
+
+fun TrackedWatchlistItem.Companion.fromMovieItem(item: SyncMovieItem): TrackedWatchlistItem {
+    val media = item.movie
+
+    return TrackedWatchlistItem(
+        simklId = media.ids.simkl,
+        type = MediaType.MOVIE,
+        title = media.title,
+        poster = media.poster
+    )
+}

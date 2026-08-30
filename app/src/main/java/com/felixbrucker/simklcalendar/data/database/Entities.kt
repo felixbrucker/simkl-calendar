@@ -10,6 +10,7 @@ import androidx.room.Relation
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import java.time.Instant
+import androidx.core.net.toUri
 
 @Entity(tableName = "user_token")
 data class UserToken(
@@ -81,6 +82,8 @@ data class TrackedWatchlistItem(
     val titleRomaji: String? = null, // Romaji title for anime
     val poster: String? = null // URL for show poster image
 ) {
+    companion object
+
     fun updatedWith(newItem: TrackedWatchlistItem): TrackedWatchlistItem {
         val newTitle = if (newItem.title.isNotBlank()) newItem.title else this.title
         val newRomaji = if (!newItem.titleRomaji.isNullOrBlank()) newItem.titleRomaji else this.titleRomaji
@@ -235,7 +238,7 @@ data class CustomSearchLink(
             } else {
                 "https://$urlTemplate"
             }
-            val uri = android.net.Uri.parse(cleanUrl)
+            val uri = cleanUrl.toUri()
             val host = uri.host ?: ""
             if (host.isNotBlank()) host else cleanUrl.substringBefore("/").substringBefore("?")
         } catch (_: Exception) {
