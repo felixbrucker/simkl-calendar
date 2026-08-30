@@ -80,7 +80,20 @@ data class TrackedWatchlistItem(
     val title: String,
     val titleRomaji: String? = null, // Romaji title for anime
     val poster: String? = null // URL for show poster image
-)
+) {
+    fun updatedWith(newItem: TrackedWatchlistItem): TrackedWatchlistItem {
+        val newTitle = if (newItem.title.isNotBlank()) newItem.title else this.title
+        val newRomaji = if (!newItem.titleRomaji.isNullOrBlank()) newItem.titleRomaji else this.titleRomaji
+        val newPoster = if (!newItem.poster.isNullOrBlank()) newItem.poster else this.poster
+
+        return this.copy(
+            type = newItem.type,
+            title = newTitle,
+            titleRomaji = newRomaji,
+            poster = newPoster
+        )
+    }
+}
 
 /**
  * Joined relational model combining a CalendarItem episode/movie release with its parent TrackedWatchlistItem metadata.

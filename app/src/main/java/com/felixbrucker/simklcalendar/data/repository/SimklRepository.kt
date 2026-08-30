@@ -326,7 +326,32 @@ class SimklRepository(private val context: Context) {
                     clientId = clientId
                 )
 
-                val newTracked = mutableListOf<TrackedWatchlistItem>()
+                val existingTracked = try {
+                    watchlistDao.getAllTrackedItems()
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                val existingTrackedMap = existingTracked.associateBy { it.simklId }
+                val trackedToInsert = mutableMapOf<Int, TrackedWatchlistItem>()
+                val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
+                val activeTrackedIds = mutableSetOf<Int>()
+
+                fun processTrackedItem(newItem: TrackedWatchlistItem) {
+                    activeTrackedIds.add(newItem.simklId)
+                    val existing = existingTrackedMap[newItem.simklId]
+                    if (existing == null) {
+                        val currentInsert = trackedToInsert[newItem.simklId]
+                        trackedToInsert[newItem.simklId] = currentInsert?.updatedWith(newItem) ?: newItem
+                        return
+                    }
+
+                    val base = trackedToUpdate[newItem.simklId] ?: existing
+                    val updated = base.updatedWith(newItem)
+                    if (updated != base) {
+                        trackedToUpdate[newItem.simklId] = updated
+                    }
+                }
+
                 val newWatchedEpisodes = mutableListOf<WatchedEpisode>()
 
                 fun extractWatched(simklId: Int, seasons: List<SyncSeasonItem>?) {
@@ -356,7 +381,7 @@ class SimklRepository(private val context: Context) {
                     extractWatched(simklId, item.seasons)
 
                     if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
-                        newTracked.add(
+                        processTrackedItem(
                             TrackedWatchlistItem(
                                 simklId = simklId,
                                 type = MediaType.TV,
@@ -364,9 +389,6 @@ class SimklRepository(private val context: Context) {
                                 poster = media.poster
                             )
                         )
-                    } else if (savedTimestamp != null) {
-                        watchlistDao.deleteItem(simklId)
-                        watchedDao.deleteWatchedForShow(simklId)
                     }
                 }
 
@@ -378,7 +400,7 @@ class SimklRepository(private val context: Context) {
                     extractWatched(simklId, item.seasons)
 
                     if (status == WatchlistStatus.WATCHING || status == WatchlistStatus.PLAN_TO_WATCH) {
-                        newTracked.add(
+                        processTrackedItem(
                             TrackedWatchlistItem(
                                 simklId = simklId,
                                 type = MediaType.ANIME,
@@ -386,9 +408,6 @@ class SimklRepository(private val context: Context) {
                                 poster = media.poster
                             )
                         )
-                    } else if (savedTimestamp != null) {
-                        watchlistDao.deleteItem(simklId)
-                        watchedDao.deleteWatchedForShow(simklId)
                     }
                 }
 
@@ -398,7 +417,7 @@ class SimklRepository(private val context: Context) {
                     val simklId = media.ids.simkl
                     val status = WatchlistStatus.fromString(item.status)
                     if (status == WatchlistStatus.PLAN_TO_WATCH || status == WatchlistStatus.WATCHING) {
-                        newTracked.add(
+                        processTrackedItem(
                             TrackedWatchlistItem(
                                 simklId = simklId,
                                 type = MediaType.MOVIE,
@@ -406,13 +425,29 @@ class SimklRepository(private val context: Context) {
                                 poster = media.poster
                             )
                         )
-                    } else if (savedTimestamp != null) {
-                        watchlistDao.deleteItem(simklId)
                     }
                 }
 
+                // Remove tracked items no longer in user's active watchlist
+                val trackedToDelete = existingTracked.filter { it.simklId !in activeTrackedIds }
+                if (trackedToDelete.isNotEmpty()) {
+                    for (item in trackedToDelete) {
+                        watchlistDao.deleteItem(item.simklId)
+                        watchedDao.deleteWatchedForShow(item.simklId)
+                    }
+                    Log.d("SimklRepository", "Deleted ${trackedToDelete.size} untracked watchlist items from DB")
+                }
+
+                if (trackedToInsert.isNotEmpty()) {
+                    watchlistDao.insertOrUpdateItems(trackedToInsert.values.toList())
+                    Log.d("SimklRepository", "Inserted ${trackedToInsert.size} new tracked watchlist items into DB")
+                }
+                if (trackedToUpdate.isNotEmpty()) {
+                    watchlistDao.insertOrUpdateItems(trackedToUpdate.values.toList())
+                    Log.d("SimklRepository", "Updated ${trackedToUpdate.size} changed tracked watchlist items in DB")
+                }
+
                 if (savedTimestamp == null) {
-                    watchlistDao.clearAll()
                     watchedDao.clearAll()
                     calendarDao.markAllUnwatched()
                 } else {
@@ -437,9 +472,6 @@ class SimklRepository(private val context: Context) {
                     }
                 }
 
-                if (newTracked.isNotEmpty()) {
-                    watchlistDao.insertOrUpdateItems(newTracked)
-                }
                 if (newWatchedEpisodes.isNotEmpty()) {
                     watchedDao.insertWatchedEpisodes(newWatchedEpisodes)
                     for (watched in newWatchedEpisodes) {
@@ -539,6 +571,18 @@ class SimklRepository(private val context: Context) {
             }
         }
 
+        val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
+
+        fun processTrackedItem(newItem: TrackedWatchlistItem) {
+            val existing = trackedItemMap[newItem.simklId] ?: return
+            val base = trackedToUpdate[newItem.simklId] ?: existing
+            val updated = base.updatedWith(newItem)
+            if (updated != base) {
+                trackedToUpdate[newItem.simklId] = updated
+                trackedItemMap[newItem.simklId] = updated
+            }
+        }
+
         val SIX_HOURS_MILLIS = 6 * 60 * 60 * 1000L
         val nowMillis = System.currentTimeMillis()
         val oneMonthAgo = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS)
@@ -622,16 +666,16 @@ class SimklRepository(private val context: Context) {
                         if (!isTracked) continue
 
                         val meta = metadataMap[simklId.toString()] ?: metadataMap[simklId.toString().lowercase()]
-                        val tracked = trackedItemMap[simklId]
-                        if (tracked != null && meta != null) {
-                            val newTitle = meta.title ?: tracked.title
-                            val newRomaji = meta.titleRomaji ?: tracked.titleRomaji
-                            val newPoster = meta.poster ?: tracked.poster
-                            if (newTitle != tracked.title || newRomaji != tracked.titleRomaji || newPoster != tracked.poster) {
-                                val updatedTracked = tracked.copy(title = newTitle, titleRomaji = newRomaji, poster = newPoster)
-                                watchlistDao.insertOrUpdateItem(updatedTracked)
-                                trackedItemMap[simklId] = updatedTracked
-                            }
+                        if (meta != null) {
+                            processTrackedItem(
+                                TrackedWatchlistItem(
+                                    simklId = simklId,
+                                    type = defaultType,
+                                    title = meta.title ?: "",
+                                    titleRomaji = meta.titleRomaji,
+                                    poster = meta.poster
+                                )
+                            )
                         }
 
                         if (defaultType == MediaType.MOVIE) {
@@ -739,16 +783,14 @@ class SimklRepository(private val context: Context) {
                         authorization = bearer,
                         clientId = clientId
                     )
-                    val tracked = trackedItemMap[movieId]
-                    if (tracked != null) {
-                        val newTitle = movieDetail.title.takeIf { it.isNotBlank() } ?: tracked.title
-                        val newPoster = movieDetail.poster ?: tracked.poster
-                        if (newTitle != tracked.title || newPoster != tracked.poster) {
-                            val updatedTracked = tracked.copy(title = newTitle, poster = newPoster)
-                            watchlistDao.insertOrUpdateItem(updatedTracked)
-                            trackedItemMap[movieId] = updatedTracked
-                        }
-                    }
+                    processTrackedItem(
+                        TrackedWatchlistItem(
+                            simklId = movieId,
+                            type = MediaType.MOVIE,
+                            title = movieDetail.title,
+                            poster = movieDetail.poster
+                        )
+                    )
 
                     // 1. Process Theatrical release date from regular released property
                     movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
@@ -801,6 +843,11 @@ class SimklRepository(private val context: Context) {
         if (itemsToDelete.isNotEmpty()) {
             calendarDao.deleteCalendarItems(itemsToDelete)
             Log.d("SimklRepository", "Deleted ${itemsToDelete.size} untracked calendar items from DB")
+        }
+
+        if (trackedToUpdate.isNotEmpty()) {
+            watchlistDao.insertOrUpdateItems(trackedToUpdate.values.toList())
+            Log.d("SimklRepository", "Updated ${trackedToUpdate.size} changed tracked watchlist items with metadata in DB")
         }
 
         if (itemsToInsert.isNotEmpty()) {
