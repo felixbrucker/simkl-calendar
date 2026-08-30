@@ -21,14 +21,23 @@ interface UserTokenDao {
 
 @Dao
 interface CalendarItemDao {
+    @Transaction
     @Query("SELECT * FROM calendar_items ORDER BY date ASC")
-    fun getAllCalendarItems(): Flow<List<CalendarItem>>
+    fun getAllCalendarItems(): Flow<List<CalendarItemWithWatchlist>>
+
+    @Transaction
+    @Query("SELECT * FROM calendar_items ORDER BY date ASC")
+    suspend fun getAllCalendarItemsList(): List<CalendarItemWithWatchlist>
 
     @Query("SELECT * FROM calendar_items ORDER BY date ASC")
-    suspend fun getAllCalendarItemsList(): List<CalendarItem>
+    suspend fun getAllCalendarEntities(): List<CalendarItem>
+
+    @Transaction
+    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC")
+    suspend fun getItemsForShow(simklId: Int): List<CalendarItemWithWatchlist>
 
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC")
-    suspend fun getItemsForShow(simklId: Int): List<CalendarItem>
+    suspend fun getCalendarEntitiesForShow(simklId: Int): List<CalendarItem>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCalendarItems(items: List<CalendarItem>)
@@ -42,8 +51,12 @@ interface CalendarItemDao {
     @Query("DELETE FROM calendar_items")
     suspend fun clearCalendarItems()
 
+    @Transaction
     @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
-    suspend fun findItem(primaryKey: String): CalendarItem?
+    suspend fun findItem(primaryKey: String): CalendarItemWithWatchlist?
+
+    @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
+    suspend fun findCalendarEntity(primaryKey: String): CalendarItem?
 
     @Query("UPDATE calendar_items SET isNotified = 1 WHERE primaryKey = :primaryKey")
     suspend fun markItemAsNotified(primaryKey: String)
@@ -96,11 +109,17 @@ interface WatchlistDao {
     @Query("SELECT * FROM tracked_watchlist_items")
     suspend fun getAllTrackedItems(): List<TrackedWatchlistItem>
 
+    @Query("SELECT * FROM tracked_watchlist_items WHERE simklId = :simklId LIMIT 1")
+    suspend fun getItem(simklId: Int): TrackedWatchlistItem?
+
     @Query("SELECT * FROM tracked_watchlist_items WHERE type = :type")
     suspend fun getTrackedItemsByType(type: MediaType): List<TrackedWatchlistItem>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateItems(items: List<TrackedWatchlistItem>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateItem(item: TrackedWatchlistItem)
 
     @Query("DELETE FROM tracked_watchlist_items WHERE simklId = :simklId")
     suspend fun deleteItem(simklId: Int)

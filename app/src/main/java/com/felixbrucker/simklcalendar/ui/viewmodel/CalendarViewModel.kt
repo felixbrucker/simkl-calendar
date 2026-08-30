@@ -3,7 +3,7 @@ package com.felixbrucker.simklcalendar.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.database.UserToken
@@ -27,7 +27,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val notificationSettings: StateFlow<List<NotificationSetting>> = repository.notificationSettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allCalendarItems: StateFlow<List<CalendarItem>> = repository.calendarItems
+    val allCalendarItems: StateFlow<List<CalendarItemWithWatchlist>> = repository.calendarItems
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val watchedEpisodes: StateFlow<List<WatchedEpisode>> = repository.watchedEpisodes
@@ -70,7 +70,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     // Combined filtered calendar list reactive flow
     @Suppress("UNCHECKED_CAST")
-    val filteredCalendarItems: StateFlow<List<CalendarItem>> = combine(
+    val filteredCalendarItems: StateFlow<List<CalendarItemWithWatchlist>> = combine(
         repository.calendarItems,
         showTv,
         showAnime,
@@ -80,7 +80,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         onlyDigitalDvd,
         searchQuery
     ) { flows ->
-        val items = flows[0] as List<CalendarItem>
+        val items = flows[0] as List<CalendarItemWithWatchlist>
         val tv = flows[1] as Boolean
         val anime = flows[2] as Boolean
         val movies = flows[3] as Boolean
@@ -120,7 +120,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             }
 
             matchesCategory && matchesType && matchesWatched && matchesQuery
-        }.sortedWith(compareBy<CalendarItem> { it.date }.thenBy { it.title })
+        }.sortedWith(compareBy<CalendarItemWithWatchlist> { it.date }.thenBy { it.title })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Calendar sync and status tracking

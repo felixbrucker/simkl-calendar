@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
@@ -933,7 +933,7 @@ fun CalendarScreen(
 
 @Composable
 fun CalendarItemCard(
-    item: CalendarItem,
+    item: CalendarItemWithWatchlist,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1056,9 +1056,10 @@ fun CalendarItemCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                if (item.type == MediaType.ANIME && !item.titleRomaji.isNullOrBlank()) {
+                val romaji = item.titleRomaji
+                if (item.type == MediaType.ANIME && !romaji.isNullOrBlank()) {
                     Text(
-                        text = item.titleRomaji,
+                        text = romaji,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal,
                         color = Color(0xFFCAC4D0),
@@ -1119,7 +1120,7 @@ fun CalendarItemCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SwipeableCalendarItemCard(
-    item: CalendarItem,
+    item: CalendarItemWithWatchlist,
     onClick: () -> Unit,
     onMarkEpisodeWatched: () -> Unit,
     onMarkSeasonWatched: () -> Unit,

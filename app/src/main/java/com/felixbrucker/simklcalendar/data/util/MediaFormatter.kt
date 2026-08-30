@@ -1,6 +1,6 @@
 package com.felixbrucker.simklcalendar.data.util
 
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import java.util.Locale
@@ -232,18 +232,18 @@ object MediaFormatter {
     }
 }
 
-// Extension properties for convenience on CalendarItem
-val CalendarItem.formattedEpisodeCode: String
+// Extension properties for convenience on CalendarItemWithWatchlist
+val CalendarItemWithWatchlist.formattedEpisodeCode: String
     get() = MediaFormatter.formatEpisodeCode(type, season, episodeNumber)
 
-val CalendarItem.formattedEpisodeCardBadge: String
+val CalendarItemWithWatchlist.formattedEpisodeCardBadge: String
     get() = MediaFormatter.formatEpisodeCardBadge(type, season, episodeNumber)
 
-val CalendarItem.formattedEpisodeLabel: String
+val CalendarItemWithWatchlist.formattedEpisodeLabel: String
     get() = MediaFormatter.formatEpisodeLabel(type, season, episodeNumber)
 
-val CalendarItem.formattedSeasonLabel: String
+val CalendarItemWithWatchlist.formattedSeasonLabel: String
     get() = MediaFormatter.formatSeasonLabel(type, season)
 
-val CalendarItem.formattedEpisodeSlugHeader: String
+val CalendarItemWithWatchlist.formattedEpisodeSlugHeader: String
     get() = MediaFormatter.formatEpisodeSlugHeader(type, season)

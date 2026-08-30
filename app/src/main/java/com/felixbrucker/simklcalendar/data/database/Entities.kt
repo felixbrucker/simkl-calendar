@@ -1,8 +1,12 @@
 package com.felixbrucker.simklcalendar.data.database
 
 import androidx.room.ColumnInfo
+import androidx.room.Embedded
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.Relation
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import java.time.Instant
@@ -14,23 +18,32 @@ data class UserToken(
     val username: String
 )
 
-@Entity(tableName = "calendar_items")
+@Entity(
+    tableName = "calendar_items",
+    foreignKeys = [
+        ForeignKey(
+            entity = TrackedWatchlistItem::class,
+            parentColumns = ["simklId"],
+            childColumns = ["simklId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["simklId"])
+    ]
+)
 data class CalendarItem(
     @PrimaryKey val primaryKey: String, // e.g. "v2_${simklId}_${season}_${episodeNumber}" or "v2_${simklId}_theater" / "v2_${simklId}_digital"
-    val simklId: Int, // Unique ID for Simkl
-    val title: String, // Show or Movie title
+    val simklId: Int, // Reference to TrackedWatchlistItem
     val episodeTitle: String?, // Strictly episode title (null for movies)
     val season: Int?, // Season number (null for movies)
     val episodeNumber: Int?, // Episode number (null for movies)
     val date: Instant, // Full air date/time as native Instant object
-    val type: MediaType, // MediaType enum (TV, ANIME, MOVIE)
     val movieReleaseType: MovieReleaseType? = null, // Strictly for movies (THEATER, DIGITAL)
     val isSeasonPremiere: Boolean,
     val isSeasonFinale: Boolean,
-    val poster: String?, // URL for show poster image
     val isNotified: Boolean = false, // Track whether notification has been dispatched
-    val watchedAt: Instant? = null, // Timestamp of when the episode was watched
-    val titleRomaji: String? = null // Romaji title for anime
+    val watchedAt: Instant? = null // Timestamp of when the episode was watched
 ) {
     val isWatched: Boolean
         get() = watchedAt != null
@@ -40,14 +53,10 @@ data class CalendarItem(
         val updatedNotified = if (isDateRescheduledToFuture) false else this.isNotified
 
         return this.copy(
-            title = newItem.title,
-            titleRomaji = newItem.titleRomaji ?: this.titleRomaji,
             episodeTitle = newItem.episodeTitle,
             season = newItem.season,
             episodeNumber = newItem.episodeNumber,
             date = newItem.date,
-            poster = newItem.poster,
-            type = newItem.type,
             movieReleaseType = newItem.movieReleaseType,
             isSeasonPremiere = newItem.isSeasonPremiere,
             isSeasonFinale = newItem.isSeasonFinale,
@@ -69,8 +78,38 @@ data class TrackedWatchlistItem(
     @PrimaryKey val simklId: Int, // Simkl ID
     val type: MediaType,
     val title: String,
-    val poster: String? = null
+    val titleRomaji: String? = null, // Romaji title for anime
+    val poster: String? = null // URL for show poster image
 )
+
+/**
+ * Joined relational model combining a CalendarItem episode/movie release with its parent TrackedWatchlistItem metadata.
+ */
+data class CalendarItemWithWatchlist(
+    @Embedded val calendarItem: CalendarItem,
+    @Relation(
+        parentColumn = "simklId",
+        entityColumn = "simklId"
+    )
+    val watchlistItem: TrackedWatchlistItem?
+) {
+    val primaryKey: String get() = calendarItem.primaryKey
+    val simklId: Int get() = calendarItem.simklId
+    val title: String get() = watchlistItem?.title ?: "Untitled"
+    val titleRomaji: String? get() = watchlistItem?.titleRomaji
+    val poster: String? get() = watchlistItem?.poster
+    val type: MediaType get() = watchlistItem?.type ?: MediaType.TV
+    val episodeTitle: String? get() = calendarItem.episodeTitle
+    val season: Int? get() = calendarItem.season
+    val episodeNumber: Int? get() = calendarItem.episodeNumber
+    val date: Instant get() = calendarItem.date
+    val movieReleaseType: MovieReleaseType? get() = calendarItem.movieReleaseType
+    val isSeasonPremiere: Boolean get() = calendarItem.isSeasonPremiere
+    val isSeasonFinale: Boolean get() = calendarItem.isSeasonFinale
+    val isNotified: Boolean get() = calendarItem.isNotified
+    val watchedAt: Instant? get() = calendarItem.watchedAt
+    val isWatched: Boolean get() = calendarItem.isWatched
+}
 
 @Entity(tableName = "watched_episodes", primaryKeys = ["simklId", "season", "episodeNumber"])
 data class WatchedEpisode(
@@ -90,7 +129,7 @@ data class CustomSearchLink(
     @ColumnInfo(defaultValue = "0") val position: Int = 0
 ) {
     /**
-     * Builds the complete URL by replacing supported placeholders with values from the given CalendarItem.
+     * Builds the complete URL by replacing supported placeholders with values from the given CalendarItemWithWatchlist.
      * Supported placeholders:
      * - {TITLE} -> Show/Movie/Anime title (raw / unencoded)
      * - {TITLE_URL_ENCODED} -> Show/Movie/Anime title (URL encoded)
@@ -101,7 +140,7 @@ data class CustomSearchLink(
      * - {SEASON_SLUG} -> Season code (e.g. "S04")
      * - {EPISODE_SLUG} -> Episode code (e.g. "S04E03" or "E03")
      */
-    fun buildUrl(item: CalendarItem): String {
+    fun buildUrl(item: CalendarItemWithWatchlist): String {
         val rawTitle = item.title
         val encodedTitle = try {
             java.net.URLEncoder.encode(rawTitle, "UTF-8")
@@ -119,20 +158,23 @@ data class CustomSearchLink(
         val seasonNumStr = item.season?.toString() ?: if (item.type != MediaType.MOVIE) "1" else ""
         val episodeNumStr = item.episodeNumber?.toString() ?: ""
 
+        val s = item.season
+        val e = item.episodeNumber
+
         val seasonSlugStr = if (item.type == MediaType.MOVIE) {
             ""
-        } else if (item.season != null && item.season > 0) {
-            String.format(java.util.Locale.US, "S%02d", item.season)
+        } else if (s != null && s > 0) {
+            String.format(java.util.Locale.US, "S%02d", s)
         } else {
             "S01"
         }
 
         val episodeSlugStr = if (item.type == MediaType.MOVIE) {
             ""
-        } else if (item.season != null && item.episodeNumber != null) {
-            String.format(java.util.Locale.US, "S%02dE%02d", item.season, item.episodeNumber)
-        } else if (item.episodeNumber != null) {
-            String.format(java.util.Locale.US, "E%02d", item.episodeNumber)
+        } else if (s != null && e != null) {
+            String.format(java.util.Locale.US, "S%02dE%02d", s, e)
+        } else if (e != null) {
+            String.format(java.util.Locale.US, "E%02d", e)
         } else {
             ""
         }

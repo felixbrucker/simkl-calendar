@@ -78,7 +78,7 @@ class Converters {
 
 @Database(
     entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class],
-    version = 13,
+    version = 14,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -86,13 +86,20 @@ class Converters {
         AutoMigration(from = 9, to = 10),
         AutoMigration(from = 10, to = 11),
         AutoMigration(from = 11, to = 12),
-        AutoMigration(from = 12, to = 13)
+        AutoMigration(from = 12, to = 13),
+        AutoMigration(from = 13, to = 14, spec = AppDatabase.Migration13To14::class)
     ]
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     @DeleteColumn(tableName = "calendar_items", columnName = "isWatched")
     class Migration8To9 : AutoMigrationSpec
+
+    @DeleteColumn(tableName = "calendar_items", columnName = "title")
+    @DeleteColumn(tableName = "calendar_items", columnName = "titleRomaji")
+    @DeleteColumn(tableName = "calendar_items", columnName = "poster")
+    @DeleteColumn(tableName = "calendar_items", columnName = "type")
+    class Migration13To14 : AutoMigrationSpec
 
     abstract fun userTokenDao(): UserTokenDao
     abstract fun calendarItemDao(): CalendarItemDao

@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
@@ -101,7 +101,7 @@ fun ShowDetailScreen(
     val showScheduleItems = remember(allItems, activeItem) {
         if (activeItem != null) {
             allItems.filter { it.simklId == activeItem.simklId }
-                .sortedWith(compareBy<CalendarItem> { it.date }.thenBy { it.season }.thenBy { it.episodeNumber })
+                .sortedWith(compareBy<CalendarItemWithWatchlist> { it.date }.thenBy { it.season }.thenBy { it.episodeNumber })
         } else {
             emptyList()
         }
@@ -124,8 +124,9 @@ fun ShowDetailScreen(
         showWatched.forEach { w ->
             if (w.season > 0) seasonsSet.add(w.season)
         }
-        if (activeItem?.season != null && activeItem.season > 0) {
-            seasonsSet.add(activeItem.season)
+        val currentSeason = activeItem?.season
+        if (currentSeason != null && currentSeason > 0) {
+            seasonsSet.add(currentSeason)
         }
         if (seasonsSet.isEmpty()) {
             listOf(1)
@@ -297,10 +298,11 @@ fun ShowDetailScreen(
                             color = Color.White
                         )
 
-                        if (activeItem.type == MediaType.ANIME && !activeItem.titleRomaji.isNullOrBlank()) {
+                        val romaji = activeItem.titleRomaji
+                        if (activeItem.type == MediaType.ANIME && !romaji.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = activeItem.titleRomaji,
+                                text = romaji,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Normal,
                                 color = Color(0xFFCAC4D0)

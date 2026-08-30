@@ -5,6 +5,7 @@ import android.util.Log
 import com.felixbrucker.simklcalendar.BuildConfig
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
@@ -52,7 +53,7 @@ class SimklRepository(private val context: Context) {
     private val syncPrefs = context.getSharedPreferences("simkl_sync_prefs", Context.MODE_PRIVATE)
 
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
-    val calendarItems: Flow<List<CalendarItem>> = calendarDao.getAllCalendarItems()
+    val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()
     val notificationSettings: Flow<List<NotificationSetting>> = settingDao.getAllSettings()
     val watchedEpisodes: Flow<List<WatchedEpisode>> = watchedDao.getAllWatchedEpisodesFlow()
     val customSearchLinks: Flow<List<CustomSearchLink>> = searchLinkDao.getAllSearchLinks()
@@ -454,7 +455,7 @@ class SimklRepository(private val context: Context) {
                 // Remove calendar items for shows no longer tracked
                 val allTracked = watchlistDao.getAllTrackedItems()
                 val trackedIds = allTracked.map { it.simklId }.toSet()
-                val existingCalendar = calendarDao.getAllCalendarItemsList()
+                val existingCalendar = calendarDao.getAllCalendarEntities()
                 val itemsToRemove = existingCalendar.filter { !trackedIds.contains(it.simklId) }
                 if (itemsToRemove.isNotEmpty()) {
                     calendarDao.deleteCalendarItems(itemsToRemove)
@@ -494,9 +495,11 @@ class SimklRepository(private val context: Context) {
 
         // Load local tracked items
         val allTrackedItems = watchlistDao.getAllTrackedItems()
+        val trackedItemMap = allTrackedItems.associateBy { it.simklId }.toMutableMap()
         val trackedShowIds = allTrackedItems.filter { it.type == MediaType.TV }.map { it.simklId }.toSet()
         val trackedAnimeIds = allTrackedItems.filter { it.type == MediaType.ANIME }.map { it.simklId }.toSet()
         val trackedMovieIds = allTrackedItems.filter { it.type == MediaType.MOVIE }.map { it.simklId }.toSet()
+        val allTrackedIds = allTrackedItems.map { it.simklId }.toSet()
 
         if (allTrackedItems.isEmpty()) {
             Log.d("SimklRepository", "No tracked items in watchlist, skipping calendar json sync.")
@@ -513,7 +516,7 @@ class SimklRepository(private val context: Context) {
 
         // Load existing local calendar items to perform incremental diff comparison
         val existingDbItems = try {
-            calendarDao.getAllCalendarItemsList()
+            calendarDao.getAllCalendarEntities()
         } catch (_: Exception) {
             emptyList()
         }
@@ -619,9 +622,17 @@ class SimklRepository(private val context: Context) {
                         if (!isTracked) continue
 
                         val meta = metadataMap[simklId.toString()] ?: metadataMap[simklId.toString().lowercase()]
-                        val title = meta?.title ?: allTrackedItems.find { it.simklId == simklId }?.title ?: "Untitled"
-                        val titleRomaji = meta?.titleRomaji
-                        val posterRaw = meta?.poster ?: allTrackedItems.find { it.simklId == simklId }?.poster
+                        val tracked = trackedItemMap[simklId]
+                        if (tracked != null && meta != null) {
+                            val newTitle = meta.title ?: tracked.title
+                            val newRomaji = meta.titleRomaji ?: tracked.titleRomaji
+                            val newPoster = meta.poster ?: tracked.poster
+                            if (newTitle != tracked.title || newRomaji != tracked.titleRomaji || newPoster != tracked.poster) {
+                                val updatedTracked = tracked.copy(title = newTitle, titleRomaji = newRomaji, poster = newPoster)
+                                watchlistDao.insertOrUpdateItem(updatedTracked)
+                                trackedItemMap[simklId] = updatedTracked
+                            }
+                        }
 
                         if (defaultType == MediaType.MOVIE) {
                             // 1. Process Theater Release
@@ -630,17 +641,13 @@ class SimklRepository(private val context: Context) {
                                     CalendarItem(
                                         primaryKey = "v2_${simklId}_theater",
                                         simklId = simklId,
-                                        title = title,
-                                        titleRomaji = titleRomaji,
                                         episodeTitle = null,
                                         season = null,
                                         episodeNumber = null,
                                         date = theaterInstant,
-                                        type = MediaType.MOVIE,
                                         movieReleaseType = MovieReleaseType.THEATER,
                                         isSeasonPremiere = false,
-                                        isSeasonFinale = false,
-                                        poster = posterRaw
+                                        isSeasonFinale = false
                                     )
                                 )
                             }
@@ -652,17 +659,13 @@ class SimklRepository(private val context: Context) {
                                         CalendarItem(
                                             primaryKey = "v2_${simklId}_digital",
                                             simklId = simklId,
-                                            title = title,
-                                            titleRomaji = titleRomaji,
                                             episodeTitle = null,
                                             season = null,
                                             episodeNumber = null,
                                             date = dvdInstant,
-                                            type = MediaType.MOVIE,
                                             movieReleaseType = MovieReleaseType.DIGITAL,
                                             isSeasonPremiere = false,
-                                            isSeasonFinale = false,
-                                            poster = posterRaw
+                                            isSeasonFinale = false
                                         )
                                     )
                                 }
@@ -700,17 +703,13 @@ class SimklRepository(private val context: Context) {
                                 CalendarItem(
                                     primaryKey = keyUnique,
                                     simklId = simklId,
-                                    title = title,
-                                    titleRomaji = titleRomaji,
                                     episodeTitle = epTitle,
                                     season = seasonNum,
                                     episodeNumber = epNum,
                                     date = instant,
-                                    type = defaultType,
                                     movieReleaseType = null,
                                     isSeasonPremiere = isPremiere,
                                     isSeasonFinale = isFinale,
-                                    poster = posterRaw,
                                     watchedAt = epWatchedTimestamp
                                 )
                             )
@@ -740,7 +739,16 @@ class SimklRepository(private val context: Context) {
                         authorization = bearer,
                         clientId = clientId
                     )
-                    val moviePoster = movieDetail.poster ?: allTrackedItems.find { it.simklId == movieId }?.poster
+                    val tracked = trackedItemMap[movieId]
+                    if (tracked != null) {
+                        val newTitle = movieDetail.title.takeIf { it.isNotBlank() } ?: tracked.title
+                        val newPoster = movieDetail.poster ?: tracked.poster
+                        if (newTitle != tracked.title || newPoster != tracked.poster) {
+                            val updatedTracked = tracked.copy(title = newTitle, poster = newPoster)
+                            watchlistDao.insertOrUpdateItem(updatedTracked)
+                            trackedItemMap[movieId] = updatedTracked
+                        }
+                    }
 
                     // 1. Process Theatrical release date from regular released property
                     movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
@@ -749,16 +757,13 @@ class SimklRepository(private val context: Context) {
                                 CalendarItem(
                                     primaryKey = "v2_${movieId}_theater",
                                     simklId = movieId,
-                                    title = movieDetail.title,
                                     episodeTitle = null,
                                     season = null,
                                     episodeNumber = null,
                                     date = theaterInstant,
-                                    type = MediaType.MOVIE,
                                     movieReleaseType = MovieReleaseType.THEATER,
                                     isSeasonPremiere = false,
-                                    isSeasonFinale = false,
-                                    poster = moviePoster
+                                    isSeasonFinale = false
                                 )
                             )
                         }
@@ -771,16 +776,13 @@ class SimklRepository(private val context: Context) {
                                 CalendarItem(
                                     primaryKey = "v2_${movieId}_digital",
                                     simklId = movieId,
-                                    title = movieDetail.title,
                                     episodeTitle = null,
                                     season = null,
                                     episodeNumber = null,
                                     date = digitalInstant,
-                                    type = MediaType.MOVIE,
                                     movieReleaseType = MovieReleaseType.DIGITAL,
                                     isSeasonPremiere = false,
-                                    isSeasonFinale = false,
-                                    poster = moviePoster
+                                    isSeasonFinale = false
                                 )
                             )
                         }
@@ -793,12 +795,7 @@ class SimklRepository(private val context: Context) {
 
         // Identify items that are no longer tracked in user's watchlist
         val itemsToDelete = existingDbItems.filter { item ->
-            val isTracked = when (item.type) {
-                MediaType.TV -> trackedShowIds.contains(item.simklId)
-                MediaType.ANIME -> trackedAnimeIds.contains(item.simklId)
-                MediaType.MOVIE -> trackedMovieIds.contains(item.simklId)
-            }
-            !isTracked
+            !allTrackedIds.contains(item.simklId)
         }
 
         if (itemsToDelete.isNotEmpty()) {
@@ -836,9 +833,9 @@ class SimklRepository(private val context: Context) {
                 val defaultMovieDigital = notifPrefs.getBoolean("default_notify_movie_digital", true)
 
                 val distinctShows = itemsToInsert.values.groupBy { it.simklId }
-                val newSettings = distinctShows.map { (simklId, items) ->
-                    val sample = items.first()
-                    val isMovie = sample.type == MediaType.MOVIE
+                val newSettings = distinctShows.map { (simklId, _) ->
+                    val tracked = trackedItemMap[simklId]
+                    val isMovie = tracked?.type == MediaType.MOVIE
                     NotificationSetting(
                         simklId = simklId,
                         notifyEveryEpisode = if (isMovie) defaultMovieTheater else defaultAiring,

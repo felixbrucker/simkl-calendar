@@ -7,7 +7,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
@@ -90,7 +90,7 @@ object NotificationScheduler {
     private suspend fun scheduleOrDispatchItem(
         context: Context,
         db: AppDatabase,
-        item: CalendarItem,
+        item: CalendarItemWithWatchlist,
         setting: NotificationSetting,
         totalEpisodesInSeason: Int? = null
     ) {
@@ -235,7 +235,7 @@ object NotificationScheduler {
         }
     }
 
-    private fun cancelAlarmForItem(context: Context, item: CalendarItem) {
+    private fun cancelAlarmForItem(context: Context, item: CalendarItemWithWatchlist) {
         try {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
             val intent = Intent(context, NotificationReceiver::class.java).apply {

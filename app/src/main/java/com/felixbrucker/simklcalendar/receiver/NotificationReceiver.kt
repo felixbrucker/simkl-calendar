@@ -20,7 +20,7 @@ import coil.request.SuccessResult
 import com.felixbrucker.simklcalendar.MainActivity
 import com.felixbrucker.simklcalendar.R
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
@@ -351,10 +351,10 @@ class NotificationReceiver : BroadcastReceiver() {
         }
 
         /**
-         * Formats notification title and message for a CalendarItem entity.
+         * Formats notification title and message for a CalendarItemWithWatchlist relational model.
          */
         fun formatNotificationContent(
-            item: CalendarItem,
+            item: CalendarItemWithWatchlist,
             isFinale: Boolean,
             totalEpisodes: Int? = null
         ): Pair<String, String> {
