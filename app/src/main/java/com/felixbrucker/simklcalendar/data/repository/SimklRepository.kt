@@ -31,6 +31,9 @@ import com.felixbrucker.simklcalendar.receiver.NotificationScheduler
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -267,8 +270,147 @@ class SimklRepository(private val context: Context) {
 
     suspend fun syncCalendar() = withContext(Dispatchers.IO) {
         syncWatchlist()
+        val lastJsonSyncTimestamp = syncPrefs.getLong("last_calendar_json_sync", 0L)
         // If calendar jsons haven't been synced in >6h, sync calendar jsons
         syncCalendarJsons()
+        // Backfill missing past episodes if month changed and > 1 day since last sync
+        backfillPastEpisodes(lastSyncTimestamp = lastJsonSyncTimestamp)
+    }
+
+    /**
+     * Fetches all episodes for tracked TV shows and Anime to backfill past episodes
+     * that are missing from the CDN calendar V2 JSONs (which only cover 4 months).
+     *
+     * @param lastSyncTimestamp The global JSON calendar sync timestamp from BEFORE the current sync run.
+     */
+    suspend fun backfillPastEpisodes(
+        lastSyncTimestamp: Long
+    ): Boolean = withContext(Dispatchers.IO) {
+        val userToken = tokenDao.getActiveToken()
+        if (userToken == null || userToken.accessToken.isEmpty()) return@withContext false
+
+        val now = Instant.now()
+        val lastSyncInstant = Instant.ofEpochMilli(lastSyncTimestamp)
+
+        val nowCal = java.util.Calendar.getInstance()
+        val lastCal = java.util.Calendar.getInstance().apply { timeInMillis = lastSyncTimestamp }
+
+        val sameMonth = nowCal.get(java.util.Calendar.YEAR) == lastCal.get(java.util.Calendar.YEAR) &&
+                nowCal.get(java.util.Calendar.MONTH) == lastCal.get(java.util.Calendar.MONTH)
+
+        val oneDayAgo = now.minus(1, java.time.temporal.ChronoUnit.DAYS)
+        val moreThanOneDayAgo = lastSyncInstant.isBefore(oneDayAgo)
+
+        // Logic: Sync when month changed AND more than 1 day since last sync
+        if (sameMonth || !moreThanOneDayAgo) {
+            Log.d("SimklRepository", "Backfill skipped: same month or < 1 day since last sync")
+            return@withContext false
+        }
+
+        Log.d("SimklRepository", "Starting backfill for past episodes...")
+
+        val allTracked = watchlistDao.getAllTrackedItems()
+        val trackedShows = allTracked.filter { it.type == MediaType.TV || it.type == MediaType.ANIME }
+
+        if (trackedShows.isEmpty()) return@withContext false
+
+        val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
+        val existingDbItems = calendarDao.getAllCalendarEntities()
+        val existingItemsMap = existingDbItems.associateBy { it.primaryKey }
+        val allWatchedList = watchedDao.getAllWatchedEpisodes()
+        val watchedLookup = allWatchedList.groupBy { it.simklId }
+
+        val itemsToInsert = mutableMapOf<String, CalendarItem>()
+        val itemsToUpdate = mutableMapOf<String, CalendarItem>()
+
+        fun processCalendarItem(newItem: CalendarItem) {
+            val existing = existingItemsMap[newItem.primaryKey]
+            if (existing == null) {
+                val currentInsert = itemsToInsert[newItem.primaryKey]
+                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+                return
+            }
+
+            val base = itemsToUpdate[newItem.primaryKey] ?: existing
+            val updated = base.updatedWith(newItem)
+            if (updated != base) {
+                itemsToUpdate[newItem.primaryKey] = updated
+            }
+        }
+
+        coroutineScope {
+            val deferred = trackedShows.map { show ->
+                async {
+                    try {
+                        val episodes = if (show.type == MediaType.TV) {
+                            apiService.getTvEpisodes(show.simklId, clientId)
+                        } else {
+                            apiService.getAnimeEpisodes(show.simklId, clientId)
+                        }
+                        show to episodes
+                    } catch (e: Exception) {
+                        Log.e("SimklRepository", "Failed backfill for ${show.simklId}", e)
+                        show to null
+                    }
+                }
+            }
+
+            val results = deferred.awaitAll()
+            val oneMonthAgo = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS)
+
+            for ((show, episodes) in results) {
+                if (episodes == null) continue
+
+                val showWatchedList = watchedLookup[show.simklId]
+
+                for (ep in episodes) {
+                    // Only regular episodes (no specials) and already aired
+                    if (ep.type != "episode" || !ep.aired) continue
+
+                    val instant = DateUtil.parseToInstant(ep.date) ?: continue
+                    val seasonNum = ep.season ?: if (show.type == MediaType.ANIME) null else 1
+                    val epNum = ep.episode ?: continue
+                    val epTitle = ep.title
+
+                    val keyUnique = if (seasonNum != null) "v2_${show.simklId}_${seasonNum}_${epNum}" else "v2_${show.simklId}_${epNum}"
+
+                    val watchedEntry = showWatchedList?.firstOrNull {
+                        (it.season == (seasonNum ?: 1) || (seasonNum == null && (it.season == 1 || it.season == 0))) && it.episodeNumber == epNum
+                    }
+                    val epWatchedTimestamp = watchedEntry?.watchedAt
+
+                    // Automatic cleanup filter: Omit episodes that have already been watched over 1 month ago
+                    if (epWatchedTimestamp != null && epWatchedTimestamp.isBefore(oneMonthAgo)) {
+                        continue
+                    }
+
+                    processCalendarItem(
+                        CalendarItem(
+                            primaryKey = keyUnique,
+                            simklId = show.simklId,
+                            episodeTitle = epTitle,
+                            season = seasonNum,
+                            episodeNumber = epNum,
+                            date = instant,
+                            movieReleaseType = null,
+                            isSeasonPremiere = epNum == 1,
+                            isSeasonFinale = false, // Not available in this endpoint, will be updated by calendar jsons if recent
+                            watchedAt = epWatchedTimestamp
+                        )
+                    )
+                }
+            }
+        }
+
+        if (itemsToInsert.isNotEmpty()) {
+            calendarDao.insertCalendarItems(itemsToInsert.values.toList())
+        }
+        if (itemsToUpdate.isNotEmpty()) {
+            calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
+        }
+
+        Log.d("SimklRepository", "Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
+        true
     }
 
     /**
@@ -866,6 +1008,8 @@ class SimklRepository(private val context: Context) {
             NotificationScheduler.scheduleAllNotifications(context)
         }
 
+        syncPrefs.edit { putLong("last_calendar_json_sync", nowMillis) }
+
         hasNewData || totalDbChanges > 0
     }
 
@@ -1294,6 +1438,7 @@ class SimklRepository(private val context: Context) {
     suspend fun forceWatchlistResync(): Boolean = withContext(Dispatchers.IO) {
         val changed = syncWatchlist(forceFullSync = true)
         syncCalendarJsons(forceFullSync = true)
+        backfillPastEpisodes(lastSyncTimestamp = 0L)
         changed
     }
 }

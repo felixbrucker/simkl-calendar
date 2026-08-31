@@ -62,6 +62,16 @@ data class SimklV2Metadata(
 )
 
 @JsonClass(generateAdapter = true)
+data class SimklEpisodeResponse(
+    @Json(name = "title") val title: String,
+    @Json(name = "type") val type: String, // episode, special
+    @Json(name = "season") val season: Int? = null,
+    @Json(name = "episode") val episode: Int? = null, // specials might not have an episode number
+    @Json(name = "aired") val aired: Boolean,
+    @Json(name = "date") val date: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class SimklMedia(
     @Json(name = "title") val title: String,
     @Json(name = "poster") val poster: String? = null,

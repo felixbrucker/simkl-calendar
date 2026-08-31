@@ -79,5 +79,21 @@ interface SimklApiService {
         @Query("app-version") appVersion: String = APP_VERSION,
         @Body request: SyncHistoryRequest
     ): SyncHistoryResponse
+
+    @GET("tv/episodes/{id}")
+    suspend fun getTvEpisodes(
+        @Path("id") id: Int,
+        @Query("client_id") clientId: String? = null,
+        @Query("app-name") appName: String = APP_NAME,
+        @Query("app-version") appVersion: String = APP_VERSION
+    ): List<SimklEpisodeResponse>
+
+    @GET("anime/episodes/{id}")
+    suspend fun getAnimeEpisodes(
+        @Path("id") id: Int,
+        @Query("client_id") clientId: String? = null,
+        @Query("app-name") appName: String = APP_NAME,
+        @Query("app-version") appVersion: String = APP_VERSION
+    ): List<SimklEpisodeResponse>
 }
 
