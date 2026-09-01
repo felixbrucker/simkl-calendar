@@ -17,10 +17,4 @@ local.properties
 .env
 debug.keystore
 release.keystore
-
-# Gradle Wrapper
-gradlew
-gradlew.bat
-gradle/wrapper/
-
 .idea

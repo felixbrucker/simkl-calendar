@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -83,6 +84,12 @@ fun SettingsScreen(
     var enableDefaultMovieDigital by remember {
         mutableStateOf(prefs.getBoolean("default_notify_movie_digital", true))
     }
+
+    val autoQuality by viewModel.autoDownloadQuality.collectAsState()
+    val autoPreferHevc by viewModel.autoDownloadPreferHevc.collectAsState()
+    val autoUnwatchedDefault by viewModel.autoDownloadUnwatchedDefault.collectAsState()
+    val autoPreferredKeywords by viewModel.autoDownloadPreferredKeywords.collectAsState()
+    val autoIgnoreKeywords by viewModel.autoDownloadIgnoreKeywords.collectAsState()
 
     var syncIntervalHours by remember {
         mutableStateOf(prefs.getInt("sync_interval_hours", 12).toFloat())
@@ -420,6 +427,155 @@ fun SettingsScreen(
                             }
                         )
                     }
+                }
+            }
+
+            // Automatic Downloads Card
+            val isDownloaderInstalled = remember { viewModel.isTorrentServiceInstalled() }
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+                border = BorderStroke(1.dp, Color(0xFF49454F)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .alpha(if (isDownloaderInstalled) 1f else 0.5f)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))
+                            Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+                        }
+                        if (isDownloaderInstalled) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFF1E3A2B),
+                                contentColor = Color(0xFF7CE49F)
+                            ) {
+                                Text(
+                                    "AVAILABLE",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        } else {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFF3B383E),
+                                contentColor = Color(0xFFCAC4D0)
+                            ) {
+                                Text(
+                                    "UNAVAILABLE",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Configure how the app interacts with the external Torrent Downloader service.",
+                        color = Color(0xFFCAC4D0),
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+
+                    if (!isDownloaderInstalled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Downloader app not found. Please install the Torrent Downloader service to enable these features.",
+                            color = Color(0xFFF2B8B5),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Quality Selection
+                    Text("Preferred Quality", color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("4K", "1080p", "720p").forEach { quality ->
+                            val isSelected = autoQuality == quality
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { viewModel.updateAutoDownloadQuality(quality) },
+                                label = { Text(quality) },
+                                enabled = isDownloaderInstalled
+                            )
+                        }
+                    }
+
+                    // HEVC Toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Prefer HEVC / x265", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                            Text("Prioritize high efficiency video coding results.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = autoPreferHevc,
+                            onCheckedChange = { viewModel.updateAutoDownloadPreferHevc(it) },
+                            enabled = isDownloaderInstalled
+                        )
+                    }
+
+                    // Default Download Unwatched
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Download Unwatched Episodes", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                            Text("Default setting for newly tracked items.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = autoUnwatchedDefault,
+                            onCheckedChange = { viewModel.updateAutoDownloadUnwatchedDefault(it) },
+                            enabled = isDownloaderInstalled
+                        )
+                    }
+
+                    HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+                    // Preferred Keywords
+                    KeywordManagerSection(
+                        title = "Preferred Keywords",
+                        subtitle = "Torrents containing these tags will be prioritized.",
+                        keywords = autoPreferredKeywords,
+                        onAdd = { viewModel.addPreferredKeyword(it) },
+                        onRemove = { viewModel.removePreferredKeyword(it) },
+                        enabled = isDownloaderInstalled
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Ignore Keywords
+                    KeywordManagerSection(
+                        title = "Ignore Keywords",
+                        subtitle = "Torrents containing these tags will be skipped.",
+                        keywords = autoIgnoreKeywords,
+                        onAdd = { viewModel.addIgnoreKeyword(it) },
+                        onRemove = { viewModel.removeIgnoreKeyword(it) },
+                        enabled = isDownloaderInstalled,
+                        color = Color(0xFFF2B8B5)
+                    )
                 }
             }
 
@@ -1066,6 +1222,122 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { deleteConfirmLink = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun KeywordManagerSection(
+    title: String,
+    subtitle: String,
+    keywords: List<String>,
+    onAdd: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    enabled: Boolean,
+    color: Color = Color(0xFFD0BCFF)
+) {
+    var showAddEditDialog by remember { mutableStateOf(false) }
+    var editingKeyword by remember { mutableStateOf<String?>(null) }
+    var keywordInput by remember { mutableStateOf("") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = color, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(subtitle, color = Color(0xFFCAC4D0), fontSize = 11.sp)
+            }
+            IconButton(
+                onClick = { 
+                    editingKeyword = null
+                    keywordInput = ""
+                    showAddEditDialog = true 
+                },
+                enabled = enabled,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Keyword", tint = color)
+            }
+        }
+
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            keywords.forEach { keyword ->
+                InputChip(
+                    selected = false,
+                    onClick = { 
+                        if (enabled) {
+                            editingKeyword = keyword
+                            keywordInput = keyword
+                            showAddEditDialog = true
+                        }
+                    },
+                    label = { Text(keyword, fontSize = 12.sp) },
+                    trailingIcon = {
+                        if (enabled) {
+                            IconButton(
+                                onClick = { onRemove(keyword) },
+                                modifier = Modifier.size(16.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remove",
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    },
+                    colors = InputChipDefaults.inputChipColors(
+                        containerColor = Color(0xFF1C1B1F),
+                        labelColor = Color(0xFFE6E1E5)
+                    ),
+                    enabled = enabled
+                )
+            }
+        }
+    }
+
+    if (showAddEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddEditDialog = false },
+            title = { Text(if (editingKeyword == null) "Add Keyword" else "Edit Keyword", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = keywordInput,
+                    onValueChange = { keywordInput = it },
+                    label = { Text("Keyword") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (keywordInput.isNotBlank()) {
+                            if (editingKeyword != null) {
+                                onRemove(editingKeyword!!)
+                            }
+                            onAdd(keywordInput.trim())
+                            keywordInput = ""
+                            showAddEditDialog = false
+                        }
+                    }
+                ) {
+                    Text(if (editingKeyword == null) "Add" else "Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddEditDialog = false }) {
                     Text("Cancel")
                 }
             }

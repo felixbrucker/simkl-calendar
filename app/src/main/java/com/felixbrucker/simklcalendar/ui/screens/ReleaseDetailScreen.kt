@@ -63,7 +63,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun ShowDetailScreen(
+fun ReleaseDetailScreen(
     viewModel: CalendarViewModel,
     itemKey: String,
     onNavigateBack: () -> Unit,
@@ -945,6 +945,7 @@ fun ShowDetailScreen(
                         }
                     }
 
+
                     // If there are multiple scheduled episodes/releases for this show/movie, display a selector / list
                     if (showScheduleItems.size > 1) {
                         Card(
@@ -1186,4 +1187,5 @@ fun ShowDetailScreen(
         }
     }
 }
+
 

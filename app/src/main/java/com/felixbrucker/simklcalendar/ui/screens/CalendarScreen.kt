@@ -58,6 +58,8 @@ import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
 import com.felixbrucker.simklcalendar.data.util.toPosterUrl
 import com.felixbrucker.simklcalendar.R
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.MainViewMode
+import com.felixbrucker.simklcalendar.ui.screens.TrackedWatchlistTableView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -75,6 +77,7 @@ fun CalendarScreen(
     viewModel: CalendarViewModel,
     onNavigateToSettings: () -> Unit,
     onNavigateToShowDetail: (String) -> Unit,
+    onNavigateToSeriesDetail: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val items by viewModel.filteredCalendarItems.collectAsState()
@@ -82,14 +85,9 @@ fun CalendarScreen(
     val userToken by viewModel.userToken.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
-    // Filters states
-    val tvFilter by viewModel.showTv.collectAsState()
-    val animeFilter by viewModel.showAnime.collectAsState()
-    val moviesFilter by viewModel.showMovies.collectAsState()
-    val premieresOnly by viewModel.onlySeasonPremieres.collectAsState()
-    val finalesOnly by viewModel.onlySeasonFinales.collectAsState()
-    val digitalDvdOnly by viewModel.onlyDigitalDvd.collectAsState()
+    // Filters states are now handled inside CalendarView
     val showEarlierReleases by viewModel.showEarlierReleases.collectAsState()
+    val viewMode by viewModel.viewMode.collectAsState()
 
     val username = userToken?.username ?: "Guest"
 
@@ -344,6 +342,28 @@ fun CalendarScreen(
                 actions = {
                     if (searchDisplayMode == SearchBarDisplayMode.DEFAULT) {
                         IconButton(
+                            onClick = { 
+                                val nextMode = if (viewMode == MainViewMode.CALENDAR) MainViewMode.TABLE else MainViewMode.CALENDAR
+                                viewModel.setViewMode(nextMode) 
+                            },
+                            modifier = Modifier.testTag("view_mode_toggle_button")
+                        ) {
+                            AnimatedContent(
+                                targetState = viewMode,
+                                transitionSpec = {
+                                    (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut())
+                                },
+                                label = "view_mode_icon_transition"
+                            ) { mode ->
+                                Icon(
+                                    imageVector = if (mode == MainViewMode.CALENDAR) Icons.Default.TableChart else Icons.Default.CalendarToday,
+                                    contentDescription = if (mode == MainViewMode.CALENDAR) "Switch to Table View" else "Switch to Calendar View",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+
+                        IconButton(
                             onClick = {
                                 isSearchActive = true
                                 coroutineScope.launch {
@@ -388,10 +408,14 @@ fun CalendarScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            val tvFilter by viewModel.showTv.collectAsState()
+            val animeFilter by viewModel.showAnime.collectAsState()
+            val moviesFilter by viewModel.showMovies.collectAsState()
+
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // Toggles / Chip Filtering Bar
+                // Toggles / Chip Filtering Bar (Shown in both views)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -439,51 +463,6 @@ fun CalendarScreen(
                     )
                 }
 
-                // Subtype Row filters (Season Premiere / Season Finale / Digital & DVD highlights)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 2.dp)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = premieresOnly,
-                        onClick = { viewModel.onlySeasonPremieres.value = !premieresOnly },
-                        label = { Text("Season Premiere") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFE8DEF8),
-                            selectedLabelColor = Color(0xFF1D192B),
-                            containerColor = Color(0xFF313033),
-                            labelColor = Color(0xFFCAC4D0)
-                        )
-                    )
-
-                    FilterChip(
-                        selected = finalesOnly,
-                        onClick = { viewModel.onlySeasonFinales.value = !finalesOnly },
-                        label = { Text("Season Finale") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFB3261E),
-                            selectedLabelColor = Color.White,
-                            containerColor = Color(0xFF313033),
-                            labelColor = Color(0xFFCAC4D0)
-                        )
-                    )
-
-                    FilterChip(
-                        selected = digitalDvdOnly,
-                        onClick = { viewModel.onlyDigitalDvd.value = !digitalDvdOnly },
-                        label = { Text("Digital / DVD") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF4F378B),
-                            selectedLabelColor = Color(0xFFEADDFF),
-                            containerColor = Color(0xFF313033),
-                            labelColor = Color(0xFFCAC4D0)
-                        )
-                    )
-                }
-
                 // Search Results Status Pill (when searching)
                 if (searchQuery.isNotBlank()) {
                     Row(
@@ -517,256 +496,227 @@ fun CalendarScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Calendar Group list
-                if (items.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = if (searchQuery.isNotBlank()) Icons.Default.SearchOff else Icons.Default.CalendarToday,
-                                contentDescription = null,
-                                tint = Color(0xFF3E3D4F),
-                                modifier = Modifier.size(64.dp)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                if (searchQuery.isNotBlank()) {
-                                    "No releases found matching \"$searchQuery\""
-                                } else {
-                                    "No releases found matching filters"
-                                },
-                                color = Color(0xFFA5A3B1),
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            if (searchQuery.isNotBlank()) {
-                                TextButton(
-                                    onClick = {
-                                        viewModel.clearSearchQuery()
-                                        isSearchActive = false
-                                        isSearchFocused = false
-                                        focusManager.clearFocus()
-                                        keyboardController?.hide()
-                                    }
-                                ) {
-                                    Text("Clear Search Query", color = Color(0xFFD0BCFF))
-                                }
-                            } else {
-                                TextButton(
-                                    onClick = {
-                                        viewModel.showTv.value = true
-                                        viewModel.showAnime.value = true
-                                        viewModel.showMovies.value = true
-                                        viewModel.onlySeasonPremieres.value = false
-                                        viewModel.onlySeasonFinales.value = false
-                                        viewModel.onlyDigitalDvd.value = false
-                                    },
-                                ) {
-                                    Text("Reset Active Filters", color = Color(0xFFD0BCFF))
-                                }
+                // Conditionally render Calendar View or Table View
+                if (viewMode == MainViewMode.CALENDAR) {
+                    CalendarView(
+                        items = items,
+                        earlierItems = earlierItems,
+                        upcomingGrouped = upcomingGrouped,
+                        earlierGrouped = earlierGrouped,
+                        showEarlierReleases = showEarlierReleases,
+                        searchQuery = searchQuery,
+                        viewModel = viewModel,
+                        onNavigateToShowDetail = onNavigateToShowDetail,
+                        snackbarHostState = snackbarHostState
+                    )
+                } else {
+                    TrackedWatchlistTableView(
+                        viewModel = viewModel,
+                        onNavigateToEpisode = onNavigateToShowDetail,
+                        onNavigateToSeriesDetail = onNavigateToSeriesDetail
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CalendarView(
+    items: List<CalendarItemWithWatchlist>,
+    earlierItems: List<CalendarItemWithWatchlist>,
+    upcomingGrouped: Map<String, List<CalendarItemWithWatchlist>>,
+    earlierGrouped: Map<String, List<CalendarItemWithWatchlist>>,
+    showEarlierReleases: Boolean,
+    searchQuery: String,
+    viewModel: CalendarViewModel,
+    onNavigateToShowDetail: (String) -> Unit,
+    snackbarHostState: SnackbarHostState
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // Filters states (Specific to Calendar View)
+    val premieresOnly by viewModel.onlySeasonPremieres.collectAsState()
+    val finalesOnly by viewModel.onlySeasonFinales.collectAsState()
+    val digitalDvdOnly by viewModel.onlyDigitalDvd.collectAsState()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Subtype Row filters (Season Premiere / Season Finale / Digital & DVD highlights)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 2.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = premieresOnly,
+                onClick = { viewModel.onlySeasonPremieres.value = !premieresOnly },
+                label = { Text("Season Premiere") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFFE8DEF8),
+                    selectedLabelColor = Color(0xFF1D192B),
+                    containerColor = Color(0xFF313033),
+                    labelColor = Color(0xFFCAC4D0)
+                )
+            )
+
+            FilterChip(
+                selected = finalesOnly,
+                onClick = { viewModel.onlySeasonFinales.value = !finalesOnly },
+                label = { Text("Season Finale") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFFB3261E),
+                    selectedLabelColor = Color.White,
+                    containerColor = Color(0xFF313033),
+                    labelColor = Color(0xFFCAC4D0)
+                )
+            )
+
+            FilterChip(
+                selected = digitalDvdOnly,
+                onClick = { viewModel.onlyDigitalDvd.value = !digitalDvdOnly },
+                label = { Text("Digital / DVD") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFF4F378B),
+                    selectedLabelColor = Color(0xFFEADDFF),
+                    containerColor = Color(0xFF313033),
+                    labelColor = Color(0xFFCAC4D0)
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Calendar Group list
+        if (items.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = if (searchQuery.isNotBlank()) Icons.Default.SearchOff else Icons.Default.CalendarToday,
+                        contentDescription = null,
+                        tint = Color(0xFF3E3D4F),
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        if (searchQuery.isNotBlank()) {
+                            "No releases found matching \"$searchQuery\""
+                        } else {
+                            "No releases found matching filters"
+                        },
+                        color = Color(0xFFA5A3B1),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (searchQuery.isNotBlank()) {
+                        TextButton(
+                            onClick = {
+                                viewModel.clearSearchQuery()
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
                             }
+                        ) {
+                            Text("Clear Search Query", color = Color(0xFFD0BCFF))
+                        }
+                    } else {
+                        TextButton(
+                            onClick = {
+                                viewModel.showTv.value = true
+                                viewModel.showAnime.value = true
+                                viewModel.showMovies.value = true
+                                viewModel.onlySeasonPremieres.value = false
+                                viewModel.onlySeasonFinales.value = false
+                                viewModel.onlyDigitalDvd.value = false
+                            },
+                        ) {
+                            Text("Reset Active Filters", color = Color(0xFFD0BCFF))
                         }
                     }
-                } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-                    // Earlier Releases Expandable Header Card
-                    if (earlierItems.isNotEmpty()) {
-                        item(key = "earlier_releases_toggle_card") {
-                            Card(
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (showEarlierReleases) Color(0xFF381E72).copy(alpha = 0.5f) else Color(0xFF2B2930)
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    if (showEarlierReleases) Color(0xFFD0BCFF) else Color(0xFF49454F)
-                                ),
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
+                // Earlier Releases Expandable Header Card
+                if (earlierItems.isNotEmpty()) {
+                    item(key = "earlier_releases_toggle_card") {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (showEarlierReleases) Color(0xFF381E72).copy(alpha = 0.5f) else Color(0xFF2B2930)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (showEarlierReleases) Color(0xFFD0BCFF) else Color(0xFF49454F)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                                .clickable { viewModel.showEarlierReleases.value = !showEarlierReleases }
+                        ) {
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                                    .clickable { viewModel.showEarlierReleases.value = !showEarlierReleases }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.History,
-                                            contentDescription = null,
-                                            tint = Color(0xFFD0BCFF),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Column {
-                                            Text(
-                                                text = if (showEarlierReleases) "Hide Earlier Releases" else "Show Earlier Releases",
-                                                fontWeight = FontWeight.SemiBold,
-                                                fontSize = 14.sp,
-                                                color = Color(0xFFE6E1E5)
-                                            )
-                                            Text(
-                                                text = if (searchQuery.isNotBlank()) {
-                                                    "${earlierItems.size} matching past ${if (earlierItems.size == 1) "release" else "releases"}"
-                                                } else {
-                                                    "${earlierItems.size} past ${if (earlierItems.size == 1) "release" else "releases"} hidden by default"
-                                                },
-                                                fontSize = 12.sp,
-                                                color = Color(0xFFCAC4D0)
-                                            )
-                                        }
-                                    }
                                     Icon(
-                                        imageVector = if (showEarlierReleases) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                        contentDescription = if (showEarlierReleases) "Collapse earlier releases" else "Expand earlier releases",
+                                        imageVector = Icons.Default.History,
+                                        contentDescription = null,
                                         tint = Color(0xFFD0BCFF),
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
-                                }
-                            }
-                        }
-
-                        // When expanded, render earlier day groups
-                        if (showEarlierReleases) {
-                            earlierGrouped.forEach { (dateHeader, dayItems) ->
-                                stickyHeader(key = "earlier_header_$dateHeader") {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color(0xFF1C1B1F))
-                                            .padding(horizontal = 16.dp, vertical = 6.dp)
-                                    ) {
+                                    Column {
                                         Text(
-                                            text = dateHeader,
+                                            text = if (showEarlierReleases) "Hide Earlier Releases" else "Show Earlier Releases",
+                                            fontWeight = FontWeight.SemiBold,
                                             fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF9E9AA3),
-                                            letterSpacing = 1.sp
+                                            color = Color(0xFFE6E1E5)
+                                        )
+                                        Text(
+                                            text = if (searchQuery.isNotBlank()) {
+                                                "${earlierItems.size} matching past ${if (earlierItems.size == 1) "release" else "releases"}"
+                                            } else {
+                                                "${earlierItems.size} past ${if (earlierItems.size == 1) "release" else "releases"} hidden by default"
+                                            },
+                                            fontSize = 12.sp,
+                                            color = Color(0xFFCAC4D0)
                                         )
                                     }
                                 }
-
-                                items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
-                                    SwipeableCalendarItemCard(
-                                        modifier = Modifier.animateItem(),
-                                        item = item,
-                                        onClick = { onNavigateToShowDetail(item.primaryKey) },
-                                        onMarkEpisodeWatched = {
-                                            if (item.type == MediaType.MOVIE) {
-                                                viewModel.markMovieWatched(
-                                                    simklId = item.simklId,
-                                                    showTitle = item.title
-                                                ) { success, msg ->
-                                                    if (success) {
-                                                        coroutineScope.launch {
-                                                            val result = snackbarHostState.showSnackbar(
-                                                                message = msg,
-                                                                actionLabel = "Revert",
-                                                                duration = SnackbarDuration.Short
-                                                            )
-                                                            if (result == SnackbarResult.ActionPerformed) {
-                                                                viewModel.markMovieUnwatched(
-                                                                    simklId = item.simklId,
-                                                                    showTitle = item.title
-                                                                ) { _, revertMsg ->
-                                                                    coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                                }
-                                                            }
-                                                        }
-                                                    } else {
-                                                        coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
-                                                    }
-                                                }
-                                            } else {
-                                                viewModel.markEpisodeWatched(
-                                                    simklId = item.simklId,
-                                                    season = item.season,
-                                                    episodeNumber = item.episodeNumber ?: 1,
-                                                    mediaType = item.type,
-                                                    showTitle = item.title
-                                                ) { success, msg ->
-                                                    if (success) {
-                                                        coroutineScope.launch {
-                                                            val result = snackbarHostState.showSnackbar(
-                                                                message = msg,
-                                                                actionLabel = "Revert",
-                                                                duration = SnackbarDuration.Short
-                                                            )
-                                                            if (result == SnackbarResult.ActionPerformed) {
-                                                                viewModel.markEpisodeUnwatched(
-                                                                    simklId = item.simklId,
-                                                                    season = item.season,
-                                                                    episodeNumber = item.episodeNumber ?: 1,
-                                                                    mediaType = item.type,
-                                                                    showTitle = item.title
-                                                                ) { _, revertMsg ->
-                                                                    coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                                }
-                                                            }
-                                                        }
-                                                    } else {
-                                                        coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        onMarkSeasonWatched = {
-                                            if (item.type != MediaType.MOVIE) {
-                                                viewModel.markSeasonWatched(
-                                                    simklId = item.simklId,
-                                                    season = item.season ?: 1,
-                                                    mediaType = item.type,
-                                                    showTitle = item.title
-                                                ) { success, msg ->
-                                                    if (success) {
-                                                        coroutineScope.launch {
-                                                            val result = snackbarHostState.showSnackbar(
-                                                                message = msg,
-                                                                actionLabel = "Revert",
-                                                                duration = SnackbarDuration.Short
-                                                            )
-                                                            if (result == SnackbarResult.ActionPerformed) {
-                                                                viewModel.markSeasonUnwatched(
-                                                                    simklId = item.simklId,
-                                                                    season = item.season ?: 1,
-                                                                    mediaType = item.type,
-                                                                    showTitle = item.title
-                                                                ) { _, revertMsg ->
-                                                                    coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                                }
-                                                            }
-                                                        }
-                                                    } else {
-                                                        coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
+                                Icon(
+                                    imageVector = if (showEarlierReleases) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    contentDescription = if (showEarlierReleases) "Collapse earlier releases" else "Expand earlier releases",
+                                    tint = Color(0xFFD0BCFF),
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                         }
                     }
 
-                    // Upcoming releases (today and future dates)
-                    if (upcomingGrouped.isNotEmpty()) {
-                        upcomingGrouped.forEach { (dateHeader, dayItems) ->
-                            stickyHeader(key = "upcoming_header_$dateHeader") {
+                    // When expanded, render earlier day groups
+                    if (showEarlierReleases) {
+                        earlierGrouped.forEach { (dateHeader, dayItems) ->
+                            stickyHeader(key = "earlier_header_$dateHeader") {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -777,13 +727,13 @@ fun CalendarScreen(
                                         text = dateHeader,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFCAC4D0),
+                                        color = Color(0xFF9E9AA3),
                                         letterSpacing = 1.sp
                                     )
                                 }
                             }
 
-                            items(dayItems, key = { it.primaryKey }) { item ->
+                            items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
                                 SwipeableCalendarItemCard(
                                     modifier = Modifier.animateItem(),
                                     item = item,
@@ -882,44 +832,165 @@ fun CalendarScreen(
                                 )
                             }
                         }
-                    } else if (earlierItems.isNotEmpty() && !showEarlierReleases) {
-                        // Notice when upcoming is empty but earlier items exist
-                        item(key = "no_upcoming_prompt") {
+                    }
+                }
+
+                // Upcoming releases (today and future dates)
+                if (upcomingGrouped.isNotEmpty()) {
+                    upcomingGrouped.forEach { (dateHeader, dayItems) ->
+                        stickyHeader(key = "upcoming_header_$dateHeader") {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
+                                    .background(Color(0xFF1C1B1F))
+                                    .padding(horizontal = 16.dp, vertical = 6.dp)
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.EventAvailable,
-                                        contentDescription = null,
-                                        tint = Color(0xFF3E3D4F),
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = dateHeader,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFCAC4D0),
+                                    letterSpacing = 1.sp
+                                )
+                            }
+                        }
+
+                        items(dayItems, key = { it.primaryKey }) { item ->
+                            SwipeableCalendarItemCard(
+                                modifier = Modifier.animateItem(),
+                                item = item,
+                                onClick = { onNavigateToShowDetail(item.primaryKey) },
+                                onMarkEpisodeWatched = {
+                                    if (item.type == MediaType.MOVIE) {
+                                        viewModel.markMovieWatched(
+                                            simklId = item.simklId,
+                                            showTitle = item.title
+                                        ) { success, msg ->
+                                            if (success) {
+                                                coroutineScope.launch {
+                                                    val result = snackbarHostState.showSnackbar(
+                                                        message = msg,
+                                                        actionLabel = "Revert",
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        viewModel.markMovieUnwatched(
+                                                            simklId = item.simklId,
+                                                            showTitle = item.title
+                                                        ) { _, revertMsg ->
+                                                            coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                            }
+                                        }
+                                    } else {
+                                        viewModel.markEpisodeWatched(
+                                            simklId = item.simklId,
+                                            season = item.season,
+                                            episodeNumber = item.episodeNumber ?: 1,
+                                            mediaType = item.type,
+                                            showTitle = item.title
+                                        ) { success, msg ->
+                                            if (success) {
+                                                coroutineScope.launch {
+                                                    val result = snackbarHostState.showSnackbar(
+                                                        message = msg,
+                                                        actionLabel = "Revert",
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        viewModel.markEpisodeUnwatched(
+                                                            simklId = item.simklId,
+                                                            season = item.season,
+                                                            episodeNumber = item.episodeNumber ?: 1,
+                                                            mediaType = item.type,
+                                                            showTitle = item.title
+                                                        ) { _, revertMsg ->
+                                                            coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                            }
+                                        }
+                                    }
+                                },
+                                onMarkSeasonWatched = {
+                                    if (item.type != MediaType.MOVIE) {
+                                        viewModel.markSeasonWatched(
+                                            simklId = item.simklId,
+                                            season = item.season ?: 1,
+                                            mediaType = item.type,
+                                            showTitle = item.title
+                                        ) { success, msg ->
+                                            if (success) {
+                                                coroutineScope.launch {
+                                                    val result = snackbarHostState.showSnackbar(
+                                                        message = msg,
+                                                        actionLabel = "Revert",
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        viewModel.markSeasonUnwatched(
+                                                            simklId = item.simklId,
+                                                            season = item.season ?: 1,
+                                                            mediaType = item.type,
+                                                            showTitle = item.title
+                                                        ) { _, revertMsg ->
+                                                            coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                } else if (earlierItems.isNotEmpty() && !showEarlierReleases) {
+                    // Notice when upcoming is empty but earlier items exist
+                    item(key = "no_upcoming_prompt") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.EventAvailable,
+                                    contentDescription = null,
+                                    tint = Color(0xFF3E3D4F),
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    if (searchQuery.isNotBlank()) {
+                                        "No upcoming releases matching \"$searchQuery\""
+                                    } else {
+                                        "No upcoming releases for active filters"
+                                    },
+                                    color = Color(0xFFA5A3B1),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                  )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                TextButton(onClick = { viewModel.showEarlierReleases.value = true }) {
                                     Text(
                                         if (searchQuery.isNotBlank()) {
-                                            "No upcoming releases matching \"$searchQuery\""
+                                            "View ${earlierItems.size} Matching Earlier Releases"
                                         } else {
-                                            "No upcoming releases for active filters"
+                                            "View ${earlierItems.size} Earlier Releases"
                                         },
-                                        color = Color(0xFFA5A3B1),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium
+                                        color = Color(0xFFD0BCFF)
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    TextButton(onClick = { viewModel.showEarlierReleases.value = true }) {
-                                        Text(
-                                            if (searchQuery.isNotBlank()) {
-                                                "View ${earlierItems.size} Matching Earlier Releases"
-                                            } else {
-                                                "View ${earlierItems.size} Earlier Releases"
-                                            },
-                                            color = Color(0xFFD0BCFF)
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -928,7 +999,6 @@ fun CalendarScreen(
             }
         }
     }
-}
 }
 
 @Composable
@@ -1108,7 +1178,7 @@ fun CalendarItemCard(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFFD0BCFF)
-                            )
+                              )
                         }
                     }
                 }

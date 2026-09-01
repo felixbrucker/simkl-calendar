@@ -34,8 +34,9 @@ import com.felixbrucker.simklcalendar.receiver.NotificationReceiver
 import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker
 import com.felixbrucker.simklcalendar.ui.screens.CalendarScreen
 import com.felixbrucker.simklcalendar.ui.screens.LoginScreen
+import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen
+import com.felixbrucker.simklcalendar.ui.screens.SeriesDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
-import com.felixbrucker.simklcalendar.ui.screens.ShowDetailScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 
@@ -181,8 +182,7 @@ fun SimklCalendarApp(
         LaunchedEffect(Unit) {
             if (ContextCompat.checkSelfPermission(
                     context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
+                    Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) {
                 permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
@@ -220,6 +220,9 @@ fun SimklCalendarApp(
                     onNavigateToShowDetail = { itemKey ->
                         val encodedKey = java.net.URLEncoder.encode(itemKey, "UTF-8")
                         navController.navigate("detail/$encodedKey")
+                    },
+                    onNavigateToSeriesDetail = { simklId ->
+                        navController.navigate("series_detail/$simklId")
                     }
                 )
             }
@@ -246,7 +249,7 @@ fun SimklCalendarApp(
                 } catch (_: Exception) {
                     rawKey
                 }
-                ShowDetailScreen(
+                ReleaseDetailScreen(
                     viewModel = viewModel,
                     itemKey = itemKey,
                     onNavigateBack = {
@@ -254,6 +257,22 @@ fun SimklCalendarApp(
                     }
                 )
             }
+
+            // 5. Watchlist Series Details screen
+            composable(
+                route = "series_detail/{simklId}",
+                arguments = listOf(navArgument("simklId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val simklId = backStackEntry.arguments?.getInt("simklId") ?: 0
+                SeriesDetailScreen(
+                    viewModel = viewModel,
+                    simklId = simklId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToEpisode = { itemKey ->
+                        val encodedKey = java.net.URLEncoder.encode(itemKey, "UTF-8")
+                        navController.navigate("detail/$encodedKey")
+                    }
+                )
+            }
         }
     }
-

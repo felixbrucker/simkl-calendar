@@ -99,6 +99,18 @@ object MediaFormatter {
     }
 
     /**
+     * Formats the SIMKL URL for a media item.
+     */
+    fun formatSimklUrl(simklId: Int, type: MediaType): String {
+        val typePath = when (type) {
+            MediaType.TV -> "tv"
+            MediaType.ANIME -> "anime"
+            MediaType.MOVIE -> "movies"
+        }
+        return "https://simkl.com/$typePath/$simklId"
+    }
+
+    /**
      * Formats the toast message when an episode is marked as watched.
      * Anime S1: "Marked [Title] E05 as watched"
      * TV / Anime S2+: "Marked [Title] S01E05 as watched"

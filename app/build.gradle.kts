@@ -7,12 +7,14 @@ plugins {
 
 android {
   namespace = "com.felixbrucker.simklcalendar"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  compileSdk {
+    version = release(37)
+  }
 
   defaultConfig {
     applicationId = "com.felixbrucker.simklcalendar"
     minSdk = 26
-    targetSdk = 36
+    targetSdk = 37
     versionCode = 1
     versionName = "1.0.0"
     buildConfigField("String", "APP_NAME", "\"simkl-calendar\"")
@@ -58,6 +60,7 @@ android {
   buildFeatures {
     compose = true
     buildConfig = true
+    aidl = true
   }
 }
 
@@ -100,6 +103,7 @@ dependencies {
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
   implementation(libs.retrofit)
+  implementation(libs.torrent.search.api.kt)
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)

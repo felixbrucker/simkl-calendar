@@ -56,3 +56,18 @@ enum class WatchlistStatus(val key: String) {
         fun fromString(key: String?): WatchlistStatus = fromKey(key)
     }
 }
+
+enum class MediaStatus(val displayName: String) {
+    IGNORED("Ignored"),
+    NOT_AIRED_YET("Not Aired Yet"),
+    WANTED("Wanted"),
+    DOWNLOADING("Downloading"),
+    DOWNLOADED("Downloaded"),
+    ARCHIVED("Archived");
+
+    companion object {
+        fun fromString(str: String?): MediaStatus {
+            return entries.firstOrNull { it.name.equals(str, ignoreCase = true) } ?: IGNORED
+        }
+    }
+}

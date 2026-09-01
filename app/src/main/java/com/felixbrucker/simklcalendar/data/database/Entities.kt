@@ -9,6 +9,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import java.time.Instant
 import androidx.core.net.toUri
 
@@ -44,7 +45,10 @@ data class CalendarItem(
     val isSeasonPremiere: Boolean,
     val isSeasonFinale: Boolean,
     val isNotified: Boolean = false, // Track whether notification has been dispatched
-    val watchedAt: Instant? = null // Timestamp of when the episode was watched
+    val watchedAt: Instant? = null, // Timestamp of when the episode was watched
+    @ColumnInfo(defaultValue = "NOT_AIRED_YET") val mediaStatus: MediaStatus = MediaStatus.NOT_AIRED_YET,
+    val downloadTaskId: String? = null,
+    val downloadPath: String? = null
 ) {
     val isWatched: Boolean
         get() = watchedAt != null
@@ -62,7 +66,10 @@ data class CalendarItem(
             isSeasonPremiere = newItem.isSeasonPremiere,
             isSeasonFinale = newItem.isSeasonFinale,
             isNotified = updatedNotified,
-            watchedAt = newItem.watchedAt
+            watchedAt = newItem.watchedAt,
+            mediaStatus = if (newItem.mediaStatus != MediaStatus.NOT_AIRED_YET) newItem.mediaStatus else this.mediaStatus,
+            downloadTaskId = newItem.downloadTaskId ?: this.downloadTaskId,
+            downloadPath = newItem.downloadPath ?: this.downloadPath
         )
     }
 }
@@ -125,6 +132,9 @@ data class CalendarItemWithWatchlist(
     val isNotified: Boolean get() = calendarItem.isNotified
     val watchedAt: Instant? get() = calendarItem.watchedAt
     val isWatched: Boolean get() = calendarItem.isWatched
+    val mediaStatus: MediaStatus get() = calendarItem.mediaStatus
+    val downloadTaskId: String? get() = calendarItem.downloadTaskId
+    val downloadPath: String? get() = calendarItem.downloadPath
 }
 
 @Entity(tableName = "watched_episodes", primaryKeys = ["simklId", "season", "episodeNumber"])
@@ -254,6 +264,16 @@ data class CustomSearchLink(
         return "https://www.google.com/s2/favicons?domain=$domain&sz=64"
     }
 }
+
+@Entity(tableName = "item_download_settings")
+data class ItemDownloadSettings(
+    @PrimaryKey val simklId: Int,
+    val downloadUnwatched: Boolean? = null,
+    val qualityOverride: String? = null, // "4K", "1080p", "720p"
+    val preferHevcOverride: Boolean? = null,
+    val titleOverride: String? = null,
+    val seasonOverrides: Map<Int, Int>? = null // Map of <Original Season, Search Season Override>
+)
 
 
 

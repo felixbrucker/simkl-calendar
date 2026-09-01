@@ -12,6 +12,7 @@ import androidx.room.migration.AutoMigrationSpec
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import java.time.Instant
 
 class Converters {
@@ -74,11 +75,40 @@ class Converters {
                 ?: MediaType.fromKey(key.trim())
         }
     }
+
+    @TypeConverter
+    fun fromSeasonOverrides(value: Map<Int, Int>?): String? {
+        if (value == null) return null
+        return value.entries.joinToString(",") { "${it.key}:${it.value}" }
+    }
+
+    @TypeConverter
+    fun toSeasonOverrides(value: String?): Map<Int, Int>? {
+        if (value.isNullOrBlank()) return null
+        return try {
+            value.split(",").associate {
+                val (k, v) = it.split(":")
+                k.trim().toInt() to v.trim().toInt()
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    @TypeConverter
+    fun fromMediaStatus(status: MediaStatus?): String? {
+        return status?.name
+    }
+
+    @TypeConverter
+    fun toMediaStatus(value: String?): MediaStatus? {
+        return value?.let { MediaStatus.fromString(it) }
+    }
 }
 
 @Database(
-    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class],
-    version = 14,
+    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class],
+    version = 18,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -87,7 +117,11 @@ class Converters {
         AutoMigration(from = 10, to = 11),
         AutoMigration(from = 11, to = 12),
         AutoMigration(from = 12, to = 13),
-        AutoMigration(from = 13, to = 14, spec = AppDatabase.Migration13To14::class)
+        AutoMigration(from = 13, to = 14, spec = AppDatabase.Migration13To14::class),
+        AutoMigration(from = 14, to = 15),
+        AutoMigration(from = 15, to = 16),
+        AutoMigration(from = 16, to = 17, spec = AppDatabase.Migration16To17::class),
+        AutoMigration(from = 17, to = 18)
     ]
 )
 @TypeConverters(Converters::class)
@@ -101,12 +135,16 @@ abstract class AppDatabase : RoomDatabase() {
     @DeleteColumn(tableName = "calendar_items", columnName = "type")
     class Migration13To14 : AutoMigrationSpec
 
+    @androidx.room.DeleteTable(tableName = "torrent_search_overrides")
+    class Migration16To17 : AutoMigrationSpec
+
     abstract fun userTokenDao(): UserTokenDao
     abstract fun calendarItemDao(): CalendarItemDao
     abstract fun notificationSettingDao(): NotificationSettingDao
     abstract fun watchlistDao(): WatchlistDao
     abstract fun watchedEpisodeDao(): WatchedEpisodeDao
     abstract fun customSearchLinkDao(): CustomSearchLinkDao
+    abstract fun itemDownloadSettingsDao(): ItemDownloadSettingsDao
 
     companion object {
         @Volatile

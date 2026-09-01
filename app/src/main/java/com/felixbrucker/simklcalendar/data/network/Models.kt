@@ -99,6 +99,8 @@ data class SyncAllItemsResponse(
 data class SyncShowItem(
     @Json(name = "status") val status: String,
     @Json(name = "show") val show: SimklMedia,
+    @Json(name = "total_episodes_count") val totalEpisodes: Int? = null,
+    @Json(name = "watched_episodes_count") val watchedEpisodes: Int? = null,
     @Json(name = "seasons") val seasons: List<SyncSeasonItem>? = null
 )
 

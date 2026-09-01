@@ -2,6 +2,7 @@ package com.felixbrucker.simklcalendar.data.database
 
 import androidx.room.*
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -24,6 +25,9 @@ interface CalendarItemDao {
     @Transaction
     @Query("SELECT * FROM calendar_items ORDER BY date ASC")
     fun getAllCalendarItems(): Flow<List<CalendarItemWithWatchlist>>
+
+    @Query("SELECT * FROM calendar_items")
+    fun getAllCalendarEntitiesFlow(): Flow<List<CalendarItem>>
 
     @Transaction
     @Query("SELECT * FROM calendar_items ORDER BY date ASC")
@@ -67,6 +71,15 @@ interface CalendarItemDao {
     @Query("UPDATE calendar_items SET isNotified = 0")
     suspend fun resetAllNotified()
 
+    @Query("UPDATE calendar_items SET mediaStatus = :status WHERE primaryKey = :primaryKey")
+    suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus)
+
+    @Query("UPDATE calendar_items SET downloadTaskId = :taskId, mediaStatus = :status WHERE primaryKey = :primaryKey")
+    suspend fun updateDownloadTaskId(primaryKey: String, taskId: String?, status: MediaStatus)
+
+    @Query("UPDATE calendar_items SET downloadPath = :path, mediaStatus = :status WHERE primaryKey = :primaryKey")
+    suspend fun updateDownloadPath(primaryKey: String, path: String?, status: MediaStatus)
+
     @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL) OR (:season IS NULL AND (season = 1 OR season IS NULL))) AND episodeNumber = :episodeNumber")
     suspend fun markEpisodeWatched(simklId: Int, season: Int?, episodeNumber: Int, watchedAt: java.time.Instant?)
 
@@ -106,6 +119,9 @@ interface NotificationSettingDao {
 
 @Dao
 interface WatchlistDao {
+    @Query("SELECT * FROM tracked_watchlist_items")
+    fun getAllTrackedItemsFlow(): Flow<List<TrackedWatchlistItem>>
+
     @Query("SELECT * FROM tracked_watchlist_items")
     suspend fun getAllTrackedItems(): List<TrackedWatchlistItem>
 
@@ -183,6 +199,27 @@ interface CustomSearchLinkDao {
 
     @Query("DELETE FROM custom_search_links WHERE id = :id")
     suspend fun deleteSearchLinkById(id: Long)
+}
+
+@Dao
+interface ItemDownloadSettingsDao {
+    @Query("SELECT * FROM item_download_settings WHERE simklId = :simklId LIMIT 1")
+    suspend fun getSettings(simklId: Int): ItemDownloadSettings?
+
+    @Query("SELECT * FROM item_download_settings WHERE simklId = :simklId LIMIT 1")
+    fun getSettingsFlow(simklId: Int): Flow<ItemDownloadSettings?>
+
+    @Query("SELECT * FROM item_download_settings")
+    fun getAllSettings(): Flow<List<ItemDownloadSettings>>
+
+    @Query("SELECT * FROM item_download_settings")
+    suspend fun getAllSettingsList(): List<ItemDownloadSettings>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdate(settings: ItemDownloadSettings)
+
+    @Delete
+    suspend fun delete(settings: ItemDownloadSettings)
 }
 
 
