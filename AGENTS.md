@@ -17,4 +17,4 @@ Whenever modifying the Room database or entities in this project:
    - Never delete existing schema JSON files (e.g. `7.json`, `8.json`, `9.json`, `10.json`, `11.json`, `12.json`, `13.json`, etc.), as Room requires them for verifying auto-migrations and history.
 
 3. **Data Safety**:
-   - Never enable destructive migrations (`fallbackToDestructiveMigration(false)` is strictly enforced). Always write non-destructive migrations to preserve user data.
+   - Never enable destructive migrations. Always write non-destructive migrations to preserve user data.

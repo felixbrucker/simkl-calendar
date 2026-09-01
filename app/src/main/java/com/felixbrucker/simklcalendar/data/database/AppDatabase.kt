@@ -119,9 +119,6 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "simkl_calendar_database"
                 )
-                // CRITICAL / DO NOT CHANGE: Never fallback to destructive migrations or drop user data on schema change.
-                // Always write explicit AutoMigration or Migration steps instead.
-                .fallbackToDestructiveMigration(false)
                 .build()
                 INSTANCE = instance
                 instance
