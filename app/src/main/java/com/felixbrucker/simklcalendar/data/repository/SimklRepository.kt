@@ -515,7 +515,8 @@ class SimklRepository(private val context: Context) {
 
                 val syncResponse = apiService.getSyncAllItems(
                     authorization = bearer,
-                    clientId = clientId
+                    clientId = clientId,
+                    dateFrom = savedTimestamp,
                 )
 
                 val existingTracked = watchlistDao.getAllTrackedItems()
@@ -622,14 +623,21 @@ class SimklRepository(private val context: Context) {
                 } else {
                     // Remove any WatchedEpisode entities in our DB that aren't present in the list returned by the API
                     val existingWatched = watchedDao.getAllWatchedEpisodes()
-                    val newWatchedKeys = newWatchedEpisodes.map { "${it.simklId}_${it.season}_${it.episodeNumber}" }.toSet()
-                    val watchedToRemove = existingWatched.filter {
-                        "${it.simklId}_${it.season}_${it.episodeNumber}" !in newWatchedKeys
+                    val newWatchedEpisodesBySimklId = newWatchedEpisodes.groupBy { it.simklId }
+                    val existingWatchedBySimklId = existingWatched.groupBy { it.simklId }
+                    val allWatchedToRemove = mutableListOf<WatchedEpisode>()
+                    newWatchedEpisodesBySimklId.forEach { (simklId, newWatchedEpisodes) ->
+                        val existingEpisodes = existingWatchedBySimklId[simklId] ?: emptyList()
+                        val newWatchedKeys = newWatchedEpisodes.map { "${it.simklId}_${it.season}_${it.episodeNumber}" }.toSet()
+                        val watchedToRemove = existingEpisodes.filter {
+                            "${it.simklId}_${it.season}_${it.episodeNumber}" !in newWatchedKeys
+                        }
+                        allWatchedToRemove.addAll(watchedToRemove)
                     }
 
-                    if (watchedToRemove.isNotEmpty()) {
-                        watchedDao.deleteWatchedEpisodes(watchedToRemove)
-                        for (removed in watchedToRemove) {
+                    if (allWatchedToRemove.isNotEmpty()) {
+                        watchedDao.deleteWatchedEpisodes(allWatchedToRemove)
+                        for (removed in allWatchedToRemove) {
                             calendarDao.markEpisodeWatched(
                                 simklId = removed.simklId,
                                 season = removed.season,
@@ -637,7 +645,7 @@ class SimklRepository(private val context: Context) {
                                 watchedAt = null
                             )
                         }
-                        Log.d("SimklRepository", "Removed ${watchedToRemove.size} WatchedEpisode entities not present in API response")
+                        Log.d("SimklRepository", "Removed ${allWatchedToRemove.size} WatchedEpisode entities not present in API response")
                     }
                 }
 

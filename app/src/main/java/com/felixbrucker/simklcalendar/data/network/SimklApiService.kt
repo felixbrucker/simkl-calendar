@@ -49,6 +49,7 @@ interface SimklApiService {
         @Query("extended") extended: String = "full",
         @Query("next_watch_info") nextWatchInfo: String = "yes",
         @Query("episode_watched_at") episodeWatchedAt: String = "yes",
+        @Query("language") language: String = "en", // ensures all titles use en language line with the languages of the calendar files
         @Query("date_from") dateFrom: String? = null
     ): SyncAllItemsResponse
 
