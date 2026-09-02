@@ -609,11 +609,11 @@ class SimklRepository(private val context: Context) {
                 }
 
                 if (trackedToInsert.isNotEmpty()) {
-                    watchlistDao.insertOrUpdateItems(trackedToInsert.values.toList())
+                    watchlistDao.insertItems(trackedToInsert.values.toList())
                     Log.d("SimklRepository", "Inserted ${trackedToInsert.size} new tracked watchlist items into DB")
                 }
                 if (trackedToUpdate.isNotEmpty()) {
-                    watchlistDao.insertOrUpdateItems(trackedToUpdate.values.toList())
+                    watchlistDao.updateItems(trackedToUpdate.values.toList())
                     Log.d("SimklRepository", "Updated ${trackedToUpdate.size} changed tracked watchlist items in DB")
                 }
 
@@ -1030,7 +1030,7 @@ class SimklRepository(private val context: Context) {
         }
 
         if (trackedToUpdate.isNotEmpty()) {
-            watchlistDao.insertOrUpdateItems(trackedToUpdate.values.toList())
+            watchlistDao.updateItems(trackedToUpdate.values.toList())
             Log.d("SimklRepository", "Updated ${trackedToUpdate.size} changed tracked watchlist items with metadata in DB")
         }
 

@@ -132,10 +132,10 @@ interface WatchlistDao {
     suspend fun getTrackedItemsByType(type: MediaType): List<TrackedWatchlistItem>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdateItems(items: List<TrackedWatchlistItem>)
+    suspend fun insertItems(items: List<TrackedWatchlistItem>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdateItem(item: TrackedWatchlistItem)
+    @Update
+    suspend fun updateItems(items: List<TrackedWatchlistItem>)
 
     @Query("DELETE FROM tracked_watchlist_items WHERE simklId = :simklId")
     suspend fun deleteItem(simklId: Int)
