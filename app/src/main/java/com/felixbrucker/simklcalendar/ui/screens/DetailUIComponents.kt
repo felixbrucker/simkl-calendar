@@ -1,21 +1,31 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
+import android.content.Intent
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
+import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.util.MediaFormatter
+import com.felixbrucker.simklcalendar.data.util.PosterSize
+import com.felixbrucker.simklcalendar.data.util.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 
 @Composable
@@ -297,4 +307,124 @@ fun getTableItemColor(x: Int, y: Int): Color {
     if (y == 0 || x == y) return Color(0xFF7CE49F) // Green
     val ratio = x.toDouble() / y
     return if (ratio > 0.4) Color(0xFFE2E262) else Color(0xFFF2B8B5) // Yellow, Red
+}
+
+@Composable
+fun DetailHeader(
+    simklId: Int,
+    type: MediaType,
+    title: String,
+    poster: String?,
+    modifier: Modifier = Modifier,
+    titleRomaji: String? = null
+) {
+    val context = LocalContext.current
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(260.dp)
+    ) {
+        AsyncImage(
+            model = poster.toPosterUrl(PosterSize.WIDE),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Scrim gradient
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color(0xFF1C1B1F)
+                        ),
+                        startY = 100f
+                    )
+                )
+        )
+
+        // Overlay Title metadata
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp)
+                .padding(end = 100.dp) // Avoid overlapping with the button
+        ) {
+            Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = when (type) {
+                    MediaType.ANIME -> Color(0xFFE8DEF8)
+                    MediaType.MOVIE -> Color(0xFFF2B8B5)
+                    MediaType.TV -> Color(0xFFBAC3FF)
+                },
+                contentColor = when (type) {
+                    MediaType.ANIME -> Color(0xFF1D192B)
+                    MediaType.MOVIE -> Color(0xFF601410)
+                    MediaType.TV -> Color(0xFF1A237E)
+                }
+            ) {
+                Text(
+                    text = type.displayName.uppercase(),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = title,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White
+            )
+
+            if (type == MediaType.ANIME && !titleRomaji.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = titleRomaji,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color(0xFFCAC4D0)
+                )
+            }
+        }
+
+        // Open on SIMKL Button in Bottom Right
+        Button(
+            onClick = {
+                val intent = Intent(
+                    Intent.ACTION_VIEW,
+                    MediaFormatter.formatSimklUrl(simklId, type).toUri(),
+                )
+                context.startActivity(intent)
+            },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .height(32.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF6750A4).copy(alpha = 0.8f),
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Open on SIMKL",
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp
+            )
+        }
+    }
 }

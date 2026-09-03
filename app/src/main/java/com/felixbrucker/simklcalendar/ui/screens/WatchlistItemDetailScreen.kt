@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -101,7 +100,13 @@ fun WatchlistItemDetailScreen(
             ) {
                 // 1. Header with Poster & Title
                 item {
-                    WatchlistItemHeader(seriesItem)
+                    DetailHeader(
+                        simklId = seriesItem.simklId,
+                        type = seriesItem.type,
+                        title = seriesItem.title,
+                        poster = seriesItem.poster,
+                        titleRomaji = seriesItem.titleRomaji
+                    )
                 }
 
                 // 2. Summary Stats Bar (Hidden for movies)
@@ -213,76 +218,6 @@ fun WatchlistItemDetailScreen(
     }
 }
 
-@Composable
-fun WatchlistItemHeader(seriesItem: TrackedWatchlistItem) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(260.dp)
-    ) {
-        AsyncImage(
-            model = seriesItem.poster.toPosterUrl(PosterSize.WIDE),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color(0xFF1C1B1F)),
-                        startY = 100f
-                    )
-                )
-        )
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp)
-        ) {
-            val categoryColor = when (seriesItem.type) {
-                MediaType.ANIME -> Color(0xFFD0BCFF)
-                MediaType.MOVIE -> Color(0xFFF2B8B5)
-                MediaType.TV -> Color(0xFFBAC3FF)
-            }
-
-            Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = categoryColor.copy(alpha = 0.2f),
-                contentColor = categoryColor
-            ) {
-                Text(
-                    text = seriesItem.type.displayName.uppercase(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = seriesItem.title,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
-                lineHeight = 34.sp
-            )
-
-            if (!seriesItem.titleRomaji.isNullOrBlank()) {
-                Text(
-                    text = seriesItem.titleRomaji,
-                    fontSize = 16.sp,
-                    color = Color(0xFFCAC4D0),
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-            }
-        }
-    }
-}
 
 @Composable
 fun WatchlistItemSummaryStats(

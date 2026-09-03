@@ -25,7 +25,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -205,82 +204,13 @@ fun ReleaseDetailScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 // Banner / Poster Header
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(260.dp)
-                ) {
-                    AsyncImage(
-                        model = activeItem.poster.toPosterUrl(PosterSize.WIDE),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-
-                    // Scrim gradient
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        Color(0xFF1C1B1F)
-                                    ),
-                                    startY = 100f
-                                )
-                            )
-                    )
-
-                    // Overlay Title metadata
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomStart)
-                            .padding(16.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = when (activeItem.type) {
-                                MediaType.ANIME -> Color(0xFFE8DEF8)
-                                MediaType.MOVIE -> Color(0xFFF2B8B5)
-                                MediaType.TV -> Color(0xFFBAC3FF)
-                            },
-                            contentColor = when (activeItem.type) {
-                                MediaType.ANIME -> Color(0xFF1D192B)
-                                MediaType.MOVIE -> Color(0xFF601410)
-                                MediaType.TV -> Color(0xFF1A237E)
-                            }
-                        ) {
-                            Text(
-                                text = activeItem.type.displayName.uppercase(),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = activeItem.title,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-
-                        val romaji = activeItem.titleRomaji
-                        if (activeItem.type == MediaType.ANIME && !romaji.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = romaji,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Normal,
-                                color = Color(0xFFCAC4D0)
-                            )
-                        }
-                    }
-                }
+                DetailHeader(
+                    simklId = activeItem.simklId,
+                    type = activeItem.type,
+                    title = activeItem.title,
+                    poster = activeItem.poster,
+                    titleRomaji = activeItem.titleRomaji
+                )
 
                 // Airing / Release details info
                 Column(
@@ -592,37 +522,6 @@ fun ReleaseDetailScreen(
                         }
 
                         SeasonWatchSection(modifier = Modifier.fillMaxWidth())
-                    }
-
-                    // Open on SIMKL Button (Filled Button)
-                    Button(
-                        onClick = {
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                MediaFormatter
-                                    .formatSimklUrl(activeItem.simklId, activeItem.type)
-                                    .toUri(),
-                            )
-                            context.startActivity(intent)
-                        },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6750A4),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                            contentDescription = "Open on SIMKL",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Open on SIMKL",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
                     }
 
                     // Matching Custom Search Links
