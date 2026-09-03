@@ -16,12 +16,12 @@ import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
+import com.felixbrucker.simklcalendar.receiver.NotificationReceiver.Companion.ACTION_AIR_DATE_ALERT
 import kotlin.math.abs
 
 object NotificationScheduler {
 
     private const val TAG = "NotificationScheduler"
-    const val ACTION_AIR_DATE_ALERT = "com.felixbrucker.simklcalendar.ACTION_AIR_DATE_ALERT"
 
     /**
      * Schedules or fires notifications for all eligible upcoming or recently aired items across all shows.
@@ -178,7 +178,7 @@ object NotificationScheduler {
 
         // Also perform status transition if needed
         val repo = SimklRepository(context)
-        repo.updateItemAiredStatus(item.primaryKey)
+        repo.updateItemAiredStatus(item.primaryKey, isTheaterRelease = item.movieReleaseType == MovieReleaseType.THEATER)
 
         Log.d(TAG, "Dispatched immediate action/notification for recently reached air date: ${item.title}")
     }

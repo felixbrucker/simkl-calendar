@@ -123,26 +123,31 @@ class SimklRepository(private val context: Context) {
         calendarDao.updateDownloadTaskId(primaryKey, taskId, status)
     }
 
-    suspend fun updateItemAiredStatus(primaryKey: String) = withContext(Dispatchers.IO) {
+    suspend fun updateItemAiredStatus(primaryKey: String, isTheaterRelease: Boolean) = withContext(Dispatchers.IO) {
         val item = calendarDao.findCalendarEntity(primaryKey) ?: return@withContext
         if (item.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext
 
         val settings = itemDownloadSettingsDao.getSettings(item.simklId)
         val globalUnwatched = downloadPrefs.getBoolean("unwatched_default", false)
 
-        val newStatus = determineStatus(item.date, settings, globalUnwatched)
+        val newStatus = determineStatus(
+            airDate = item.date,
+            settings = settings,
+            globalUnwatched = globalUnwatched,
+            isTheaterRelease = isTheaterRelease,
+        )
         calendarDao.updateMediaStatus(primaryKey, newStatus)
     }
 
     fun determineStatus(
         airDate: Instant,
-        settings: ItemDownloadSettings? = null,
-        globalUnwatched: Boolean? = null
+        settings: ItemDownloadSettings?,
+        globalUnwatched: Boolean,
+        isTheaterRelease: Boolean,
     ): MediaStatus {
         if (airDate.isAfter(Instant.now())) return MediaStatus.NOT_AIRED_YET
-        val isUnwatched = settings?.downloadUnwatched
-            ?: globalUnwatched
-            ?: downloadPrefs.getBoolean("unwatched_default", false)
+        if (isTheaterRelease) return MediaStatus.IGNORED
+        val isUnwatched = settings?.downloadUnwatched ?: globalUnwatched
         return if (isUnwatched) MediaStatus.WANTED else MediaStatus.IGNORED
     }
 
@@ -534,7 +539,12 @@ class SimklRepository(private val context: Context) {
                             isSeasonPremiere = epNum == 1,
                             isSeasonFinale = false, // Not available in this endpoint, will be updated by calendar jsons if recent
                             watchedAt = epWatchedTimestamp,
-                            mediaStatus = determineStatus(airDate = instant, settings = settingsMap[show.simklId], globalUnwatched = globalUnwatched)
+                            mediaStatus = determineStatus(
+                                airDate = instant,
+                                settings = settingsMap[show.simklId],
+                                globalUnwatched = globalUnwatched,
+                                isTheaterRelease = false,
+                            )
                         )
                     )
                 }
@@ -952,7 +962,12 @@ class SimklRepository(private val context: Context) {
                                         movieReleaseType = MovieReleaseType.THEATER,
                                         isSeasonPremiere = false,
                                         isSeasonFinale = false,
-                                        mediaStatus = determineStatus(airDate = theaterInstant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
+                                        mediaStatus = determineStatus(
+                                            airDate = theaterInstant,
+                                            settings = settingsMap[simklId],
+                                            globalUnwatched = globalUnwatched,
+                                            isTheaterRelease = true,
+                                        )
                                     )
                                 )
                             }
@@ -971,7 +986,12 @@ class SimklRepository(private val context: Context) {
                                             movieReleaseType = MovieReleaseType.DIGITAL,
                                             isSeasonPremiere = false,
                                             isSeasonFinale = false,
-                                            mediaStatus = determineStatus(airDate = dvdInstant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
+                                            mediaStatus = determineStatus(
+                                                airDate = dvdInstant,
+                                                settings = settingsMap[simklId],
+                                                globalUnwatched = globalUnwatched,
+                                                isTheaterRelease = false,
+                                            )
                                         )
                                     )
                                 }
@@ -1017,7 +1037,12 @@ class SimklRepository(private val context: Context) {
                                     isSeasonPremiere = isPremiere,
                                     isSeasonFinale = isFinale,
                                     watchedAt = epWatchedTimestamp,
-                                    mediaStatus = determineStatus(airDate = instant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
+                                    mediaStatus = determineStatus(
+                                        airDate = instant,
+                                        settings = settingsMap[simklId],
+                                        globalUnwatched = globalUnwatched,
+                                        isTheaterRelease = false,
+                                    )
                                 )
                             )
                         }
@@ -1069,7 +1094,12 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = MovieReleaseType.THEATER,
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
-                                    mediaStatus = determineStatus(airDate = theaterInstant, settings = settingsMap[movieId], globalUnwatched = globalUnwatched)
+                                    mediaStatus = determineStatus(
+                                        airDate = theaterInstant,
+                                        settings = settingsMap[movieId],
+                                        globalUnwatched = globalUnwatched,
+                                        isTheaterRelease = true,
+                                    )
                                 )
                             )
                         }
@@ -1089,7 +1119,12 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = MovieReleaseType.DIGITAL,
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
-                                    mediaStatus = determineStatus(airDate = digitalInstant, settings = settingsMap[movieId], globalUnwatched = globalUnwatched)
+                                    mediaStatus = determineStatus(
+                                        airDate = digitalInstant,
+                                        settings = settingsMap[movieId],
+                                        globalUnwatched = globalUnwatched,
+                                        isTheaterRelease = false,
+                                    )
                                 )
                             )
                         }

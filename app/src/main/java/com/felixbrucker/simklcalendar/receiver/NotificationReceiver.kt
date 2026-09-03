@@ -344,6 +344,8 @@ class NotificationReceiver : BroadcastReceiver() {
         val isFinale = intent.getBooleanExtra(EXTRA_IS_FINALE, false)
         val showTitle = intent.getStringExtra(EXTRA_SHOW_TITLE)
         val poster = intent.getStringExtra(EXTRA_POSTER)
+        val movieReleaseTypeName = intent.getStringExtra(EXTRA_MOVIE_RELEASE_TYPE)
+        val movieReleaseType = movieReleaseTypeName?.let { runCatching { MovieReleaseType.valueOf(it) }.getOrNull() }
 
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
@@ -351,7 +353,7 @@ class NotificationReceiver : BroadcastReceiver() {
                 val repo = SimklRepository(context)
 
                 // FIRST: Ensure status transitions to WANTED/IGNORED
-                repo.updateItemAiredStatus(itemKey)
+                repo.updateItemAiredStatus(itemKey, isTheaterRelease = movieReleaseType == MovieReleaseType.THEATER)
 
                 // SECOND: Check if we should notify
                 if (shouldNotify) {
