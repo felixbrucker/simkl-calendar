@@ -213,91 +213,6 @@ fun SettingsScreen(
             }
 
 
-            // Periodic Torrent Search Interval Configuration Card
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = BorderStroke(1.dp, Color(0xFF49454F))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                tint = Color(0xFFD0BCFF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Periodic Torrent Search",
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFE6E1E5),
-                                fontSize = 16.sp
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF4A4458)
-                        ) {
-                            Text(
-                                text = "${searchIntervalHours.roundToInt()} hrs",
-                                color = Color(0xFFD0BCFF),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        "Sets how frequently the app searches for torrents for episodes in 'Wanted' status.",
-                        color = Color(0xFFCAC4D0),
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Slider(
-                        value = searchIntervalHours,
-                        onValueChange = { newValue ->
-                            searchIntervalHours = newValue
-                        },
-                        onValueChangeFinished = {
-                            val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
-                            prefs.edit { putInt("search_interval_hours", roundedHours)}
-                            AutoDownloadWorker.enqueuePeriodicSearch(context, roundedHours.toLong())
-                        },
-                        valueRange = 1f..24f,
-                        steps = 22,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFD0BCFF),
-                            activeTrackColor = Color(0xFFD0BCFF),
-                            inactiveTrackColor = Color(0xFF49454F),
-                            activeTickColor = Color.Transparent,
-                            inactiveTickColor = Color.Transparent
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("1 hour", color = Color(0xFF938F99), fontSize = 11.sp)
-                        Text("12 hours", color = Color(0xFF938F99), fontSize = 11.sp)
-                        Text("24 hours", color = Color(0xFF938F99), fontSize = 11.sp)
-                    }
-                }
-            }
-
-
             // Background Sync Interval Configuration Card
             Card(
                 shape = RoundedCornerShape(12.dp),
@@ -637,6 +552,80 @@ fun SettingsScreen(
                             onCheckedChange = { viewModel.updateAutoDownloadUnwatchedDefault(it) },
                             enabled = isDownloaderInstalled
                         )
+                    }
+
+                    HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+                    // Periodic Torrent Search Interval Configuration
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Periodic Torrent Search",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFE6E1E5),
+                                    fontSize = 15.sp
+                                )
+                                Text(
+                                    "Sets how frequently the app searches for torrents for episodes in 'Wanted' status.",
+                                    color = Color(0xFFCAC4D0),
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFF4A4458)
+                            ) {
+                                Text(
+                                    text = "${searchIntervalHours.roundToInt()} hrs",
+                                    color = Color(0xFFD0BCFF),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Slider(
+                            value = searchIntervalHours,
+                            onValueChange = { newValue ->
+                                searchIntervalHours = newValue
+                            },
+                            onValueChangeFinished = {
+                                val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
+                                prefs.edit { putInt("search_interval_hours", roundedHours)}
+                                if (isDownloaderInstalled) {
+                                    AutoDownloadWorker.enqueuePeriodicSearch(context, roundedHours.toLong())
+                                }
+                            },
+                            enabled = isDownloaderInstalled,
+                            valueRange = 1f..24f,
+                            steps = 22,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFFD0BCFF),
+                                activeTrackColor = Color(0xFFD0BCFF),
+                                inactiveTrackColor = Color(0xFF49454F),
+                                activeTickColor = Color.Transparent,
+                                inactiveTickColor = Color.Transparent
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("1 hour", color = Color(0xFF938F99), fontSize = 11.sp)
+                            Text("12 hours", color = Color(0xFF938F99), fontSize = 11.sp)
+                            Text("24 hours", color = Color(0xFF938F99), fontSize = 11.sp)
+                        }
                     }
 
                     HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))

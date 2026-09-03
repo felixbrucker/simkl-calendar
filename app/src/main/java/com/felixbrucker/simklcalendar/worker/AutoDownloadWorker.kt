@@ -23,6 +23,11 @@ class AutoDownloadWorker(
         Log.d(TAG, "Starting periodic background torrent search for WANTED items")
         val repository = SimklRepository(applicationContext)
 
+        if (!repository.torrentServiceHelper.isServiceInstalled()) {
+            Log.d(TAG, "Torrent Downloader service not installed. Skipping periodic search.")
+            return Result.success()
+        }
+
         try {
             val items = repository.calendarItems.first()
             val wantedItems = items.filter { it.mediaStatus == MediaStatus.WANTED }

@@ -86,7 +86,9 @@ class MainActivity : ComponentActivity() {
         SyncCalendarWorker.enqueuePeriodicSync(this, syncIntervalHours)
 
         val searchIntervalHours = syncPrefs.getInt("search_interval_hours", 12).toLong()
-        AutoDownloadWorker.enqueuePeriodicSearch(this, searchIntervalHours)
+        if (viewModel.isTorrentServiceInstalled()) {
+            AutoDownloadWorker.enqueuePeriodicSearch(this, searchIntervalHours)
+        }
 
         handleOAuthIntent(intent)
         handleNotificationNavigation(intent)
