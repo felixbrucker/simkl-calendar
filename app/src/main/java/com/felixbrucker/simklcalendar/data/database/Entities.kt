@@ -163,41 +163,43 @@ data class CustomSearchLink(
      * - {SEASON_SLUG} -> Season code (e.g. "S04")
      * - {EPISODE_SLUG} -> Episode code (e.g. "S04E03" or "E03")
      */
-    fun buildUrl(item: CalendarItemWithWatchlist): String {
-        val rawTitle = item.title
+    fun buildUrl(
+        title: String,
+        titleRomaji: String?,
+        type: MediaType,
+        season: Int? = null,
+        episode: Int? = null,
+    ): String {
         val encodedTitle = try {
-            java.net.URLEncoder.encode(rawTitle, "UTF-8")
+            java.net.URLEncoder.encode(title, "UTF-8")
         } catch (_: Exception) {
-            rawTitle
+            title
         }
 
-        val rawRomajiTitle = item.titleRomaji?.takeIf { it.isNotBlank() } ?: item.title
+        val rawRomajiTitle = titleRomaji?.takeIf { it.isNotBlank() } ?: title
         val encodedRomajiTitle = try {
             java.net.URLEncoder.encode(rawRomajiTitle, "UTF-8")
         } catch (_: Exception) {
             rawRomajiTitle
         }
 
-        val seasonNumStr = item.season?.toString() ?: if (item.type != MediaType.MOVIE) "1" else ""
-        val episodeNumStr = item.episodeNumber?.toString() ?: ""
+        val seasonNumStr = season?.toString() ?: ""
+        val episodeNumStr = episode?.toString() ?: ""
 
-        val s = item.season
-        val e = item.episodeNumber
-
-        val seasonSlugStr = if (item.type == MediaType.MOVIE) {
+        val seasonSlugStr = if (type == MediaType.MOVIE) {
             ""
-        } else if (s != null && s > 0) {
-            String.format(java.util.Locale.US, "S%02d", s)
+        } else if (season != null && season > 0) {
+            String.format(java.util.Locale.US, "S%02d", season)
         } else {
-            "S01"
+            ""
         }
 
-        val episodeSlugStr = if (item.type == MediaType.MOVIE) {
+        val episodeSlugStr = if (type == MediaType.MOVIE) {
             ""
-        } else if (s != null && e != null) {
-            String.format(java.util.Locale.US, "S%02dE%02d", s, e)
-        } else if (e != null) {
-            String.format(java.util.Locale.US, "E%02d", e)
+        } else if (season != null && episode != null) {
+            String.format(java.util.Locale.US, "S%02dE%02d", season, episode)
+        } else if (episode != null) {
+            String.format(java.util.Locale.US, "E%02d", episode)
         } else {
             ""
         }
@@ -206,22 +208,10 @@ data class CustomSearchLink(
 
         // Replace supported {CAPSLOCK PLACEHOLDER} tokens (case-insensitive for user convenience)
         // More specific / longer tokens are replaced first to prevent partial matches
-        result = result.replace("{TITLE_ROMAJI_URL_ENCODED}", encodedRomajiTitle, ignoreCase = true)
-        result = result.replace("{TITLE_ROMAJI_ENCODED}", encodedRomajiTitle, ignoreCase = true)
-        result = result.replace("{TITLE_ROMAJI_URLENCODED}", encodedRomajiTitle, ignoreCase = true)
-        result = result.replace("{ROMAJI_TITLE_URL_ENCODED}", encodedRomajiTitle, ignoreCase = true)
-        result = result.replace("{ROMAJI_TITLE_ENCODED}", encodedRomajiTitle, ignoreCase = true)
-        result = result.replace("{ROMAJI_TITLE_URLENCODED}", encodedRomajiTitle, ignoreCase = true)
-
+        result = result.replace("{TITLE}", title, ignoreCase = true)
         result = result.replace("{TITLE_URL_ENCODED}", encodedTitle, ignoreCase = true)
-        result = result.replace("{TITLE_ENCODED}", encodedTitle, ignoreCase = true)
-        result = result.replace("{TITLE_URLENCODED}", encodedTitle, ignoreCase = true)
-        result = result.replace("{ENCODED_TITLE}", encodedTitle, ignoreCase = true)
-
         result = result.replace("{TITLE_ROMAJI}", rawRomajiTitle, ignoreCase = true)
-        result = result.replace("{ROMAJI_TITLE}", rawRomajiTitle, ignoreCase = true)
-        result = result.replace("{TITLE}", rawTitle, ignoreCase = true)
-
+        result = result.replace("{TITLE_ROMAJI_URL_ENCODED}", encodedRomajiTitle, ignoreCase = true)
         result = result.replace("{EPISODE_SLUG}", episodeSlugStr, ignoreCase = true)
         result = result.replace("{SEASON_SLUG}", seasonSlugStr, ignoreCase = true)
         result = result.replace("{SEASON}", seasonNumStr, ignoreCase = true)

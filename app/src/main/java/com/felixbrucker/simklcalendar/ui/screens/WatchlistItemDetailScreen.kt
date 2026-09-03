@@ -34,6 +34,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
+import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
 import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
@@ -58,6 +59,8 @@ fun WatchlistItemDetailScreen(
     val tableItems by viewModel.watchlistTableItems.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
     val torrentDownloads by viewModel.torrentDownloads.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -197,6 +200,21 @@ fun WatchlistItemDetailScreen(
                             }
                         }
                     }
+                }
+
+                item {
+                    CustomSearchLinksCard(
+                        viewModel = viewModel,
+                        title = watchlistItem.title,
+                        titleRomaji = watchlistItem.titleRomaji,
+                        itemType = watchlistItem.type,
+                        season = null,
+                        episode = null,
+                        snackbarHostState = snackbarHostState,
+                        scope = scope,
+                        context = context,
+                        modifier = Modifier.padding(16.dp),
+                    )
                 }
 
                 // 3. Content Card (Episode list or Movie Releases)
