@@ -44,6 +44,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -54,6 +55,8 @@ import java.net.URLEncoder
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 class SimklRepository(private val context: Context) {
 
@@ -195,6 +198,24 @@ class SimklRepository(private val context: Context) {
             } else {
                 onResult(false, "Failed to start download.")
             }
+        }
+    }
+
+    suspend fun searchAndDownloadWantedItems(
+        onProgress: (current: Int, total: Int, itemTitle: String, success: Boolean) -> Unit = { _, _, _, _ -> }
+    ) = withContext(Dispatchers.IO) {
+        val items = calendarItems.first()
+        val wantedItems = items.filter { it.mediaStatus == MediaStatus.WANTED }
+
+        if (wantedItems.isEmpty()) return@withContext
+
+        wantedItems.forEachIndexed { index, item ->
+            var successResult = false
+            searchAndDownloadEpisode(item) { success, _ ->
+                successResult = success
+            }
+            onProgress(index + 1, wantedItems.size, item.title, successResult)
+            delay(800.milliseconds) // Artificial delay to prevent flicker and show progress
         }
     }
 

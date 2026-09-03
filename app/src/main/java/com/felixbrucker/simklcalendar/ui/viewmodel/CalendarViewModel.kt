@@ -28,6 +28,7 @@ import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class MainViewMode {
     CALENDAR,
@@ -594,6 +595,41 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             } finally {
                 _isSyncing.value = false
             }
+        }
+    }
+    private val _isSearchingWantedTorrents = MutableStateFlow(false)
+    val isSearchingWantedTorrents: StateFlow<Boolean> = _isSearchingWantedTorrents.asStateFlow()
+    private val _autoDownloadStatus = MutableStateFlow("")
+    val autoDownloadStatus: StateFlow<String> = _autoDownloadStatus.asStateFlow()
+    val shouldShowAutoDownloadStatus: StateFlow<Boolean> = autoDownloadStatus
+        .map { it.isNotBlank() }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun runAutoDownloadManual() {
+        viewModelScope.launch {
+            val items = repository.calendarItems.first()
+            val wantedItems = items.filter { it.mediaStatus == MediaStatus.WANTED }
+
+            if (wantedItems.isEmpty()) {
+                _autoDownloadStatus.value = "No wanted episodes found"
+                delay(2.seconds)
+                _autoDownloadStatus.value = ""
+                return@launch
+            }
+
+            _isSearchingWantedTorrents.value = true
+            _autoDownloadStatus.value = "Starting search..."
+            delay(500.milliseconds)
+
+            repository.searchAndDownloadWantedItems { current, total, title, _ ->
+                _autoDownloadStatus.value = "Searching ($current/$total): $title"
+            }
+
+            _isSearchingWantedTorrents.value = false
+            _autoDownloadStatus.value = "Search completed"
+            delay(2.seconds)
+            _autoDownloadStatus.value = ""
         }
     }
 

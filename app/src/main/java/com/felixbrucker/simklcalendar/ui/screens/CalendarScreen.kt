@@ -75,6 +75,10 @@ fun CalendarScreen(
 ) {
     val items by viewModel.filteredCalendarItems.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val shouldShowAutoDownloadStatus by viewModel.shouldShowAutoDownloadStatus.collectAsState()
+    val isSearchingWantedTorrents by viewModel.isSearchingWantedTorrents.collectAsState()
+    val autoDownloadStatus by viewModel.autoDownloadStatus.collectAsState()
+    val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
     val userToken by viewModel.userToken.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val torrentDownloads by viewModel.torrentDownloads.collectAsState()
@@ -354,6 +358,68 @@ fun CalendarScreen(
                                     contentDescription = if (mode == MainViewMode.CALENDAR) "Switch to Table View" else "Switch to Calendar View",
                                     tint = Color.White
                                 )
+                            }
+                        }
+
+                        if (isDownloaderInstalled) {
+                            AnimatedContent(
+                                targetState = shouldShowAutoDownloadStatus,
+                                transitionSpec = {
+                                    (fadeIn(animationSpec = tween(300)) + expandHorizontally()).togetherWith(
+                                        fadeOut(animationSpec = tween(300)) + shrinkHorizontally()
+                                    )
+                                },
+                                label = "auto_download_action_transition"
+                            ) { showAutoDownloadStatus ->
+                                if (showAutoDownloadStatus) {
+                                    Row(
+                                        modifier = Modifier
+                                            .padding(end = 4.dp)
+                                            .clip(RoundedCornerShape(22.dp))
+                                            .background(Color(0xFF2B2930))
+                                            .border(1.dp, Color(0xFF49454F), RoundedCornerShape(20.dp))
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.size(22.dp)
+                                        ) {
+                                            if (isSearchingWantedTorrents) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    strokeWidth = 2.dp,
+                                                    color = Color(0xFFD0BCFF)
+                                                )
+                                            }
+                                            Icon(
+                                                imageVector = Icons.Default.Download,
+                                                contentDescription = null,
+                                                tint = Color(0xFFD0BCFF),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = autoDownloadStatus,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFFE6E1E5),
+                                            maxLines = 1
+                                        )
+                                    }
+                                } else {
+                                    IconButton(
+                                        onClick = { viewModel.runAutoDownloadManual() },
+                                        modifier = Modifier.testTag("auto_download_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Download,
+                                            contentDescription = "Search Wanted Episodes",
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
                             }
                         }
 
