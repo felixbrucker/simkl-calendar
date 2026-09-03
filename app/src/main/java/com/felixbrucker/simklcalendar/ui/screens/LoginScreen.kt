@@ -1,10 +1,6 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
-import com.felixbrucker.simklcalendar.BuildConfig
 import android.content.Intent
-import android.net.Uri
-import java.net.URLEncoder
-import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,14 +28,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.felixbrucker.simklcalendar.R
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     viewModel: CalendarViewModel,
     onLoginSuccess: () -> Unit,
+    modifier: Modifier = Modifier,
     onLaunchAuthTab: ((url: String) -> Unit)? = null,
-    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val token by viewModel.userToken.collectAsState()
@@ -140,14 +137,14 @@ fun LoginScreen(
 
                         if (isConfigured) {
                             Button(
-                                onClick = { 
+                                onClick = {
                                     oauthError = null
                                     val authUrl = viewModel.createAuthorizationUrl("simklcalendar://auth")
                                     if (authUrl != null) {
                                         if (onLaunchAuthTab != null) {
                                             onLaunchAuthTab(authUrl)
                                         } else {
-                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
+                                            val intent = Intent(Intent.ACTION_VIEW, authUrl.toUri())
                                             context.startActivity(intent)
                                         }
                                     } else {

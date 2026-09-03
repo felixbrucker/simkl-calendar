@@ -10,83 +10,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.felixbrucker.simklcalendar.data.util.DownloadProgress
-import com.felixbrucker.torrent_search_api.SearchResultItem
-
-@Composable
-fun SearchResultItemRow(
-    result: SearchResultItem,
-    isServiceBound: Boolean,
-    downloads: Map<String, DownloadProgress>,
-    onDownload: () -> Unit
-) {
-    val activeDownload = downloads.values.find { it.uri == result.uri.toString() }
-
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = Color(0xFF1C1B1F),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = result.name,
-                color = Color(0xFFE6E1E5),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2
-            )
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "S: ${result.seeder} / L: ${result.leecher}",
-                    color = if (result.seeder > 0) Color(0xFF7CE49F) else Color(0xFFF2B8B5),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                Text(
-                    text = android.text.format.Formatter.formatFileSize(LocalContext.current, result.sizeInBytes),
-                    color = Color(0xFFCAC4D0),
-                    fontSize = 11.sp
-                )
-                
-                Spacer(modifier = Modifier.weight(1f))
-
-                if (isServiceBound) {
-                    if (activeDownload != null) {
-                        if (activeDownload.isCompleted) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "Done", tint = Color(0xFF7CE49F), modifier = Modifier.size(20.dp))
-                        } else if (activeDownload.error != null) {
-                            Icon(Icons.Default.Error, contentDescription = "Error", tint = Color(0xFFB3261E), modifier = Modifier.size(20.dp))
-                        } else {
-                            val progress = if (activeDownload.totalBytes > 0) activeDownload.bytesDownloaded.toFloat() / activeDownload.totalBytes else 0f
-                            CircularProgressIndicator(progress = { progress }, modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFFD0BCFF))
-                        }
-                    } else {
-                        IconButton(onClick = onDownload, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Check, contentDescription = "Download", tint = Color(0xFFD0BCFF))
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun SeasonOverrideDialog(
-    simklId: Int,
-    availableSeasons: List<Int>,
     existingOverrides: Map<Int, Int>,
     onSave: (Map<Int, Int>) -> Unit,
     onDismiss: () -> Unit
@@ -101,7 +30,7 @@ fun SeasonOverrideDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Text("Remap season numbers for torrent searches.", fontSize = 12.sp, color = Color(0xFFCAC4D0))
-                
+
                 if (tempOverrides.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         tempOverrides.toSortedMap().forEach { (orig, target) ->
@@ -121,7 +50,7 @@ fun SeasonOverrideDialog(
                 }
 
                 Text("Add/Update Override", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFD0BCFF))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -135,9 +64,9 @@ fun SeasonOverrideDialog(
                         singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
                     )
-                    
+
                     Text("→", color = Color.White)
-                    
+
                     OutlinedTextField(
                         value = targetSeason,
                         onValueChange = { if (it.all { char -> char.isDigit() }) targetSeason = it },
@@ -146,7 +75,7 @@ fun SeasonOverrideDialog(
                         singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
                     )
-                    
+
                     IconButton(
                         onClick = {
                             val s = origSeason.toIntOrNull()
@@ -322,8 +251,8 @@ fun WatchedStatusDropdown(
     }
 }
 
-fun getTableItemColor(x: Int, y: Int): androidx.compose.ui.graphics.Color {
-    if (y == 0 || x == y) return androidx.compose.ui.graphics.Color(0xFF7CE49F) // Green
+fun getTableItemColor(x: Int, y: Int): Color {
+    if (y == 0 || x == y) return Color(0xFF7CE49F) // Green
     val ratio = x.toDouble() / y
-    return if (ratio > 0.4) androidx.compose.ui.graphics.Color(0xFFE2E262) else androidx.compose.ui.graphics.Color(0xFFF2B8B5) // Yellow, Red
+    return if (ratio > 0.4) Color(0xFFE2E262) else Color(0xFFF2B8B5) // Yellow, Red
 }

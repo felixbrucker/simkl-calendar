@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -20,21 +19,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -50,22 +45,16 @@ import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCardBadge
-import com.felixbrucker.simklcalendar.data.util.formattedEpisodeLabel
-import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
 import com.felixbrucker.simklcalendar.data.util.toPosterUrl
 import com.felixbrucker.simklcalendar.R
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.MainViewMode
-import com.felixbrucker.simklcalendar.ui.screens.TrackedWatchlistTableView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.*
+import kotlin.time.Duration.Companion.milliseconds
 
 private enum class SearchBarDisplayMode {
     DEFAULT,
@@ -270,7 +259,7 @@ fun CalendarScreen(
                                         .clickable {
                                             isSearchActive = true
                                             coroutineScope.launch {
-                                                delay(50)
+                                                delay(50.milliseconds)
                                                 focusRequester.requestFocus()
                                                 keyboardController?.show()
                                             }
@@ -370,7 +359,7 @@ fun CalendarScreen(
                             onClick = {
                                 isSearchActive = true
                                 coroutineScope.launch {
-                                    delay(100)
+                                    delay(100.milliseconds)
                                     focusRequester.requestFocus()
                                     keyboardController?.show()
                                 }
@@ -595,7 +584,6 @@ fun CalendarScreen(
                 } else {
                     TrackedWatchlistTableView(
                         viewModel = viewModel,
-                        onNavigateToEpisode = onNavigateToShowDetail,
                         onNavigateToSeriesDetail = onNavigateToSeriesDetail
                     )
                 }

@@ -15,23 +15,12 @@ enum class MediaType(val key: String, val displayName: String) {
             }
         }
 
-        fun fromString(key: String?): MediaType = fromKey(key)
     }
 }
 
 enum class MovieReleaseType(val displayName: String) {
     THEATER("Theater Release"),
     DIGITAL("Digital / DVD Release");
-
-    companion object {
-        fun fromString(str: String?): MovieReleaseType? {
-            return when (str?.lowercase()) {
-                "theater", "theatrical", "theaters" -> THEATER
-                "digital", "dvd", "vod", "digital / dvd" -> DIGITAL
-                else -> null
-            }
-        }
-    }
 }
 
 enum class WatchlistStatus(val key: String) {

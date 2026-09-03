@@ -71,8 +71,5 @@ class AutoDownloadWorker(
             Log.d(TAG, "Enqueued $effectiveInterval-hour periodic background torrent search work")
         }
 
-        fun cancelWork(context: Context) {
-            WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK_NAME)
-        }
     }
 }

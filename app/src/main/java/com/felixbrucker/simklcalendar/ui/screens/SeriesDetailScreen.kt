@@ -1,12 +1,10 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,7 +23,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -37,12 +34,9 @@ import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.toPosterUrl
-import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import com.felixbrucker.simklcalendar.ui.composable.Table
-import kotlinx.coroutines.launch
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -50,11 +44,9 @@ fun SeriesDetailScreen(
     viewModel: CalendarViewModel,
     simklId: Int,
     onNavigateBack: () -> Unit,
-    onNavigateToEpisode: (String) -> Unit,
-    modifier: Modifier = Modifier
+    onNavigateToEpisode: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val allCalendarItems by viewModel.allCalendarItems.collectAsState()
     val watchlistItems by viewModel.repository.watchlistItems.collectAsState(initial = emptyList())
     val tableItems by viewModel.watchlistTableItems.collectAsState()
@@ -126,10 +118,9 @@ fun SeriesDetailScreen(
                 } else {
                     // Movie shared actions
                     item {
-                        val digitalRelease = episodes.find { it.movieReleaseType != MovieReleaseType.THEATER } ?: episodes.firstOrNull()
-                        val mainKey = digitalRelease?.primaryKey ?: seriesItem.simklId.toString()
-
-                        if (digitalRelease != null) {
+                        val digitalRelease = episodes.find { it.movieReleaseType == MovieReleaseType.DIGITAL }
+                        val digitalOrTheaterRelease = digitalRelease ?: episodes.firstOrNull()
+                        if (digitalOrTheaterRelease != null) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -140,35 +131,37 @@ fun SeriesDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 WatchedStatusDropdown(
-                                    isWatched = digitalRelease.isWatched,
+                                    isWatched = digitalOrTheaterRelease.isWatched,
                                     onStatusChange = { watched ->
                                         if (watched) {
-                                            viewModel.markMovieWatched(digitalRelease.simklId, digitalRelease.primaryKey, digitalRelease.title) { _, _ -> }
+                                            viewModel.markMovieWatched(digitalOrTheaterRelease.simklId, digitalOrTheaterRelease.primaryKey, digitalOrTheaterRelease.title) { _, _ -> }
                                         } else {
-                                            viewModel.markMovieUnwatched(digitalRelease.simklId, digitalRelease.primaryKey, digitalRelease.title) { _, _ -> }
+                                            viewModel.markMovieUnwatched(digitalOrTheaterRelease.simklId, digitalOrTheaterRelease.primaryKey, digitalOrTheaterRelease.title) { _, _ -> }
                                         }
                                     },
-                                    isLoading = updatingWatchKeys.contains(digitalRelease.primaryKey)
+                                    isLoading = updatingWatchKeys.contains(digitalOrTheaterRelease.primaryKey)
                                 )
 
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    MediaStatusDropdown(
-                                        currentStatus = digitalRelease.mediaStatus,
-                                        onStatusChange = { viewModel.updateMediaStatus(digitalRelease.primaryKey, it) }
-                                    )
+                                if (digitalRelease != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        MediaStatusDropdown(
+                                            currentStatus = digitalRelease.mediaStatus,
+                                            onStatusChange = { viewModel.updateMediaStatus(digitalRelease.primaryKey, it) }
+                                        )
 
-                                    if (digitalRelease.date.isBefore(java.time.Instant.now())) {
-                                        IconButton(
-                                            onClick = {
-                                                viewModel.searchAndDownloadEpisode(digitalRelease) { success, message ->
-                                                    if (!success) {
-                                                        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+                                        if (digitalRelease.date.isBefore(java.time.Instant.now())) {
+                                            IconButton(
+                                                onClick = {
+                                                    viewModel.searchAndDownloadEpisode(digitalRelease) { success, message ->
+                                                        if (!success) {
+                                                            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+                                                        }
                                                     }
-                                                }
-                                            },
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color(0xFFD0BCFF), modifier = Modifier.size(22.dp))
+                                                },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color(0xFFD0BCFF), modifier = Modifier.size(22.dp))
+                                            }
                                         }
                                     }
                                 }
@@ -229,8 +222,7 @@ fun SeriesDetailScreen(
                         viewModel = viewModel,
                         simklId = seriesItem.simklId,
                         showTitle = seriesItem.title,
-                        isMovie = isMovie,
-                        availableSeasons = seasons.keys.sorted()
+                        isMovie = isMovie
                     )
                 }
 
@@ -341,19 +333,19 @@ fun SeriesSummaryStats(
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 StatItem("Last Ep", item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-", modifier = Modifier.weight(1f))
                 StatItem("Next Ep", item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-", modifier = Modifier.weight(1f))
-                
+
                 val watchedColor = getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
                 StatItem(
-                    label = "Watched", 
-                    value = "${item.watchedReleasedCount}/${item.totalReleasedCount}", 
+                    label = "Watched",
+                    value = "${item.watchedReleasedCount}/${item.totalReleasedCount}",
                     valueColor = watchedColor,
                     modifier = Modifier.weight(0.8f)
                 )
-                
+
                 val downloadedColor = getTableItemColor(item.downloadedReleasedCount, item.totalDownloadableReleasedCount)
                 StatItem(
-                    label = "Downloaded", 
-                    value = "${item.downloadedReleasedCount}/${item.totalDownloadableReleasedCount}", 
+                    label = "Downloaded",
+                    value = "${item.downloadedReleasedCount}/${item.totalDownloadableReleasedCount}",
                     valueColor = downloadedColor,
                     modifier = Modifier.weight(0.8f)
                 )
@@ -381,7 +373,7 @@ fun SeriesSummaryStats(
 }
 
 @Composable
-fun StatItem(label: String, value: String, valueColor: Color = Color.White, modifier: Modifier = Modifier) {
+fun StatItem(label: String, value: String, modifier: Modifier = Modifier, valueColor: Color = Color.White) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = label, fontSize = 11.sp, color = Color(0xFFCAC4D0), fontWeight = FontWeight.Bold)
         Text(text = value, fontSize = 13.sp, color = valueColor, fontWeight = FontWeight.SemiBold, maxLines = 2, textAlign = TextAlign.Center)
@@ -393,8 +385,7 @@ fun SeriesDownloadSettings(
     viewModel: CalendarViewModel,
     simklId: Int,
     showTitle: String,
-    isMovie: Boolean,
-    availableSeasons: List<Int>
+    isMovie: Boolean
 ) {
     val globalUnwatched by viewModel.autoDownloadUnwatchedDefault.collectAsState()
     val globalQuality by viewModel.autoDownloadQuality.collectAsState()
@@ -535,8 +526,6 @@ fun SeriesDownloadSettings(
                 }
                 if (showSeasonDialog) {
                     SeasonOverrideDialog(
-                        simklId = simklId,
-                        availableSeasons = availableSeasons,
                         existingOverrides = seasonOverrides,
                         onSave = {
                             viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(seasonOverrides = it))

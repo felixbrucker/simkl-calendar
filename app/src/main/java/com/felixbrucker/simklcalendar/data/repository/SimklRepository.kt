@@ -45,10 +45,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -80,16 +77,11 @@ class SimklRepository(private val context: Context) {
     val notificationSettings: Flow<List<NotificationSetting>> = settingDao.getAllSettings()
     val watchedEpisodes: Flow<List<WatchedEpisode>> = watchedDao.getAllWatchedEpisodesFlow()
     val customSearchLinks: Flow<List<CustomSearchLink>> = searchLinkDao.getAllSearchLinks()
-    val itemDownloadSettings: Flow<List<ItemDownloadSettings>> = itemDownloadSettingsDao.getAllSettings()
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = watchlistDao.getAllTrackedItemsFlow()
     val calendarEntities: Flow<List<CalendarItem>> = calendarDao.getAllCalendarEntitiesFlow()
 
     suspend fun saveItemDownloadSettings(settings: ItemDownloadSettings) = withContext(Dispatchers.IO) {
         itemDownloadSettingsDao.insertOrUpdate(settings)
-    }
-
-    suspend fun getItemDownloadSettings(simklId: Int): ItemDownloadSettings? = withContext(Dispatchers.IO) {
-        itemDownloadSettingsDao.getSettings(simklId)
     }
 
     fun getItemDownloadSettingsFlow(simklId: Int): Flow<ItemDownloadSettings?> {
@@ -116,10 +108,6 @@ class SimklRepository(private val context: Context) {
         searchLinkDao.deleteSearchLink(link)
     }
 
-    suspend fun deleteSearchLinkById(id: Long) = withContext(Dispatchers.IO) {
-        searchLinkDao.deleteSearchLinkById(id)
-    }
-
     suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus) = withContext(Dispatchers.IO) {
         calendarDao.updateMediaStatus(primaryKey, status)
     }
@@ -139,12 +127,11 @@ class SimklRepository(private val context: Context) {
         val settings = itemDownloadSettingsDao.getSettings(item.simklId)
         val globalUnwatched = downloadPrefs.getBoolean("unwatched_default", false)
 
-        val newStatus = determineStatus(item.simklId, item.date, settings, globalUnwatched)
+        val newStatus = determineStatus(item.date, settings, globalUnwatched)
         calendarDao.updateMediaStatus(primaryKey, newStatus)
     }
 
     fun determineStatus(
-        simklId: Int,
         airDate: Instant,
         settings: ItemDownloadSettings? = null,
         globalUnwatched: Boolean? = null
@@ -505,7 +492,7 @@ class SimklRepository(private val context: Context) {
                     val keyUnique = if (seasonNum != null) "v2_${show.simklId}_${seasonNum}_${epNum}" else "v2_${show.simklId}_${epNum}"
 
                     val watchedEntry = showWatchedList?.firstOrNull {
-                        (it.season == (seasonNum ?: 1) || (seasonNum == null && (it.season == 1 || it.season == 0))) && it.episodeNumber == epNum
+                        (it.season == (seasonNum ?: 1) || (seasonNum == null && it.season == 0)) && it.episodeNumber == epNum
                     }
                     val epWatchedTimestamp = watchedEntry?.watchedAt
 
@@ -526,7 +513,7 @@ class SimklRepository(private val context: Context) {
                             isSeasonPremiere = epNum == 1,
                             isSeasonFinale = false, // Not available in this endpoint, will be updated by calendar jsons if recent
                             watchedAt = epWatchedTimestamp,
-                            mediaStatus = determineStatus(simklId = show.simklId, airDate = instant, settings = settingsMap[show.simklId], globalUnwatched = globalUnwatched)
+                            mediaStatus = determineStatus(airDate = instant, settings = settingsMap[show.simklId], globalUnwatched = globalUnwatched)
                         )
                     )
                 }
@@ -835,7 +822,7 @@ class SimklRepository(private val context: Context) {
             }
         }
 
-        val SIX_HOURS_MILLIS = 6 * 60 * 60 * 1000L
+        val sixHoursMillis = 6 * 60 * 60 * 1000L
         val nowMillis = System.currentTimeMillis()
         val oneMonthAgo = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS)
 
@@ -869,7 +856,7 @@ class SimklRepository(private val context: Context) {
                 val savedHeader = if (forceFullSync) null else syncPrefs.getString(lastModifiedHeaderKey, null)
 
                 // Only sync calendar jsons when their last modified was over 6h in the past
-                val isOver6Hours = (nowMillis - lastModifiedTimestamp) >= SIX_HOURS_MILLIS
+                val isOver6Hours = (nowMillis - lastModifiedTimestamp) >= sixHoursMillis
                 if (lastModifiedTimestamp > 0L && !isOver6Hours) {
                     continue
                 }
@@ -944,7 +931,7 @@ class SimklRepository(private val context: Context) {
                                         movieReleaseType = MovieReleaseType.THEATER,
                                         isSeasonPremiere = false,
                                         isSeasonFinale = false,
-                                        mediaStatus = determineStatus(simklId = simklId, airDate = theaterInstant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
+                                        mediaStatus = determineStatus(airDate = theaterInstant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
                                     )
                                 )
                             }
@@ -963,7 +950,7 @@ class SimklRepository(private val context: Context) {
                                             movieReleaseType = MovieReleaseType.DIGITAL,
                                             isSeasonPremiere = false,
                                             isSeasonFinale = false,
-                                            mediaStatus = determineStatus(simklId = simklId, airDate = dvdInstant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
+                                            mediaStatus = determineStatus(airDate = dvdInstant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
                                         )
                                     )
                                 }
@@ -1009,7 +996,7 @@ class SimklRepository(private val context: Context) {
                                     isSeasonPremiere = isPremiere,
                                     isSeasonFinale = isFinale,
                                     watchedAt = epWatchedTimestamp,
-                                    mediaStatus = determineStatus(simklId = simklId, airDate = instant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
+                                    mediaStatus = determineStatus(airDate = instant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
                                 )
                             )
                         }
@@ -1061,7 +1048,7 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = MovieReleaseType.THEATER,
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
-                                    mediaStatus = determineStatus(simklId = movieId, airDate = theaterInstant, settings = settingsMap[movieId], globalUnwatched = globalUnwatched)
+                                    mediaStatus = determineStatus(airDate = theaterInstant, settings = settingsMap[movieId], globalUnwatched = globalUnwatched)
                                 )
                             )
                         }
@@ -1081,7 +1068,7 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = MovieReleaseType.DIGITAL,
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
-                                    mediaStatus = determineStatus(simklId = movieId, airDate = digitalInstant, settings = settingsMap[movieId], globalUnwatched = globalUnwatched)
+                                    mediaStatus = determineStatus(airDate = digitalInstant, settings = settingsMap[movieId], globalUnwatched = globalUnwatched)
                                 )
                             )
                         }

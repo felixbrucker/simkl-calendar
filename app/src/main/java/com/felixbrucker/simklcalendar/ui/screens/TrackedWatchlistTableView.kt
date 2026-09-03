@@ -1,7 +1,5 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
-import androidx.compose.animation.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,35 +7,22 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
-import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.data.util.MediaFormatter
-import com.felixbrucker.simklcalendar.data.util.PosterSize
-import com.felixbrucker.simklcalendar.data.util.toPosterUrl
-import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.SortDirection
+import com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
-import kotlinx.coroutines.launch
 
 private object TableWeights {
     const val NAME = 4f
@@ -50,7 +35,6 @@ private object TableWeights {
 @Composable
 fun TrackedWatchlistTableView(
     viewModel: CalendarViewModel,
-    onNavigateToEpisode: (String) -> Unit,
     onNavigateToSeriesDetail: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -86,7 +70,6 @@ fun TrackedWatchlistTableView(
                     items(tvItems, key = { it.watchlistItem.simklId }) { item ->
                         WatchlistTableItemRow(
                             item = item,
-                            viewModel = viewModel,
                             isDownloaderInstalled = isDownloaderInstalled,
                             onRowClick = { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
                         )
@@ -97,7 +80,6 @@ fun TrackedWatchlistTableView(
                     items(animeItems, key = { it.watchlistItem.simklId }) { item ->
                         WatchlistTableItemRow(
                             item = item,
-                            viewModel = viewModel,
                             isDownloaderInstalled = isDownloaderInstalled,
                             onRowClick = { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
                         )
@@ -108,7 +90,6 @@ fun TrackedWatchlistTableView(
                     items(movieItems, key = { it.watchlistItem.simklId }) { item ->
                         WatchlistTableItemRow(
                             item = item,
-                            viewModel = viewModel,
                             isDownloaderInstalled = isDownloaderInstalled,
                             onRowClick = { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
                         )
@@ -121,9 +102,9 @@ fun TrackedWatchlistTableView(
 
 @Composable
 fun WatchlistTableHeader(
-    sortField: com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField,
-    sortDirection: com.felixbrucker.simklcalendar.ui.viewmodel.SortDirection,
-    onSortToggle: (com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField) -> Unit,
+    sortField: TableSortField,
+    sortDirection: SortDirection,
+    onSortToggle: (TableSortField) -> Unit,
     isDownloaderInstalled: Boolean
 ) {
     Row(
@@ -134,24 +115,59 @@ fun WatchlistTableHeader(
     ) {
         Spacer(modifier = Modifier.width(16.dp)) // Indicator space
 
-        SortableHeaderItem("Name", com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField.NAME, sortField, sortDirection, onSortToggle, Modifier.weight(TableWeights.NAME))
-        SortableHeaderItem("Last Ep", com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField.LAST_EP, sortField, sortDirection, onSortToggle, Modifier.weight(TableWeights.LAST_EP))
-        SortableHeaderItem("Next Ep", com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField.NEXT_EP, sortField, sortDirection, onSortToggle, Modifier.weight(TableWeights.NEXT_EP))
-        SortableHeaderItem("Watched", com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField.WATCHED, sortField, sortDirection, onSortToggle, Modifier.weight(TableWeights.WATCHED))
+        SortableHeaderItem(
+            "Name",
+            TableSortField.NAME,
+            sortField,
+            sortDirection,
+            onSortToggle,
+            Modifier.weight(TableWeights.NAME)
+        )
+        SortableHeaderItem(
+            "Last Ep",
+            TableSortField.LAST_EP,
+            sortField,
+            sortDirection,
+            onSortToggle,
+            Modifier.weight(TableWeights.LAST_EP)
+        )
+        SortableHeaderItem(
+            "Next Ep",
+            TableSortField.NEXT_EP,
+            sortField,
+            sortDirection,
+            onSortToggle,
+            Modifier.weight(TableWeights.NEXT_EP)
+        )
+        SortableHeaderItem(
+            "Watched",
+            TableSortField.WATCHED,
+            sortField,
+            sortDirection,
+            onSortToggle,
+            Modifier.weight(TableWeights.WATCHED)
+        )
         if (isDownloaderInstalled) {
-            SortableHeaderItem("Downloaded", com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField.DOWNLOADED, sortField, sortDirection, onSortToggle, Modifier.weight(TableWeights.DOWNLOADED))
+            SortableHeaderItem(
+                "Downloaded",
+                TableSortField.DOWNLOADED,
+                sortField,
+                sortDirection,
+                onSortToggle,
+                Modifier.weight(TableWeights.DOWNLOADED)
+            )
         }
         Spacer(modifier = Modifier.width(32.dp)) // Expand icon space
     }
 }
 
 @Composable
-fun RowScope.SortableHeaderItem(
+fun SortableHeaderItem(
     label: String,
-    field: com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField,
-    currentSortField: com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField,
-    currentDirection: com.felixbrucker.simklcalendar.ui.viewmodel.SortDirection,
-    onSortToggle: (com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField) -> Unit,
+    field: TableSortField,
+    currentSortField: TableSortField,
+    currentDirection: SortDirection,
+    onSortToggle: (TableSortField) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isSelected = currentSortField == field
@@ -172,7 +188,7 @@ fun RowScope.SortableHeaderItem(
         )
         if (isSelected) {
             Icon(
-                imageVector = if (currentDirection == com.felixbrucker.simklcalendar.ui.viewmodel.SortDirection.ASCENDING) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                imageVector = if (currentDirection == SortDirection.ASCENDING) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
                 contentDescription = null,
                 tint = Color(0xFFD0BCFF),
                 modifier = Modifier.size(16.dp)
@@ -197,7 +213,6 @@ fun WatchlistTableSectionHeader(title: String, count: Int) {
 @Composable
 fun WatchlistTableItemRow(
     item: WatchlistTableItem,
-    viewModel: CalendarViewModel,
     isDownloaderInstalled: Boolean,
     onRowClick: () -> Unit
 ) {

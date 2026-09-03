@@ -12,7 +12,6 @@ import androidx.room.migration.AutoMigrationSpec
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
-import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import java.time.Instant
 
@@ -54,16 +53,6 @@ class Converters {
     }
 
     @TypeConverter
-    fun fromWatchlistStatus(status: WatchlistStatus?): String? {
-        return status?.key
-    }
-
-    @TypeConverter
-    fun toWatchlistStatus(value: String?): WatchlistStatus? {
-        return value?.let { WatchlistStatus.fromKey(it) }
-    }
-
-    @TypeConverter
     fun fromMediaTypeList(types: List<MediaType>?): String? {
         return types?.joinToString(",") { it.key }
     }
@@ -71,7 +60,7 @@ class Converters {
     @TypeConverter
     fun toMediaTypeList(value: String?): List<MediaType>? {
         if (value.isNullOrBlank()) return emptyList()
-        return value.split(",").mapNotNull { key ->
+        return value.split(",").map { key ->
             MediaType.entries.firstOrNull { it.key.equals(key.trim(), ignoreCase = true) }
                 ?: MediaType.fromKey(key.trim())
         }

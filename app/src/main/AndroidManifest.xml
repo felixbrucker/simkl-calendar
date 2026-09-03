@@ -68,12 +68,6 @@
                 <action android:name="com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_COMPLETED" />
             </intent-filter>
         </receiver>
-
-        <provider
-            android:name=".data.provider.SimklContentProvider"
-            android:authorities="com.felixbrucker.simklcalendar.provider"
-            android:exported="true"
-            android:readPermission="com.felixbrucker.simklcalendar.READ_DATABASE" />
     </application>
 
 </manifest>

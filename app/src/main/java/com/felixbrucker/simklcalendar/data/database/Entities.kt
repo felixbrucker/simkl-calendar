@@ -90,7 +90,7 @@ data class TrackedWatchlistItem(
     companion object
 
     fun updatedWith(newItem: TrackedWatchlistItem): TrackedWatchlistItem {
-        val newTitle = if (newItem.title.isNotBlank()) newItem.title else this.title
+        val newTitle = newItem.title.ifBlank { this.title }
         val newRomaji = if (!newItem.titleRomaji.isNullOrBlank()) newItem.titleRomaji else this.titleRomaji
         val newPoster = if (!newItem.poster.isNullOrBlank()) newItem.poster else this.poster
 
@@ -247,7 +247,7 @@ data class CustomSearchLink(
             }
             val uri = cleanUrl.toUri()
             val host = uri.host ?: ""
-            if (host.isNotBlank()) host else cleanUrl.substringBefore("/").substringBefore("?")
+            host.ifBlank { cleanUrl.substringBefore("/").substringBefore("?") }
         } catch (_: Exception) {
             urlTemplate.substringBefore("/").substringBefore("?")
         }

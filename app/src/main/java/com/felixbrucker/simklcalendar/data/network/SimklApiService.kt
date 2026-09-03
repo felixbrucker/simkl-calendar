@@ -5,9 +5,8 @@ import retrofit2.http.*
 
 interface SimklApiService {
     companion object {
-        val APP_NAME: String = BuildConfig.APP_NAME
-        val APP_VERSION: String = BuildConfig.VERSION_NAME
-        val USER_AGENT: String = "$APP_NAME/$APP_VERSION"
+        const val APP_NAME: String = BuildConfig.APP_NAME
+        const val APP_VERSION: String = BuildConfig.VERSION_NAME
     }
 
     @POST("oauth/token")

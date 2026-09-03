@@ -7,7 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
@@ -41,14 +40,12 @@ import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
-import com.felixbrucker.simklcalendar.receiver.NotificationReceiver
 import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker
 import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import kotlinx.coroutines.launch
-import java.util.Collections
 import kotlin.math.roundToInt
+import androidx.core.content.edit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,11 +90,11 @@ fun SettingsScreen(
     val autoIgnoreKeywords by viewModel.autoDownloadIgnoreKeywords.collectAsState()
 
     var syncIntervalHours by remember {
-        mutableStateOf(prefs.getInt("sync_interval_hours", 12).toFloat())
+        mutableFloatStateOf(prefs.getInt("sync_interval_hours", 12).toFloat())
     }
 
     var searchIntervalHours by remember {
-        mutableStateOf(prefs.getInt("search_interval_hours", 12).toFloat())
+        mutableFloatStateOf(prefs.getInt("search_interval_hours", 12).toFloat())
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -108,8 +105,8 @@ fun SettingsScreen(
 
     var localLinks by remember(customSearchLinks) { mutableStateOf(customSearchLinks) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffsetY by remember { mutableStateOf(0f) }
-    var itemSlotHeightPx by remember { mutableStateOf(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var itemSlotHeightPx by remember { mutableFloatStateOf(0f) }
 
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingLink by remember { mutableStateOf<CustomSearchLink?>(null) }
@@ -172,7 +169,7 @@ fun SettingsScreen(
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
+                border = BorderStroke(1.dp, Color(0xFF49454F))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Session Status", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
@@ -195,10 +192,10 @@ fun SettingsScreen(
                                 color = Color(0xFFD0BCFF)
                             )
                         }
-                        
+
                         Button(
-                            onClick = { 
-                                viewModel.logoutUser() 
+                            onClick = {
+                                viewModel.logoutUser()
                                 onNavigateBack()
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -220,7 +217,7 @@ fun SettingsScreen(
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
+                border = BorderStroke(1.dp, Color(0xFF49454F))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -274,7 +271,7 @@ fun SettingsScreen(
                         },
                         onValueChangeFinished = {
                             val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
-                            prefs.edit().putInt("search_interval_hours", roundedHours).apply()
+                            prefs.edit { putInt("search_interval_hours", roundedHours)}
                             AutoDownloadWorker.enqueuePeriodicSearch(context, roundedHours.toLong())
                         },
                         valueRange = 1f..24f,
@@ -305,7 +302,7 @@ fun SettingsScreen(
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
+                border = BorderStroke(1.dp, Color(0xFF49454F))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -359,7 +356,7 @@ fun SettingsScreen(
                         },
                         onValueChangeFinished = {
                             val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
-                            prefs.edit().putInt("sync_interval_hours", roundedHours).apply()
+                            prefs.edit { putInt("sync_interval_hours", roundedHours)}
                             SyncCalendarWorker.enqueuePeriodicSync(context, roundedHours.toLong())
                         },
                         valueRange = 1f..24f,
@@ -389,7 +386,7 @@ fun SettingsScreen(
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F))
+                border = BorderStroke(1.dp, Color(0xFF49454F))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Default Alerts (New Items)", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
@@ -425,11 +422,11 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = enableDefaultAiring,
-                            onCheckedChange = { 
+                            onCheckedChange = {
                                 enableDefaultAiring = it
-                                prefs.edit()
-                                    .putBoolean("default_notify_airing", it)
-                                    .apply()
+                                prefs.edit {
+                                    putBoolean("default_notify_airing", it)
+                                }
                                 if (it) checkAndRequestPermission()
                             }
                         )
@@ -449,11 +446,11 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = enableDefaultSeasonFinished,
-                            onCheckedChange = { 
+                            onCheckedChange = {
                                 enableDefaultSeasonFinished = it
-                                prefs.edit()
-                                    .putBoolean("default_notify_season_finished", it)
-                                    .apply()
+                                prefs.edit {
+                                    putBoolean("default_notify_season_finished", it)
+                                }
                                 if (it) checkAndRequestPermission()
                             }
                         )
@@ -484,11 +481,11 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = enableDefaultMovieTheater,
-                            onCheckedChange = { 
+                            onCheckedChange = {
                                 enableDefaultMovieTheater = it
-                                prefs.edit()
-                                    .putBoolean("default_notify_movie_theater", it)
-                                    .apply()
+                                prefs.edit {
+                                    putBoolean("default_notify_movie_theater", it)
+                                }
                                 if (it) checkAndRequestPermission()
                             }
                         )
@@ -508,12 +505,12 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = enableDefaultMovieDigital,
-                            onCheckedChange = { 
+                            onCheckedChange = {
                                 enableDefaultMovieDigital = it
-                                prefs.edit()
-                                    .putBoolean("default_notify_movie_digital", it)
-                                    .apply()
-                                 if (it) checkAndRequestPermission()
+                                prefs.edit {
+                                    putBoolean("default_notify_movie_digital", it)
+                                }
+                                if (it) checkAndRequestPermission()
                             }
                         )
                     }
@@ -570,7 +567,7 @@ fun SettingsScreen(
                             }
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         "Configure how the app interacts with the external Torrent Downloader service.",
@@ -1345,10 +1342,10 @@ fun KeywordManagerSection(
                 Text(subtitle, color = Color(0xFFCAC4D0), fontSize = 11.sp)
             }
             IconButton(
-                onClick = { 
+                onClick = {
                     editingKeyword = null
                     keywordInput = ""
-                    showAddEditDialog = true 
+                    showAddEditDialog = true
                 },
                 enabled = enabled,
                 modifier = Modifier.size(32.dp)
@@ -1365,7 +1362,7 @@ fun KeywordManagerSection(
             keywords.forEach { keyword ->
                 InputChip(
                     selected = false,
-                    onClick = { 
+                    onClick = {
                         if (enabled) {
                             editingKeyword = keyword
                             keywordInput = keyword

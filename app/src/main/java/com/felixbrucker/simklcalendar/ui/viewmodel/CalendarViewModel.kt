@@ -18,9 +18,6 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
-import com.felixbrucker.simklcalendar.receiver.NotificationReceiver
-import com.felixbrucker.simklcalendar.receiver.NotificationScheduler
-import com.felixbrucker.torrent_search_api.SearchResultItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -29,6 +26,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
+import androidx.core.content.edit
 
 enum class MainViewMode {
     CALENDAR,
@@ -81,9 +79,6 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val customSearchLinks: StateFlow<List<CustomSearchLink>> = repository.customSearchLinks
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val itemDownloadSettings: StateFlow<List<ItemDownloadSettings>> = repository.itemDownloadSettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val torrentDownloads: StateFlow<Map<String, DownloadProgress>> = repository.torrentServiceHelper.downloads
@@ -151,17 +146,17 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun updateAutoDownloadQuality(quality: String) {
         autoDownloadQuality.value = quality
-        downloadPrefs.edit().putString("quality", quality).apply()
+        downloadPrefs.edit {putString("quality", quality)}
     }
 
     fun updateAutoDownloadPreferHevc(prefer: Boolean) {
         autoDownloadPreferHevc.value = prefer
-        downloadPrefs.edit().putBoolean("prefer_hevc", prefer).apply()
+        downloadPrefs.edit {putBoolean("prefer_hevc", prefer)}
     }
 
     fun updateAutoDownloadUnwatchedDefault(default: Boolean) {
         autoDownloadUnwatchedDefault.value = default
-        downloadPrefs.edit().putBoolean("unwatched_default", default).apply()
+        downloadPrefs.edit { putBoolean("unwatched_default", default)}
     }
 
     fun addPreferredKeyword(keyword: String) {
@@ -169,7 +164,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         if (!current.contains(keyword)) {
             current.add(keyword)
             autoDownloadPreferredKeywords.value = current
-            downloadPrefs.edit().putStringSet("preferred_keywords", current.toSet()).apply()
+            downloadPrefs.edit { putStringSet("preferred_keywords", current.toSet())}
         }
     }
 
@@ -177,7 +172,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val current = autoDownloadPreferredKeywords.value.toMutableList()
         if (current.remove(keyword)) {
             autoDownloadPreferredKeywords.value = current
-            downloadPrefs.edit().putStringSet("preferred_keywords", current.toSet()).apply()
+            downloadPrefs.edit { putStringSet("preferred_keywords", current.toSet())}
         }
     }
 
@@ -186,7 +181,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         if (!current.contains(keyword)) {
             current.add(keyword)
             autoDownloadIgnoreKeywords.value = current
-            downloadPrefs.edit().putStringSet("ignore_keywords", current.toSet()).apply()
+            downloadPrefs.edit { putStringSet("ignore_keywords", current.toSet())}
         }
     }
 
@@ -194,7 +189,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val current = autoDownloadIgnoreKeywords.value.toMutableList()
         if (current.remove(keyword)) {
             autoDownloadIgnoreKeywords.value = current
-            downloadPrefs.edit().putStringSet("ignore_keywords", current.toSet()).apply()
+            downloadPrefs.edit { putStringSet("ignore_keywords", current.toSet()) }
         }
     }
 
@@ -277,9 +272,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             matchesCategory && matchesUnwatched && matchesQuery
         }.let { list ->
             val comparator = when (sortField) {
-                TableSortField.NAME -> compareBy<WatchlistTableItem> { it.watchlistItem.title.lowercase() }
-                TableSortField.LAST_EP -> compareBy<WatchlistTableItem> { it.lastAiredDate ?: Instant.MIN }
-                TableSortField.NEXT_EP -> compareBy<WatchlistTableItem> { it.nextEpisodeDate ?: Instant.MAX }
+                TableSortField.NAME -> compareBy { it.watchlistItem.title.lowercase() }
+                TableSortField.LAST_EP -> compareBy { it.lastAiredDate ?: Instant.MIN }
+                TableSortField.NEXT_EP -> compareBy { it.nextEpisodeDate ?: Instant.MAX }
                 TableSortField.WATCHED -> compareBy<WatchlistTableItem> { it.watchedProgress }
                     .thenBy { it.totalReleasedCount }
                 TableSortField.DOWNLOADED -> compareBy<WatchlistTableItem> { it.downloadedProgress }
@@ -313,11 +308,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     private val _isMarkingWatched = MutableStateFlow(false)
     val isMarkingWatched: StateFlow<Boolean> = _isMarkingWatched.asStateFlow()
 
-    private val _torrentResults = MutableStateFlow<List<SearchResultItem>>(emptyList())
-    val torrentResults: StateFlow<List<SearchResultItem>> = _torrentResults.asStateFlow()
-
     private val _isSearchingTorrents = MutableStateFlow(false)
-    val isSearchingTorrents: StateFlow<Boolean> = _isSearchingTorrents.asStateFlow()
 
     private val _pendingDetailKey = MutableStateFlow<String?>(null)
     val pendingDetailKey: StateFlow<String?> = _pendingDetailKey.asStateFlow()
@@ -564,7 +555,6 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
     private val _syncError = MutableStateFlow<String?>(null)
-    val syncError: StateFlow<String?> = _syncError.asStateFlow()
 
     init {
         // Automatically sync calendar on launch only if user is logged in
@@ -572,7 +562,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             val token = repository.activeUserToken.first()
             _isAuthReady.value = true
 
-            if (token != null && !token.accessToken.isNullOrEmpty()) {
+            if (token != null && token.accessToken.isNotEmpty()) {
                 syncLocalCalendar()
             }
         }
@@ -590,7 +580,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     fun syncLocalCalendar() {
         viewModelScope.launch {
             val token = repository.getActiveUserToken()
-            if (token == null || token.accessToken.isNullOrEmpty()) {
+            if (token == null || token.accessToken.isEmpty()) {
                 return@launch
             }
             _isSyncing.value = true
@@ -648,12 +638,6 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun rescheduleAllNotifications() {
-        viewModelScope.launch {
-            NotificationScheduler.scheduleAllNotifications(getApplication())
-        }
-    }
-
     private val _isForceSyncing = MutableStateFlow(false)
     val isForceSyncing: StateFlow<Boolean> = _isForceSyncing.asStateFlow()
 
@@ -706,37 +690,12 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun deleteCustomSearchLinkById(id: Long, onComplete: () -> Unit = {}) {
-        viewModelScope.launch {
-            repository.deleteSearchLinkById(id)
-            onComplete()
-        }
-    }
-
-    fun searchTorrents(item: CalendarItemWithWatchlist) {
-        viewModelScope.launch {
-            _isSearchingTorrents.value = true
-            _torrentResults.value = emptyList()
-            try {
-                _torrentResults.value = repository.searchTorrents(item)
-            } catch (e: Exception) {
-                // Error handling
-            } finally {
-                _isSearchingTorrents.value = false
-            }
-        }
-    }
-
-    fun clearTorrentResults() {
-        _torrentResults.value = emptyList()
-    }
-
     fun updateMediaStatus(primaryKey: String, status: MediaStatus) {
         viewModelScope.launch {
             repository.updateMediaStatus(primaryKey, status)
             if (status == MediaStatus.WANTED) {
                 val item = repository.calendarItems.first().find { it.primaryKey == primaryKey }
-                if (item != null && item.date.isBefore(java.time.Instant.now())) {
+                if (item != null && item.date.isBefore(Instant.now())) {
                     searchAndDownloadEpisode(item) { _, _ -> }
                 }
             }
@@ -771,7 +730,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 it.simklId == simklId && (it.season == season || (season == 1 && it.season == null))
             }
 
-            val now = java.time.Instant.now()
+            val now = Instant.now()
             val airedEpisodes = seasonEpisodes.filter { it.date.isBefore(now) }
 
             airedEpisodes.forEach { item ->

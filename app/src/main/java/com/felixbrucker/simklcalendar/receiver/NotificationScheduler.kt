@@ -15,6 +15,8 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.core.net.toUri
+import kotlin.math.abs
 
 object NotificationScheduler {
 
@@ -107,7 +109,7 @@ object NotificationScheduler {
             else -> setting.notifyEveryEpisode
         }
 
-        // We ALWAYS schedule/dispatch for items in NOT_AIRED_YET status to ensure 
+        // We ALWAYS schedule/dispatch for items in NOT_AIRED_YET status to ensure
         // they transition to WANTED/IGNORED at the air date, regardless of notification settings.
         if (!shouldNotify && item.mediaStatus != MediaStatus.NOT_AIRED_YET) {
             cancelAlarmForItem(context, item)
@@ -126,7 +128,7 @@ object NotificationScheduler {
         }
         val now = System.currentTimeMillis()
         val (title, message) = NotificationReceiver.formatNotificationContent(item, isFinale, totalEpisodesInSeason)
-        val notificationId = Math.abs(item.primaryKey.hashCode())
+        val notificationId = abs(item.primaryKey.hashCode())
 
         if (triggerTime > now) {
             // Future release -> schedule Alarm
@@ -202,7 +204,7 @@ object NotificationScheduler {
 
         val intent = Intent(context, NotificationReceiver::class.java).apply {
             action = ACTION_AIR_DATE_ALERT
-            data = android.net.Uri.parse("simkl_alert://$itemKey")
+            data = "simkl_alert://$itemKey".toUri()
             putExtra(NotificationReceiver.EXTRA_TITLE, title)
             putExtra(NotificationReceiver.EXTRA_MESSAGE, message)
             putExtra(NotificationReceiver.EXTRA_ID, notificationId)
@@ -218,7 +220,7 @@ object NotificationScheduler {
             putExtra(NotificationReceiver.EXTRA_SHOULD_NOTIFY, shouldNotify)
         }
 
-        val requestCode = Math.abs(itemKey.hashCode())
+        val requestCode = abs(itemKey.hashCode())
         val pendingIntent = PendingIntent.getBroadcast(
             context,
             requestCode,
@@ -233,10 +235,8 @@ object NotificationScheduler {
                 } else {
                     alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
                 }
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             } else {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             }
             Log.d(TAG, "Scheduled air date alarm for '$title' at timestamp $triggerAtMillis (key=$itemKey)")
         } catch (e: Exception) {
@@ -254,9 +254,9 @@ object NotificationScheduler {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
             val intent = Intent(context, NotificationReceiver::class.java).apply {
                 action = ACTION_AIR_DATE_ALERT
-                data = android.net.Uri.parse("simkl_alert://${item.primaryKey}")
+                data = "simkl_alert://${item.primaryKey}".toUri()
             }
-            val requestCode = Math.abs(item.primaryKey.hashCode())
+            val requestCode = abs(item.primaryKey.hashCode())
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
                 requestCode,

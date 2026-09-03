@@ -4,13 +4,11 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,18 +20,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.LocalMovies
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -41,7 +32,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -50,7 +40,6 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeLabel
@@ -59,7 +48,8 @@ import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
 import com.felixbrucker.simklcalendar.data.util.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.launch
-import java.util.Locale
+import androidx.core.net.toUri
+import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -115,26 +105,6 @@ fun ReleaseDetailScreen(
         }
     }
 
-    // Determine available seasons from both calendar schedule and watched episode entities
-    val availableSeasons = remember(showScheduleItems, showWatched, activeItem) {
-        val seasonsSet = mutableSetOf<Int>()
-        showScheduleItems.forEach { item ->
-            item.season?.let { if (it > 0) seasonsSet.add(it) }
-        }
-        showWatched.forEach { w ->
-            if (w.season > 0) seasonsSet.add(w.season)
-        }
-        val currentSeason = activeItem?.season
-        if (currentSeason != null && currentSeason > 0) {
-            seasonsSet.add(currentSeason)
-        }
-        if (seasonsSet.isEmpty()) {
-            listOf(1)
-        } else {
-            seasonsSet.sorted()
-        }
-    }
-
     // Helper to evaluate watch status of a season
     fun getSeasonWatchStatus(seasonNum: Int): Triple<Boolean, Boolean, String> {
         val scheduleInSeason = showScheduleItems.filter { (it.season ?: 1) == seasonNum }
@@ -144,7 +114,7 @@ fun ReleaseDetailScreen(
             val total = scheduleInSeason.size
             val watchedCount = scheduleInSeason.count { it.isWatched }
             val isFully = watchedCount == total
-            val isPartial = watchedCount > 0 && watchedCount < total
+            val isPartial = watchedCount in 1..<total
             val statusStr = if (isFully) {
                 "All $total episodes watched"
             } else if (isPartial) {
@@ -793,13 +763,12 @@ fun ReleaseDetailScreen(
                     // Open on SIMKL Button (Filled Button)
                     Button(
                         onClick = {
-                            val urlType = when (activeItem.type) {
-                                MediaType.MOVIE -> "movies"
-                                MediaType.ANIME -> "anime"
-                                MediaType.TV -> "tv"
-                            }
-                            val simklUrl = "https://simkl.com/$urlType/${activeItem.simklId}"
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(simklUrl))
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                MediaFormatter
+                                    .formatSimklUrl(activeItem.simklId, activeItem.type)
+                                    .toUri(),
+                            )
                             context.startActivity(intent)
                         },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -872,7 +841,8 @@ fun ReleaseDetailScreen(
                                             modifier = Modifier
                                                 .clickable {
                                                     try {
-                                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(resolvedUrl))
+                                                        val intent = Intent(Intent.ACTION_VIEW,
+                                                            resolvedUrl.toUri())
                                                         context.startActivity(intent)
                                                     } catch (e: Exception) {
                                                         scope.launch {

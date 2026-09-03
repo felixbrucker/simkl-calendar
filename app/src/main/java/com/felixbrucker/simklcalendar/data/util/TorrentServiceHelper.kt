@@ -123,17 +123,17 @@ class TorrentServiceHelper(context: Context) {
 
     fun updateDownloadProgress(taskId: String, stats: TorrentProgressStats) {
         val uri = taskIdToUri[taskId]
-        _downloads.value = _downloads.value + (taskId to DownloadProgress(
-            taskId = taskId,
-            uri = uri,
-            bytesDownloaded = stats.bytesDownloaded,
-            totalBytes = stats.totalBytes,
-            downloadSpeed = stats.downloadSpeed
-        ))
+        _downloads.value += (taskId to DownloadProgress(
+                    taskId = taskId,
+                    uri = uri,
+                    bytesDownloaded = stats.bytesDownloaded,
+                    totalBytes = stats.totalBytes,
+                    downloadSpeed = stats.downloadSpeed
+                ))
     }
 
     fun clearDownload(taskId: String) {
-        _downloads.value = _downloads.value - taskId
+        _downloads.value -= taskId
         taskIdToUri.remove(taskId)
     }
 

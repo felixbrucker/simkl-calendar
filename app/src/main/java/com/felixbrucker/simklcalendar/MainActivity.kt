@@ -44,6 +44,7 @@ import com.felixbrucker.simklcalendar.ui.screens.SeriesDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import androidx.core.net.toUri
 
 class MainActivity : ComponentActivity() {
     private val viewModel: CalendarViewModel by viewModels()
@@ -61,7 +62,7 @@ class MainActivity : ComponentActivity() {
     }
 
     fun launchAuthTab(url: String, redirectScheme: String = "simklcalendar") {
-        val uri = Uri.parse(url)
+        val uri = url.toUri()
         val packageName = CustomTabsClient.getPackageName(this, null)
 
         // Open the Authorization URI in an Auth Tab if supported by the default browser.
@@ -71,7 +72,7 @@ class MainActivity : ComponentActivity() {
         } else {
             // Fall back to a Custom Tab.
             val customTabsIntent = CustomTabsIntent.Builder().build()
-            customTabsIntent.intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             customTabsIntent.launchUrl(this, uri)
         }
     }
@@ -80,10 +81,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         NotificationReceiver.createNotificationChannel(this)
-        val syncPrefs = getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE)
+        val syncPrefs = getSharedPreferences("notification_prefs", MODE_PRIVATE)
         val syncIntervalHours = syncPrefs.getInt("sync_interval_hours", 12).toLong()
         SyncCalendarWorker.enqueuePeriodicSync(this, syncIntervalHours)
-        
+
         val searchIntervalHours = syncPrefs.getInt("search_interval_hours", 12).toLong()
         AutoDownloadWorker.enqueuePeriodicSearch(this, searchIntervalHours)
 

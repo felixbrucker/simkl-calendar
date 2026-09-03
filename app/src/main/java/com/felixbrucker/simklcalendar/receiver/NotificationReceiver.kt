@@ -7,7 +7,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
@@ -32,7 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URLEncoder
-import java.util.Locale
+import androidx.core.net.toUri
 
 class NotificationReceiver : BroadcastReceiver() {
 
@@ -477,20 +476,18 @@ class NotificationReceiver : BroadcastReceiver() {
         }
 
         fun createNotificationChannel(context: Context) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val name = "Simkl Calendar Alerts"
-                val descriptionText = "Local notifications for airing episodes and seasons that finished airing."
-                val importance = NotificationManager.IMPORTANCE_HIGH
-                val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                    description = descriptionText
-                    enableVibration(true)
-                    enableLights(true)
-                    setShowBadge(true)
-                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
-                }
-                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.createNotificationChannel(channel)
+            val name = "Simkl Calendar Alerts"
+            val descriptionText = "Local notifications for airing episodes and seasons that finished airing."
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+                enableVibration(true)
+                enableLights(true)
+                setShowBadge(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
         }
 
         suspend fun showNotification(
@@ -533,7 +530,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     } catch (_: Exception) {
                         itemKey
                     }
-                    data = Uri.parse("simklcalendar://detail/$encodedKey")
+                    data = "simklcalendar://detail/$encodedKey".toUri()
                 }
             }
             val pendingIntent = PendingIntent.getActivity(
@@ -733,7 +730,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     } catch (_: Exception) {
                         itemKey
                     }
-                    data = Uri.parse("simklcalendar://detail/$encodedKey")
+                    data = "simklcalendar://detail/$encodedKey".toUri()
                 }
             }
             val pendingIntent = PendingIntent.getActivity(
