@@ -194,6 +194,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
     val watchlistTableItems: StateFlow<List<WatchlistTableItem>> = combine(
         repository.watchlistItems,
         repository.calendarEntities,
