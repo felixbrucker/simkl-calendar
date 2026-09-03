@@ -130,23 +130,17 @@ fun WatchlistItemDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                WatchedStatusDropdown(
-                                    isWatched = digitalOrTheaterRelease.isWatched,
-                                    onStatusChange = { watched ->
-                                        if (watched) {
-                                            viewModel.markMovieWatched(digitalOrTheaterRelease.simklId, digitalOrTheaterRelease.primaryKey, digitalOrTheaterRelease.title) { _, _ -> }
-                                        } else {
-                                            viewModel.markMovieUnwatched(digitalOrTheaterRelease.simklId, digitalOrTheaterRelease.primaryKey, digitalOrTheaterRelease.title) { _, _ -> }
-                                        }
-                                    },
-                                    isLoading = updatingWatchKeys.contains(digitalOrTheaterRelease.primaryKey)
+                                ItemWatchedStatusDropdown(
+                                    item = digitalOrTheaterRelease,
+                                    viewModel = viewModel,
+                                    updatingWatchKeys = updatingWatchKeys
                                 )
 
                                 if (digitalRelease != null) {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        MediaStatusDropdown(
-                                            currentStatus = digitalRelease.mediaStatus,
-                                            onStatusChange = { viewModel.updateMediaStatus(digitalRelease.primaryKey, it) }
+                                        ItemMediaStatusDropdown(
+                                            item = digitalRelease,
+                                            viewModel = viewModel
                                         )
                                     }
                                 }
@@ -636,21 +630,15 @@ fun EpisodesTable(
                                 }
                             }
                             2 -> Text(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = Color(0xFFCAC4D0), maxLines = 1)
-                            3 -> WatchedStatusDropdown(
-                                isWatched = episode.isWatched,
-                                onStatusChange = { watched ->
-                                    if (watched) {
-                                        viewModel.markEpisodeWatched(episode.simklId, episode.season, episode.episodeNumber ?: 1, episode.type, episode.primaryKey, episode.title) { _, _ -> }
-                                    } else {
-                                        viewModel.markEpisodeUnwatched(episode.simklId, episode.season, episode.episodeNumber ?: 1, episode.type, episode.primaryKey, episode.title) { _, _ -> }
-                                    }
-                                },
-                                isLoading = updatingWatchKeys.contains(episode.primaryKey)
+                            3 -> ItemWatchedStatusDropdown(
+                                item = episode,
+                                viewModel = viewModel,
+                                updatingWatchKeys = updatingWatchKeys
                             )
                             4 -> Row(verticalAlignment = Alignment.CenterVertically) {
-                                MediaStatusDropdown(
-                                    currentStatus = episode.mediaStatus,
-                                    onStatusChange = { viewModel.updateMediaStatus(episode.primaryKey, it) }
+                                ItemMediaStatusDropdown(
+                                    item = episode,
+                                    viewModel = viewModel
                                 )
                             }
                         }

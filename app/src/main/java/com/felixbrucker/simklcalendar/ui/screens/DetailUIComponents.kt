@@ -13,7 +13,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 
 @Composable
 fun SeasonOverrideDialog(
@@ -250,6 +253,44 @@ fun WatchedStatusDropdown(
             )
         }
     }
+}
+
+@Composable
+fun ItemWatchedStatusDropdown(
+    item: CalendarItemWithWatchlist,
+    viewModel: CalendarViewModel,
+    updatingWatchKeys: Set<String>
+) {
+    WatchedStatusDropdown(
+        isWatched = item.isWatched,
+        onStatusChange = { watched ->
+            if (item.type == MediaType.MOVIE) {
+                if (watched) {
+                    viewModel.markMovieWatched(item.simklId, item.primaryKey, item.title) { _, _ -> }
+                } else {
+                    viewModel.markMovieUnwatched(item.simklId, item.primaryKey, item.title) { _, _ -> }
+                }
+            } else {
+                if (watched) {
+                    viewModel.markEpisodeWatched(item.simklId, item.season, item.episodeNumber ?: 1, item.type, item.primaryKey, item.title) { _, _ -> }
+                } else {
+                    viewModel.markEpisodeUnwatched(item.simklId, item.season, item.episodeNumber ?: 1, item.type, item.primaryKey, item.title) { _, _ -> }
+                }
+            }
+        },
+        isLoading = updatingWatchKeys.contains(item.primaryKey)
+    )
+}
+
+@Composable
+fun ItemMediaStatusDropdown(
+    item: CalendarItemWithWatchlist,
+    viewModel: CalendarViewModel
+) {
+    MediaStatusDropdown(
+        currentStatus = item.mediaStatus,
+        onStatusChange = { viewModel.updateMediaStatus(item.primaryKey, it) }
+    )
 }
 
 fun getTableItemColor(x: Int, y: Int): Color {

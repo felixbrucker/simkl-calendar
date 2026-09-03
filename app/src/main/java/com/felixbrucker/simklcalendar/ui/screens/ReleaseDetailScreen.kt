@@ -66,6 +66,7 @@ fun ReleaseDetailScreen(
     val allWatchedEpisodes by viewModel.watchedEpisodes.collectAsState()
     val isMarkingWatched by viewModel.isMarkingWatched.collectAsState()
     val allSearchLinks by viewModel.customSearchLinks.collectAsState()
+    val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -447,42 +448,35 @@ fun ReleaseDetailScreen(
                                         color = Color(0xFFE6E1E5),
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 14.sp,
-                                        maxLines = 2
                                     )
                                 }
+                            }
 
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Watch Status", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                ItemWatchedStatusDropdown(
+                                    item = activeItem,
+                                    viewModel = viewModel,
+                                    updatingWatchKeys = updatingWatchKeys
+                                )
+                            }
+
+                            val mediaStatusItem = if (activeItem.type == MediaType.MOVIE) digitalItem else activeItem
+                            if (mediaStatusItem != null) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Watch Status", color = Color(0xFFCAC4D0), fontSize = 14.sp)
-                                    if (activeItem.isWatched) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.CheckCircle,
-                                                contentDescription = null,
-                                                tint = Color(0xFF7CE49F),
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Text(
-                                                text = "Watched",
-                                                color = Color(0xFF7CE49F),
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp
-                                            )
-                                        }
-                                    } else {
-                                        Text(
-                                            text = "Unwatched",
-                                            color = Color(0xFFCAC4D0),
-                                            fontWeight = FontWeight.Normal,
-                                            fontSize = 14.sp
-                                        )
-                                    }
+                                    Text("Status", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                                    ItemMediaStatusDropdown(
+                                        item = mediaStatusItem,
+                                        viewModel = viewModel
+                                    )
                                 }
                             }
 
@@ -514,151 +508,11 @@ fun ReleaseDetailScreen(
                     }
 
                     // Watch Actions Section (without surrounding Card)
-                    if (activeItem.type == MediaType.MOVIE) {
-                        // Mark Movie as Watched Button
-                        Button(
-                            onClick = {
-                                viewModel.markMovieWatched(
-                                    simklId = activeItem.simklId,
-                                    showTitle = activeItem.title
-                                ) { success, msg ->
-                                    if (success) {
-                                        scope.launch {
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = msg,
-                                                actionLabel = "Revert",
-                                                duration = SnackbarDuration.Short
-                                            )
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                viewModel.markMovieUnwatched(
-                                                    simklId = activeItem.simklId,
-                                                    showTitle = activeItem.title
-                                                ) { _, revertMsg ->
-                                                    scope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        scope.launch { snackbarHostState.showSnackbar(msg) }
-                                    }
-                                }
-                            },
-                            enabled = !isMarkingWatched && !activeItem.isWatched,
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (activeItem.isWatched) Color(0xFF2E6543) else Color(0xFF381E72),
-                                contentColor = if (activeItem.isWatched) Color(0xFF7CE49F) else Color(0xFFEADDFF),
-                                disabledContainerColor = if (activeItem.isWatched) Color(0xFF1E3A2B) else Color(0xFF3B383E),
-                                disabledContentColor = if (activeItem.isWatched) Color(0xFF7CE49F) else Color(0xFF79747E)
-                            ),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            if (isMarkingWatched) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = Color(0xFFEADDFF)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
-                            } else if (activeItem.isWatched) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Movie Marked as Watched", fontWeight = FontWeight.Bold)
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Mark Movie as Watched", fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    } else {
+                    if (activeItem.type != MediaType.MOVIE) {
                         val sNum = activeItem.season ?: 1
-                        val eNum = activeItem.episodeNumber ?: 1
-                        val epLabel = activeItem.formattedEpisodeLabel
                         val seasonLabel = activeItem.formattedSeasonLabel
 
                         val (isSeasonFullyWatched, _, _) = getSeasonWatchStatus(sNum)
-
-                        @Composable
-                        fun EpisodeWatchSection(modifier: Modifier = Modifier) {
-                            Button(
-                                onClick = {
-                                    viewModel.markEpisodeWatched(
-                                        simklId = activeItem.simklId,
-                                        season = activeItem.season,
-                                        episodeNumber = eNum,
-                                        mediaType = activeItem.type,
-                                        showTitle = activeItem.title
-                                    ) { success, msg ->
-                                        if (success) {
-                                            scope.launch {
-                                                val result = snackbarHostState.showSnackbar(
-                                                    message = msg,
-                                                    actionLabel = "Revert",
-                                                    duration = SnackbarDuration.Short
-                                                )
-                                                if (result == SnackbarResult.ActionPerformed) {
-                                                    viewModel.markEpisodeUnwatched(
-                                                        simklId = activeItem.simklId,
-                                                        season = activeItem.season,
-                                                        episodeNumber = eNum,
-                                                        mediaType = activeItem.type,
-                                                        showTitle = activeItem.title
-                                                    ) { _, revertMsg ->
-                                                        scope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            scope.launch { snackbarHostState.showSnackbar(msg) }
-                                        }
-                                    }
-                                },
-                                enabled = !isMarkingWatched && !activeItem.isWatched,
-                                modifier = modifier.fillMaxWidth().height(48.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (activeItem.isWatched) Color(0xFF2E6543) else Color(0xFF381E72),
-                                    contentColor = if (activeItem.isWatched) Color(0xFF7CE49F) else Color(0xFFEADDFF),
-                                    disabledContainerColor = if (activeItem.isWatched) Color(0xFF1E3A2B) else Color(0xFF3B383E),
-                                    disabledContentColor = if (activeItem.isWatched) Color(0xFF7CE49F) else Color(0xFF79747E)
-                                ),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                if (isMarkingWatched) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Color(0xFFEADDFF)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
-                                } else if (activeItem.isWatched) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("$epLabel Watched", fontWeight = FontWeight.Bold)
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Mark $epLabel as Watched", fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
 
                         @Composable
                         fun SeasonWatchSection(modifier: Modifier = Modifier) {
@@ -737,27 +591,7 @@ fun ReleaseDetailScreen(
                             }
                         }
 
-                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                            val isWide = maxWidth >= 600.dp
-                            if (isWide) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    EpisodeWatchSection(modifier = Modifier.weight(1f))
-                                    SeasonWatchSection(modifier = Modifier.weight(1f))
-                                }
-                            } else {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    EpisodeWatchSection(modifier = Modifier.fillMaxWidth())
-                                    SeasonWatchSection(modifier = Modifier.fillMaxWidth())
-                                }
-                            }
-                        }
+                        SeasonWatchSection(modifier = Modifier.fillMaxWidth())
                     }
 
                     // Open on SIMKL Button (Filled Button)
@@ -978,32 +812,6 @@ fun ReleaseDetailScreen(
                                                     )
                                                 }
 
-                                                if (epItem.isWatched) {
-                                                    Surface(
-                                                        shape = RoundedCornerShape(4.dp),
-                                                        color = Color(0xFF1E3A2B),
-                                                        contentColor = Color(0xFF7CE49F)
-                                                    ) {
-                                                        Row(
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                                                        ) {
-                                                            Icon(
-                                                                imageVector = Icons.Default.Check,
-                                                                contentDescription = null,
-                                                                modifier = Modifier.size(10.dp),
-                                                                tint = Color(0xFF7CE49F)
-                                                            )
-                                                            Text(
-                                                                text = "WATCHED",
-                                                                fontSize = 9.sp,
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                        }
-                                                    }
-                                                }
-
                                                 Column {
                                                     Text(
                                                         text = if (epItem.type == MediaType.MOVIE) {
@@ -1024,7 +832,25 @@ fun ReleaseDetailScreen(
                                                 }
                                             }
 
+                                            if (activeItem.type != MediaType.MOVIE) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    ItemWatchedStatusDropdown(
+                                                        item = epItem,
+                                                        viewModel = viewModel,
+                                                        updatingWatchKeys = updatingWatchKeys
+                                                    )
+                                                    ItemMediaStatusDropdown(
+                                                        item = epItem,
+                                                        viewModel = viewModel
+                                                    )
+                                                }
+                                            }
+
                                             if (isSelected) {
+                                                Spacer(modifier = Modifier.width(8.dp))
                                                 Icon(
                                                     imageVector = Icons.Default.CheckCircle,
                                                     contentDescription = "Currently Selected",
