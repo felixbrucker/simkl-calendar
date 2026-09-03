@@ -21,3 +21,17 @@ fun String?.toPosterUrl(size: PosterSize = PosterSize.COMPACT): String {
 
     return "https://simkl.in/posters/${this}${size.suffix}.webp"
 }
+
+val INVALID_CHARACTERS_FOR_PATH = listOf(
+    ":",
+    "|",
+)
+
+fun String.cleanedForUseAsPath(): String {
+    var result = this
+    for (invalidCharacter in INVALID_CHARACTERS_FOR_PATH) {
+        result = result.replace(invalidCharacter, " ")
+    }
+
+    return result
+}

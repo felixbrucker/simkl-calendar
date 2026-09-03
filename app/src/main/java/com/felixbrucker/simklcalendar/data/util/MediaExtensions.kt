@@ -16,7 +16,7 @@ fun CalendarItemWithWatchlist.destinationSubdirectory(): String {
     if (type == MediaType.MOVIE) {
         return baseSubdirectory
     }
-    val title = titleRomaji ?: title
+    val titlePath = (titleRomaji ?: title).take(127).cleanedForUseAsPath()
 
-    return "$baseSubdirectory/$title"
+    return "$baseSubdirectory/$titlePath"
 }
