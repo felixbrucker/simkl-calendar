@@ -1,9 +1,10 @@
-package com.felixbrucker.simklcalendar.ui.screens
+package com.felixbrucker.simklcalendar.ui.composable
 
 import android.content.Intent
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
@@ -11,16 +12,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
@@ -76,7 +80,7 @@ fun SeasonOverrideDialog(
                         label = { Text("Original") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
 
                     Text("→", color = Color.White)
@@ -87,7 +91,7 @@ fun SeasonOverrideDialog(
                         label = { Text("Target") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
 
                     IconButton(
@@ -552,6 +556,164 @@ fun DetailHeader(
                 fontWeight = FontWeight.Bold,
                 fontSize = 11.sp
             )
+        }
+    }
+}
+
+@Composable
+fun DownloadSettingsCard(
+    viewModel: CalendarViewModel,
+    simklId: Int,
+    itemTitle: String,
+    isMovie: Boolean
+) {
+    val globalUnwatched by viewModel.autoDownloadUnwatchedDefault.collectAsState()
+    val globalQuality by viewModel.autoDownloadQuality.collectAsState()
+    val globalPreferHevc by viewModel.autoDownloadPreferHevc.collectAsState()
+    val itemSettings by viewModel.getItemDownloadSettingsFlow(simklId).collectAsState(null)
+    val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
+
+    Card(
+        modifier = Modifier.padding(16.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F))
+    ) {
+        Column(modifier = Modifier.padding(16.dp).alpha(if (isDownloaderInstalled) 1f else 0.5f)) {
+            Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Unwatched Toggle
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Download Unwatched", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Auto search and add unwatched episodes.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                }
+                Switch(
+                    checked = itemSettings?.downloadUnwatched ?: globalUnwatched,
+                    onCheckedChange = {
+                        viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadUnwatched = it))
+                    },
+                    enabled = isDownloaderInstalled
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Quality
+            Text("Preferred Quality", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("4K", "1080p", "720p").forEach { quality ->
+                    val isSelected = (itemSettings?.qualityOverride == quality) || (itemSettings?.qualityOverride == null && globalQuality == quality)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            val next = if (isSelected && itemSettings?.qualityOverride != null) null else quality
+                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(qualityOverride = next))
+                        },
+                        label = { Text(quality) },
+                        enabled = isDownloaderInstalled
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // HEVC
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Prefer HEVC / x265", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Switch(
+                    checked = itemSettings?.preferHevcOverride ?: globalPreferHevc,
+                    onCheckedChange = {
+                        viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(preferHevcOverride = it))
+                    },
+                    enabled = isDownloaderInstalled
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Title Override
+            var showTitleDialog by remember { mutableStateOf(false) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Title Override", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Use custom search title for this item.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF1C1B1F),
+                    border = BorderStroke(1.dp, Color(0xFF49454F)),
+                    modifier = Modifier.clickable(enabled = isDownloaderInstalled) { showTitleDialog = true }
+                ) {
+                    Text(
+                        text = itemSettings?.titleOverride ?: "None",
+                        color = if (itemSettings?.titleOverride != null) Color(0xFFD0BCFF) else Color.White,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+            }
+            if (showTitleDialog) {
+                var tempTitle by remember { mutableStateOf(itemSettings?.titleOverride ?: "") }
+                AlertDialog(
+                    onDismissRequest = { showTitleDialog = false },
+                    title = { Text("Title Override") },
+                    text = {
+                        OutlinedTextField(
+                            value = tempTitle,
+                            onValueChange = { tempTitle = it },
+                            label = { Text("Custom Title") },
+                            placeholder = { Text(itemTitle) },
+                            singleLine = true
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(titleOverride = tempTitle.trim().takeIf { it.isNotBlank() }))
+                            showTitleDialog = false
+                        }) { Text("Save") }
+                    },
+                    dismissButton = { TextButton(onClick = { showTitleDialog = false }) { Text("Cancel") } }
+                )
+            }
+
+            // Season Overrides
+            if (!isMovie) {
+                Spacer(modifier = Modifier.height(16.dp))
+                var showSeasonDialog by remember { mutableStateOf(false) }
+                val seasonOverrides = itemSettings?.seasonOverrides ?: emptyMap()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Season Overrides", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Map seasons for torrent searching.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFF1C1B1F),
+                        border = BorderStroke(1.dp, Color(0xFF49454F)),
+                        modifier = Modifier.clickable(enabled = isDownloaderInstalled) { showSeasonDialog = true }
+                    ) {
+                        Text(
+                            text = if (seasonOverrides.isEmpty()) "None" else "${seasonOverrides.size} active",
+                            color = if (seasonOverrides.isNotEmpty()) Color(0xFFD0BCFF) else Color.White,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+                if (showSeasonDialog) {
+                    SeasonOverrideDialog(
+                        existingOverrides = seasonOverrides,
+                        onSave = {
+                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(seasonOverrides = it))
+                        },
+                        onDismiss = { showSeasonDialog = false }
+                    )
+                }
+            }
         }
     }
 }

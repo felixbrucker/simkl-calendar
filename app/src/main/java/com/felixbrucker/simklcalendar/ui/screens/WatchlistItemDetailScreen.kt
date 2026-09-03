@@ -20,7 +20,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -30,15 +29,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
+import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
+import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
+import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
+import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
+import com.felixbrucker.simklcalendar.ui.composable.MediaStatusDropdown
+import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import com.felixbrucker.simklcalendar.ui.composable.Table
+import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -72,7 +77,7 @@ fun WatchlistItemDetailScreen(
         settingsList.find { it.simklId == simklId }
     }
 
-    val seriesItem = remember(watchlistItems, simklId) {
+    val watchlistItem = remember(watchlistItems, simklId) {
         watchlistItems.find { it.simklId == simklId }
     }
 
@@ -91,8 +96,8 @@ fun WatchlistItemDetailScreen(
         episodes.groupBy { it.season ?: 1 }
     }
 
-    val isMovie = seriesItem?.type == MediaType.MOVIE
-    val isAnimeSeasonOneOnly = seriesItem?.type == MediaType.ANIME && seasons.size == 1 && seasons.containsKey(1)
+    val isMovie = watchlistItem?.type == MediaType.MOVIE
+    val isAnimeSeasonOneOnly = watchlistItem?.type == MediaType.ANIME && seasons.size == 1 && seasons.containsKey(1)
 
     val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
     val defaultAiring = prefs.getBoolean("default_notify_airing", false)
@@ -117,7 +122,7 @@ fun WatchlistItemDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(seriesItem?.title ?: "Details", color = Color.White) },
+                title = { Text(watchlistItem?.title ?: "Details", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -128,7 +133,7 @@ fun WatchlistItemDetailScreen(
         },
         containerColor = Color(0xFF1C1B1F)
     ) { innerPadding ->
-        if (seriesItem == null) {
+        if (watchlistItem == null) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
@@ -141,11 +146,11 @@ fun WatchlistItemDetailScreen(
                 // 1. Header with Poster & Title
                 item {
                     DetailHeader(
-                        simklId = seriesItem.simklId,
-                        type = seriesItem.type,
-                        title = seriesItem.title,
-                        poster = seriesItem.poster,
-                        titleRomaji = seriesItem.titleRomaji
+                        simklId = watchlistItem.simklId,
+                        type = watchlistItem.type,
+                        title = watchlistItem.title,
+                        poster = watchlistItem.poster,
+                        titleRomaji = watchlistItem.titleRomaji
                     )
                 }
 
@@ -257,10 +262,10 @@ fun WatchlistItemDetailScreen(
 
                 // 5. Download Settings (Moved to bottom)
                 item {
-                    WatchlistItemDownloadSettings(
+                    DownloadSettingsCard(
                         viewModel = viewModel,
-                        simklId = seriesItem.simklId,
-                        showTitle = seriesItem.title,
+                        simklId = watchlistItem.simklId,
+                        itemTitle = watchlistItem.title,
                         isMovie = isMovie
                     )
                 }
@@ -303,7 +308,8 @@ fun WatchlistItemSummaryStats(
                 StatItem("Last Ep", item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-", modifier = Modifier.weight(1f))
                 StatItem("Next Ep", item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-", modifier = Modifier.weight(1f))
 
-                val watchedColor = getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
+                val watchedColor =
+                    getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
                 StatItem(
                     label = "Watched",
                     value = "${item.watchedReleasedCount}/${item.totalReleasedCount}",
@@ -311,7 +317,10 @@ fun WatchlistItemSummaryStats(
                     modifier = Modifier.weight(0.8f)
                 )
 
-                val downloadedColor = getTableItemColor(item.downloadedReleasedCount, item.totalDownloadableReleasedCount)
+                val downloadedColor = getTableItemColor(
+                    item.downloadedReleasedCount,
+                    item.totalDownloadableReleasedCount
+                )
                 StatItem(
                     label = "Downloaded",
                     value = "${item.downloadedReleasedCount}/${item.totalDownloadableReleasedCount}",
@@ -342,163 +351,7 @@ fun StatItem(label: String, value: String, modifier: Modifier = Modifier, valueC
     }
 }
 
-@Composable
-fun WatchlistItemDownloadSettings(
-    viewModel: CalendarViewModel,
-    simklId: Int,
-    showTitle: String,
-    isMovie: Boolean
-) {
-    val globalUnwatched by viewModel.autoDownloadUnwatchedDefault.collectAsState()
-    val globalQuality by viewModel.autoDownloadQuality.collectAsState()
-    val globalPreferHevc by viewModel.autoDownloadPreferHevc.collectAsState()
-    val itemSettings by viewModel.getItemDownloadSettingsFlow(simklId).collectAsState(null)
-    val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
 
-    Card(
-        modifier = Modifier.padding(16.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F))
-    ) {
-        Column(modifier = Modifier.padding(16.dp).alpha(if (isDownloaderInstalled) 1f else 0.5f)) {
-            Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Unwatched Toggle
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Unwatched", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Auto search and add unwatched episodes.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
-                }
-                Switch(
-                    checked = itemSettings?.downloadUnwatched ?: globalUnwatched,
-                    onCheckedChange = {
-                        viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadUnwatched = it))
-                    },
-                    enabled = isDownloaderInstalled
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Quality
-            Text("Preferred Quality", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("4K", "1080p", "720p").forEach { quality ->
-                    val isSelected = (itemSettings?.qualityOverride == quality) || (itemSettings?.qualityOverride == null && globalQuality == quality)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = {
-                            val next = if (isSelected && itemSettings?.qualityOverride != null) null else quality
-                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(qualityOverride = next))
-                        },
-                        label = { Text(quality) },
-                        enabled = isDownloaderInstalled
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // HEVC
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Prefer HEVC / x265", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                }
-                Switch(
-                    checked = itemSettings?.preferHevcOverride ?: globalPreferHevc,
-                    onCheckedChange = {
-                        viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(preferHevcOverride = it))
-                    },
-                    enabled = isDownloaderInstalled
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Title Override
-            var showTitleDialog by remember { mutableStateOf(false) }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Title Override", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Use custom search title for this item.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
-                }
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF1C1B1F),
-                    border = BorderStroke(1.dp, Color(0xFF49454F)),
-                    modifier = Modifier.clickable(enabled = isDownloaderInstalled) { showTitleDialog = true }
-                ) {
-                    Text(
-                        text = itemSettings?.titleOverride ?: "None",
-                        color = if (itemSettings?.titleOverride != null) Color(0xFFD0BCFF) else Color.White,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
-                }
-            }
-            if (showTitleDialog) {
-                var tempTitle by remember { mutableStateOf(itemSettings?.titleOverride ?: "") }
-                AlertDialog(
-                    onDismissRequest = { showTitleDialog = false },
-                    title = { Text("Title Override") },
-                    text = {
-                        OutlinedTextField(
-                            value = tempTitle,
-                            onValueChange = { tempTitle = it },
-                            label = { Text("Custom Title") },
-                            placeholder = { Text(showTitle) },
-                            singleLine = true
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(titleOverride = tempTitle.trim().takeIf { it.isNotBlank() }))
-                            showTitleDialog = false
-                        }) { Text("Save") }
-                    },
-                    dismissButton = { TextButton(onClick = { showTitleDialog = false }) { Text("Cancel") } }
-                )
-            }
-
-            // Season Overrides
-            if (!isMovie) {
-                Spacer(modifier = Modifier.height(16.dp))
-                var showSeasonDialog by remember { mutableStateOf(false) }
-                val seasonOverrides = itemSettings?.seasonOverrides ?: emptyMap()
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Season Overrides", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Map seasons for torrent searching.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF1C1B1F),
-                        border = BorderStroke(1.dp, Color(0xFF49454F)),
-                        modifier = Modifier.clickable(enabled = isDownloaderInstalled) { showSeasonDialog = true }
-                    ) {
-                        Text(
-                            text = if (seasonOverrides.isEmpty()) "None" else "${seasonOverrides.size} active",
-                            color = if (seasonOverrides.isNotEmpty()) Color(0xFFD0BCFF) else Color.White,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                        )
-                    }
-                }
-                if (showSeasonDialog) {
-                    SeasonOverrideDialog(
-                        existingOverrides = seasonOverrides,
-                        onSave = {
-                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(seasonOverrides = it))
-                        },
-                        onDismiss = { showSeasonDialog = false }
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun SeasonSectionHeader(

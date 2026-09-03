@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
+import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.SortDirection
 import com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField
@@ -272,7 +273,8 @@ fun WatchlistTableItemRow(
                 )
 
                 // Watched
-                val watchedColor = getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
+                val watchedColor =
+                    getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
                 Text(
                     text = "${item.watchedReleasedCount}/${item.totalReleasedCount}",
                     fontSize = 12.sp,
@@ -283,7 +285,10 @@ fun WatchlistTableItemRow(
 
                 // Downloaded
                 if (isDownloaderInstalled) {
-                    val downloadedColor = getTableItemColor(item.downloadedReleasedCount, item.totalDownloadableReleasedCount)
+                    val downloadedColor = getTableItemColor(
+                        item.downloadedReleasedCount,
+                        item.totalDownloadableReleasedCount
+                    )
                     Text(
                         text = "${item.downloadedReleasedCount}/${item.totalDownloadableReleasedCount}",
                         fontSize = 12.sp,

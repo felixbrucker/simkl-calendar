@@ -45,6 +45,11 @@ import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.launch
 import androidx.core.net.toUri
+import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
+import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
+import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
+import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
+import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -770,6 +775,13 @@ fun ReleaseDetailScreen(
                         onNotifySeasonFinishedChange = { notifySeasonFinished = it },
                         checkPermission = { checkAndRequestNotificationPermission() },
                         viewModel = viewModel
+                    )
+
+                    DownloadSettingsCard(
+                        viewModel = viewModel,
+                        simklId = activeItem.simklId,
+                        itemTitle = activeItem.title,
+                        isMovie = isMovie
                     )
                 }
             }
