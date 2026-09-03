@@ -92,7 +92,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     private val _isAuthReady = MutableStateFlow(false)
     val isAuthReady: StateFlow<Boolean> = _isAuthReady.asStateFlow()
 
-    private val _viewMode = MutableStateFlow(MainViewMode.CALENDAR)
+    private val uiPrefs = application.getSharedPreferences("ui_prefs", Context.MODE_PRIVATE)
+
+    private val _viewMode = MutableStateFlow(MainViewMode.valueOf(uiPrefs.getString("view_mode", MainViewMode.CALENDAR.name) ?: MainViewMode.CALENDAR.name))
     val viewMode: StateFlow<MainViewMode> = _viewMode.asStateFlow()
 
     private var pollingJob: Job? = null
@@ -102,6 +104,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun setViewMode(mode: MainViewMode) {
         _viewMode.value = mode
+        uiPrefs.edit { putString("view_mode", mode.name) }
     }
 
     private val _tableSortField = MutableStateFlow(TableSortField.NAME)
@@ -120,15 +123,77 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     }
 
     // Filtering State Flows
-    val showTv = MutableStateFlow(true)
-    val showAnime = MutableStateFlow(true)
-    val showMovies = MutableStateFlow(true)
-    val showOnlyUnwatchedReleased = MutableStateFlow(true)
-    val onlySeasonPremieres = MutableStateFlow(false)
-    val onlySeasonFinales = MutableStateFlow(false)
-    val onlyDigitalDvd = MutableStateFlow(false)
-    val showEarlierReleases = MutableStateFlow(false)
+    val showTv = MutableStateFlow(uiPrefs.getBoolean("filter_show_tv", true))
+    val showAnime = MutableStateFlow(uiPrefs.getBoolean("filter_show_anime", true))
+    val showMovies = MutableStateFlow(uiPrefs.getBoolean("filter_show_movies", true))
+    val showOnlyUnwatchedReleased = MutableStateFlow(uiPrefs.getBoolean("filter_only_unwatched", true))
+    val onlySeasonPremieres = MutableStateFlow(uiPrefs.getBoolean("filter_only_premieres", false))
+    val onlySeasonFinales = MutableStateFlow(uiPrefs.getBoolean("filter_only_finales", false))
+    val onlyDigitalDvd = MutableStateFlow(uiPrefs.getBoolean("filter_only_digital_dvd", false))
+    val showEarlierReleases = MutableStateFlow(uiPrefs.getBoolean("filter_show_earlier", false))
     val searchQuery = MutableStateFlow("")
+
+    fun toggleShowTv() {
+        showTv.value = !showTv.value
+        uiPrefs.edit { putBoolean("filter_show_tv", showTv.value) }
+    }
+
+    fun toggleShowAnime() {
+        showAnime.value = !showAnime.value
+        uiPrefs.edit { putBoolean("filter_show_anime", showAnime.value) }
+    }
+
+    fun toggleShowMovies() {
+        showMovies.value = !showMovies.value
+        uiPrefs.edit { putBoolean("filter_show_movies", showMovies.value) }
+    }
+
+    fun toggleShowOnlyUnwatchedReleased() {
+        showOnlyUnwatchedReleased.value = !showOnlyUnwatchedReleased.value
+        uiPrefs.edit { putBoolean("filter_only_unwatched", showOnlyUnwatchedReleased.value) }
+    }
+
+    fun toggleOnlySeasonPremieres() {
+        onlySeasonPremieres.value = !onlySeasonPremieres.value
+        uiPrefs.edit { putBoolean("filter_only_premieres", onlySeasonPremieres.value) }
+    }
+
+    fun toggleOnlySeasonFinales() {
+        onlySeasonFinales.value = !onlySeasonFinales.value
+        uiPrefs.edit { putBoolean("filter_only_finales", onlySeasonFinales.value) }
+    }
+
+    fun toggleOnlyDigitalDvd() {
+        onlyDigitalDvd.value = !onlyDigitalDvd.value
+        uiPrefs.edit { putBoolean("filter_only_digital_dvd", onlyDigitalDvd.value) }
+    }
+
+    fun toggleShowEarlierReleases() {
+        showEarlierReleases.value = !showEarlierReleases.value
+        uiPrefs.edit { putBoolean("filter_show_earlier", showEarlierReleases.value) }
+    }
+
+    fun setShowEarlierReleases(show: Boolean) {
+        showEarlierReleases.value = show
+        uiPrefs.edit { putBoolean("filter_show_earlier", show) }
+    }
+
+    fun resetFilters() {
+        showTv.value = true
+        showAnime.value = true
+        showMovies.value = true
+        onlySeasonPremieres.value = false
+        onlySeasonFinales.value = false
+        onlyDigitalDvd.value = false
+        uiPrefs.edit {
+            putBoolean("filter_show_tv", true)
+            putBoolean("filter_show_anime", true)
+            putBoolean("filter_show_movies", true)
+            putBoolean("filter_only_premieres", false)
+            putBoolean("filter_only_finales", false)
+            putBoolean("filter_only_digital_dvd", false)
+        }
+    }
 
     fun setSearchQuery(query: String) {
         searchQuery.value = query

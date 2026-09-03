@@ -491,7 +491,7 @@ fun CalendarScreen(
                     // TV Toggle
                     FilterChip(
                         selected = tvFilter,
-                        onClick = { viewModel.showTv.value = !tvFilter },
+                        onClick = { viewModel.toggleShowTv() },
                         label = { Text("TV") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Color(0xFFBAC3FF),
@@ -504,7 +504,7 @@ fun CalendarScreen(
                     // Anime Toggle
                     FilterChip(
                         selected = animeFilter,
-                        onClick = { viewModel.showAnime.value = !animeFilter },
+                        onClick = { viewModel.toggleShowAnime() },
                         label = { Text("Anime") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Color(0xFFE8DEF8),
@@ -517,7 +517,7 @@ fun CalendarScreen(
                     // Movies Toggle
                     FilterChip(
                         selected = moviesFilter,
-                        onClick = { viewModel.showMovies.value = !moviesFilter },
+                        onClick = { viewModel.toggleShowMovies() },
                         label = { Text("Movies") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Color(0xFFF2B8B5),
@@ -542,7 +542,7 @@ fun CalendarScreen(
                     if (viewMode == MainViewMode.TABLE) {
                         FilterChip(
                             selected = unwatchedFilter,
-                            onClick = { viewModel.showOnlyUnwatchedReleased.value = !unwatchedFilter },
+                            onClick = { viewModel.toggleShowOnlyUnwatchedReleased() },
                             label = { Text("Unwatched") },
                             leadingIcon = {
                                 if (unwatchedFilter) {
@@ -566,7 +566,7 @@ fun CalendarScreen(
                     if (viewMode == MainViewMode.CALENDAR) {
                         FilterChip(
                             selected = premieresOnly,
-                            onClick = { viewModel.onlySeasonPremieres.value = !premieresOnly },
+                            onClick = { viewModel.toggleOnlySeasonPremieres() },
                             label = { Text("Season Premiere") },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFE8DEF8),
@@ -578,7 +578,7 @@ fun CalendarScreen(
 
                         FilterChip(
                             selected = finalesOnly,
-                            onClick = { viewModel.onlySeasonFinales.value = !finalesOnly },
+                            onClick = { viewModel.toggleOnlySeasonFinales() },
                             label = { Text("Season Finale") },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFB3261E),
@@ -590,7 +590,7 @@ fun CalendarScreen(
 
                         FilterChip(
                             selected = digitalDvdOnly,
-                            onClick = { viewModel.onlyDigitalDvd.value = !digitalDvdOnly },
+                            onClick = { viewModel.toggleOnlyDigitalDvd() },
                             label = { Text("Digital / DVD") },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFF4F378B),
@@ -723,12 +723,7 @@ private fun CalendarView(
                     } else {
                         TextButton(
                             onClick = {
-                                viewModel.showTv.value = true
-                                viewModel.showAnime.value = true
-                                viewModel.showMovies.value = true
-                                viewModel.onlySeasonPremieres.value = false
-                                viewModel.onlySeasonFinales.value = false
-                                viewModel.onlyDigitalDvd.value = false
+                                viewModel.resetFilters()
                             },
                         ) {
                             Text("Reset Active Filters", color = Color(0xFFD0BCFF))
@@ -756,7 +751,7 @@ private fun CalendarView(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 6.dp)
-                                .clickable { viewModel.showEarlierReleases.value = !showEarlierReleases }
+                                .clickable { viewModel.toggleShowEarlierReleases() }
                         ) {
                             Row(
                                 modifier = Modifier
@@ -1074,7 +1069,7 @@ private fun CalendarView(
                                     fontWeight = FontWeight.Medium
                                   )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                TextButton(onClick = { viewModel.showEarlierReleases.value = true }) {
+                                TextButton(onClick = { viewModel.setShowEarlierReleases(true) }) {
                                     Text(
                                         if (searchQuery.isNotBlank()) {
                                             "View ${earlierItems.size} Matching Earlier Releases"
