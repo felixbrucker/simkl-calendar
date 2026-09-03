@@ -528,15 +528,12 @@ fun CalendarScreen(
                     )
 
                     // Visual Separator
-                    val showAdditional = (viewMode == MainViewMode.TABLE) || (viewMode == MainViewMode.CALENDAR)
-                    if (showAdditional) {
-                        VerticalDivider(
-                            modifier = Modifier
-                                .height(24.dp)
-                                .padding(horizontal = 4.dp),
-                            color = Color(0xFF49454F)
-                        )
-                    }
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(24.dp)
+                            .padding(horizontal = 4.dp),
+                        color = Color(0xFF49454F)
+                    )
 
                     // Unwatched Released Toggle (Only in Table View)
                     if (viewMode == MainViewMode.TABLE) {
