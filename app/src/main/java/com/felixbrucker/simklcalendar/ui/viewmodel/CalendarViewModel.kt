@@ -106,9 +106,10 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val viewMode: StateFlow<MainViewMode> = _viewMode.asStateFlow()
 
     private var pollingJob: Job? = null
-    private val downloadingItems = allCalendarItems.map { items ->
-        items.filter { it.mediaStatus == MediaStatus.DOWNLOADING }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val downloadingItems = allCalendarItems
+        .map { items -> items.filter { it.mediaStatus == MediaStatus.DOWNLOADING } }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setViewMode(mode: MainViewMode) {
         _viewMode.value = mode
