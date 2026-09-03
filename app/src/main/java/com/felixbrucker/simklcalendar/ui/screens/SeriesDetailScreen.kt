@@ -28,10 +28,12 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
+import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
+import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
@@ -235,7 +237,7 @@ fun SeriesDetailScreen(
 }
 
 @Composable
-fun SeriesHeader(seriesItem: com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem) {
+fun SeriesHeader(seriesItem: TrackedWatchlistItem) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -592,7 +594,7 @@ fun EpisodesTable(
     episodes: List<CalendarItemWithWatchlist>,
     viewModel: CalendarViewModel,
     updatingWatchKeys: Set<String>,
-    torrentDownloads: Map<String, com.felixbrucker.simklcalendar.data.util.DownloadProgress>,
+    torrentDownloads: Map<String, DownloadProgress>,
     onNavigateToEpisode: (String) -> Unit
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -712,7 +714,7 @@ fun EpisodesTable(
 @Composable
 fun MovieReleasesTable(
     releases: List<CalendarItemWithWatchlist>,
-    torrentDownloads: Map<String, com.felixbrucker.simklcalendar.data.util.DownloadProgress>,
+    torrentDownloads: Map<String, DownloadProgress>,
     onNavigateToEpisode: (String) -> Unit
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {

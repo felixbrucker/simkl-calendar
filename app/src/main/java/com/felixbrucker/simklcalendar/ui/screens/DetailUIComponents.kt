@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
 
 @Composable
 fun SeasonOverrideDialog(
@@ -111,16 +112,16 @@ fun SeasonOverrideDialog(
 
 @Composable
 fun MediaStatusDropdown(
-    currentStatus: com.felixbrucker.simklcalendar.data.model.MediaStatus,
-    onStatusChange: (com.felixbrucker.simklcalendar.data.model.MediaStatus) -> Unit
+    currentStatus: MediaStatus,
+    onStatusChange: (MediaStatus) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     val (backgroundColor, textColor) = when (currentStatus) {
-        com.felixbrucker.simklcalendar.data.model.MediaStatus.IGNORED -> Color(0xFF3B383E) to Color(0xFFA5A3B1)
-        com.felixbrucker.simklcalendar.data.model.MediaStatus.NOT_AIRED_YET -> Color(0xFF3B383E) to Color(0xFFA5A3B1)
-        com.felixbrucker.simklcalendar.data.model.MediaStatus.WANTED -> Color(0xFF601410) to Color(0xFFF9DEDC)
-        com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADING -> Color(0xFF004A77) to Color(0xFFC2E8FF)
-        com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADED -> Color(0xFF1E3A2B) to Color(0xFF7CE49F)
+        MediaStatus.IGNORED -> Color(0xFF3B383E) to Color(0xFFA5A3B1)
+        MediaStatus.NOT_AIRED_YET -> Color(0xFF3B383E) to Color(0xFFA5A3B1)
+        MediaStatus.WANTED -> Color(0xFF601410) to Color(0xFFF9DEDC)
+        MediaStatus.DOWNLOADING -> Color(0xFF004A77) to Color(0xFFC2E8FF)
+        MediaStatus.DOWNLOADED -> Color(0xFF1E3A2B) to Color(0xFF7CE49F)
     }
 
     Box {
@@ -155,7 +156,7 @@ fun MediaStatusDropdown(
             onDismissRequest = { expanded = false },
             modifier = Modifier.background(Color(0xFF2B2930))
         ) {
-            com.felixbrucker.simklcalendar.data.model.MediaStatus.entries.forEach { status ->
+            MediaStatus.entries.forEach { status ->
                 DropdownMenuItem(
                     text = { Text(status.displayName, color = Color.White, fontSize = 14.sp) },
                     onClick = {
@@ -164,11 +165,11 @@ fun MediaStatusDropdown(
                     },
                     leadingIcon = {
                         val icon = when (status) {
-                            com.felixbrucker.simklcalendar.data.model.MediaStatus.IGNORED -> Icons.Default.Block
-                            com.felixbrucker.simklcalendar.data.model.MediaStatus.NOT_AIRED_YET -> Icons.Default.Schedule
-                            com.felixbrucker.simklcalendar.data.model.MediaStatus.WANTED -> Icons.Default.Favorite
-                            com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADING -> Icons.Default.Download
-                            com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADED -> Icons.Default.CheckCircle
+                            MediaStatus.IGNORED -> Icons.Default.Block
+                            MediaStatus.NOT_AIRED_YET -> Icons.Default.Schedule
+                            MediaStatus.WANTED -> Icons.Default.Favorite
+                            MediaStatus.DOWNLOADING -> Icons.Default.Download
+                            MediaStatus.DOWNLOADED -> Icons.Default.CheckCircle
                         }
                         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFFD0BCFF))
                     }

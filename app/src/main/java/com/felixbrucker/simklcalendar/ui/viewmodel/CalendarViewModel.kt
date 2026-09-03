@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 import androidx.core.content.edit
+import com.felixbrucker.simklcalendar.data.database.CalendarItem
 
 enum class MainViewMode {
     CALENDAR,
@@ -205,7 +206,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         tableSortDirection
     ) { flows ->
         val watchlist = flows[0] as List<TrackedWatchlistItem>
-        val calendar = flows[1] as List<com.felixbrucker.simklcalendar.data.database.CalendarItem>
+        val calendar = flows[1] as List<CalendarItem>
         val query = flows[2] as String
         val tv = flows[3] as Boolean
         val anime = flows[4] as Boolean

@@ -50,6 +50,8 @@ import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCardBadge
 import com.felixbrucker.simklcalendar.data.util.toPosterUrl
 import com.felixbrucker.simklcalendar.R
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.MainViewMode
 import kotlinx.coroutines.delay
@@ -601,7 +603,7 @@ private fun CalendarView(
     earlierGrouped: Map<String, List<CalendarItemWithWatchlist>>,
     showEarlierReleases: Boolean,
     searchQuery: String,
-    torrentDownloads: Map<String, com.felixbrucker.simklcalendar.data.util.DownloadProgress>,
+    torrentDownloads: Map<String, DownloadProgress>,
     viewModel: CalendarViewModel,
     onNavigateToShowDetail: (String) -> Unit,
     snackbarHostState: SnackbarHostState
@@ -1030,7 +1032,7 @@ fun CalendarItemCard(
     item: CalendarItemWithWatchlist,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    downloadProgress: com.felixbrucker.simklcalendar.data.util.DownloadProgress? = null
+    downloadProgress: DownloadProgress? = null
 ) {
     val categoryColor = when (item.type) {
         MediaType.ANIME -> Color(0xFFD0BCFF)
@@ -1045,7 +1047,7 @@ fun CalendarItemCard(
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (item.mediaStatus == com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADING) Color(0xFF004A77) else Color(0xFF49454F)
+            if (item.mediaStatus == MediaStatus.DOWNLOADING) Color(0xFF004A77) else Color(0xFF49454F)
         ),
         modifier = modifier
             .clickable(onClick = onClick)
@@ -1099,7 +1101,7 @@ fun CalendarItemCard(
                         }
 
                         // Downloading badge
-                        if (item.mediaStatus == com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADING) {
+                        if (item.mediaStatus == MediaStatus.DOWNLOADING) {
                             Badge(
                                 containerColor = Color(0xFF004A77),
                                 contentColor = Color(0xFFC2E8FF)
@@ -1126,7 +1128,7 @@ fun CalendarItemCard(
                         }
 
                         // Downloaded badge
-                        if (item.mediaStatus == com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADED) {
+                        if (item.mediaStatus == MediaStatus.DOWNLOADED) {
                             Badge(
                                 containerColor = Color(0xFF1E3A2B),
                                 contentColor = Color(0xFF7CE49F)
@@ -1238,7 +1240,7 @@ fun CalendarItemCard(
             }
 
             // Progress bar and stats for downloading items
-            if (item.mediaStatus == com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADING && downloadProgress != null) {
+            if (item.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1304,7 +1306,7 @@ fun SwipeableCalendarItemCard(
     onMarkEpisodeWatched: () -> Unit,
     onMarkSeasonWatched: () -> Unit,
     modifier: Modifier = Modifier,
-    downloadProgress: com.felixbrucker.simklcalendar.data.util.DownloadProgress? = null
+    downloadProgress: DownloadProgress? = null
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
