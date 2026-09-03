@@ -10,7 +10,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,7 +47,6 @@ fun SeriesDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEpisode: (String) -> Unit
 ) {
-    val context = LocalContext.current
     val allCalendarItems by viewModel.allCalendarItems.collectAsState()
     val watchlistItems by viewModel.repository.watchlistItems.collectAsState(initial = emptyList())
     val tableItems by viewModel.watchlistTableItems.collectAsState()
@@ -150,21 +148,6 @@ fun SeriesDetailScreen(
                                             currentStatus = digitalRelease.mediaStatus,
                                             onStatusChange = { viewModel.updateMediaStatus(digitalRelease.primaryKey, it) }
                                         )
-
-                                        if (digitalRelease.date.isBefore(java.time.Instant.now())) {
-                                            IconButton(
-                                                onClick = {
-                                                    viewModel.searchAndDownloadEpisode(digitalRelease) { success, message ->
-                                                        if (!success) {
-                                                            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
-                                                        }
-                                                    }
-                                                },
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color(0xFFD0BCFF), modifier = Modifier.size(22.dp))
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -357,18 +340,11 @@ fun SeriesSummaryStats(
         if (isAnimeSeasonOneOnly) {
             VerticalDivider(modifier = Modifier.height(32.dp).padding(horizontal = 12.dp), color = Color(0xFF49454F))
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 MediaStatusDropdown(
                     currentStatus = commonStatus ?: MediaStatus.IGNORED,
                     onStatusChange = { viewModel.updateSeasonMediaStatus(simklId, 1, it) }
                 )
-
-                IconButton(
-                    onClick = { viewModel.searchAndDownloadSeason(simklId, 1) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.Default.Search, contentDescription = "Search All", tint = Color(0xFFD0BCFF), modifier = Modifier.size(22.dp))
-                }
             }
         }
     }
@@ -568,23 +544,11 @@ fun SeasonSectionHeader(
             color = Color(0xFFD0BCFF)
         )
 
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             MediaStatusDropdown(
                 currentStatus = commonStatus ?: MediaStatus.IGNORED,
                 onStatusChange = { viewModel.updateSeasonMediaStatus(simklId, season, it) }
             )
-
-            IconButton(
-                onClick = { viewModel.searchAndDownloadSeason(simklId, season) },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    Icons.Default.Search,
-                    contentDescription = "Search Season",
-                    modifier = Modifier.size(18.dp),
-                    tint = Color(0xFFD0BCFF)
-                )
-            }
         }
     }
 }
@@ -683,25 +647,11 @@ fun EpisodesTable(
                                 },
                                 isLoading = updatingWatchKeys.contains(episode.primaryKey)
                             )
-                            4 -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            4 -> Row(verticalAlignment = Alignment.CenterVertically) {
                                 MediaStatusDropdown(
                                     currentStatus = episode.mediaStatus,
                                     onStatusChange = { viewModel.updateMediaStatus(episode.primaryKey, it) }
                                 )
-                                if (episode.date.isBefore(java.time.Instant.now())) {
-                                    IconButton(
-                                        onClick = {
-                                            viewModel.searchAndDownloadEpisode(episode) { success, message ->
-                                                if (!success) {
-                                                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
-                                                }
-                                            }
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(Icons.Default.Search, contentDescription = "Search", modifier = Modifier.size(18.dp), tint = Color(0xFFD0BCFF))
-                                    }
-                                }
                             }
                         }
                     }
@@ -731,8 +681,8 @@ fun MovieReleasesTable(
                     .padding(bottom = 8.dp)
             ) { row, _ ->
                 val release = releases[row]
-                val downloadProgress = torrentDownloads[release.downloadTaskId]
                 val context = LocalContext.current
+                val downloadProgress = torrentDownloads[release.downloadTaskId]
 
                 Box(
                     modifier = Modifier
