@@ -112,13 +112,8 @@ class TorrentServiceHelper(context: Context) {
     }
 
     fun getProgress(taskId: String): TorrentProgressStats? {
-        val s = _service.value ?: return null
-        return try {
-            s.getProgress(taskId)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting progress for $taskId", e)
-            null
-        }
+        val s = _service.value ?: throw Exception("Service not available")
+        return s.getProgress(taskId)
     }
 
     fun updateDownloadProgress(taskId: String, stats: TorrentProgressStats) {

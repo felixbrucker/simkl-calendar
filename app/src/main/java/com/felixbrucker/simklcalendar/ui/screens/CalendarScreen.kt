@@ -49,7 +49,6 @@ import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCardBadge
 import com.felixbrucker.simklcalendar.data.util.toPosterUrl
-import com.felixbrucker.simklcalendar.R
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
@@ -820,102 +819,11 @@ private fun CalendarView(
                             }
 
                             items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
-                                SwipeableCalendarItemCard(
-                                    modifier = Modifier.animateItem(),
+                                CalendarItemCard(
                                     item = item,
-                                    downloadProgress = torrentDownloads[item.downloadTaskId],
                                     onClick = { onNavigateToShowDetail(item.primaryKey) },
-                                    onMarkEpisodeWatched = {
-                                        if (item.type == MediaType.MOVIE) {
-                                            viewModel.markMovieWatched(
-                                                simklId = item.simklId,
-                                                showTitle = item.title
-                                            ) { success, msg ->
-                                                if (success) {
-                                                    coroutineScope.launch {
-                                                        val result = snackbarHostState.showSnackbar(
-                                                            message = msg,
-                                                            actionLabel = "Revert",
-                                                            duration = SnackbarDuration.Short
-                                                        )
-                                                        if (result == SnackbarResult.ActionPerformed) {
-                                                            viewModel.markMovieUnwatched(
-                                                                simklId = item.simklId,
-                                                                showTitle = item.title
-                                                            ) { _, revertMsg ->
-                                                                coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                            }
-                                                        }
-                                                    }
-                                                } else {
-                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
-                                                }
-                                            }
-                                        } else {
-                                            viewModel.markEpisodeWatched(
-                                                simklId = item.simklId,
-                                                season = item.season,
-                                                episodeNumber = item.episodeNumber ?: 1,
-                                                mediaType = item.type,
-                                                showTitle = item.title
-                                            ) { success, msg ->
-                                                if (success) {
-                                                    coroutineScope.launch {
-                                                        val result = snackbarHostState.showSnackbar(
-                                                            message = msg,
-                                                            actionLabel = "Revert",
-                                                            duration = SnackbarDuration.Short
-                                                        )
-                                                        if (result == SnackbarResult.ActionPerformed) {
-                                                            viewModel.markEpisodeUnwatched(
-                                                                simklId = item.simklId,
-                                                                season = item.season,
-                                                                episodeNumber = item.episodeNumber ?: 1,
-                                                                mediaType = item.type,
-                                                                showTitle = item.title
-                                                            ) { _, revertMsg ->
-                                                                coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                            }
-                                                        }
-                                                    }
-                                                } else {
-                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
-                                                }
-                                            }
-                                        }
-                                    },
-                                    onMarkSeasonWatched = {
-                                        if (item.type != MediaType.MOVIE) {
-                                            viewModel.markSeasonWatched(
-                                                simklId = item.simklId,
-                                                season = item.season ?: 1,
-                                                mediaType = item.type,
-                                                showTitle = item.title
-                                            ) { success, msg ->
-                                                if (success) {
-                                                    coroutineScope.launch {
-                                                        val result = snackbarHostState.showSnackbar(
-                                                            message = msg,
-                                                            actionLabel = "Revert",
-                                                            duration = SnackbarDuration.Short
-                                                        )
-                                                        if (result == SnackbarResult.ActionPerformed) {
-                                                            viewModel.markSeasonUnwatched(
-                                                                simklId = item.simklId,
-                                                                season = item.season ?: 1,
-                                                                mediaType = item.type,
-                                                                showTitle = item.title
-                                                            ) { _, revertMsg ->
-                                                                coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                            }
-                                                        }
-                                                    }
-                                                } else {
-                                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
-                                                }
-                                            }
-                                        }
-                                    }
+                                    downloadProgress = torrentDownloads[item.downloadTaskId],
+                                    modifier = Modifier.animateItem(),
                                 )
                             }
                         }
@@ -943,102 +851,11 @@ private fun CalendarView(
                         }
 
                         items(dayItems, key = { it.primaryKey }) { item ->
-                            SwipeableCalendarItemCard(
-                                modifier = Modifier.animateItem(),
+                            CalendarItemCard(
                                 item = item,
-                                downloadProgress = torrentDownloads[item.downloadTaskId],
                                 onClick = { onNavigateToShowDetail(item.primaryKey) },
-                                onMarkEpisodeWatched = {
-                                    if (item.type == MediaType.MOVIE) {
-                                        viewModel.markMovieWatched(
-                                            simklId = item.simklId,
-                                            showTitle = item.title
-                                        ) { success, msg ->
-                                            if (success) {
-                                                coroutineScope.launch {
-                                                    val result = snackbarHostState.showSnackbar(
-                                                        message = msg,
-                                                        actionLabel = "Revert",
-                                                        duration = SnackbarDuration.Short
-                                                    )
-                                                    if (result == SnackbarResult.ActionPerformed) {
-                                                        viewModel.markMovieUnwatched(
-                                                            simklId = item.simklId,
-                                                            showTitle = item.title
-                                                        ) { _, revertMsg ->
-                                                            coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                        }
-                                                    }
-                                                }
-                                            } else {
-                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
-                                            }
-                                        }
-                                    } else {
-                                        viewModel.markEpisodeWatched(
-                                            simklId = item.simklId,
-                                            season = item.season,
-                                            episodeNumber = item.episodeNumber ?: 1,
-                                            mediaType = item.type,
-                                            showTitle = item.title
-                                        ) { success, msg ->
-                                            if (success) {
-                                                coroutineScope.launch {
-                                                    val result = snackbarHostState.showSnackbar(
-                                                        message = msg,
-                                                        actionLabel = "Revert",
-                                                        duration = SnackbarDuration.Short
-                                                    )
-                                                    if (result == SnackbarResult.ActionPerformed) {
-                                                        viewModel.markEpisodeUnwatched(
-                                                            simklId = item.simklId,
-                                                            season = item.season,
-                                                            episodeNumber = item.episodeNumber ?: 1,
-                                                            mediaType = item.type,
-                                                            showTitle = item.title
-                                                        ) { _, revertMsg ->
-                                                            coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                        }
-                                                    }
-                                                }
-                                            } else {
-                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
-                                            }
-                                        }
-                                    }
-                                },
-                                onMarkSeasonWatched = {
-                                    if (item.type != MediaType.MOVIE) {
-                                        viewModel.markSeasonWatched(
-                                            simklId = item.simklId,
-                                            season = item.season ?: 1,
-                                            mediaType = item.type,
-                                            showTitle = item.title
-                                        ) { success, msg ->
-                                            if (success) {
-                                                coroutineScope.launch {
-                                                    val result = snackbarHostState.showSnackbar(
-                                                        message = msg,
-                                                        actionLabel = "Revert",
-                                                        duration = SnackbarDuration.Short
-                                                    )
-                                                    if (result == SnackbarResult.ActionPerformed) {
-                                                        viewModel.markSeasonUnwatched(
-                                                            simklId = item.simklId,
-                                                            season = item.season ?: 1,
-                                                            mediaType = item.type,
-                                                            showTitle = item.title
-                                                        ) { _, revertMsg ->
-                                                            coroutineScope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                        }
-                                                    }
-                                                }
-                                            } else {
-                                                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
-                                            }
-                                        }
-                                    }
-                                }
+                                downloadProgress = torrentDownloads[item.downloadTaskId],
+                                modifier = Modifier.animateItem(),
                             )
                         }
                     }
@@ -1112,6 +929,8 @@ fun CalendarItemCard(
             if (item.mediaStatus == MediaStatus.DOWNLOADING) Color(0xFF004A77) else Color(0xFF49454F)
         ),
         modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .clickable(onClick = onClick)
     ) {
         Column {
@@ -1357,122 +1176,5 @@ fun CalendarItemCard(
                 }
             }
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SwipeableCalendarItemCard(
-    item: CalendarItemWithWatchlist,
-    onClick: () -> Unit,
-    onMarkEpisodeWatched: () -> Unit,
-    onMarkSeasonWatched: () -> Unit,
-    modifier: Modifier = Modifier,
-    downloadProgress: DownloadProgress? = null
-) {
-    val scope = rememberCoroutineScope()
-    val dismissState = rememberSwipeToDismissBoxState(
-        positionalThreshold = { totalDistance -> totalDistance * 0.35f }
-    )
-
-    SwipeToDismissBox(
-        state = dismissState,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = item.type != MediaType.MOVIE,
-        onDismiss = { dismissValue ->
-            when (dismissValue) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    // Swiped Right -> Mark this episode as watched
-                    onMarkEpisodeWatched()
-                }
-                SwipeToDismissBoxValue.EndToStart -> {
-                    // Swiped Left -> Mark the season as watched (only available on anime/shows)
-                    if (item.type != MediaType.MOVIE) {
-                        onMarkSeasonWatched()
-                    }
-                }
-                SwipeToDismissBoxValue.Settled -> {}
-            }
-            scope.launch {
-                dismissState.reset()
-            }
-        },
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-            val isStartToEnd = direction == SwipeToDismissBoxValue.StartToEnd
-            val isEndToStart = direction == SwipeToDismissBoxValue.EndToStart
-
-            val backgroundColor = when {
-                isStartToEnd -> Color(0xFF1B4D3E) // Episode watched: deep green
-                isEndToStart && item.type != MediaType.MOVIE -> Color(0xFF004D40) // Season watched: deep teal
-                else -> Color.Transparent
-            }
-
-            val icon = when {
-                isStartToEnd -> painterResource(id = R.drawable.ic_check)
-                isEndToStart && item.type != MediaType.MOVIE -> painterResource(id = R.drawable.ic_done_all)
-                else -> null
-            }
-
-            val label = when {
-                isStartToEnd -> "Mark as watched"
-                isEndToStart && item.type != MediaType.MOVIE -> "Mark season as watched"
-                else -> ""
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(backgroundColor)
-                    .padding(horizontal = 20.dp),
-                contentAlignment = if (isStartToEnd) Alignment.CenterStart else Alignment.CenterEnd
-            ) {
-                if (icon != null) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (isStartToEnd) {
-                            Icon(
-                                painter = icon,
-                                contentDescription = label,
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text(
-                                text = label,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
-                        } else {
-                            Text(
-                                text = label,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
-                            Icon(
-                                painter = icon,
-                                contentDescription = label,
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    ) {
-        CalendarItemCard(
-            item = item,
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
-            downloadProgress = downloadProgress
-        )
     }
 }
