@@ -43,15 +43,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Support deep linking back for Simkl OAuth callback and Show Details -->
+            <!-- Support deep linking back for Simkl OAuth callback and Release Details -->
             <intent-filter android:label="Simkl Calendar OAuth Callback">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="simklcalendar" />
                 <data android:host="auth" />
-                <data android:host="oauth" />
-                <data android:host="detail" />
+                <data android:host="release_detail" />
             </intent-filter>
         </activity>
 

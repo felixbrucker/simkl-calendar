@@ -68,9 +68,6 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     val repository = SimklRepository(application)
 
-    val userToken: StateFlow<UserToken?> = repository.activeUserToken
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
     val notificationSettings: StateFlow<List<NotificationSetting>> = repository.notificationSettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -90,7 +87,14 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val isTorrentServiceInstalled: StateFlow<Boolean> = repository.torrentServiceHelper.isInstalled
 
     private val _isAuthReady = MutableStateFlow(false)
-    val isAuthReady: StateFlow<Boolean> = _isAuthReady.asStateFlow()
+
+    private val _userToken = MutableStateFlow<UserToken?>(null)
+    val userToken: StateFlow<UserToken?> = _userToken.asStateFlow()
+
+    data class AuthState(val isReady: Boolean, val token: UserToken?)
+    val authState: StateFlow<AuthState> = combine(_isAuthReady, _userToken) { ready, token ->
+        AuthState(ready, token)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, AuthState(false, null))
 
     private val uiPrefs = application.getSharedPreferences("ui_prefs", Context.MODE_PRIVATE)
 
@@ -627,11 +631,12 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     init {
         // Automatically sync calendar on launch only if user is logged in
         viewModelScope.launch {
-            val token = repository.activeUserToken.first()
-            _isAuthReady.value = true
-
-            if (token != null && token.accessToken.isNotEmpty()) {
-                syncLocalCalendar()
+            repository.activeUserToken.collect { token ->
+                _userToken.value = token
+                _isAuthReady.value = true
+                if (token != null && token.accessToken.isNotEmpty()) {
+                    syncLocalCalendar()
+                }
             }
         }
         // Refresh torrent service status

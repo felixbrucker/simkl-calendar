@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,6 +46,8 @@ import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import androidx.core.net.toUri
+import java.net.URLEncoder
+import java.net.URLDecoder
 
 class MainActivity : ComponentActivity() {
     private val viewModel: CalendarViewModel by viewModels()
@@ -125,7 +128,7 @@ class MainActivity : ComponentActivity() {
             ?: if (intent.data?.scheme == "simklcalendar" && intent.data?.host == "detail") {
                 intent.data?.lastPathSegment?.let { segment ->
                     try {
-                        java.net.URLDecoder.decode(segment, "UTF-8")
+                        URLDecoder.decode(segment, "UTF-8")
                     } catch (_: Exception) {
                         segment
                     }
@@ -168,13 +171,12 @@ fun SimklCalendarApp(
     onLaunchAuthTab: (url: String) -> Unit = {}
 ) {
     val navController = rememberNavController()
-    val userToken by viewModel.userToken.collectAsState()
-    val isAuthReady by viewModel.isAuthReady.collectAsState()
+    val authState by viewModel.authState.collectAsState()
     val pendingDetailKey by viewModel.pendingDetailKey.collectAsState()
     val context = LocalContext.current
 
     // Don't render navigation until we know if the user is logged in or not
-    if (!isAuthReady) {
+    if (!authState.isReady) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = Color(0xFFD0BCFF))
         }
@@ -182,11 +184,12 @@ fun SimklCalendarApp(
     }
 
     // Automatically navigate to detail when an item key is provided via notification or deep link
-    LaunchedEffect(pendingDetailKey, userToken) {
+    LaunchedEffect(pendingDetailKey, authState.token) {
         val targetKey = pendingDetailKey
-        if (targetKey != null && userToken != null) {
-            val encodedKey = java.net.URLEncoder.encode(targetKey, "UTF-8")
-            navController.navigate("detail/$encodedKey") {
+        val token = authState.token
+        if (targetKey != null && token != null) {
+            val encodedKey = URLEncoder.encode(targetKey, "UTF-8")
+            navController.navigate("release_detail/$encodedKey") {
                 launchSingleTop = true
             }
             viewModel.clearPendingDetailKey()
@@ -209,8 +212,11 @@ fun SimklCalendarApp(
         }
     }
 
-    // Determine initial active route depending on user authentication status
-    val startDestination = if (userToken == null) "login" else "calendar"
+    // Determine initial active route exactly once when auth state is ready to avoid graph resets.
+    // We key by the 'is logged in' state to satisfy the lint while keeping the destination stable.
+    val startDestination = remember(authState.token == null) {
+        if (authState.token == null) "login" else "calendar"
+    }
 
     NavHost(
         navController = navController,
@@ -225,6 +231,7 @@ fun SimklCalendarApp(
                     onLoginSuccess = {
                         navController.navigate("calendar") {
                             popUpTo("login") { inclusive = true }
+                            launchSingleTop = true
                         }
                     }
                 )
@@ -235,14 +242,20 @@ fun SimklCalendarApp(
                 CalendarScreen(
                     viewModel = viewModel,
                     onNavigateToSettings = {
-                        navController.navigate("settings")
+                        navController.navigate("settings") {
+                            launchSingleTop = true
+                        }
                     },
                     onNavigateToShowDetail = { itemKey ->
-                        val encodedKey = java.net.URLEncoder.encode(itemKey, "UTF-8")
-                        navController.navigate("detail/$encodedKey")
+                        val encodedKey = URLEncoder.encode(itemKey, "UTF-8")
+                        navController.navigate("release_detail/$encodedKey") {
+                            launchSingleTop = true
+                        }
                     },
                     onNavigateToSeriesDetail = { simklId ->
-                        navController.navigate("series_detail/$simklId")
+                        navController.navigate("watchlist_item_detail/$simklId") {
+                            launchSingleTop = true
+                        }
                     }
                 )
             }
@@ -257,15 +270,15 @@ fun SimklCalendarApp(
                 )
             }
 
-            // 4. Show Details screen
+            // 4. Release Detail screen
             composable(
-                route = "detail/{itemKey}",
+                route = "release_detail/{itemKey}",
                 arguments = listOf(navArgument("itemKey") { type = NavType.StringType }),
-                deepLinks = listOf(navDeepLink { uriPattern = "simklcalendar://detail/{itemKey}" })
+                deepLinks = listOf(navDeepLink { uriPattern = "simklcalendar://release_detail/{itemKey}" })
             ) { backStackEntry ->
                 val rawKey = backStackEntry.arguments?.getString("itemKey") ?: ""
                 val itemKey = try {
-                    java.net.URLDecoder.decode(rawKey, "UTF-8")
+                    URLDecoder.decode(rawKey, "UTF-8")
                 } catch (_: Exception) {
                     rawKey
                 }
@@ -278,9 +291,9 @@ fun SimklCalendarApp(
                 )
             }
 
-            // 5. Watchlist Series Details screen
+            // 5. Watchlist Item Details screen
             composable(
-                route = "series_detail/{simklId}",
+                route = "watchlist_item_detail/{simklId}",
                 arguments = listOf(navArgument("simklId") { type = NavType.IntType })
             ) { backStackEntry ->
                 val simklId = backStackEntry.arguments?.getInt("simklId") ?: 0
@@ -289,8 +302,8 @@ fun SimklCalendarApp(
                     simklId = simklId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToEpisode = { itemKey ->
-                        val encodedKey = java.net.URLEncoder.encode(itemKey, "UTF-8")
-                        navController.navigate("detail/$encodedKey")
+                        val encodedKey = URLEncoder.encode(itemKey, "UTF-8")
+                        navController.navigate("release_detail/$encodedKey")
                     }
                 )
             }

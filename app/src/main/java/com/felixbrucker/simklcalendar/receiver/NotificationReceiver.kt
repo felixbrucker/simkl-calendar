@@ -530,7 +530,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     } catch (_: Exception) {
                         itemKey
                     }
-                    data = "simklcalendar://detail/$encodedKey".toUri()
+                    data = "simklcalendar://release_detail/$encodedKey".toUri()
                 }
             }
             val pendingIntent = PendingIntent.getActivity(
@@ -730,7 +730,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     } catch (_: Exception) {
                         itemKey
                     }
-                    data = "simklcalendar://detail/$encodedKey".toUri()
+                    data = "simklcalendar://release_detail/$encodedKey".toUri()
                 }
             }
             val pendingIntent = PendingIntent.getActivity(
