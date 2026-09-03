@@ -1369,24 +1369,8 @@ fun SwipeableCalendarItemCard(
     modifier: Modifier = Modifier,
     downloadProgress: DownloadProgress? = null
 ) {
+    val scope = rememberCoroutineScope()
     val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { dismissValue ->
-            when (dismissValue) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    // Swiped Right -> Mark this episode as watched
-                    onMarkEpisodeWatched()
-                    false
-                }
-                SwipeToDismissBoxValue.EndToStart -> {
-                    // Swiped Left -> Mark the season as watched (only available on anime/shows)
-                    if (item.type != MediaType.MOVIE) {
-                        onMarkSeasonWatched()
-                    }
-                    false
-                }
-                SwipeToDismissBoxValue.Settled -> false
-            }
-        },
         positionalThreshold = { totalDistance -> totalDistance * 0.35f }
     )
 
@@ -1397,6 +1381,24 @@ fun SwipeableCalendarItemCard(
             .padding(horizontal = 16.dp, vertical = 6.dp),
         enableDismissFromStartToEnd = true,
         enableDismissFromEndToStart = item.type != MediaType.MOVIE,
+        onDismiss = { dismissValue ->
+            when (dismissValue) {
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    // Swiped Right -> Mark this episode as watched
+                    onMarkEpisodeWatched()
+                }
+                SwipeToDismissBoxValue.EndToStart -> {
+                    // Swiped Left -> Mark the season as watched (only available on anime/shows)
+                    if (item.type != MediaType.MOVIE) {
+                        onMarkSeasonWatched()
+                    }
+                }
+                SwipeToDismissBoxValue.Settled -> {}
+            }
+            scope.launch {
+                dismissState.reset()
+            }
+        },
         backgroundContent = {
             val direction = dismissState.dismissDirection
             val isStartToEnd = direction == SwipeToDismissBoxValue.StartToEnd
