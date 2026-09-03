@@ -85,6 +85,10 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     val isTorrentServiceBound: StateFlow<Boolean> = repository.torrentServiceHelper.isBound
     val isTorrentServiceInstalled: StateFlow<Boolean> = repository.torrentServiceHelper.isInstalled
+    val hasWantedCalendarItems: StateFlow<Boolean> = allCalendarItems
+        .map { it.any { item -> item.mediaStatus == MediaStatus.WANTED } }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _isAuthReady = MutableStateFlow(false)
 

@@ -79,6 +79,7 @@ fun CalendarScreen(
     val isSearchingWantedTorrents by viewModel.isSearchingWantedTorrents.collectAsState()
     val autoDownloadStatus by viewModel.autoDownloadStatus.collectAsState()
     val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
+    val hasWantedCalendarItems by viewModel.hasWantedCalendarItems.collectAsState()
     val userToken by viewModel.userToken.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val torrentDownloads by viewModel.torrentDownloads.collectAsState()
@@ -361,7 +362,7 @@ fun CalendarScreen(
                             }
                         }
 
-                        if (isDownloaderInstalled) {
+                        if (isDownloaderInstalled && hasWantedCalendarItems) {
                             AnimatedContent(
                                 targetState = shouldShowAutoDownloadStatus,
                                 transitionSpec = {
