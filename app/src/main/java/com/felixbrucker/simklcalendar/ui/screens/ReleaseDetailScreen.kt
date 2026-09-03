@@ -39,16 +39,12 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
-import com.felixbrucker.simklcalendar.data.util.formattedEpisodeLabel
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
-import com.felixbrucker.simklcalendar.data.util.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.launch
 import androidx.core.net.toUri
-import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -765,118 +761,16 @@ fun ReleaseDetailScreen(
                     }
 
                     // Per-Show / Per-Movie Notification Settings
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                        border = BorderStroke(1.dp, Color(0xFF49454F))
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Notifications Strategy", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            if (activeItem.type != MediaType.MOVIE) {
-                                // Toggle every episode
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Episode Alerts", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                        Text("Notify me as soon as each episode of this series airs.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
-                                    }
-                                    Switch(
-                                        checked = notifyEveryEpisode,
-                                        onCheckedChange = { isChecked ->
-                                            notifyEveryEpisode = isChecked
-                                            if (isChecked) checkAndRequestNotificationPermission()
-                                            viewModel.toggleNotification(
-                                                simklId = activeItem.simklId,
-                                                notifyEpisode = isChecked,
-                                                notifySeasonFinished = notifySeasonFinished
-                                            )
-                                        }
-                                    )
-                                }
-
-                                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
-
-                                // Toggle Season Finished Airing
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Season Finished Airing", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                        Text("Notify me when the season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
-                                    }
-                                    Switch(
-                                        checked = notifySeasonFinished,
-                                        onCheckedChange = { isChecked ->
-                                            notifySeasonFinished = isChecked
-                                            if (isChecked) checkAndRequestNotificationPermission()
-                                            viewModel.toggleNotification(
-                                                simklId = activeItem.simklId,
-                                                notifyEpisode = notifyEveryEpisode,
-                                                notifySeasonFinished = isChecked
-                                            )
-                                        }
-                                    )
-                                }
-                            } else {
-                                // Movie Theater Release Toggle
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Theater Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                        Text("Notify me when the movie releases in theaters.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
-                                    }
-                                    Switch(
-                                        checked = notifyEveryEpisode,
-                                        onCheckedChange = { isChecked ->
-                                            notifyEveryEpisode = isChecked
-                                            if (isChecked) checkAndRequestNotificationPermission()
-                                            viewModel.toggleNotification(
-                                                simklId = activeItem.simklId,
-                                                notifyEpisode = isChecked,
-                                                notifySeasonFinished = notifySeasonFinished
-                                            )
-                                        }
-                                    )
-                                }
-
-                                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
-
-                                // Movie Digital / DVD Release Toggle
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Digital / DVD Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                        Text("Notify me when the movie is available on digital or DVD.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
-                                    }
-                                    Switch(
-                                        checked = notifySeasonFinished,
-                                        onCheckedChange = { isChecked ->
-                                            notifySeasonFinished = isChecked
-                                            if (isChecked) checkAndRequestNotificationPermission()
-                                            viewModel.toggleNotification(
-                                                simklId = activeItem.simklId,
-                                                notifyEpisode = notifyEveryEpisode,
-                                                notifySeasonFinished = isChecked
-                                            )
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    NotificationSettingsCard(
+                        simklId = activeItem.simklId,
+                        isMovie = isMovie,
+                        notifyEveryEpisode = notifyEveryEpisode,
+                        notifySeasonFinished = notifySeasonFinished,
+                        onNotifyEveryEpisodeChange = { notifyEveryEpisode = it },
+                        onNotifySeasonFinishedChange = { notifySeasonFinished = it },
+                        checkPermission = { checkAndRequestNotificationPermission() },
+                        viewModel = viewModel
+                    )
                 }
             }
         }

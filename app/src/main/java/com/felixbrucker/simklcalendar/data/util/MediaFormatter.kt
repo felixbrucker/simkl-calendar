@@ -53,23 +53,6 @@ object MediaFormatter {
     }
 
     /**
-     * Formats a descriptive episode label (e.g. "Episode 05" or "S01E05").
-     */
-    fun formatEpisodeLabel(
-        mediaType: MediaType,
-        season: Int?,
-        episodeNumber: Int?
-    ): String {
-        val epNum = episodeNumber ?: 1
-        return if (isAnimeSeasonOne(mediaType, season)) {
-            String.format(Locale.US, "Episode %02d", epNum)
-        } else {
-            val sNum = season ?: 1
-            String.format(Locale.US, "S%02dE%02d", sNum, epNum)
-        }
-    }
-
-    /**
      * Formats the season label (e.g., "Season" for Anime Season 1, "Season 2" for TV / multi-season Anime).
      */
     fun formatSeasonLabel(
@@ -250,9 +233,6 @@ val CalendarItemWithWatchlist.formattedEpisodeCode: String
 
 val CalendarItemWithWatchlist.formattedEpisodeCardBadge: String
     get() = MediaFormatter.formatEpisodeCardBadge(type, season, episodeNumber)
-
-val CalendarItemWithWatchlist.formattedEpisodeLabel: String
-    get() = MediaFormatter.formatEpisodeLabel(type, season, episodeNumber)
 
 val CalendarItemWithWatchlist.formattedSeasonLabel: String
     get() = MediaFormatter.formatSeasonLabel(type, season)

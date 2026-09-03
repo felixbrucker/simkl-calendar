@@ -1,5 +1,11 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,23 +23,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
-import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
-import com.felixbrucker.simklcalendar.data.util.PosterSize
-import com.felixbrucker.simklcalendar.data.util.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import com.felixbrucker.simklcalendar.ui.composable.Table
@@ -51,6 +53,24 @@ fun WatchlistItemDetailScreen(
     val tableItems by viewModel.watchlistTableItems.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
     val torrentDownloads by viewModel.torrentDownloads.collectAsState()
+
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { /* Permission callback */ }
+
+    fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    val settingsList by viewModel.notificationSettings.collectAsState()
+    val showSetting = remember(settingsList, simklId) {
+        settingsList.find { it.simklId == simklId }
+    }
 
     val seriesItem = remember(watchlistItems, simklId) {
         watchlistItems.find { it.simklId == simklId }
@@ -73,6 +93,26 @@ fun WatchlistItemDetailScreen(
 
     val isMovie = seriesItem?.type == MediaType.MOVIE
     val isAnimeSeasonOneOnly = seriesItem?.type == MediaType.ANIME && seasons.size == 1 && seasons.containsKey(1)
+
+    val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
+    val defaultAiring = prefs.getBoolean("default_notify_airing", false)
+    val defaultSeasonFinished = prefs.getBoolean("default_notify_season_finished", true)
+    val defaultMovieTheater = prefs.getBoolean("default_notify_movie_theater", false)
+    val defaultMovieDigital = prefs.getBoolean("default_notify_movie_digital", true)
+
+    var notifyEveryEpisode by remember(showSetting, defaultAiring, defaultMovieTheater, isMovie) {
+        mutableStateOf(showSetting?.notifyEveryEpisode ?: (if (isMovie) defaultMovieTheater else defaultAiring))
+    }
+    var notifySeasonFinished by remember(showSetting, defaultSeasonFinished, defaultMovieDigital, isMovie) {
+        mutableStateOf(showSetting?.notifyAiredLastEpisode ?: (if (isMovie) defaultMovieDigital else defaultSeasonFinished))
+    }
+
+    LaunchedEffect(showSetting) {
+        if (showSetting != null) {
+            notifyEveryEpisode = showSetting.notifyEveryEpisode
+            notifySeasonFinished = showSetting.notifyAiredLastEpisode
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -200,7 +240,22 @@ fun WatchlistItemDetailScreen(
                     }
                 }
 
-                // 4. Download Settings (Moved to bottom)
+                // 4. Notification Settings
+                item {
+                    NotificationSettingsCard(
+                        simklId = simklId,
+                        isMovie = isMovie,
+                        notifyEveryEpisode = notifyEveryEpisode,
+                        notifySeasonFinished = notifySeasonFinished,
+                        onNotifyEveryEpisodeChange = { notifyEveryEpisode = it },
+                        onNotifySeasonFinishedChange = { notifySeasonFinished = it },
+                        checkPermission = { checkAndRequestNotificationPermission() },
+                        viewModel = viewModel,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+
+                // 5. Download Settings (Moved to bottom)
                 item {
                     WatchlistItemDownloadSettings(
                         viewModel = viewModel,

@@ -310,6 +310,133 @@ fun getTableItemColor(x: Int, y: Int): Color {
 }
 
 @Composable
+fun NotificationSettingsCard(
+    simklId: Int,
+    isMovie: Boolean,
+    notifyEveryEpisode: Boolean,
+    notifySeasonFinished: Boolean,
+    onNotifyEveryEpisodeChange: (Boolean) -> Unit,
+    onNotifySeasonFinishedChange: (Boolean) -> Unit,
+    checkPermission: () -> Unit,
+    viewModel: CalendarViewModel,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Notifications Strategy", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 15.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (!isMovie) {
+                // Toggle every episode
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Episode Alerts", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Notify me as soon as each episode of this series airs.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = notifyEveryEpisode,
+                        onCheckedChange = { isChecked ->
+                            onNotifyEveryEpisodeChange(isChecked)
+                            if (isChecked) checkPermission()
+                            viewModel.toggleNotification(
+                                simklId = simklId,
+                                notifyEpisode = isChecked,
+                                notifySeasonFinished = notifySeasonFinished
+                            )
+                        }
+                    )
+                }
+
+                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+
+                // Toggle Season Finished Airing
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Season Finished Airing", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Notify me when the season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = notifySeasonFinished,
+                        onCheckedChange = { isChecked ->
+                            onNotifySeasonFinishedChange(isChecked)
+                            if (isChecked) checkPermission()
+                            viewModel.toggleNotification(
+                                simklId = simklId,
+                                notifyEpisode = notifyEveryEpisode,
+                                notifySeasonFinished = isChecked
+                            )
+                        }
+                    )
+                }
+            } else {
+                // Movie Theater Release Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Theater Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Notify me when the movie releases in theaters.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = notifyEveryEpisode,
+                        onCheckedChange = { isChecked ->
+                            onNotifyEveryEpisodeChange(isChecked)
+                            if (isChecked) checkPermission()
+                            viewModel.toggleNotification(
+                                simklId = simklId,
+                                notifyEpisode = isChecked,
+                                notifySeasonFinished = notifySeasonFinished
+                            )
+                        }
+                    )
+                }
+
+                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+
+                // Movie Digital / DVD Release Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Digital / DVD Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Notify me when the movie is available on digital or DVD.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = notifySeasonFinished,
+                        onCheckedChange = { isChecked ->
+                            onNotifySeasonFinishedChange(isChecked)
+                            if (isChecked) checkPermission()
+                            viewModel.toggleNotification(
+                                simklId = simklId,
+                                notifyEpisode = notifyEveryEpisode,
+                                notifySeasonFinished = isChecked
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun DetailHeader(
     simklId: Int,
     type: MediaType,

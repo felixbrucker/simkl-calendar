@@ -5,15 +5,11 @@ import android.util.Log
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
-import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
 class AutoDownloadWorker(
@@ -43,18 +39,6 @@ class AutoDownloadWorker(
         private const val TAG = "AutoDownloadWorker"
         const val UNIQUE_WORK_NAME = "simkl_periodic_auto_download"
         const val MANUAL_WORK_NAME = "simkl_manual_auto_download"
-
-        fun runOnce(context: Context) {
-            val searchRequest = OneTimeWorkRequestBuilder<AutoDownloadWorker>()
-                .build()
-
-            WorkManager.getInstance(context).enqueueUniqueWork(
-                MANUAL_WORK_NAME,
-                ExistingWorkPolicy.REPLACE,
-                searchRequest
-            )
-            Log.d(TAG, "Enqueued manual one-time background torrent search work")
-        }
 
         fun enqueuePeriodicSearch(context: Context, intervalHours: Long = 12) {
             val constraints = Constraints.Builder()
