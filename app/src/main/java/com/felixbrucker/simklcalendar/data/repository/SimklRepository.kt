@@ -113,7 +113,7 @@ class SimklRepository(private val context: Context) {
     }
 
     suspend fun updateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus) = withContext(Dispatchers.IO) {
-        calendarDao.updateSeasonMediaStatus(simklId, season, status)
+        calendarDao.updateSeasonMediaStatus(simklId, season, status, Instant.now())
     }
 
     suspend fun updateDownloadTaskId(primaryKey: String, taskId: String?, status: MediaStatus) = withContext(Dispatchers.IO) {

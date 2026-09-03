@@ -4,6 +4,7 @@ import androidx.room.*
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 
 @Dao
 interface UserTokenDao {
@@ -74,23 +75,23 @@ interface CalendarItemDao {
     @Query("UPDATE calendar_items SET mediaStatus = :status WHERE primaryKey = :primaryKey")
     suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus)
 
-    @Query("UPDATE calendar_items SET mediaStatus = :status WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL))")
-    suspend fun updateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus)
+    @Query("UPDATE calendar_items SET mediaStatus = :status WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) AND date <= :now")
+    suspend fun updateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus, now: Instant)
 
     @Query("UPDATE calendar_items SET downloadTaskId = :taskId, mediaStatus = :status WHERE primaryKey = :primaryKey")
     suspend fun updateDownloadTaskId(primaryKey: String, taskId: String?, status: MediaStatus)
 
     @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL) OR (:season IS NULL AND (season = 1 OR season IS NULL))) AND episodeNumber = :episodeNumber")
-    suspend fun markEpisodeWatched(simklId: Int, season: Int?, episodeNumber: Int, watchedAt: java.time.Instant?)
+    suspend fun markEpisodeWatched(simklId: Int, season: Int?, episodeNumber: Int, watchedAt: Instant?)
 
     @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL))")
-    suspend fun markSeasonWatched(simklId: Int, season: Int, watchedAt: java.time.Instant?)
+    suspend fun markSeasonWatched(simklId: Int, season: Int, watchedAt: Instant?)
 
     @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId")
-    suspend fun markMovieWatched(simklId: Int, watchedAt: java.time.Instant?)
+    suspend fun markMovieWatched(simklId: Int, watchedAt: Instant?)
 
     @Query("DELETE FROM calendar_items WHERE watchedAt IS NOT NULL AND watchedAt < :cutoff")
-    suspend fun deleteWatchedItemsOlderThan(cutoff: java.time.Instant): Int
+    suspend fun deleteWatchedItemsOlderThan(cutoff: Instant): Int
 
     @Query("UPDATE calendar_items SET watchedAt = NULL")
     suspend fun markAllUnwatched()
