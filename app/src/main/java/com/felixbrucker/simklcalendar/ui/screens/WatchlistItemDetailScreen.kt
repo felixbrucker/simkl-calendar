@@ -41,7 +41,7 @@ import com.felixbrucker.simklcalendar.ui.composable.Table
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SeriesDetailScreen(
+fun WatchlistItemDetailScreen(
     viewModel: CalendarViewModel,
     simklId: Int,
     onNavigateBack: () -> Unit,
@@ -101,13 +101,13 @@ fun SeriesDetailScreen(
             ) {
                 // 1. Header with Poster & Title
                 item {
-                    SeriesHeader(seriesItem)
+                    WatchlistItemHeader(seriesItem)
                 }
 
                 // 2. Summary Stats Bar (Hidden for movies)
                 if (!isMovie) {
                     item {
-                        SeriesSummaryStats(
+                        WatchlistItemSummaryStats(
                             item = tableItem,
                             viewModel = viewModel,
                             simklId = simklId,
@@ -203,7 +203,7 @@ fun SeriesDetailScreen(
 
                 // 4. Download Settings (Moved to bottom)
                 item {
-                    SeriesDownloadSettings(
+                    WatchlistItemDownloadSettings(
                         viewModel = viewModel,
                         simklId = seriesItem.simklId,
                         showTitle = seriesItem.title,
@@ -220,7 +220,7 @@ fun SeriesDetailScreen(
 }
 
 @Composable
-fun SeriesHeader(seriesItem: TrackedWatchlistItem) {
+fun WatchlistItemHeader(seriesItem: TrackedWatchlistItem) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -291,7 +291,7 @@ fun SeriesHeader(seriesItem: TrackedWatchlistItem) {
 }
 
 @Composable
-fun SeriesSummaryStats(
+fun WatchlistItemSummaryStats(
     item: WatchlistTableItem?,
     viewModel: CalendarViewModel,
     simklId: Int,
@@ -359,7 +359,7 @@ fun StatItem(label: String, value: String, modifier: Modifier = Modifier, valueC
 }
 
 @Composable
-fun SeriesDownloadSettings(
+fun WatchlistItemDownloadSettings(
     viewModel: CalendarViewModel,
     simklId: Int,
     showTitle: String,

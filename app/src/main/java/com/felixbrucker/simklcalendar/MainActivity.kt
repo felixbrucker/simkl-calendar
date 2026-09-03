@@ -40,7 +40,7 @@ import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import com.felixbrucker.simklcalendar.ui.screens.CalendarScreen
 import com.felixbrucker.simklcalendar.ui.screens.LoginScreen
 import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen
-import com.felixbrucker.simklcalendar.ui.screens.SeriesDetailScreen
+import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
@@ -284,7 +284,7 @@ fun SimklCalendarApp(
                 arguments = listOf(navArgument("simklId") { type = NavType.IntType })
             ) { backStackEntry ->
                 val simklId = backStackEntry.arguments?.getInt("simklId") ?: 0
-                SeriesDetailScreen(
+                WatchlistItemDetailScreen(
                     viewModel = viewModel,
                     simklId = simklId,
                     onNavigateBack = { navController.popBackStack() },
