@@ -134,7 +134,8 @@ fun WatchlistItemDetailScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C1B1F))
             )
         },
-        containerColor = Color(0xFF1C1B1F)
+        containerColor = Color(0xFF1C1B1F),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         if (watchlistItem == null) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
@@ -284,7 +285,8 @@ fun WatchlistItemDetailScreen(
                         viewModel = viewModel,
                         simklId = watchlistItem.simklId,
                         itemTitle = watchlistItem.title,
-                        isMovie = isMovie
+                        isMovie = isMovie,
+                        modifier = Modifier.padding(16.dp),
                     )
                 }
 

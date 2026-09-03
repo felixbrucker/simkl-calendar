@@ -447,7 +447,8 @@ fun DetailHeader(
     title: String,
     poster: String?,
     modifier: Modifier = Modifier,
-    titleRomaji: String? = null
+    titleRomaji: String? = null,
+    onTitleClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     Box(
@@ -511,7 +512,8 @@ fun DetailHeader(
                 text = title,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White
+                color = Color.White,
+                modifier = Modifier.clickable(onClick = onTitleClick)
             )
 
             if (type == MediaType.ANIME && !titleRomaji.isNullOrBlank()) {
@@ -565,7 +567,8 @@ fun DownloadSettingsCard(
     viewModel: CalendarViewModel,
     simklId: Int,
     itemTitle: String,
-    isMovie: Boolean
+    isMovie: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val globalUnwatched by viewModel.autoDownloadUnwatchedDefault.collectAsState()
     val globalQuality by viewModel.autoDownloadQuality.collectAsState()
@@ -574,7 +577,7 @@ fun DownloadSettingsCard(
     val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
 
     Card(
-        modifier = Modifier.padding(16.dp),
+        modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
         border = BorderStroke(1.dp, Color(0xFF49454F))

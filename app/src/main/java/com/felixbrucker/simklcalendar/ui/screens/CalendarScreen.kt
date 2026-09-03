@@ -68,8 +68,8 @@ private enum class SearchBarDisplayMode {
 fun CalendarScreen(
     viewModel: CalendarViewModel,
     onNavigateToSettings: () -> Unit,
-    onNavigateToShowDetail: (String) -> Unit,
-    onNavigateToSeriesDetail: (Int) -> Unit,
+    onNavigateToReleaseDetail: (String) -> Unit,
+    onNavigateToWatchlistItemDetail: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val items by viewModel.filteredCalendarItems.collectAsState()
@@ -646,13 +646,13 @@ fun CalendarScreen(
                             searchQuery = searchQuery,
                             torrentDownloads = torrentDownloads,
                             viewModel = viewModel,
-                            onNavigateToShowDetail = onNavigateToShowDetail,
+                            onNavigateToShowDetail = onNavigateToReleaseDetail,
                             snackbarHostState = snackbarHostState
                         )
                 } else {
                     TrackedWatchlistTableView(
                         viewModel = viewModel,
-                        onNavigateToSeriesDetail = onNavigateToSeriesDetail
+                        onNavigateToSeriesDetail = onNavigateToWatchlistItemDetail
                     )
                 }
             }

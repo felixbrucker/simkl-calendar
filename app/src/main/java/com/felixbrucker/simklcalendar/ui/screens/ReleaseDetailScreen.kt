@@ -50,6 +50,7 @@ fun ReleaseDetailScreen(
     viewModel: CalendarViewModel,
     itemKey: String,
     onNavigateBack: () -> Unit,
+    onNavigateToWatchlistItem: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -202,7 +203,8 @@ fun ReleaseDetailScreen(
                     type = activeItem.type,
                     title = activeItem.title,
                     poster = activeItem.poster,
-                    titleRomaji = activeItem.titleRomaji
+                    titleRomaji = activeItem.titleRomaji,
+                    onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId) }
                 )
 
                 // Airing / Release details info

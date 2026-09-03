@@ -246,13 +246,13 @@ fun SimklCalendarApp(
                             launchSingleTop = true
                         }
                     },
-                    onNavigateToShowDetail = { itemKey ->
+                    onNavigateToReleaseDetail = { itemKey ->
                         val encodedKey = URLEncoder.encode(itemKey, "UTF-8")
                         navController.navigate("release_detail/$encodedKey") {
                             launchSingleTop = true
                         }
                     },
-                    onNavigateToSeriesDetail = { simklId ->
+                    onNavigateToWatchlistItemDetail = { simklId ->
                         navController.navigate("watchlist_item_detail/$simklId") {
                             launchSingleTop = true
                         }
@@ -287,6 +287,9 @@ fun SimklCalendarApp(
                     itemKey = itemKey,
                     onNavigateBack = {
                         navController.popBackStack()
+                    },
+                    onNavigateToWatchlistItem = { simklId ->
+                        navController.navigate("watchlist_item_detail/$simklId")
                     }
                 )
             }
