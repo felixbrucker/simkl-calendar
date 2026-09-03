@@ -145,4 +145,24 @@ object DateUtil {
         val timeStr = zonedDateTime.format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
         return "$dateStr at $timeStr"
     }
+
+    /**
+     * Formats a duration in seconds into a compact string like "1d 12h 34m 25s".
+     * Only non-zero units are shown.
+     */
+    fun formatDuration(seconds: Long): String {
+        if (seconds <= 0) return "0s"
+        val days = seconds / 86400
+        val hours = (seconds % 86400) / 3600
+        val minutes = (seconds % 3600) / 60
+        val secs = seconds % 60
+
+        val parts = mutableListOf<String>()
+        if (days > 0) parts.add("${days}d")
+        if (hours > 0) parts.add("${hours}h")
+        if (minutes > 0) parts.add("${minutes}m")
+        if (secs > 0 || parts.isEmpty()) parts.add("${secs}s")
+
+        return parts.joinToString(" ")
+    }
 }

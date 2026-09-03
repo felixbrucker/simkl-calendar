@@ -42,6 +42,7 @@ import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import com.felixbrucker.simklcalendar.ui.composable.Table
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -58,27 +59,29 @@ fun SeriesDetailScreen(
     val watchlistItems by viewModel.repository.watchlistItems.collectAsState(initial = emptyList())
     val tableItems by viewModel.watchlistTableItems.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
-    
+    val torrentDownloads by viewModel.torrentDownloads.collectAsState()
+
     val seriesItem = remember(watchlistItems, simklId) {
         watchlistItems.find { it.simklId == simklId }
     }
-    
+
     val tableItem = remember(tableItems, simklId) {
         tableItems.find { it.watchlistItem.simklId == simklId }
     }
-    
+
     val episodes = remember(allCalendarItems, simklId) {
         allCalendarItems.filter { it.simklId == simklId }
             .sortedWith(compareBy<CalendarItemWithWatchlist> { it.season ?: 0 }
                 .thenBy { it.episodeNumber ?: 0 }
                 .thenBy { it.date })
     }
-    
+
     val seasons = remember(episodes) {
         episodes.groupBy { it.season ?: 1 }
     }
 
     val isMovie = seriesItem?.type == MediaType.MOVIE
+    val isAnimeSeasonOneOnly = seriesItem?.type == MediaType.ANIME && seasons.size == 1 && seasons.containsKey(1)
 
     Scaffold(
         topBar = {
@@ -112,14 +115,20 @@ fun SeriesDetailScreen(
                 // 2. Summary Stats Bar (Hidden for movies)
                 if (!isMovie) {
                     item {
-                        SeriesSummaryStats(tableItem)
+                        SeriesSummaryStats(
+                            item = tableItem,
+                            viewModel = viewModel,
+                            simklId = simklId,
+                            episodes = episodes,
+                            isAnimeSeasonOneOnly = isAnimeSeasonOneOnly
+                        )
                     }
                 } else {
                     // Movie shared actions
                     item {
                         val digitalRelease = episodes.find { it.movieReleaseType != MovieReleaseType.THEATER } ?: episodes.firstOrNull()
                         val mainKey = digitalRelease?.primaryKey ?: seriesItem.simklId.toString()
-                        
+
                         if (digitalRelease != null) {
                             Row(
                                 modifier = Modifier
@@ -147,7 +156,7 @@ fun SeriesDetailScreen(
                                         currentStatus = digitalRelease.mediaStatus,
                                         onStatusChange = { viewModel.updateMediaStatus(digitalRelease.primaryKey, it) }
                                     )
-                                    
+
                                     if (digitalRelease.date.isBefore(java.time.Instant.now())) {
                                         IconButton(
                                             onClick = {
@@ -183,22 +192,29 @@ fun SeriesDetailScreen(
                                 }
                                 MovieReleasesTable(
                                     releases = episodes,
+                                    torrentDownloads = torrentDownloads,
                                     onNavigateToEpisode = onNavigateToEpisode
                                 )
                             } else {
-                                val isAnimeSeasonOneOnly = seriesItem.type == MediaType.ANIME && seasons.size == 1 && seasons.containsKey(1)
                                 val showSeasonHeaders = !isAnimeSeasonOneOnly
                                 val sortedSeasons = seasons.keys.sorted()
                                 sortedSeasons.forEach { season ->
                                     val seasonEpisodes = seasons[season] ?: emptyList()
                                     if (showSeasonHeaders) {
-                                        SeasonSectionHeader(season, seasonEpisodes.size)
+                                        SeasonSectionHeader(
+                                            season = season,
+                                            count = seasonEpisodes.size,
+                                            viewModel = viewModel,
+                                            simklId = simklId,
+                                            episodes = seasonEpisodes
+                                        )
                                     }
-                                    
+
                                     EpisodesTable(
                                         episodes = seasonEpisodes,
                                         viewModel = viewModel,
                                         updatingWatchKeys = updatingWatchKeys,
+                                        torrentDownloads = torrentDownloads,
                                         onNavigateToEpisode = onNavigateToEpisode
                                     )
                                 }
@@ -217,7 +233,7 @@ fun SeriesDetailScreen(
                         availableSeasons = seasons.keys.sorted()
                     )
                 }
-                
+
                 item {
                     Spacer(modifier = Modifier.height(32.dp))
                 }
@@ -239,7 +255,7 @@ fun SeriesHeader(seriesItem: com.felixbrucker.simklcalendar.data.database.Tracke
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
-        
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -250,7 +266,7 @@ fun SeriesHeader(seriesItem: com.felixbrucker.simklcalendar.data.database.Tracke
                     )
                 )
         )
-        
+
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -284,7 +300,7 @@ fun SeriesHeader(seriesItem: com.felixbrucker.simklcalendar.data.database.Tracke
                 color = Color.White,
                 lineHeight = 34.sp
             )
-            
+
             if (!seriesItem.titleRomaji.isNullOrBlank()) {
                 Text(
                     text = seriesItem.titleRomaji,
@@ -298,9 +314,20 @@ fun SeriesHeader(seriesItem: com.felixbrucker.simklcalendar.data.database.Tracke
 }
 
 @Composable
-fun SeriesSummaryStats(item: WatchlistTableItem?) {
+fun SeriesSummaryStats(
+    item: WatchlistTableItem?,
+    viewModel: CalendarViewModel,
+    simklId: Int,
+    episodes: List<CalendarItemWithWatchlist>,
+    isAnimeSeasonOneOnly: Boolean
+) {
     if (item == null) return
-    
+
+    val commonStatus = remember(episodes) {
+        val statuses = episodes.map { it.mediaStatus }.distinct()
+        if (statuses.size == 1) statuses.first() else null
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -310,24 +337,46 @@ fun SeriesSummaryStats(item: WatchlistTableItem?) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        StatItem("Last Ep", item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-", modifier = Modifier.weight(1f))
-        StatItem("Next Ep", item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-", modifier = Modifier.weight(1f))
-        
-        val watchedColor = getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
-        StatItem(
-            label = "Watched", 
-            value = "${item.watchedReleasedCount}/${item.totalReleasedCount}", 
-            valueColor = watchedColor,
-            modifier = Modifier.weight(0.8f)
-        )
-        
-        val downloadedColor = getTableItemColor(item.downloadedReleasedCount, item.totalDownloadableReleasedCount)
-        StatItem(
-            label = "Downloaded", 
-            value = "${item.downloadedReleasedCount}/${item.totalDownloadableReleasedCount}", 
-            valueColor = downloadedColor,
-            modifier = Modifier.weight(0.8f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                StatItem("Last Ep", item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-", modifier = Modifier.weight(1f))
+                StatItem("Next Ep", item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-", modifier = Modifier.weight(1f))
+                
+                val watchedColor = getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
+                StatItem(
+                    label = "Watched", 
+                    value = "${item.watchedReleasedCount}/${item.totalReleasedCount}", 
+                    valueColor = watchedColor,
+                    modifier = Modifier.weight(0.8f)
+                )
+                
+                val downloadedColor = getTableItemColor(item.downloadedReleasedCount, item.totalDownloadableReleasedCount)
+                StatItem(
+                    label = "Downloaded", 
+                    value = "${item.downloadedReleasedCount}/${item.totalDownloadableReleasedCount}", 
+                    valueColor = downloadedColor,
+                    modifier = Modifier.weight(0.8f)
+                )
+            }
+        }
+
+        if (isAnimeSeasonOneOnly) {
+            VerticalDivider(modifier = Modifier.height(32.dp).padding(horizontal = 12.dp), color = Color(0xFF49454F))
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MediaStatusDropdown(
+                    currentStatus = commonStatus ?: MediaStatus.IGNORED,
+                    onStatusChange = { viewModel.updateSeasonMediaStatus(simklId, 1, it) }
+                )
+
+                IconButton(
+                    onClick = { viewModel.searchAndDownloadSeason(simklId, 1) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = "Search All", tint = Color(0xFFD0BCFF), modifier = Modifier.size(22.dp))
+                }
+            }
+        }
     }
 }
 
@@ -501,12 +550,25 @@ fun SeriesDownloadSettings(
 }
 
 @Composable
-fun SeasonSectionHeader(season: Int, count: Int) {
-    Box(
+fun SeasonSectionHeader(
+    season: Int,
+    count: Int,
+    viewModel: CalendarViewModel,
+    simklId: Int,
+    episodes: List<CalendarItemWithWatchlist>
+) {
+    val commonStatus = remember(episodes) {
+        val statuses = episodes.map { it.mediaStatus }.distinct()
+        if (statuses.size == 1) statuses.first() else null
+    }
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFF1C1B1F).copy(alpha = 0.5f))
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             text = "Season $season ($count)",
@@ -514,6 +576,25 @@ fun SeasonSectionHeader(season: Int, count: Int) {
             fontWeight = FontWeight.Bold,
             color = Color(0xFFD0BCFF)
         )
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MediaStatusDropdown(
+                currentStatus = commonStatus ?: MediaStatus.IGNORED,
+                onStatusChange = { viewModel.updateSeasonMediaStatus(simklId, season, it) }
+            )
+
+            IconButton(
+                onClick = { viewModel.searchAndDownloadSeason(simklId, season) },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = "Search Season",
+                    modifier = Modifier.size(18.dp),
+                    tint = Color(0xFFD0BCFF)
+                )
+            }
+        }
     }
 }
 
@@ -522,6 +603,7 @@ fun EpisodesTable(
     episodes: List<CalendarItemWithWatchlist>,
     viewModel: CalendarViewModel,
     updatingWatchKeys: Set<String>,
+    torrentDownloads: Map<String, com.felixbrucker.simklcalendar.data.util.DownloadProgress>,
     onNavigateToEpisode: (String) -> Unit
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -558,6 +640,8 @@ fun EpisodesTable(
                     // Row
                     val episode = episodes[row - 1]
                     val context = LocalContext.current
+                    val downloadProgress = torrentDownloads[episode.downloadTaskId]
+
                     Box(
                         modifier = Modifier
                             .clickable { onNavigateToEpisode(episode.primaryKey) }
@@ -565,7 +649,37 @@ fun EpisodesTable(
                     ) {
                         when (column) {
                             0 -> Text(text = episode.episodeNumber?.toString() ?: "-", fontSize = 13.sp, color = Color.White)
-                            1 -> Text(text = episode.episodeTitle ?: "TBA", fontSize = 13.sp, color = Color.White, maxLines = 1, fontWeight = FontWeight.Medium)
+                            1 -> Column {
+                                Text(text = episode.episodeTitle ?: "TBA", fontSize = 13.sp, color = Color.White, maxLines = 1, fontWeight = FontWeight.Medium)
+                                if (episode.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    val progress = if (downloadProgress.totalBytes > 0) downloadProgress.bytesDownloaded.toFloat() / downloadProgress.totalBytes else 0f
+                                    val percentage = (progress * 100).toInt()
+                                    val speedStr = android.text.format.Formatter.formatFileSize(context, downloadProgress.downloadSpeed.toLong()) + "/s"
+                                    val downloaded = android.text.format.Formatter.formatFileSize(context, downloadProgress.bytesDownloaded)
+                                    val total = android.text.format.Formatter.formatFileSize(context, downloadProgress.totalBytes)
+
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            LinearProgressIndicator(
+                                                progress = { progress },
+                                                modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                                color = Color(0xFFD0BCFF),
+                                                trackColor = Color(0xFF381E72)
+                                            )
+                                            Text(text = "$percentage%", fontSize = 9.sp, color = Color(0xFFCAC4D0), fontWeight = FontWeight.Bold)
+                                            Text(text = "$downloaded / $total", fontSize = 8.sp, color = Color(0xFF938F99))
+                                        }
+
+                                        if (downloadProgress.downloadSpeed > 0) {
+                                            val remainingBytes = downloadProgress.totalBytes - downloadProgress.bytesDownloaded
+                                            val remainingSeconds = (remainingBytes / downloadProgress.downloadSpeed).toLong()
+                                            val eta = DateUtil.formatDuration(remainingSeconds)
+                                            Text(text = "$speedStr • ETA: $eta", fontSize = 9.sp, color = Color(0xFFCAC4D0))
+                                        }
+                                    }
+                                }
+                            }
                             2 -> Text(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = Color(0xFFCAC4D0), maxLines = 1)
                             3 -> WatchedStatusDropdown(
                                 isWatched = episode.isWatched,
@@ -609,6 +723,7 @@ fun EpisodesTable(
 @Composable
 fun MovieReleasesTable(
     releases: List<CalendarItemWithWatchlist>,
+    torrentDownloads: Map<String, com.felixbrucker.simklcalendar.data.util.DownloadProgress>,
     onNavigateToEpisode: (String) -> Unit
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -625,6 +740,9 @@ fun MovieReleasesTable(
                     .padding(bottom = 8.dp)
             ) { row, _ ->
                 val release = releases[row]
+                val downloadProgress = torrentDownloads[release.downloadTaskId]
+                val context = LocalContext.current
+
                 Box(
                     modifier = Modifier
                         .clickable { onNavigateToEpisode(release.primaryKey) }
@@ -633,6 +751,35 @@ fun MovieReleasesTable(
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(text = release.movieReleaseType?.displayName ?: "Release", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
                         Text(text = DateUtil.formatDisplayDateTime(release.date), fontSize = 12.sp, color = Color(0xFFCAC4D0), maxLines = 1)
+
+                        if (release.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val progress = if (downloadProgress.totalBytes > 0) downloadProgress.bytesDownloaded.toFloat() / downloadProgress.totalBytes else 0f
+                            val percentage = (progress * 100).toInt()
+                            val speedStr = android.text.format.Formatter.formatFileSize(context, downloadProgress.downloadSpeed.toLong()) + "/s"
+                            val downloaded = android.text.format.Formatter.formatFileSize(context, downloadProgress.bytesDownloaded)
+                            val total = android.text.format.Formatter.formatFileSize(context, downloadProgress.totalBytes)
+
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    LinearProgressIndicator(
+                                        progress = { progress },
+                                        modifier = Modifier.width(100.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                        color = Color(0xFFD0BCFF),
+                                        trackColor = Color(0xFF381E72)
+                                    )
+                                    Text(text = "$percentage%", fontSize = 11.sp, color = Color(0xFFCAC4D0), fontWeight = FontWeight.Bold)
+                                    Text(text = "$downloaded / $total", fontSize = 10.sp, color = Color(0xFF938F99))
+                                }
+
+                                if (downloadProgress.downloadSpeed > 0) {
+                                    val remainingBytes = downloadProgress.totalBytes - downloadProgress.bytesDownloaded
+                                    val remainingSeconds = (remainingBytes / downloadProgress.downloadSpeed).toLong()
+                                    val eta = DateUtil.formatDuration(remainingSeconds)
+                                    Text(text = "$speedStr • ETA: $eta", fontSize = 11.sp, color = Color(0xFFCAC4D0))
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -47,8 +47,7 @@ data class CalendarItem(
     val isNotified: Boolean = false, // Track whether notification has been dispatched
     val watchedAt: Instant? = null, // Timestamp of when the episode was watched
     @ColumnInfo(defaultValue = "NOT_AIRED_YET") val mediaStatus: MediaStatus = MediaStatus.NOT_AIRED_YET,
-    val downloadTaskId: String? = null,
-    val downloadPath: String? = null
+    val downloadTaskId: String? = null
 ) {
     val isWatched: Boolean
         get() = watchedAt != null
@@ -67,9 +66,8 @@ data class CalendarItem(
             isSeasonFinale = newItem.isSeasonFinale,
             isNotified = updatedNotified,
             watchedAt = newItem.watchedAt,
-            mediaStatus = if (newItem.mediaStatus != MediaStatus.NOT_AIRED_YET) newItem.mediaStatus else this.mediaStatus,
-            downloadTaskId = newItem.downloadTaskId ?: this.downloadTaskId,
-            downloadPath = newItem.downloadPath ?: this.downloadPath
+            mediaStatus = if (isDateRescheduledToFuture || newItem.mediaStatus != MediaStatus.NOT_AIRED_YET) newItem.mediaStatus else this.mediaStatus,
+            downloadTaskId = newItem.downloadTaskId ?: this.downloadTaskId
         )
     }
 }
@@ -134,7 +132,6 @@ data class CalendarItemWithWatchlist(
     val isWatched: Boolean get() = calendarItem.isWatched
     val mediaStatus: MediaStatus get() = calendarItem.mediaStatus
     val downloadTaskId: String? get() = calendarItem.downloadTaskId
-    val downloadPath: String? get() = calendarItem.downloadPath
 }
 
 @Entity(tableName = "watched_episodes", primaryKeys = ["simklId", "season", "episodeNumber"])

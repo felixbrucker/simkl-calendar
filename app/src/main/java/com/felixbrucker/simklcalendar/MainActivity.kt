@@ -16,12 +16,16 @@ import androidx.activity.viewModels
 import androidx.browser.auth.AuthTabIntent
 import androidx.browser.customtabs.CustomTabsClient
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavType
@@ -32,6 +36,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.felixbrucker.simklcalendar.receiver.NotificationReceiver
 import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker
+import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import com.felixbrucker.simklcalendar.ui.screens.CalendarScreen
 import com.felixbrucker.simklcalendar.ui.screens.LoginScreen
 import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen
@@ -78,6 +83,9 @@ class MainActivity : ComponentActivity() {
         val syncPrefs = getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE)
         val syncIntervalHours = syncPrefs.getInt("sync_interval_hours", 12).toLong()
         SyncCalendarWorker.enqueuePeriodicSync(this, syncIntervalHours)
+        
+        val searchIntervalHours = syncPrefs.getInt("search_interval_hours", 12).toLong()
+        AutoDownloadWorker.enqueuePeriodicSearch(this, searchIntervalHours)
 
         handleOAuthIntent(intent)
         handleNotificationNavigation(intent)
@@ -158,8 +166,17 @@ fun SimklCalendarApp(
 ) {
     val navController = rememberNavController()
     val userToken by viewModel.userToken.collectAsState()
+    val isAuthReady by viewModel.isAuthReady.collectAsState()
     val pendingDetailKey by viewModel.pendingDetailKey.collectAsState()
     val context = LocalContext.current
+
+    // Don't render navigation until we know if the user is logged in or not
+    if (!isAuthReady) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Color(0xFFD0BCFF))
+        }
+        return
+    }
 
     // Automatically navigate to detail when an item key is provided via notification or deep link
     LaunchedEffect(pendingDetailKey, userToken) {

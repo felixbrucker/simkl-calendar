@@ -65,6 +65,7 @@
                 <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_EPISODE_WATCHED" />
                 <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_SEASON_WATCHED" />
                 <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_MOVIE_WATCHED" />
+                <action android:name="com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_COMPLETED" />
             </intent-filter>
         </receiver>
 

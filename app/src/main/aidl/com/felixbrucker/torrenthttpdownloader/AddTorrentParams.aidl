@@ -7,4 +7,5 @@ parcelable AddTorrentParams {
     boolean createSubfolderByName;
     boolean notifyOnCompletion;
     String fileSelectionMode;
+    @nullable String onCompletionIntentUri;
 }

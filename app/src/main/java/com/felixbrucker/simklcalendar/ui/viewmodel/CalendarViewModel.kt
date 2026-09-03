@@ -2,6 +2,7 @@ package com.felixbrucker.simklcalendar.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -20,9 +21,14 @@ import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.receiver.NotificationReceiver
 import com.felixbrucker.simklcalendar.receiver.NotificationScheduler
 import com.felixbrucker.torrent_search_api.SearchResultItem
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
+import kotlin.time.Duration.Companion.seconds
 
 enum class MainViewMode {
     CALENDAR,
@@ -45,6 +51,7 @@ enum class SortDirection {
 data class WatchlistTableItem(
     val watchlistItem: TrackedWatchlistItem,
     val hasUnwatched: Boolean,
+    val hasUnwatchedReleased: Boolean = false,
     val nextEpisodeDate: Instant?,
     val lastAiredDate: Instant?,
     val watchedReleasedCount: Int = 0,
@@ -52,7 +59,10 @@ data class WatchlistTableItem(
     val downloadedReleasedCount: Int = 0,
     val totalDownloadableReleasedCount: Int = 0,
     val status: String? = null // e.g. "Watching", "Plan to watch"
-)
+) {
+    val watchedProgress: Double = if (totalReleasedCount > 0) watchedReleasedCount.toDouble() / totalReleasedCount else 0.0
+    val downloadedProgress: Double = if (totalDownloadableReleasedCount > 0) downloadedReleasedCount.toDouble() / totalDownloadableReleasedCount else 0.0
+}
 
 class CalendarViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -80,13 +90,18 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val isTorrentServiceBound: StateFlow<Boolean> = repository.torrentServiceHelper.isBound
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
     val isTorrentServiceInstalled: StateFlow<Boolean> = repository.torrentServiceHelper.isInstalled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    private val _isAuthReady = MutableStateFlow(false)
+    val isAuthReady: StateFlow<Boolean> = _isAuthReady.asStateFlow()
 
     private val _viewMode = MutableStateFlow(MainViewMode.CALENDAR)
     val viewMode: StateFlow<MainViewMode> = _viewMode.asStateFlow()
+
+    private var pollingJob: Job? = null
+    private val downloadingItems = allCalendarItems.map { items ->
+        items.filter { it.mediaStatus == MediaStatus.DOWNLOADING }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setViewMode(mode: MainViewMode) {
         _viewMode.value = mode
@@ -111,6 +126,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val showTv = MutableStateFlow(true)
     val showAnime = MutableStateFlow(true)
     val showMovies = MutableStateFlow(true)
+    val showOnlyUnwatchedReleased = MutableStateFlow(true)
     val onlySeasonPremieres = MutableStateFlow(false)
     val onlySeasonFinales = MutableStateFlow(false)
     val onlyDigitalDvd = MutableStateFlow(false)
@@ -189,6 +205,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         showTv,
         showAnime,
         showMovies,
+        showOnlyUnwatchedReleased,
         tableSortField,
         tableSortDirection
     ) { flows ->
@@ -198,8 +215,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val tv = flows[3] as Boolean
         val anime = flows[4] as Boolean
         val movies = flows[5] as Boolean
-        val sortField = flows[6] as TableSortField
-        val sortDirection = flows[7] as SortDirection
+        val onlyUnwatchedReleased = flows[6] as Boolean
+        val sortField = flows[7] as TableSortField
+        val sortDirection = flows[8] as SortDirection
 
         watchlist.map { item ->
             val itemCalendar = calendar.filter { it.simklId == item.simklId }
@@ -208,6 +226,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
             // Check for unwatched episodes in calendar
             val hasUnwatched = itemCalendar.any { !it.isWatched }
+            val hasUnwatchedReleased = releasedItems.any { !it.isWatched }
 
             val nextEp = itemCalendar.filter { it.date.isAfter(now) }
                 .minByOrNull { it.date }?.date
@@ -218,18 +237,18 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             val totalReleasedCount = releasedItems.size
 
             val downloadedReleasedCount = releasedItems.count {
-                it.mediaStatus == MediaStatus.DOWNLOADED || it.mediaStatus == MediaStatus.ARCHIVED
+                it.mediaStatus == MediaStatus.DOWNLOADED
             }
             val totalDownloadableReleasedCount = releasedItems.count {
                 it.mediaStatus == MediaStatus.WANTED ||
                 it.mediaStatus == MediaStatus.DOWNLOADING ||
-                it.mediaStatus == MediaStatus.DOWNLOADED ||
-                it.mediaStatus == MediaStatus.ARCHIVED
+                it.mediaStatus == MediaStatus.DOWNLOADED
             }
 
             WatchlistTableItem(
                 watchlistItem = item,
                 hasUnwatched = hasUnwatched,
+                hasUnwatchedReleased = hasUnwatchedReleased,
                 nextEpisodeDate = nextEp,
                 lastAiredDate = lastAired,
                 watchedReleasedCount = watchedReleasedCount,
@@ -252,18 +271,19 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 it.watchlistItem.titleRomaji?.contains(query, ignoreCase = true) == true
             }
 
-            matchesCategory && it.hasUnwatched && matchesQuery
+            // Unwatched released filter
+            val matchesUnwatched = if (onlyUnwatchedReleased) it.hasUnwatchedReleased else true
+
+            matchesCategory && matchesUnwatched && matchesQuery
         }.let { list ->
             val comparator = when (sortField) {
                 TableSortField.NAME -> compareBy<WatchlistTableItem> { it.watchlistItem.title.lowercase() }
                 TableSortField.LAST_EP -> compareBy<WatchlistTableItem> { it.lastAiredDate ?: Instant.MIN }
                 TableSortField.NEXT_EP -> compareBy<WatchlistTableItem> { it.nextEpisodeDate ?: Instant.MAX }
-                TableSortField.WATCHED -> compareBy<WatchlistTableItem> {
-                    if (it.totalReleasedCount == 0) 1.0 else it.watchedReleasedCount.toDouble() / it.totalReleasedCount
-                }
-                TableSortField.DOWNLOADED -> compareBy<WatchlistTableItem> {
-                    if (it.totalDownloadableReleasedCount == 0) 1.0 else it.downloadedReleasedCount.toDouble() / it.totalDownloadableReleasedCount
-                }
+                TableSortField.WATCHED -> compareBy<WatchlistTableItem> { it.watchedProgress }
+                    .thenBy { it.totalReleasedCount }
+                TableSortField.DOWNLOADED -> compareBy<WatchlistTableItem> { it.downloadedProgress }
+                    .thenBy { it.totalDownloadableReleasedCount }
             }
             if (sortDirection == SortDirection.ASCENDING) list.sortedWith(comparator) else list.sortedWith(comparator.reversed())
         }
@@ -549,13 +569,22 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     init {
         // Automatically sync calendar on launch only if user is logged in
         viewModelScope.launch {
-            val token = repository.getActiveUserToken()
+            val token = repository.activeUserToken.first()
+            _isAuthReady.value = true
+
             if (token != null && !token.accessToken.isNullOrEmpty()) {
                 syncLocalCalendar()
             }
         }
         // Refresh torrent service status
         repository.torrentServiceHelper.refreshServiceStatus()
+
+        // Start polling for downloading items
+        viewModelScope.launch {
+            downloadingItems.collect { items ->
+                updatePolling(items)
+            }
+        }
     }
 
     fun syncLocalCalendar() {
@@ -705,6 +734,21 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     fun updateMediaStatus(primaryKey: String, status: MediaStatus) {
         viewModelScope.launch {
             repository.updateMediaStatus(primaryKey, status)
+            if (status == MediaStatus.WANTED) {
+                val item = repository.calendarItems.first().find { it.primaryKey == primaryKey }
+                if (item != null && item.date.isBefore(java.time.Instant.now())) {
+                    searchAndDownloadEpisode(item) { _, _ -> }
+                }
+            }
+        }
+    }
+
+    fun updateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus) {
+        viewModelScope.launch {
+            repository.updateSeasonMediaStatus(simklId, season, status)
+            if (status == MediaStatus.WANTED) {
+                searchAndDownloadSeason(simklId, season)
+            }
         }
     }
 
@@ -713,72 +757,86 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         onResult: (Boolean, String) -> Unit
     ) {
         viewModelScope.launch {
-            // 1. Set status to WANTED
-            repository.updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
-
-            // 2. Search torrents
             _isSearchingTorrents.value = true
-            try {
-                val results = repository.searchTorrents(item)
-                if (results.isEmpty()) {
-                    onResult(false, "No torrent results found for this episode.")
-                    return@launch
-                }
-
-                // 3. Select first result and start download
-                val firstResult = results.first()
-                repository.torrentServiceHelper.addTorrent(
-                    uri = firstResult.uri.toString(),
-                    name = firstResult.name,
-                    destinationSubdirectory = item.destinationSubdirectory(),
-                    createSubfolderByName = false,
-                    fileSelectionMode = "BIGGEST",
-                ) { success, taskId ->
-                    if (success && taskId != null) {
-                        // 4. Update status to DOWNLOADING with taskId
-                        viewModelScope.launch {
-                            repository.updateDownloadTaskId(item.primaryKey, taskId, MediaStatus.DOWNLOADING)
-                        }
-                        onResult(true, "Download started: ${firstResult.name}")
-                    } else {
-                        onResult(false, "Failed to start download.")
-                    }
-                }
-            } catch (e: Exception) {
-                onResult(false, "Error searching torrents: ${e.message}")
-            } finally {
-                _isSearchingTorrents.value = false
-            }
+            repository.searchAndDownloadEpisode(item, onResult)
+            _isSearchingTorrents.value = false
         }
     }
 
-    fun removeTorrent(taskId: String, deleteFiles: Boolean = false, deleteTorrentFile: Boolean = true, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
-        repository.torrentServiceHelper.removeTorrent(taskId, deleteFiles, deleteTorrentFile, onResult)
+    fun searchAndDownloadSeason(simklId: Int, season: Int) {
+        viewModelScope.launch {
+            _isSearchingTorrents.value = true
+            val items = repository.calendarItems.first()
+            val seasonEpisodes = items.filter {
+                it.simklId == simklId && (it.season == season || (season == 1 && it.season == null))
+            }
+
+            val now = java.time.Instant.now()
+            val airedEpisodes = seasonEpisodes.filter { it.date.isBefore(now) }
+
+            airedEpisodes.forEach { item ->
+                repository.searchAndDownloadEpisode(item)
+            }
+            _isSearchingTorrents.value = false
+        }
     }
 
     fun isTorrentServiceInstalled(): Boolean {
         return repository.torrentServiceHelper.isServiceInstalled()
     }
 
-    override fun onCleared() {
-        super.onCleared()
-    }
-}
+    private fun updatePolling(items: List<CalendarItemWithWatchlist>) {
+        if (items.isEmpty()) {
+            pollingJob?.cancel()
+            pollingJob = null
+            repository.torrentServiceHelper.unbind()
+            return
+        }
 
-fun MediaType.subdirectoryName(): String {
-    return when(this) {
-        MediaType.MOVIE -> "movies"
-        MediaType.TV -> "series"
-        MediaType.ANIME -> "anime"
-    }
-}
+        if (pollingJob == null || pollingJob?.isActive == false) {
+            repository.torrentServiceHelper.bind()
+            pollingJob = viewModelScope.launch {
+                while (true) {
+                    if (!isTorrentServiceBound.value) {
+                        delay(1.seconds)
+                        continue
+                    }
 
-fun CalendarItemWithWatchlist.destinationSubdirectory(): String {
-    val baseSubdirectory = type.subdirectoryName()
-    if (type == MediaType.MOVIE) {
-        return baseSubdirectory
-    }
-    val title = titleRomaji ?: title
+                    val currentDownloading = downloadingItems.value
+                    if (currentDownloading.isEmpty()) break
 
-    return "$baseSubdirectory/$title"
+                    coroutineScope {
+                        currentDownloading.map { item ->
+                            launch(Dispatchers.IO) {
+                                val taskId = item.downloadTaskId ?: return@launch
+                                try {
+                                    val stats = repository.torrentServiceHelper.getProgress(taskId)
+                                    if (stats != null) {
+                                        repository.torrentServiceHelper.updateDownloadProgress(taskId, stats)
+                                    } else {
+                                        // Task was removed from downloader
+                                        // Wait a few seconds to allow completion intent to be processed
+                                        delay(3.seconds)
+                                        // Fetch current items from repository flow
+                                        val currentEntity = repository.calendarEntities.first().find { it.primaryKey == item.primaryKey }
+                                        if (currentEntity?.mediaStatus == MediaStatus.DOWNLOADING && currentEntity.downloadTaskId == taskId) {
+                                            Log.d("CalendarViewModel", "Task $taskId still not found after 3s and status is still DOWNLOADING with same taskId, reverting for ${item.primaryKey}")
+                                            repository.updateDownloadTaskId(item.primaryKey, null, MediaStatus.WANTED)
+                                            repository.torrentServiceHelper.clearDownload(taskId)
+                                        } else {
+                                            Log.d("CalendarViewModel", "Task $taskId not found, but status is now ${currentEntity?.mediaStatus} or taskId changed, skipping revert")
+                                            repository.torrentServiceHelper.clearDownload(taskId)
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("CalendarViewModel", "Error polling progress for $taskId", e)
+                                }
+                            }
+                        }
+                    }
+                    delay(1.seconds)
+                }
+            }
+        }
+    }
 }

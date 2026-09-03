@@ -66,7 +66,7 @@ fun TrackedWatchlistTableView(
     Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         if (items.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("No tracked items with unwatched episodes found.", color = Color(0xFFCAC4D0))
+                Text("No items found matching the selected filters.", color = Color(0xFFCAC4D0))
             }
         } else {
             WatchlistTableHeader(

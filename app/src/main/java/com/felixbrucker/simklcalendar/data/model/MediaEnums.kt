@@ -62,8 +62,7 @@ enum class MediaStatus(val displayName: String) {
     NOT_AIRED_YET("Not Aired Yet"),
     WANTED("Wanted"),
     DOWNLOADING("Downloading"),
-    DOWNLOADED("Downloaded"),
-    ARCHIVED("Archived");
+    DOWNLOADED("Downloaded");
 
     companion object {
         fun fromString(str: String?): MediaStatus {

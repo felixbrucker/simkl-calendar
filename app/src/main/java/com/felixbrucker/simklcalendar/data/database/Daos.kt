@@ -74,11 +74,11 @@ interface CalendarItemDao {
     @Query("UPDATE calendar_items SET mediaStatus = :status WHERE primaryKey = :primaryKey")
     suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus)
 
+    @Query("UPDATE calendar_items SET mediaStatus = :status WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL))")
+    suspend fun updateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus)
+
     @Query("UPDATE calendar_items SET downloadTaskId = :taskId, mediaStatus = :status WHERE primaryKey = :primaryKey")
     suspend fun updateDownloadTaskId(primaryKey: String, taskId: String?, status: MediaStatus)
-
-    @Query("UPDATE calendar_items SET downloadPath = :path, mediaStatus = :status WHERE primaryKey = :primaryKey")
-    suspend fun updateDownloadPath(primaryKey: String, path: String?, status: MediaStatus)
 
     @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL) OR (:season IS NULL AND (season = 1 OR season IS NULL))) AND episodeNumber = :episodeNumber")
     suspend fun markEpisodeWatched(simklId: Int, season: Int?, episodeNumber: Int, watchedAt: java.time.Instant?)

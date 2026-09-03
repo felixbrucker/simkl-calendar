@@ -9,12 +9,13 @@ import android.os.IBinder
 import android.util.Log
 import com.felixbrucker.torrenthttpdownloader.AddTorrentParams
 import com.felixbrucker.torrenthttpdownloader.IAddTorrentCallback
-import com.felixbrucker.torrenthttpdownloader.IRemoveTorrentCallback
-import com.felixbrucker.torrenthttpdownloader.ITorrentDownloadCallback
 import com.felixbrucker.torrenthttpdownloader.ITorrentDownloadService
+import com.felixbrucker.torrenthttpdownloader.TorrentProgressStats
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 data class DownloadProgress(
     val taskId: String,
@@ -53,9 +54,7 @@ class TorrentServiceHelper(context: Context) {
     fun refreshServiceStatus() {
         val installed = checkIsInstalled()
         _isInstalled.value = installed
-        if (installed && !_isBound.value) {
-            bind()
-        } else if (!installed && _isBound.value) {
+        if (!installed && _isBound.value) {
             unbind()
         }
     }
@@ -69,39 +68,12 @@ class TorrentServiceHelper(context: Context) {
         }
     }
 
-    private val downloadCallback = object : ITorrentDownloadCallback.Stub() {
-        override fun onProgressUpdate(taskId: String, bytesDownloaded: Long, totalBytes: Long, downloadSpeed: Double) {
-            val uri = taskIdToUri[taskId]
-            _downloads.value = _downloads.value + (taskId to DownloadProgress(taskId, uri, bytesDownloaded, totalBytes, downloadSpeed))
-        }
-
-        override fun onDownloadCompleted(taskId: String) {
-            val current = _downloads.value[taskId]
-            if (current != null) {
-                _downloads.value = _downloads.value + (taskId to current.copy(isCompleted = true))
-            }
-        }
-
-        override fun onDownloadFailed(taskId: String, error: String) {
-            val current = _downloads.value[taskId]
-            if (current != null) {
-                _downloads.value = _downloads.value + (taskId to current.copy(error = error))
-            }
-        }
-    }
-
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             Log.d(TAG, "Service connected")
             val serviceInterface = ITorrentDownloadService.Stub.asInterface(binder)
             _service.value = serviceInterface
             _isBound.value = true
-
-            try {
-                serviceInterface.registerCallback(downloadCallback)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error registering callback", e)
-            }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -111,7 +83,7 @@ class TorrentServiceHelper(context: Context) {
         }
     }
 
-    fun bind() {
+    fun bind(start: Boolean = false) {
         if (_isBound.value) return
 
         val intent = Intent(SERVICE_ACTION).apply {
@@ -119,6 +91,9 @@ class TorrentServiceHelper(context: Context) {
         }
 
         try {
+            if (start) {
+                appContext.startForegroundService(intent)
+            }
             val success = appContext.bindService(intent, connection, Context.BIND_AUTO_CREATE)
             if (!success) {
                 Log.e(TAG, "Failed to bind to Torrent Download Service")
@@ -130,29 +105,56 @@ class TorrentServiceHelper(context: Context) {
 
     fun unbind() {
         if (_isBound.value) {
-            try {
-                _service.value?.unregisterCallback(downloadCallback)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error unregistering callback", e)
-            }
             appContext.unbindService(connection)
             _service.value = null
             _isBound.value = false
         }
     }
 
-    fun addTorrent(
+    fun getProgress(taskId: String): TorrentProgressStats? {
+        val s = _service.value ?: return null
+        return try {
+            s.getProgress(taskId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting progress for $taskId", e)
+            null
+        }
+    }
+
+    fun updateDownloadProgress(taskId: String, stats: TorrentProgressStats) {
+        val uri = taskIdToUri[taskId]
+        _downloads.value = _downloads.value + (taskId to DownloadProgress(
+            taskId = taskId,
+            uri = uri,
+            bytesDownloaded = stats.bytesDownloaded,
+            totalBytes = stats.totalBytes,
+            downloadSpeed = stats.downloadSpeed
+        ))
+    }
+
+    fun clearDownload(taskId: String) {
+        _downloads.value = _downloads.value - taskId
+        taskIdToUri.remove(taskId)
+    }
+
+    suspend fun addTorrent(
         uri: String,
         name: String?,
         destinationSubdirectory: String?,
         createSubfolderByName: Boolean = true,
         notifyOnCompletion: Boolean = true,
         fileSelectionMode: String = "ALL",
+        onCompletionIntentUri: String? = null,
         onResult: (Boolean, String?) -> Unit
     ) {
-        val s = _service.value
-        if (s == null) {
-            onResult(false, "Service not connected")
+        if (!_isBound.value) {
+            bind(start = true)
+        }
+
+        val s = try {
+            _service.filterNotNull().first()
+        } catch (e: Exception) {
+            onResult(false, "Failed to connect to service: ${e.message}")
             return
         }
 
@@ -163,6 +165,7 @@ class TorrentServiceHelper(context: Context) {
             this.createSubfolderByName = createSubfolderByName
             this.notifyOnCompletion = notifyOnCompletion
             this.fileSelectionMode = fileSelectionMode
+            this.onCompletionIntentUri = onCompletionIntentUri
         }
 
         try {
@@ -170,29 +173,6 @@ class TorrentServiceHelper(context: Context) {
                 override fun onSuccess(taskId: String) {
                     taskIdToUri[taskId] = uri
                     onResult(true, taskId)
-                }
-
-                override fun onFailure(error: String) {
-                    onResult(false, error)
-                }
-            })
-        } catch (e: Exception) {
-            onResult(false, e.message)
-        }
-    }
-
-    fun removeTorrent(taskId: String, deleteFiles: Boolean, deleteTorrentFile: Boolean, onResult: (Boolean, String?) -> Unit) {
-        val s = _service.value
-        if (s == null) {
-            onResult(false, "Service not connected")
-            return
-        }
-
-        try {
-            s.removeTorrent(taskId, deleteFiles, deleteTorrentFile, object : IRemoveTorrentCallback.Stub() {
-                override fun onSuccess(id: String) {
-                    _downloads.value = _downloads.value - id
-                    onResult(true, null)
                 }
 
                 override fun onFailure(error: String) {

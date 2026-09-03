@@ -192,7 +192,6 @@ fun MediaStatusDropdown(
         com.felixbrucker.simklcalendar.data.model.MediaStatus.WANTED -> Color(0xFF601410) to Color(0xFFF9DEDC)
         com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADING -> Color(0xFF004A77) to Color(0xFFC2E8FF)
         com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADED -> Color(0xFF1E3A2B) to Color(0xFF7CE49F)
-        com.felixbrucker.simklcalendar.data.model.MediaStatus.ARCHIVED -> Color(0xFF625B00) to Color(0xFFE2E262)
     }
 
     Box {
@@ -241,7 +240,6 @@ fun MediaStatusDropdown(
                             com.felixbrucker.simklcalendar.data.model.MediaStatus.WANTED -> Icons.Default.Favorite
                             com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADING -> Icons.Default.Download
                             com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADED -> Icons.Default.CheckCircle
-                            com.felixbrucker.simklcalendar.data.model.MediaStatus.ARCHIVED -> Icons.Default.Archive
                         }
                         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFFD0BCFF))
                     }

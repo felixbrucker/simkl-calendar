@@ -1,6 +1,7 @@
 package com.felixbrucker.simklcalendar.data.repository
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import com.felixbrucker.simklcalendar.BuildConfig
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
@@ -31,16 +32,23 @@ import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.PkceUtil
 import com.felixbrucker.simklcalendar.data.util.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.receiver.NotificationReceiver
 import com.felixbrucker.simklcalendar.receiver.NotificationScheduler
+import com.felixbrucker.simklcalendar.data.util.destinationSubdirectory
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -116,15 +124,92 @@ class SimklRepository(private val context: Context) {
         calendarDao.updateMediaStatus(primaryKey, status)
     }
 
+    suspend fun updateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus) = withContext(Dispatchers.IO) {
+        calendarDao.updateSeasonMediaStatus(simklId, season, status)
+    }
+
     suspend fun updateDownloadTaskId(primaryKey: String, taskId: String?, status: MediaStatus) = withContext(Dispatchers.IO) {
         calendarDao.updateDownloadTaskId(primaryKey, taskId, status)
     }
 
-    suspend fun updateDownloadPath(primaryKey: String, path: String?, status: MediaStatus) = withContext(Dispatchers.IO) {
-        calendarDao.updateDownloadPath(primaryKey, path, status)
+    suspend fun updateItemAiredStatus(primaryKey: String) = withContext(Dispatchers.IO) {
+        val item = calendarDao.findCalendarEntity(primaryKey) ?: return@withContext
+        if (item.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext
+
+        val settings = itemDownloadSettingsDao.getSettings(item.simklId)
+        val globalUnwatched = downloadPrefs.getBoolean("unwatched_default", false)
+
+        val newStatus = determineStatus(item.simklId, item.date, settings, globalUnwatched)
+        calendarDao.updateMediaStatus(primaryKey, newStatus)
     }
 
+    fun determineStatus(
+        simklId: Int,
+        airDate: Instant,
+        settings: ItemDownloadSettings? = null,
+        globalUnwatched: Boolean? = null
+    ): MediaStatus {
+        if (airDate.isAfter(Instant.now())) return MediaStatus.NOT_AIRED_YET
+        val isUnwatched = settings?.downloadUnwatched
+            ?: globalUnwatched
+            ?: downloadPrefs.getBoolean("unwatched_default", false)
+        return if (isUnwatched) MediaStatus.WANTED else MediaStatus.IGNORED
+    }
 
+    fun generateCompletionIntentUri(primaryKey: String): String {
+        val intent = Intent(NotificationReceiver.ACTION_DOWNLOAD_COMPLETED).apply {
+            setClassName(context.packageName, NotificationReceiver::class.java.name)
+            putExtra(NotificationReceiver.EXTRA_ITEM_KEY, primaryKey)
+        }
+        return intent.toUri(Intent.URI_INTENT_SCHEME)
+    }
+
+    suspend fun searchAndDownloadEpisode(
+        item: CalendarItemWithWatchlist,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) = withContext(Dispatchers.IO) {
+        // 1. Set status to WANTED (if not already)
+        if (item.mediaStatus != MediaStatus.WANTED) {
+            updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
+        }
+
+        // 2. Search torrents
+        val results = try {
+            searchTorrents(item)
+        } catch (e: Exception) {
+            onResult(false, "Error searching torrents: ${e.message}")
+            return@withContext
+        }
+
+        if (results.isEmpty()) {
+            onResult(false, "No torrent results found for this episode.")
+            return@withContext
+        }
+
+        // 3. Select first result and start download
+        val firstResult = results.first()
+        val completionUri = generateCompletionIntentUri(item.primaryKey)
+
+        torrentServiceHelper.addTorrent(
+            uri = firstResult.uri.toString(),
+            name = firstResult.name,
+            destinationSubdirectory = item.destinationSubdirectory(),
+            createSubfolderByName = false,
+            notifyOnCompletion = true,
+            fileSelectionMode = "BIGGEST",
+            onCompletionIntentUri = completionUri,
+        ) { success, taskId ->
+            if (success && taskId != null) {
+                // 4. Update status to DOWNLOADING with taskId
+                CoroutineScope(Dispatchers.IO).launch {
+                    updateDownloadTaskId(item.primaryKey, taskId, MediaStatus.DOWNLOADING)
+                    onResult(true, "Download started: ${firstResult.name}")
+                }
+            } else {
+                onResult(false, "Failed to start download.")
+            }
+        }
+    }
 
     private val moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())
@@ -383,12 +468,6 @@ class SimklRepository(private val context: Context) {
             }
         }
 
-        fun determineStatus(simklId: Int, airDate: Instant): MediaStatus {
-            if (airDate.isAfter(Instant.now())) return MediaStatus.NOT_AIRED_YET
-            val downloadUnwatched = settingsMap[simklId]?.downloadUnwatched ?: globalUnwatched
-            return if (downloadUnwatched) MediaStatus.WANTED else MediaStatus.IGNORED
-        }
-
         coroutineScope {
             val deferred = trackedShows.map { show ->
                 async {
@@ -447,7 +526,7 @@ class SimklRepository(private val context: Context) {
                             isSeasonPremiere = epNum == 1,
                             isSeasonFinale = false, // Not available in this endpoint, will be updated by calendar jsons if recent
                             watchedAt = epWatchedTimestamp,
-                            mediaStatus = determineStatus(show.simklId, instant)
+                            mediaStatus = determineStatus(simklId = show.simklId, airDate = instant, settings = settingsMap[show.simklId], globalUnwatched = globalUnwatched)
                         )
                     )
                 }
@@ -756,12 +835,6 @@ class SimklRepository(private val context: Context) {
             }
         }
 
-        fun determineStatus(simklId: Int, airDate: Instant): MediaStatus {
-            if (airDate.isAfter(Instant.now())) return MediaStatus.NOT_AIRED_YET
-            val downloadUnwatched = settingsMap[simklId]?.downloadUnwatched ?: globalUnwatched
-            return if (downloadUnwatched) MediaStatus.WANTED else MediaStatus.IGNORED
-        }
-
         val SIX_HOURS_MILLIS = 6 * 60 * 60 * 1000L
         val nowMillis = System.currentTimeMillis()
         val oneMonthAgo = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS)
@@ -871,7 +944,7 @@ class SimklRepository(private val context: Context) {
                                         movieReleaseType = MovieReleaseType.THEATER,
                                         isSeasonPremiere = false,
                                         isSeasonFinale = false,
-                                        mediaStatus = determineStatus(simklId, theaterInstant)
+                                        mediaStatus = determineStatus(simklId = simklId, airDate = theaterInstant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
                                     )
                                 )
                             }
@@ -890,7 +963,7 @@ class SimklRepository(private val context: Context) {
                                             movieReleaseType = MovieReleaseType.DIGITAL,
                                             isSeasonPremiere = false,
                                             isSeasonFinale = false,
-                                            mediaStatus = determineStatus(simklId, dvdInstant)
+                                            mediaStatus = determineStatus(simklId = simklId, airDate = dvdInstant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
                                         )
                                     )
                                 }
@@ -936,7 +1009,7 @@ class SimklRepository(private val context: Context) {
                                     isSeasonPremiere = isPremiere,
                                     isSeasonFinale = isFinale,
                                     watchedAt = epWatchedTimestamp,
-                                    mediaStatus = determineStatus(simklId, instant)
+                                    mediaStatus = determineStatus(simklId = simklId, airDate = instant, settings = settingsMap[simklId], globalUnwatched = globalUnwatched)
                                 )
                             )
                         }
@@ -988,7 +1061,7 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = MovieReleaseType.THEATER,
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
-                                    mediaStatus = determineStatus(movieId, theaterInstant)
+                                    mediaStatus = determineStatus(simklId = movieId, airDate = theaterInstant, settings = settingsMap[movieId], globalUnwatched = globalUnwatched)
                                 )
                             )
                         }
@@ -1008,7 +1081,7 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = MovieReleaseType.DIGITAL,
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
-                                    mediaStatus = determineStatus(movieId, digitalInstant)
+                                    mediaStatus = determineStatus(simklId = movieId, airDate = digitalInstant, settings = settingsMap[movieId], globalUnwatched = globalUnwatched)
                                 )
                             )
                         }
@@ -1036,12 +1109,10 @@ class SimklRepository(private val context: Context) {
 
         if (itemsToInsert.isNotEmpty()) {
             calendarDao.insertCalendarItems(itemsToInsert.values.toList())
-            Log.d("SimklRepository", "Inserted ${itemsToInsert.size} new calendar items into DB")
         }
 
         if (itemsToUpdate.isNotEmpty()) {
             calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
-            Log.d("SimklRepository", "Updated ${itemsToUpdate.size} changed calendar items in DB")
         }
 
         // Cleanup any old watched items from calendar table

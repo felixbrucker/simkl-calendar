@@ -68,6 +68,15 @@ class NotificationReceiver : BroadcastReceiver() {
                 handleMarkMovieWatched(context, intent)
                 return
             }
+            ACTION_DOWNLOAD_COMPLETED -> {
+                handleDownloadCompleted(context, intent)
+                return
+            }
+        }
+
+        if (action == ACTION_AIR_DATE_ALERT) {
+            handleAirDateAlert(context, intent)
+            return
         }
 
         val title = intent.getStringExtra(EXTRA_TITLE) ?: "Upcoming Airing!"
@@ -304,6 +313,80 @@ class NotificationReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun handleDownloadCompleted(context: Context, intent: Intent) {
+        val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY) ?: return
+        Log.d(TAG, "Download completed for item: $itemKey")
+
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val repo = SimklRepository(context)
+                repo.updateDownloadTaskId(itemKey, null, com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADED)
+                Log.d(TAG, "Updated item $itemKey to DOWNLOADED status and cleared taskId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling download completion", e)
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private fun handleAirDateAlert(context: Context, intent: Intent) {
+        val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY) ?: return
+        val shouldNotify = intent.getBooleanExtra(EXTRA_SHOULD_NOTIFY, false)
+        val title = intent.getStringExtra(EXTRA_TITLE) ?: "Upcoming Airing!"
+        val message = intent.getStringExtra(EXTRA_MESSAGE) ?: "An episode is ready to stream."
+        val id = intent.getIntExtra(EXTRA_ID, 999)
+        val simklId = if (intent.hasExtra(EXTRA_SIMKL_ID)) intent.getIntExtra(EXTRA_SIMKL_ID, 0).takeIf { it != 0 } else null
+        val season = if (intent.hasExtra(EXTRA_SEASON)) intent.getIntExtra(EXTRA_SEASON, -1).takeIf { it != -1 } else null
+        val episodeNumber = if (intent.hasExtra(EXTRA_EPISODE_NUMBER)) intent.getIntExtra(EXTRA_EPISODE_NUMBER, -1).takeIf { it != -1 } else null
+        val mediaTypeName = intent.getStringExtra(EXTRA_MEDIA_TYPE)
+        val mediaType = mediaTypeName?.let { runCatching { MediaType.valueOf(it) }.getOrNull() } ?: MediaType.TV
+        val isFinale = intent.getBooleanExtra(EXTRA_IS_FINALE, false)
+        val showTitle = intent.getStringExtra(EXTRA_SHOW_TITLE)
+        val poster = intent.getStringExtra(EXTRA_POSTER)
+
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val repo = SimklRepository(context)
+
+                // FIRST: Ensure status transitions to WANTED/IGNORED
+                repo.updateItemAiredStatus(itemKey)
+
+                // SECOND: Check if we should notify
+                if (shouldNotify) {
+                    val db = AppDatabase.getDatabase(context)
+                    db.calendarItemDao().markItemAsNotified(itemKey)
+
+                    var resolvedPoster = poster
+                    if (resolvedPoster == null) {
+                        resolvedPoster = db.calendarItemDao().findItem(itemKey)?.poster
+                    }
+
+                    showNotification(
+                        context = context,
+                        title = title,
+                        message = message,
+                        notificationId = id,
+                        itemKey = itemKey,
+                        simklId = simklId,
+                        season = season,
+                        episodeNumber = episodeNumber,
+                        type = mediaType,
+                        isFinale = isFinale,
+                        showTitle = showTitle,
+                        poster = resolvedPoster
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling air date alert", e)
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
     companion object {
         private const val TAG = "NotificationReceiver"
         const val CHANNEL_ID = "simkl_episode_notifications"
@@ -311,6 +394,7 @@ class NotificationReceiver : BroadcastReceiver() {
         const val ACTION_MARK_EPISODE_WATCHED = "com.felixbrucker.simklcalendar.ACTION_MARK_EPISODE_WATCHED"
         const val ACTION_MARK_SEASON_WATCHED = "com.felixbrucker.simklcalendar.ACTION_MARK_SEASON_WATCHED"
         const val ACTION_MARK_MOVIE_WATCHED = "com.felixbrucker.simklcalendar.ACTION_MARK_MOVIE_WATCHED"
+        const val ACTION_DOWNLOAD_COMPLETED = "com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_COMPLETED"
 
         const val EXTRA_TITLE = "extra_title"
         const val EXTRA_MESSAGE = "extra_message"
@@ -324,6 +408,7 @@ class NotificationReceiver : BroadcastReceiver() {
         const val EXTRA_SHOW_TITLE = "extra_show_title"
         const val EXTRA_MOVIE_RELEASE_TYPE = "extra_movie_release_type"
         const val EXTRA_POSTER = "extra_poster"
+        const val EXTRA_SHOULD_NOTIFY = "extra_should_notify"
 
         /**
          * Formats notification title and message from raw parameters using type-safe enums.

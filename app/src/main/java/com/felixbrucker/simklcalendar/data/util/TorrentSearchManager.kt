@@ -23,7 +23,7 @@ class TorrentSearchManager(
 
         val itemSettings = itemSettingsDao.getSettings(simklId)
 
-        val searchTitle = itemSettings?.titleOverride ?: item.title
+        val searchTitle = itemSettings?.titleOverride ?: item.titleRomaji ?: item.title
         val searchSeason = itemSettings?.seasonOverrides?.get(season) ?: season
         val episode = item.episodeNumber
 

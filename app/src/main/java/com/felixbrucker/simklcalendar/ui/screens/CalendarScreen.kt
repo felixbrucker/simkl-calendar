@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -63,6 +64,7 @@ import com.felixbrucker.simklcalendar.ui.screens.TrackedWatchlistTableView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.*
 
 private enum class SearchBarDisplayMode {
@@ -84,6 +86,7 @@ fun CalendarScreen(
     val isSyncing by viewModel.isSyncing.collectAsState()
     val userToken by viewModel.userToken.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val torrentDownloads by viewModel.torrentDownloads.collectAsState()
 
     // Filters states are now handled inside CalendarView
     val showEarlierReleases by viewModel.showEarlierReleases.collectAsState()
@@ -342,9 +345,9 @@ fun CalendarScreen(
                 actions = {
                     if (searchDisplayMode == SearchBarDisplayMode.DEFAULT) {
                         IconButton(
-                            onClick = { 
+                            onClick = {
                                 val nextMode = if (viewMode == MainViewMode.CALENDAR) MainViewMode.TABLE else MainViewMode.CALENDAR
-                                viewModel.setViewMode(nextMode) 
+                                viewModel.setViewMode(nextMode)
                             },
                             modifier = Modifier.testTag("view_mode_toggle_button")
                         ) {
@@ -411,6 +414,10 @@ fun CalendarScreen(
             val tvFilter by viewModel.showTv.collectAsState()
             val animeFilter by viewModel.showAnime.collectAsState()
             val moviesFilter by viewModel.showMovies.collectAsState()
+            val unwatchedFilter by viewModel.showOnlyUnwatchedReleased.collectAsState()
+            val premieresOnly by viewModel.onlySeasonPremieres.collectAsState()
+            val finalesOnly by viewModel.onlySeasonFinales.collectAsState()
+            val digitalDvdOnly by viewModel.onlyDigitalDvd.collectAsState()
 
             Column(
                 modifier = Modifier.fillMaxSize()
@@ -419,7 +426,8 @@ fun CalendarScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -435,7 +443,7 @@ fun CalendarScreen(
                             labelColor = Color(0xFFCAC4D0)
                         )
                     )
-                    
+
                     // Anime Toggle
                     FilterChip(
                         selected = animeFilter,
@@ -461,6 +469,80 @@ fun CalendarScreen(
                             labelColor = Color(0xFFCAC4D0)
                         )
                     )
+
+                    // Visual Separator
+                    val showAdditional = (viewMode == MainViewMode.TABLE) || (viewMode == MainViewMode.CALENDAR)
+                    if (showAdditional) {
+                        VerticalDivider(
+                            modifier = Modifier
+                                .height(24.dp)
+                                .padding(horizontal = 4.dp),
+                            color = Color(0xFF49454F)
+                        )
+                    }
+
+                    // Unwatched Released Toggle (Only in Table View)
+                    if (viewMode == MainViewMode.TABLE) {
+                        FilterChip(
+                            selected = unwatchedFilter,
+                            onClick = { viewModel.showOnlyUnwatchedReleased.value = !unwatchedFilter },
+                            label = { Text("Unwatched") },
+                            leadingIcon = {
+                                if (unwatchedFilter) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                    )
+                                }
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFD0BCFF),
+                                selectedLabelColor = Color(0xFF381E72),
+                                containerColor = Color(0xFF313033),
+                                labelColor = Color(0xFFCAC4D0)
+                            )
+                        )
+                    }
+
+                    // Calendar Subtype Filters (Only in Calendar View)
+                    if (viewMode == MainViewMode.CALENDAR) {
+                        FilterChip(
+                            selected = premieresOnly,
+                            onClick = { viewModel.onlySeasonPremieres.value = !premieresOnly },
+                            label = { Text("Season Premiere") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFE8DEF8),
+                                selectedLabelColor = Color(0xFF1D192B),
+                                containerColor = Color(0xFF313033),
+                                labelColor = Color(0xFFCAC4D0)
+                            )
+                        )
+
+                        FilterChip(
+                            selected = finalesOnly,
+                            onClick = { viewModel.onlySeasonFinales.value = !finalesOnly },
+                            label = { Text("Season Finale") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFB3261E),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFF313033),
+                                labelColor = Color(0xFFCAC4D0)
+                            )
+                        )
+
+                        FilterChip(
+                            selected = digitalDvdOnly,
+                            onClick = { viewModel.onlyDigitalDvd.value = !digitalDvdOnly },
+                            label = { Text("Digital / DVD") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF4F378B),
+                                selectedLabelColor = Color(0xFFEADDFF),
+                                containerColor = Color(0xFF313033),
+                                labelColor = Color(0xFFCAC4D0)
+                            )
+                        )
+                    }
                 }
 
                 // Search Results Status Pill (when searching)
@@ -498,17 +580,18 @@ fun CalendarScreen(
 
                 // Conditionally render Calendar View or Table View
                 if (viewMode == MainViewMode.CALENDAR) {
-                    CalendarView(
-                        items = items,
-                        earlierItems = earlierItems,
-                        upcomingGrouped = upcomingGrouped,
-                        earlierGrouped = earlierGrouped,
-                        showEarlierReleases = showEarlierReleases,
-                        searchQuery = searchQuery,
-                        viewModel = viewModel,
-                        onNavigateToShowDetail = onNavigateToShowDetail,
-                        snackbarHostState = snackbarHostState
-                    )
+                        CalendarView(
+                            items = items,
+                            earlierItems = earlierItems,
+                            upcomingGrouped = upcomingGrouped,
+                            earlierGrouped = earlierGrouped,
+                            showEarlierReleases = showEarlierReleases,
+                            searchQuery = searchQuery,
+                            torrentDownloads = torrentDownloads,
+                            viewModel = viewModel,
+                            onNavigateToShowDetail = onNavigateToShowDetail,
+                            snackbarHostState = snackbarHostState
+                        )
                 } else {
                     TrackedWatchlistTableView(
                         viewModel = viewModel,
@@ -530,6 +613,7 @@ private fun CalendarView(
     earlierGrouped: Map<String, List<CalendarItemWithWatchlist>>,
     showEarlierReleases: Boolean,
     searchQuery: String,
+    torrentDownloads: Map<String, com.felixbrucker.simklcalendar.data.util.DownloadProgress>,
     viewModel: CalendarViewModel,
     onNavigateToShowDetail: (String) -> Unit,
     snackbarHostState: SnackbarHostState
@@ -538,57 +622,7 @@ private fun CalendarView(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Filters states (Specific to Calendar View)
-    val premieresOnly by viewModel.onlySeasonPremieres.collectAsState()
-    val finalesOnly by viewModel.onlySeasonFinales.collectAsState()
-    val digitalDvdOnly by viewModel.onlyDigitalDvd.collectAsState()
-
     Column(modifier = Modifier.fillMaxSize()) {
-        // Subtype Row filters (Season Premiere / Season Finale / Digital & DVD highlights)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 2.dp)
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
-                selected = premieresOnly,
-                onClick = { viewModel.onlySeasonPremieres.value = !premieresOnly },
-                label = { Text("Season Premiere") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0xFFE8DEF8),
-                    selectedLabelColor = Color(0xFF1D192B),
-                    containerColor = Color(0xFF313033),
-                    labelColor = Color(0xFFCAC4D0)
-                )
-            )
-
-            FilterChip(
-                selected = finalesOnly,
-                onClick = { viewModel.onlySeasonFinales.value = !finalesOnly },
-                label = { Text("Season Finale") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0xFFB3261E),
-                    selectedLabelColor = Color.White,
-                    containerColor = Color(0xFF313033),
-                    labelColor = Color(0xFFCAC4D0)
-                )
-            )
-
-            FilterChip(
-                selected = digitalDvdOnly,
-                onClick = { viewModel.onlyDigitalDvd.value = !digitalDvdOnly },
-                label = { Text("Digital / DVD") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0xFF4F378B),
-                    selectedLabelColor = Color(0xFFEADDFF),
-                    containerColor = Color(0xFF313033),
-                    labelColor = Color(0xFFCAC4D0)
-                )
-            )
-        }
-
         Spacer(modifier = Modifier.height(8.dp))
 
         // Calendar Group list
@@ -737,6 +771,7 @@ private fun CalendarView(
                                 SwipeableCalendarItemCard(
                                     modifier = Modifier.animateItem(),
                                     item = item,
+                                    downloadProgress = torrentDownloads[item.downloadTaskId],
                                     onClick = { onNavigateToShowDetail(item.primaryKey) },
                                     onMarkEpisodeWatched = {
                                         if (item.type == MediaType.MOVIE) {
@@ -859,6 +894,7 @@ private fun CalendarView(
                             SwipeableCalendarItemCard(
                                 modifier = Modifier.animateItem(),
                                 item = item,
+                                downloadProgress = torrentDownloads[item.downloadTaskId],
                                 onClick = { onNavigateToShowDetail(item.primaryKey) },
                                 onMarkEpisodeWatched = {
                                     if (item.type == MediaType.MOVIE) {
@@ -1005,7 +1041,8 @@ private fun CalendarView(
 fun CalendarItemCard(
     item: CalendarItemWithWatchlist,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    downloadProgress: com.felixbrucker.simklcalendar.data.util.DownloadProgress? = null
 ) {
     val categoryColor = when (item.type) {
         MediaType.ANIME -> Color(0xFFD0BCFF)
@@ -1016,170 +1053,254 @@ fun CalendarItemCard(
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (item.isWatched) Color(0xFF232227) else Color(0xFF2B2930)
+            containerColor = Color(0xFF2B2930)
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (item.isWatched) Color(0xFF38353D) else Color(0xFF49454F)
+            if (item.mediaStatus == com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADING) Color(0xFF004A77) else Color(0xFF49454F)
         ),
         modifier = modifier
-            .alpha(if (item.isWatched) 0.6f else 1f)
             .clickable(onClick = onClick)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Coil Async Image loading cropped poster
-            Box(
+        Column {
+            Row(
                 modifier = Modifier
-                    .size(width = 60.dp, height = 90.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF313033))
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
-                    model = item.poster.toPosterUrl(PosterSize.COMPACT),
-                    contentDescription = "${item.title} Poster",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                    error = painterResource(id = android.R.drawable.ic_menu_gallery)
-                )
-                
-                // Slim type overlay bar
+                // Coil Async Image loading cropped poster
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .background(categoryColor)
-                        .align(Alignment.BottomStart)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Details Column
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        .size(width = 60.dp, height = 90.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF313033))
                 ) {
-                    // Type Badge
-                    Badge(
-                        containerColor = categoryColor.copy(alpha = 0.2f),
-                        contentColor = categoryColor
-                    ) {
-                        Text(item.type.displayName.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
-                    }
+                    AsyncImage(
+                        model = item.poster.toPosterUrl(PosterSize.COMPACT),
+                        contentDescription = "${item.title} Poster",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        error = painterResource(id = android.R.drawable.ic_menu_gallery)
+                    )
 
-                    // Watched badge
-                    if (item.isWatched) {
+                    // Slim type overlay bar
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .background(categoryColor)
+                            .align(Alignment.BottomStart)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Details Column
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Type Badge
                         Badge(
-                            containerColor = Color(0xFF1E3A2B),
-                            contentColor = Color(0xFF7CE49F)
+                            containerColor = categoryColor.copy(alpha = 0.2f),
+                            contentColor = categoryColor
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp)
+                            Text(item.type.displayName.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
+                        }
+
+                        // Downloading badge
+                        if (item.mediaStatus == com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADING) {
+                            Badge(
+                                containerColor = Color(0xFF004A77),
+                                contentColor = Color(0xFFC2E8FF)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Watched",
-                                    modifier = Modifier.size(10.dp),
-                                    tint = Color(0xFF7CE49F)
-                                )
-                                Text(
-                                    text = "WATCHED",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF7CE49F)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = "Downloading",
+                                        modifier = Modifier.size(10.dp),
+                                        tint = Color(0xFFC2E8FF)
+                                    )
+                                    Text(
+                                        text = "DOWNLOADING",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFC2E8FF)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Downloaded badge
+                        if (item.mediaStatus == com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADED) {
+                            Badge(
+                                containerColor = Color(0xFF1E3A2B),
+                                contentColor = Color(0xFF7CE49F)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Downloaded",
+                                        modifier = Modifier.size(10.dp),
+                                        tint = Color(0xFF7CE49F)
+                                    )
+                                    Text(
+                                        text = "DOWNLOADED",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF7CE49F)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Premiere badge
+                        if (item.isSeasonPremiere) {
+                            Badge(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B)) {
+                                Text("SEASON PREMIERE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
+                            }
+                        }
+
+                        // Finale badge
+                        if (item.isSeasonFinale) {
+                            Badge(containerColor = Color(0xFFB3261E), contentColor = Color.White) {
+                                Text("SEASON FINALE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                             }
                         }
                     }
 
-                    // Premiere badge
-                    if (item.isSeasonPremiere) {
-                        Badge(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B)) {
-                            Text("SEASON PREMIERE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                    // Finale badge
-                    if (item.isSeasonFinale) {
-                        Badge(containerColor = Color(0xFFB3261E), contentColor = Color.White) {
-                            Text("SEASON FINALE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = item.title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = Color(0xFFE6E1E5),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                val romaji = item.titleRomaji
-                if (item.type == MediaType.ANIME && !romaji.isNullOrBlank()) {
                     Text(
-                        text = romaji,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Color(0xFFCAC4D0),
+                        text = item.title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        color = Color(0xFFE6E1E5),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                }
 
-                Spacer(modifier = Modifier.height(2.dp))
-
-                when (item.type) {
-                    MediaType.ANIME, MediaType.TV -> {
-                        val epLabel = item.formattedEpisodeCardBadge
-                        val epTitle = item.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
+                    val romaji = item.titleRomaji
+                    if (item.type == MediaType.ANIME && !romaji.isNullOrBlank()) {
                         Text(
-                            text = "$epLabel: $epTitle",
-                            fontSize = 13.sp,
+                            text = romaji,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
                             color = Color(0xFFCAC4D0),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    MediaType.MOVIE -> {
-                        Text(
-                            text = item.movieReleaseType?.displayName ?: "Movie Release",
-                            fontSize = 13.sp,
-                            color = Color(0xFFF2B8B5)
-                        )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    when (item.type) {
+                        MediaType.ANIME, MediaType.TV -> {
+                            val epLabel = item.formattedEpisodeCardBadge
+                            val epTitle = item.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
+                            Text(
+                                text = "$epLabel: $epTitle",
+                                fontSize = 13.sp,
+                                color = Color(0xFFCAC4D0),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        MediaType.MOVIE -> {
+                            Text(
+                                text = item.movieReleaseType?.displayName ?: "Movie Release",
+                                fontSize = 13.sp,
+                                color = Color(0xFFF2B8B5)
+                            )
+                        }
+                    }
+
+                    if (item.type != MediaType.MOVIE) {
+                        val releaseTime = DateUtil.formatLocalizedTime(item.date)
+                        if (releaseTime != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = "Air Time",
+                                    modifier = Modifier.size(13.dp),
+                                    tint = Color(0xFFD0BCFF)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = releaseTime,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFFD0BCFF)
+                                )
+                            }
+                        }
                     }
                 }
+            }
 
-                if (item.type != MediaType.MOVIE) {
-                    val releaseTime = DateUtil.formatLocalizedTime(item.date)
-                    if (releaseTime != null) {
+            // Progress bar and stats for downloading items
+            if (item.mediaStatus == com.felixbrucker.simklcalendar.data.model.MediaStatus.DOWNLOADING && downloadProgress != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF004A77).copy(alpha = 0.1f))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    val progress = if (downloadProgress.totalBytes > 0) downloadProgress.bytesDownloaded.toFloat() / downloadProgress.totalBytes else 0f
+                    val percentage = (progress * 100).toInt()
+                    val downloaded = android.text.format.Formatter.formatFileSize(LocalContext.current, downloadProgress.bytesDownloaded)
+                    val total = android.text.format.Formatter.formatFileSize(LocalContext.current, downloadProgress.totalBytes)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .width(100.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = Color(0xFFC2E8FF),
+                            trackColor = Color(0xFF004A77).copy(alpha = 0.3f)
+                        )
+                        Text(
+                            text = "${percentage}%",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFC2E8FF)
+                        )
+                        Text(
+                            text = "$downloaded / $total",
+                            fontSize = 10.sp,
+                            color = Color(0xFFC2E8FF).copy(alpha = 0.7f)
+                        )
+                    }
+
+                    if (downloadProgress.downloadSpeed > 0) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Schedule,
-                                contentDescription = "Air Time",
-                                modifier = Modifier.size(13.dp),
-                                tint = Color(0xFFD0BCFF)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = releaseTime,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFFD0BCFF)
-                              )
-                        }
+                        val speedStr = android.text.format.Formatter.formatFileSize(LocalContext.current, downloadProgress.downloadSpeed.toLong()) + "/s"
+                        val remainingBytes = downloadProgress.totalBytes - downloadProgress.bytesDownloaded
+                        val remainingSeconds = (remainingBytes / downloadProgress.downloadSpeed).toLong()
+                        val eta = DateUtil.formatDuration(remainingSeconds)
+
+                        Text(
+                            text = "$speedStr • ETA: $eta",
+                            fontSize = 11.sp,
+                            color = Color(0xFFC2E8FF)
+                        )
                     }
                 }
             }
@@ -1194,19 +1315,9 @@ fun SwipeableCalendarItemCard(
     onClick: () -> Unit,
     onMarkEpisodeWatched: () -> Unit,
     onMarkSeasonWatched: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    downloadProgress: com.felixbrucker.simklcalendar.data.util.DownloadProgress? = null
 ) {
-    if (item.isWatched) {
-        CalendarItemCard(
-            item = item,
-            onClick = onClick,
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp)
-        )
-        return
-    }
-
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
             when (dismissValue) {
@@ -1233,8 +1344,8 @@ fun SwipeableCalendarItemCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
-        enableDismissFromStartToEnd = !item.isWatched,
-        enableDismissFromEndToStart = !item.isWatched && item.type != MediaType.MOVIE,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = item.type != MediaType.MOVIE,
         backgroundContent = {
             val direction = dismissState.dismissDirection
             val isStartToEnd = direction == SwipeToDismissBoxValue.StartToEnd
@@ -1306,7 +1417,8 @@ fun SwipeableCalendarItemCard(
         CalendarItemCard(
             item = item,
             onClick = onClick,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            downloadProgress = downloadProgress
         )
     }
 }

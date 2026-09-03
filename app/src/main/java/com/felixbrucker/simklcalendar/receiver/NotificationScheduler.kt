@@ -11,6 +11,8 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -95,7 +97,7 @@ object NotificationScheduler {
         totalEpisodesInSeason: Int? = null
     ) {
         val isFinale = item.isSeasonFinale
-        val isEnabled = when {
+        val shouldNotify = when {
             item.type == MediaType.MOVIE -> if (item.movieReleaseType == MovieReleaseType.THEATER) {
                 setting.notifyEveryEpisode
             } else {
@@ -105,7 +107,9 @@ object NotificationScheduler {
             else -> setting.notifyEveryEpisode
         }
 
-        if (!isEnabled) {
+        // We ALWAYS schedule/dispatch for items in NOT_AIRED_YET status to ensure 
+        // they transition to WANTED/IGNORED at the air date, regardless of notification settings.
+        if (!shouldNotify && item.mediaStatus != MediaStatus.NOT_AIRED_YET) {
             cancelAlarmForItem(context, item)
             return
         }
@@ -140,7 +144,8 @@ object NotificationScheduler {
                 isFinale = isFinale,
                 showTitle = item.title,
                 movieReleaseType = item.movieReleaseType,
-                poster = item.poster
+                poster = item.poster,
+                shouldNotify = shouldNotify
             )
             return
         }
@@ -151,22 +156,29 @@ object NotificationScheduler {
             return
         }
 
-        NotificationReceiver.showNotification(
-            context = context,
-            title = title,
-            message = message,
-            notificationId = notificationId,
-            itemKey = item.primaryKey,
-            simklId = item.simklId,
-            season = item.season,
-            episodeNumber = item.episodeNumber,
-            type = item.type,
-            isFinale = isFinale,
-            showTitle = item.title,
-            poster = item.poster
-        )
+        if (shouldNotify) {
+            NotificationReceiver.showNotification(
+                context = context,
+                title = title,
+                message = message,
+                notificationId = notificationId,
+                itemKey = item.primaryKey,
+                simklId = item.simklId,
+                season = item.season,
+                episodeNumber = item.episodeNumber,
+                type = item.type,
+                isFinale = isFinale,
+                showTitle = item.title,
+                poster = item.poster
+            )
+        }
         db.calendarItemDao().markItemAsNotified(item.primaryKey)
-        Log.d(TAG, "Dispatched immediate notification for recently reached air date: ${item.title}")
+
+        // Also perform status transition if needed
+        val repo = SimklRepository(context)
+        repo.updateItemAiredStatus(item.primaryKey)
+
+        Log.d(TAG, "Dispatched immediate action/notification for recently reached air date: ${item.title}")
     }
 
     private fun scheduleAlarm(
@@ -183,7 +195,8 @@ object NotificationScheduler {
         isFinale: Boolean,
         showTitle: String,
         movieReleaseType: MovieReleaseType?,
-        poster: String? = null
+        poster: String? = null,
+        shouldNotify: Boolean
     ) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
 
@@ -202,6 +215,7 @@ object NotificationScheduler {
             putExtra(NotificationReceiver.EXTRA_SHOW_TITLE, showTitle)
             if (movieReleaseType != null) putExtra(NotificationReceiver.EXTRA_MOVIE_RELEASE_TYPE, movieReleaseType.name)
             if (poster != null) putExtra(NotificationReceiver.EXTRA_POSTER, poster)
+            putExtra(NotificationReceiver.EXTRA_SHOULD_NOTIFY, shouldNotify)
         }
 
         val requestCode = Math.abs(itemKey.hashCode())
