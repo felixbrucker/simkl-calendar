@@ -63,7 +63,7 @@ class TorrentServiceHelper(context: Context) {
         return try {
             appContext.packageManager.getPackageInfo(SERVICE_PACKAGE, 0)
             true
-        } catch (e: PackageManager.NameNotFoundException) {
+        } catch (_: PackageManager.NameNotFoundException) {
             false
         }
     }

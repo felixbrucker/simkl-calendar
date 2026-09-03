@@ -541,7 +541,7 @@ class NotificationReceiver : BroadcastReceiver() {
             )
 
             // Check database watched status for this item/season/movie
-            val db = try { AppDatabase.getDatabase(context) } catch (e: Exception) { null }
+            val db = try { AppDatabase.getDatabase(context) } catch (_: Exception) { null }
             var isAlreadyWatched = false
             var watchedBadge: String? = null
 

@@ -1041,7 +1041,7 @@ fun SettingsScreen(
 
                     Button(
                         onClick = {
-                            viewModel.forceWatchlistResync { success, message ->
+                            viewModel.forceWatchlistResync { _, message ->
                                 scope.launch {
                                     snackbarHostState.showSnackbar(message)
                                 }

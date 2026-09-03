@@ -275,7 +275,7 @@ class SimklRepository(private val context: Context) {
 
         val encodedRedirect = try {
             URLEncoder.encode(redirectUri, "UTF-8")
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             redirectUri
         }
 
