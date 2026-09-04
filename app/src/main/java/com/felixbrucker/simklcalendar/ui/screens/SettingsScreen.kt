@@ -100,7 +100,9 @@ fun SettingsScreen(
 
     val autoQuality by viewModel.autoDownloadQuality.collectAsState()
     val autoPreferHevc by viewModel.autoDownloadPreferHevc.collectAsState()
-    val autoUnwatchedDefault by viewModel.autoDownloadUnwatchedDefault.collectAsState()
+    val autoUnwatchedTv by viewModel.autoDownloadUnwatchedTv.collectAsState()
+    val autoUnwatchedAnime by viewModel.autoDownloadUnwatchedAnime.collectAsState()
+    val autoUnwatchedMovie by viewModel.autoDownloadUnwatchedMovie.collectAsState()
     val autoPreferredKeywords by viewModel.autoDownloadPreferredKeywords.collectAsState()
     val autoIgnoreKeywords by viewModel.autoDownloadIgnoreKeywords.collectAsState()
 
@@ -606,19 +608,55 @@ fun SettingsScreen(
                         )
                     }
 
-                    // Default Download Unwatched
+                    HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+                    // Default Download Unwatched TV
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Download Unwatched Episodes", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                            Text("Default setting for newly tracked items.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                            Text("Download Unwatched TV Shows", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                            Text("Default setting for newly tracked TV Shows.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
                         }
                         Switch(
-                            checked = autoUnwatchedDefault,
-                            onCheckedChange = { viewModel.updateAutoDownloadUnwatchedDefault(it) },
+                            checked = autoUnwatchedTv,
+                            onCheckedChange = { viewModel.updateAutoDownloadUnwatchedTv(it) },
+                            enabled = isDownloaderInstalled
+                        )
+                    }
+
+                    // Default Download Unwatched Anime
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Download Unwatched Anime", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                            Text("Default setting for newly tracked Anime.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = autoUnwatchedAnime,
+                            onCheckedChange = { viewModel.updateAutoDownloadUnwatchedAnime(it) },
+                            enabled = isDownloaderInstalled
+                        )
+                    }
+
+                    // Default Download Unwatched Movies
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Download Unwatched Movies", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                            Text("Default setting for newly tracked Movies.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = autoUnwatchedMovie,
+                            onCheckedChange = { viewModel.updateAutoDownloadUnwatchedMovie(it) },
                             enabled = isDownloaderInstalled
                         )
                     }

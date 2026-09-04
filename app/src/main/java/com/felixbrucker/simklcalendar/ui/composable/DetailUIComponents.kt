@@ -567,10 +567,18 @@ fun DownloadSettingsCard(
     viewModel: CalendarViewModel,
     simklId: Int,
     itemTitle: String,
-    isMovie: Boolean,
+    mediaType: MediaType,
     modifier: Modifier = Modifier,
 ) {
-    val globalUnwatched by viewModel.autoDownloadUnwatchedDefault.collectAsState()
+    val globalUnwatchedTv by viewModel.autoDownloadUnwatchedTv.collectAsState()
+    val globalUnwatchedAnime by viewModel.autoDownloadUnwatchedAnime.collectAsState()
+    val globalUnwatchedMovie by viewModel.autoDownloadUnwatchedMovie.collectAsState()
+
+    val globalUnwatched = when (mediaType) {
+        MediaType.TV -> globalUnwatchedTv
+        MediaType.ANIME -> globalUnwatchedAnime
+        MediaType.MOVIE -> globalUnwatchedMovie
+    }
     val globalQuality by viewModel.autoDownloadQuality.collectAsState()
     val globalPreferHevc by viewModel.autoDownloadPreferHevc.collectAsState()
     val itemSettings by viewModel.getItemDownloadSettingsFlow(simklId).collectAsState(null)
@@ -684,7 +692,7 @@ fun DownloadSettingsCard(
             }
 
             // Season Overrides
-            if (!isMovie) {
+            if (mediaType != MediaType.MOVIE) {
                 Spacer(modifier = Modifier.height(16.dp))
                 var showSeasonDialog by remember { mutableStateOf(false) }
                 val seasonOverrides = itemSettings?.seasonOverrides ?: emptyMap()

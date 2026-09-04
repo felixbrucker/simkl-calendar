@@ -285,7 +285,7 @@ fun WatchlistItemDetailScreen(
                         viewModel = viewModel,
                         simklId = watchlistItem.simklId,
                         itemTitle = watchlistItem.title,
-                        isMovie = isMovie,
+                        mediaType = watchlistItem.type,
                         modifier = Modifier.padding(16.dp),
                     )
                 }

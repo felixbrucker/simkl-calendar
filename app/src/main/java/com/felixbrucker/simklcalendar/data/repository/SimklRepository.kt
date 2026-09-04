@@ -123,29 +123,37 @@ class SimklRepository(private val context: Context) {
         calendarDao.updateDownloadTaskId(primaryKey, taskId, status)
     }
 
-    suspend fun updateItemAiredStatus(item: CalendarItem) = withContext(Dispatchers.IO) {
-        if (item.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext
+    suspend fun updateItemAiredStatus(item: CalendarItemWithWatchlist) = withContext(Dispatchers.IO) {
+        val calendarItem = item.calendarItem
+        if (calendarItem.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext
 
         val settings = itemDownloadSettingsDao.getSettings(item.simklId)
-        val globalUnwatched = downloadPrefs.getBoolean("unwatched_default", false)
 
         val newStatus = determineStatus(
-            airDate = item.date,
+            airDate = calendarItem.date,
             settings = settings,
-            globalUnwatched = globalUnwatched,
-            isTheaterRelease = item.movieReleaseType == MovieReleaseType.THEATER,
+            mediaType = item.type,
+            isTheaterRelease = calendarItem.movieReleaseType == MovieReleaseType.THEATER,
         )
-        calendarDao.updateMediaStatus(item.primaryKey, newStatus)
+        calendarDao.updateMediaStatus(calendarItem.primaryKey, newStatus)
     }
 
     fun determineStatus(
         airDate: Instant,
         settings: ItemDownloadSettings?,
-        globalUnwatched: Boolean,
+        mediaType: MediaType,
         isTheaterRelease: Boolean,
     ): MediaStatus {
         if (airDate.isAfter(Instant.now())) return MediaStatus.NOT_AIRED_YET
         if (isTheaterRelease) return MediaStatus.IGNORED
+
+        val globalKey = when (mediaType) {
+            MediaType.TV -> "auto_download_unwatched_tv"
+            MediaType.ANIME -> "auto_download_unwatched_anime"
+            MediaType.MOVIE -> "auto_download_unwatched_movie"
+        }
+        val globalUnwatched = downloadPrefs.getBoolean(globalKey, false)
+
         val isUnwatched = settings?.downloadUnwatched ?: globalUnwatched
         return if (isUnwatched) MediaStatus.WANTED else MediaStatus.IGNORED
     }
@@ -459,7 +467,6 @@ class SimklRepository(private val context: Context) {
 
         val allSettings = itemDownloadSettingsDao.getAllSettingsList()
         val settingsMap = allSettings.associateBy { it.simklId }
-        val globalUnwatched = downloadPrefs.getBoolean("unwatched_default", false)
 
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
@@ -540,7 +547,7 @@ class SimklRepository(private val context: Context) {
                             mediaStatus = determineStatus(
                                 airDate = instant,
                                 settings = settingsMap[show.simklId],
-                                globalUnwatched = globalUnwatched,
+                                mediaType = show.type,
                                 isTheaterRelease = false,
                             )
                         )
@@ -816,7 +823,6 @@ class SimklRepository(private val context: Context) {
 
         val allSettings = itemDownloadSettingsDao.getAllSettingsList()
         val settingsMap = allSettings.associateBy { it.simklId }
-        val globalUnwatched = downloadPrefs.getBoolean("unwatched_default", false)
 
         // Load existing local calendar items to perform incremental diff comparison
         val existingDbItems = calendarDao.getAllCalendarEntities()
@@ -963,7 +969,7 @@ class SimklRepository(private val context: Context) {
                                         mediaStatus = determineStatus(
                                             airDate = theaterInstant,
                                             settings = settingsMap[simklId],
-                                            globalUnwatched = globalUnwatched,
+                                            mediaType = MediaType.MOVIE,
                                             isTheaterRelease = true,
                                         )
                                     )
@@ -987,7 +993,7 @@ class SimklRepository(private val context: Context) {
                                             mediaStatus = determineStatus(
                                                 airDate = dvdInstant,
                                                 settings = settingsMap[simklId],
-                                                globalUnwatched = globalUnwatched,
+                                                mediaType = MediaType.MOVIE,
                                                 isTheaterRelease = false,
                                             )
                                         )
@@ -1038,7 +1044,7 @@ class SimklRepository(private val context: Context) {
                                     mediaStatus = determineStatus(
                                         airDate = instant,
                                         settings = settingsMap[simklId],
-                                        globalUnwatched = globalUnwatched,
+                                        mediaType = defaultType,
                                         isTheaterRelease = false,
                                     )
                                 )
@@ -1095,7 +1101,7 @@ class SimklRepository(private val context: Context) {
                                     mediaStatus = determineStatus(
                                         airDate = theaterInstant,
                                         settings = settingsMap[movieId],
-                                        globalUnwatched = globalUnwatched,
+                                        mediaType = MediaType.MOVIE,
                                         isTheaterRelease = true,
                                     )
                                 )
@@ -1120,7 +1126,7 @@ class SimklRepository(private val context: Context) {
                                     mediaStatus = determineStatus(
                                         airDate = digitalInstant,
                                         settings = settingsMap[movieId],
-                                        globalUnwatched = globalUnwatched,
+                                        mediaType = MediaType.MOVIE,
                                         isTheaterRelease = false,
                                     )
                                 )

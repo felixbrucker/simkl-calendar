@@ -46,7 +46,7 @@ class AlarmReceiver: BroadcastReceiver() {
         val repo = SimklRepository(context)
 
         // First, ensure the items media status is correctly set after it aired
-        repo.updateItemAiredStatus(item.calendarItem)
+        repo.updateItemAiredStatus(item)
 
         // Second, we check if we should post a notification for this item
         val shouldPostNotification = shouldPostNotificationForItem(item, context)

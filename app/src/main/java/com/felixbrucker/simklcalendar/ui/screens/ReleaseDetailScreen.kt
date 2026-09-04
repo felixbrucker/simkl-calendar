@@ -662,7 +662,7 @@ fun ReleaseDetailScreen(
                         viewModel = viewModel,
                         simklId = activeItem.simklId,
                         itemTitle = activeItem.title,
-                        isMovie = isMovie
+                        mediaType = activeItem.type
                     )
                 }
             }

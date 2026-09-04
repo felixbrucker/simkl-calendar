@@ -216,7 +216,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     val autoDownloadQuality = MutableStateFlow(downloadPrefs.getString("quality", "1080p") ?: "1080p")
     val autoDownloadPreferHevc = MutableStateFlow(downloadPrefs.getBoolean("prefer_hevc", true))
-    val autoDownloadUnwatchedDefault = MutableStateFlow(downloadPrefs.getBoolean("unwatched_default", false))
+    val autoDownloadUnwatchedTv = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_tv", false))
+    val autoDownloadUnwatchedAnime = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_anime", false))
+    val autoDownloadUnwatchedMovie = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_movie", false))
     val autoDownloadPreferredKeywords = MutableStateFlow(downloadPrefs.getStringSet("preferred_keywords", setOf("erai", "subsplease", "megusta", "PSA"))?.toList() ?: listOf("erai", "subsplease", "megusta", "PSA"))
     val autoDownloadIgnoreKeywords = MutableStateFlow(downloadPrefs.getStringSet("ignore_keywords", setOf("ita"))?.toList() ?: listOf("ita"))
 
@@ -230,9 +232,19 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         downloadPrefs.edit {putBoolean("prefer_hevc", prefer)}
     }
 
-    fun updateAutoDownloadUnwatchedDefault(default: Boolean) {
-        autoDownloadUnwatchedDefault.value = default
-        downloadPrefs.edit { putBoolean("unwatched_default", default)}
+    fun updateAutoDownloadUnwatchedTv(default: Boolean) {
+        autoDownloadUnwatchedTv.value = default
+        downloadPrefs.edit { putBoolean("auto_download_unwatched_tv", default)}
+    }
+
+    fun updateAutoDownloadUnwatchedAnime(default: Boolean) {
+        autoDownloadUnwatchedAnime.value = default
+        downloadPrefs.edit { putBoolean("auto_download_unwatched_anime", default)}
+    }
+
+    fun updateAutoDownloadUnwatchedMovie(default: Boolean) {
+        autoDownloadUnwatchedMovie.value = default
+        downloadPrefs.edit { putBoolean("auto_download_unwatched_movie", default)}
     }
 
     fun addPreferredKeyword(keyword: String) {
