@@ -1,6 +1,9 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -43,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
+import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
@@ -72,6 +76,7 @@ fun CalendarScreen(
     onNavigateToWatchlistItemDetail: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val items by viewModel.filteredCalendarItems.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val shouldShowAutoDownloadStatus by viewModel.shouldShowAutoDownloadStatus.collectAsState()
@@ -145,6 +150,27 @@ fun CalendarScreen(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val alarmPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        // Re-check permission if needed, but the snackbar is a one-time thing here
+    }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!PermissionUtil.hasExactAlarmPermission(context)) {
+                val result = snackbarHostState.showSnackbar(
+                    message = "Exact alarms are required for timely notifications.",
+                    actionLabel = "Grant",
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
+                }
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

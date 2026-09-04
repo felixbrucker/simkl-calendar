@@ -46,6 +46,7 @@ import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.core.content.edit
+import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,11 +62,25 @@ fun SettingsScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { /* Permission result */ }
 
+    var hasExactAlarmPermission by remember {
+        mutableStateOf(PermissionUtil.hasExactAlarmPermission(context))
+    }
+
+    val alarmPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        hasExactAlarmPermission = PermissionUtil.hasExactAlarmPermission(context)
+    }
+
     fun checkAndRequestPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+
+        if (!hasExactAlarmPermission) {
+            alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
         }
     }
 
@@ -146,7 +161,7 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Settings & Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
+                title = { Text("Settings", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFFE6E1E5))
@@ -165,6 +180,60 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // System Permissions Card
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF3B2D2C)),
+                    border = BorderStroke(1.dp, Color(0xFFF2B8B5))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFF2B8B5),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Exact Alarms Required",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFF2B8B5),
+                                fontSize = 16.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "To ensure notifications for episode releases are delivered exactly when they air, the app needs permission to schedule exact alarms.",
+                            color = Color(0xFFCAC4D0),
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = {
+                                alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF601410),
+                                contentColor = Color(0xFFF2B8B5)
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Grant Permission", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
             // User Segment
             Card(
                 shape = RoundedCornerShape(12.dp),
