@@ -88,7 +88,7 @@ fun LoginScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.app_logo),
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
                         contentDescription = "Simkl Calendar Logo",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize().clip(CircleShape)
