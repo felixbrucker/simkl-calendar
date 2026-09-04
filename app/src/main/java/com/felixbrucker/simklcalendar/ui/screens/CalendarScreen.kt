@@ -5,13 +5,15 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -42,6 +44,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
@@ -341,22 +344,33 @@ fun CalendarScreen(
                             }
 
                             SearchBarDisplayMode.DEFAULT -> {
-                                // Standard Calendar Title & Subtitle
-                                Column(
-                                    verticalArrangement = Arrangement.Center
+                                // Standard Calendar Title & Subtitle + View Mode Toggle
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
                                 ) {
-                                    Text(
-                                        text = "Simkl Calendar",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 18.sp,
-                                        color = Color.White
-                                    )
-                                    Text(
-                                        text = "Hi, $username • Tracked Schedule",
-                                        fontSize = 12.sp,
-                                        color = Color(0xFFCAC4D0),
-                                        fontWeight = FontWeight.Normal,
-                                        lineHeight = 16.sp
+                                    Column(
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = "Simkl Calendar",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 18.sp,
+                                            color = Color.White
+                                        )
+                                        Text(
+                                            text = "Hi, $username • Tracked Schedule",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFFCAC4D0),
+                                            fontWeight = FontWeight.Normal,
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+
+                                    ViewModeToggle(
+                                        viewMode = viewMode,
+                                        onViewModeChange = { viewModel.setViewMode(it) },
+                                        modifier = Modifier.align(Alignment.Center)
                                     )
                                 }
                             }
@@ -365,28 +379,6 @@ fun CalendarScreen(
                 },
                 actions = {
                     if (searchDisplayMode == SearchBarDisplayMode.DEFAULT) {
-                        IconButton(
-                            onClick = {
-                                val nextMode = if (viewMode == MainViewMode.CALENDAR) MainViewMode.TABLE else MainViewMode.CALENDAR
-                                viewModel.setViewMode(nextMode)
-                            },
-                            modifier = Modifier.testTag("view_mode_toggle_button")
-                        ) {
-                            AnimatedContent(
-                                targetState = viewMode,
-                                transitionSpec = {
-                                    (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut())
-                                },
-                                label = "view_mode_icon_transition"
-                            ) { mode ->
-                                Icon(
-                                    imageVector = if (mode == MainViewMode.CALENDAR) Icons.Default.TableChart else Icons.Default.CalendarToday,
-                                    contentDescription = if (mode == MainViewMode.CALENDAR) "Switch to Table View" else "Switch to Calendar View",
-                                    tint = Color.White
-                                )
-                            }
-                        }
-
                         if (isDownloaderInstalled && hasWantedCalendarItems) {
                             AnimatedContent(
                                 targetState = shouldShowAutoDownloadStatus,
@@ -658,8 +650,22 @@ fun CalendarScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Conditionally render Calendar View or Table View
-                if (viewMode == MainViewMode.CALENDAR) {
+                // Conditionally render Calendar View or Table View with slide transitions
+                AnimatedContent(
+                    targetState = viewMode,
+                    transitionSpec = {
+                        if (targetState == MainViewMode.TABLE) {
+                            slideInHorizontally { width -> width } + fadeIn() togetherWith
+                                    slideOutHorizontally { width -> -width } + fadeOut()
+                        } else {
+                            slideInHorizontally { width -> -width } + fadeIn() togetherWith
+                                    slideOutHorizontally { width -> width } + fadeOut()
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    label = "view_mode_content_transition"
+                ) { mode ->
+                    if (mode == MainViewMode.CALENDAR) {
                         CalendarView(
                             items = items,
                             earlierItems = earlierItems,
@@ -671,10 +677,132 @@ fun CalendarScreen(
                             viewModel = viewModel,
                             onNavigateToShowDetail = onNavigateToReleaseDetail,
                         )
-                } else {
-                    TrackedWatchlistTableView(
-                        viewModel = viewModel,
-                        onNavigateToSeriesDetail = onNavigateToWatchlistItemDetail
+                    } else {
+                        TrackedWatchlistTableView(
+                            viewModel = viewModel,
+                            onNavigateToSeriesDetail = onNavigateToWatchlistItemDetail
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ViewModeToggle(
+    viewMode: MainViewMode,
+    onViewModeChange: (MainViewMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isCalendar = viewMode == MainViewMode.CALENDAR
+    val containerWidth = 180.dp
+    val containerHeight = 40.dp
+    val badgeWidth = containerWidth * 3 / 5
+
+    Box(
+        modifier = modifier
+            .height(containerHeight)
+            .width(containerWidth)
+            .clip(RoundedCornerShape(containerHeight / 2))
+            .background(Color(0xFF2B2930))
+    ) {
+        // Animated Selection Badge
+        val targetOffset = if (isCalendar) 0.dp else containerWidth - badgeWidth
+        val animatedOffset by animateDpAsState(
+            targetValue = targetOffset,
+            animationSpec = tween(300, easing = FastOutSlowInEasing),
+            label = "selection_badge_offset"
+        )
+
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(animatedOffset.roundToPx(), 0) }
+                .fillMaxHeight()
+                .width(badgeWidth)
+                .clip(RoundedCornerShape((containerHeight) / 2))
+                .background(Color(0xFFD0BCFF))
+        )
+
+        // Content Row
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Calendar Side
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        if (isCalendar) {
+                            return@clickable
+                        }
+                        onViewModeChange(MainViewMode.CALENDAR)
+                    },
+                horizontalArrangement = if (isCalendar) Arrangement.End else Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    tint = if (isCalendar) Color(0xFF381E72) else Color(0xFFCAC4D0),
+                    modifier = Modifier.size(18.dp)
+                )
+                AnimatedVisibility(
+                    visible = isCalendar,
+                    enter = fadeIn() + expandHorizontally(),
+                    exit = fadeOut() + shrinkHorizontally()
+                ) {
+                    Text(
+                        text = "Calendar",
+                        color = Color(0xFF381E72),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 6.dp),
+                        maxLines = 1
+                    )
+                }
+            }
+
+            // Library Side
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        if (!isCalendar) {
+                            return@clickable
+                        }
+                        onViewModeChange(MainViewMode.TABLE)
+                    },
+                horizontalArrangement = if (!isCalendar) Arrangement.Start else Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.TableChart,
+                    contentDescription = null,
+                    tint = if (!isCalendar) Color(0xFF381E72) else Color(0xFFCAC4D0),
+                    modifier = Modifier.size(18.dp)
+                )
+                AnimatedVisibility(
+                    visible = !isCalendar,
+                    enter = fadeIn() + expandHorizontally(),
+                    exit = fadeOut() + shrinkHorizontally()
+                ) {
+                    Text(
+                        text = "Library",
+                        color = Color(0xFF381E72),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 6.dp),
+                        maxLines = 1
                     )
                 }
             }
