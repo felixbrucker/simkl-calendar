@@ -644,7 +644,6 @@ fun CalendarScreen(
                             torrentDownloads = torrentDownloads,
                             viewModel = viewModel,
                             onNavigateToShowDetail = onNavigateToReleaseDetail,
-                            snackbarHostState = snackbarHostState
                         )
                 } else {
                     TrackedWatchlistTableView(
@@ -669,9 +668,7 @@ private fun CalendarView(
     torrentDownloads: Map<String, DownloadProgress>,
     viewModel: CalendarViewModel,
     onNavigateToShowDetail: (String) -> Unit,
-    snackbarHostState: SnackbarHostState
 ) {
-    val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 

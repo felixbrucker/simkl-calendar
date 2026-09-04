@@ -38,7 +38,6 @@ class AutoDownloadWorker(
     companion object {
         private const val TAG = "AutoDownloadWorker"
         const val UNIQUE_WORK_NAME = "simkl_periodic_auto_download"
-        const val MANUAL_WORK_NAME = "simkl_manual_auto_download"
 
         fun enqueuePeriodicSearch(context: Context, intervalHours: Long = 12) {
             val constraints = Constraints.Builder()
