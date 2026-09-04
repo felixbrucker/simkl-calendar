@@ -470,12 +470,12 @@ class SimklRepository(private val context: Context) {
             val existing = existingItemsMap[newItem.primaryKey]
             if (existing == null) {
                 val currentInsert = itemsToInsert[newItem.primaryKey]
-                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWithApiBasedItem(newItem) ?: newItem
                 return
             }
 
             val base = itemsToUpdate[newItem.primaryKey] ?: existing
-            val updated = base.updatedWith(newItem)
+            val updated = base.updatedWithApiBasedItem(newItem)
             if (updated != base) {
                 itemsToUpdate[newItem.primaryKey] = updated
             }
@@ -830,12 +830,12 @@ class SimklRepository(private val context: Context) {
             val existing = existingItemsMap[newItem.primaryKey]
             if (existing == null) {
                 val currentInsert = itemsToInsert[newItem.primaryKey]
-                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWithApiBasedItem(newItem) ?: newItem
                 return
             }
 
             val base = itemsToUpdate[newItem.primaryKey] ?: existing
-            val updated = base.updatedWith(newItem)
+            val updated = base.updatedWithApiBasedItem(newItem)
             if (updated != base) {
                 itemsToUpdate[newItem.primaryKey] = updated
             }

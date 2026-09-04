@@ -52,7 +52,7 @@ data class CalendarItem(
     val isWatched: Boolean
         get() = watchedAt != null
 
-    fun updatedWith(newItem: CalendarItem): CalendarItem {
+    fun updatedWithApiBasedItem(newItem: CalendarItem): CalendarItem {
         val isDateRescheduledToFuture = this.date != newItem.date && newItem.date.isAfter(Instant.now())
         val updatedNotified = if (isDateRescheduledToFuture) false else this.isNotified
 
@@ -66,8 +66,10 @@ data class CalendarItem(
             isSeasonFinale = newItem.isSeasonFinale,
             isNotified = updatedNotified,
             watchedAt = newItem.watchedAt,
-            mediaStatus = if (isDateRescheduledToFuture || newItem.mediaStatus != MediaStatus.NOT_AIRED_YET) newItem.mediaStatus else this.mediaStatus,
-            downloadTaskId = newItem.downloadTaskId ?: this.downloadTaskId
+            // media status and download task id are generated locally and unknown to the api, thus
+            // never use the newItem values and always retain the current values.
+            mediaStatus = this.mediaStatus,
+            downloadTaskId = this.downloadTaskId
         )
     }
 }
