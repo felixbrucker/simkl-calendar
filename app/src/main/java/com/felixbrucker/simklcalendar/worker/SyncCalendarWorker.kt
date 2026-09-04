@@ -10,7 +10,6 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
-import com.felixbrucker.simklcalendar.receiver.NotificationScheduler
 import java.util.concurrent.TimeUnit
 
 class SyncCalendarWorker(
@@ -25,10 +24,7 @@ class SyncCalendarWorker(
             // Perform full calendar synchronization
             repository.syncCalendar()
 
-            // Reschedule and dispatch any notifications that have reached their air date
-            NotificationScheduler.scheduleAllNotifications(applicationContext)
-
-            Log.d(TAG, "Periodic calendar synchronization and notification scheduling succeeded")
+            Log.d(TAG, "Periodic calendar synchronization succeeded")
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "Periodic calendar synchronization worker encountered an error", e)

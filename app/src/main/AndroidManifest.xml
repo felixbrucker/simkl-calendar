@@ -8,13 +8,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM"
-        tools:ignore="ExactAlarm" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-
-    <permission
-        android:name="com.felixbrucker.simklcalendar.READ_DATABASE"
-        android:protectionLevel="normal" />
 
     <queries>
         <intent>
@@ -55,17 +49,38 @@
         </activity>
 
         <receiver
-            android:name=".receiver.NotificationReceiver"
+            android:name=".receiver.startup.StartupReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="com.felixbrucker.simklcalendar.ACTION_AIR_DATE_ALERT" />
-                <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_EPISODE_WATCHED" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".receiver.notification.NotificationActionReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_ITEM_WATCHED" />
                 <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_SEASON_WATCHED" />
-                <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_MOVIE_WATCHED" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".receiver.download.DownloadCompletedReceiver"
+            android:enabled="true"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
                 <action android:name="com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_COMPLETED" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".receiver.alarm.AlarmReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.felixbrucker.simklcalendar.ACTION_ITEM_AIRED_ALARM" />
             </intent-filter>
         </receiver>
     </application>

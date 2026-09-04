@@ -35,7 +35,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
-import com.felixbrucker.simklcalendar.receiver.NotificationReceiver
 import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker
 import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import com.felixbrucker.simklcalendar.ui.screens.CalendarScreen
@@ -46,6 +45,7 @@ import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import androidx.core.net.toUri
+import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import java.net.URLEncoder
 import java.net.URLDecoder
 
@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        NotificationReceiver.createNotificationChannel(this)
+        NotificationManager.createNotificationChannel(this)
         val syncPrefs = getSharedPreferences("notification_prefs", MODE_PRIVATE)
         val syncIntervalHours = syncPrefs.getInt("sync_interval_hours", 12).toLong()
         SyncCalendarWorker.enqueuePeriodicSync(this, syncIntervalHours)

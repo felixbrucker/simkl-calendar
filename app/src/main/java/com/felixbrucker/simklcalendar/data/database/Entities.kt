@@ -12,6 +12,7 @@ import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import java.time.Instant
 import androidx.core.net.toUri
+import kotlin.math.abs
 
 @Entity(tableName = "user_token")
 data class UserToken(
@@ -134,6 +135,7 @@ data class CalendarItemWithWatchlist(
     val isWatched: Boolean get() = calendarItem.isWatched
     val mediaStatus: MediaStatus get() = calendarItem.mediaStatus
     val downloadTaskId: String? get() = calendarItem.downloadTaskId
+    val notificationId: Int get() = abs(primaryKey.hashCode())
 }
 
 @Entity(tableName = "watched_episodes", primaryKeys = ["simklId", "season", "episodeNumber"])

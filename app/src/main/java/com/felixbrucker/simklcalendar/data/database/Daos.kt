@@ -34,6 +34,10 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items ORDER BY date ASC")
     suspend fun getAllCalendarItemsList(): List<CalendarItemWithWatchlist>
 
+    @Transaction
+    @Query("SELECT * FROM calendar_items WHERE date > :now ORDER BY date ASC")
+    suspend fun getAllUpcomingCalendarItems(now: Instant): List<CalendarItemWithWatchlist>
+
     @Query("SELECT * FROM calendar_items ORDER BY date ASC")
     suspend fun getAllCalendarEntities(): List<CalendarItem>
 
@@ -95,6 +99,9 @@ interface CalendarItemDao {
 
     @Query("UPDATE calendar_items SET watchedAt = NULL")
     suspend fun markAllUnwatched()
+
+    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) ORDER BY date ASC")
+    suspend fun getItemsInSeason(simklId: Int, season: Int?): List<CalendarItemWithWatchlist>
 }
 
 @Dao

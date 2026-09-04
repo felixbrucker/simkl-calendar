@@ -32,8 +32,6 @@ import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.PkceUtil
 import com.felixbrucker.simklcalendar.data.util.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
-import com.felixbrucker.simklcalendar.receiver.NotificationReceiver
-import com.felixbrucker.simklcalendar.receiver.NotificationScheduler
 import com.felixbrucker.simklcalendar.data.util.destinationSubdirectory
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.squareup.moshi.Moshi
@@ -55,6 +53,8 @@ import java.net.URLEncoder
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
+import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
+import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -123,8 +123,7 @@ class SimklRepository(private val context: Context) {
         calendarDao.updateDownloadTaskId(primaryKey, taskId, status)
     }
 
-    suspend fun updateItemAiredStatus(primaryKey: String, isTheaterRelease: Boolean) = withContext(Dispatchers.IO) {
-        val item = calendarDao.findCalendarEntity(primaryKey) ?: return@withContext
+    suspend fun updateItemAiredStatus(item: CalendarItem) = withContext(Dispatchers.IO) {
         if (item.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext
 
         val settings = itemDownloadSettingsDao.getSettings(item.simklId)
@@ -134,9 +133,9 @@ class SimklRepository(private val context: Context) {
             airDate = item.date,
             settings = settings,
             globalUnwatched = globalUnwatched,
-            isTheaterRelease = isTheaterRelease,
+            isTheaterRelease = item.movieReleaseType == MovieReleaseType.THEATER,
         )
-        calendarDao.updateMediaStatus(primaryKey, newStatus)
+        calendarDao.updateMediaStatus(item.primaryKey, newStatus)
     }
 
     fun determineStatus(
@@ -152,9 +151,9 @@ class SimklRepository(private val context: Context) {
     }
 
     fun generateCompletionIntentUri(primaryKey: String): String {
-        val intent = Intent(NotificationReceiver.ACTION_DOWNLOAD_COMPLETED).apply {
-            setClassName(context.packageName, NotificationReceiver::class.java.name)
-            putExtra(NotificationReceiver.EXTRA_ITEM_KEY, primaryKey)
+        val intent = Intent(DownloadCompletedReceiver.ACTION_DOWNLOAD_COMPLETED).apply {
+            setClassName(context.packageName, DownloadCompletedReceiver::class.java.name)
+            putExtra(DownloadCompletedReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
         }
         return intent.toUri(Intent.URI_INTENT_SCHEME)
     }
@@ -400,7 +399,6 @@ class SimklRepository(private val context: Context) {
                 notifyAiredLastEpisode = notifyAiredLastEpisode
             )
         )
-        NotificationScheduler.scheduleNotificationsForShow(context, simklId)
     }
 
     suspend fun getActiveUserToken(): UserToken? = withContext(Dispatchers.IO) {
@@ -1194,7 +1192,7 @@ class SimklRepository(private val context: Context) {
         }
 
         if (totalDbChanges > 0) {
-            NotificationScheduler.scheduleAllNotifications(context)
+            AlarmScheduler.scheduleAllItemsAiredAlarms(context)
         }
 
         syncPrefs.edit { putLong("last_calendar_json_sync", nowMillis) }
