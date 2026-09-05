@@ -1,5 +1,6 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
+import android.content.Context
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -161,10 +162,13 @@ fun CalendarScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+        val useExact = prefs.getBoolean("use_exact_alarms", false)
+
+        if (useExact && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (!PermissionUtil.hasExactAlarmPermission(context)) {
                 val result = snackbarHostState.showSnackbar(
-                    message = "Exact alarms are required for timely notifications.",
+                    message = "Exact alarms are enabled but permission is missing.",
                     actionLabel = "Grant",
                     duration = SnackbarDuration.Long
                 )

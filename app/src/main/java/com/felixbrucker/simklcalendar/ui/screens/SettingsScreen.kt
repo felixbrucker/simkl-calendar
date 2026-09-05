@@ -1,6 +1,7 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -43,6 +44,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker
 import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
+import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.core.content.edit
@@ -57,6 +59,11 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val userToken by viewModel.userToken.collectAsState()
+
+    val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
+    var useExactAlarms by remember {
+        mutableStateOf(prefs.getBoolean("use_exact_alarms", false))
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -79,12 +86,10 @@ fun SettingsScreen(
             }
         }
 
-        if (!hasExactAlarmPermission) {
+        if (useExactAlarms && !hasExactAlarmPermission) {
             alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
         }
     }
-
-    val prefs = remember { context.getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE) }
     var enableDefaultAiring by remember {
         mutableStateOf(prefs.getBoolean("default_notify_airing", false))
     }
@@ -182,60 +187,6 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // System Permissions Card
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF3B2D2C)),
-                    border = BorderStroke(1.dp, Color(0xFFF2B8B5))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = Color(0xFFF2B8B5),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Exact Alarms Required",
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFF2B8B5),
-                                fontSize = 16.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "To ensure notifications for episode releases are delivered exactly when they air, the app needs permission to schedule exact alarms.",
-                            color = Color(0xFFCAC4D0),
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = {
-                                alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF601410),
-                                contentColor = Color(0xFFF2B8B5)
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Grant Permission", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
             // User Segment
             Card(
                 shape = RoundedCornerShape(12.dp),
@@ -499,6 +450,106 @@ fun SettingsScreen(
                                 if (it) checkAndRequestPermission()
                             }
                         )
+                    }
+                }
+            }
+
+            // Battery Optimization Card
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+                border = BorderStroke(1.dp, Color(0xFF49454F)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))
+                            Text("Battery Optimization", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Use Exact Alarms", color = Color(0xFFE6E1E5), fontSize = 14.sp)
+                            Text(
+                                "Exact alarms ensure notifications arrive at the precise airing time but may increase battery consumption.",
+                                color = Color(0xFFCAC4D0),
+                                fontSize = 12.sp
+                            )
+                        }
+                        Switch(
+                            checked = useExactAlarms,
+                            onCheckedChange = {
+                                useExactAlarms = it
+                                prefs.edit {
+                                    putBoolean("use_exact_alarms", it)
+                                }
+                                if (it) {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
+                                        alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
+                                    }
+                                }
+                                scope.launch {
+                                    AlarmScheduler.scheduleAllItemsAiredAlarms(context)
+                                }
+                            }
+                        )
+                    }
+
+                    if (useExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF3B2D2C)),
+                            border = BorderStroke(1.dp, Color(0xFFF2B8B5))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = Color(0xFFF2B8B5),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        "Exact Alarms Required",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFF2B8B5),
+                                        fontSize = 14.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "To ensure notifications are delivered exactly when they air, the app needs permission to schedule exact alarms.",
+                                    color = Color(0xFFCAC4D0),
+                                    fontSize = 12.sp
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = {
+                                        alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF601410),
+                                        contentColor = Color(0xFFF2B8B5)
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Grant Permission", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
                     }
                 }
             }

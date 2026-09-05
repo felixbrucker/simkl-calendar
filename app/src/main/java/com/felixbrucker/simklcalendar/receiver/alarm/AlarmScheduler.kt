@@ -60,14 +60,21 @@ class AlarmScheduler {
             )
             val triggerAtMillis = triggerAt.toEpochMilli()
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    if (alarmManager.canScheduleExactAlarms()) {
-                        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+                val useExactAlarms = prefs.getBoolean("use_exact_alarms", false)
+
+                if (useExactAlarms) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        if (alarmManager.canScheduleExactAlarms()) {
+                            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                        } else {
+                            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                        }
                     } else {
-                        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
                     }
                 } else {
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
                 }
                 Log.d(TAG, "Scheduled item aired alarm for '${item.title}' at timestamp $triggerAtMillis (key=${item.primaryKey})")
             } catch (e: Exception) {
