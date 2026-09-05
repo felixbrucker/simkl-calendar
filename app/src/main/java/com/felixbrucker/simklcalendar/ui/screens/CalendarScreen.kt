@@ -11,10 +11,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -38,8 +37,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -91,6 +92,10 @@ fun CalendarScreen(
     val userToken by viewModel.userToken.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val torrentDownloads by viewModel.torrentDownloads.collectAsState()
+
+    val density = LocalDensity.current
+    val windowInfo = LocalWindowInfo.current
+    val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 600.dp
 
     // Filters states are now handled inside CalendarView
     val showEarlierReleases by viewModel.showEarlierReleases.collectAsState()
@@ -371,11 +376,13 @@ fun CalendarScreen(
                                         )
                                     }
 
-                                    ViewModeToggle(
-                                        viewMode = viewMode,
-                                        onViewModeChange = { viewModel.setViewMode(it) },
-                                        modifier = Modifier.align(Alignment.Center)
-                                    )
+                                    if (!isSmallScreen) {
+                                        ViewModeToggle(
+                                            viewMode = viewMode,
+                                            onViewModeChange = { viewModel.setViewMode(it) },
+                                            modifier = Modifier.align(Alignment.Center)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -445,6 +452,32 @@ fun CalendarScreen(
                             }
                         }
 
+                        if (isSmallScreen) {
+                            IconButton(
+                                onClick = {
+                                    val nextMode = if (viewMode == MainViewMode.CALENDAR) MainViewMode.TABLE else MainViewMode.CALENDAR
+                                    viewModel.setViewMode(nextMode)
+                                },
+                                modifier = Modifier.testTag("view_mode_toggle_mobile")
+                            ) {
+                                AnimatedContent(
+                                    targetState = viewMode,
+                                    transitionSpec = {
+                                        (fadeIn(animationSpec = tween(220, delayMillis = 90)) + scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 90)))
+                                            .togetherWith(fadeOut(animationSpec = tween(90)) + scaleOut(targetScale = 0.92f, animationSpec = tween(90)))
+                                    },
+                                    label = "view_mode_icon_transition"
+                                ) { currentMode ->
+                                    val icon = if (currentMode == MainViewMode.CALENDAR) Icons.Default.TableChart else Icons.Default.CalendarToday
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = "Switch View Mode",
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+                        }
+
                         IconButton(
                             onClick = {
                                 isSearchActive = true
@@ -502,13 +535,13 @@ fun CalendarScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 // Toggles / Chip Filtering Bar (Shown in both views)
-                Row(
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .horizontalScroll(rememberScrollState()),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
                     // TV Toggle
                     FilterChip(

@@ -13,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,11 +28,17 @@ import com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 
 private object TableWeights {
+    const val NAME = 5f
+    const val LAST_EP = 2f
+    const val NEXT_EP = 2f
+    const val WATCHED = 1f
+    const val DOWNLOADED = 1f
+}
+
+private object SmallTableWeights {
     const val NAME = 4f
-    const val LAST_EP = 1.8f
-    const val NEXT_EP = 1.8f
     const val WATCHED = 1.2f
-    const val DOWNLOADED = 1.2f
+    const val DOWNLOADED = 1.3f
 }
 
 @Composable
@@ -43,6 +51,9 @@ fun TrackedWatchlistTableView(
     val sortField by viewModel.tableSortField.collectAsState()
     val sortDirection by viewModel.tableSortDirection.collectAsState()
     val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
+    val density = LocalDensity.current
+    val windowInfo = LocalWindowInfo.current
+    val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 800.dp
 
     val animeItems = remember(items) { items.filter { it.watchlistItem.type == MediaType.ANIME } }
     val tvItems = remember(items) { items.filter { it.watchlistItem.type == MediaType.TV } }
@@ -58,7 +69,8 @@ fun TrackedWatchlistTableView(
                 sortField = sortField,
                 sortDirection = sortDirection,
                 onSortToggle = { viewModel.toggleTableSort(it) },
-                isDownloaderInstalled = isDownloaderInstalled
+                isDownloaderInstalled = isDownloaderInstalled,
+                isSmallScreen = isSmallScreen
             )
 
             LazyColumn(
@@ -72,6 +84,7 @@ fun TrackedWatchlistTableView(
                         WatchlistTableItemRow(
                             item = item,
                             isDownloaderInstalled = isDownloaderInstalled,
+                            isSmallScreen = isSmallScreen,
                             onRowClick = { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
                         )
                     }
@@ -82,6 +95,7 @@ fun TrackedWatchlistTableView(
                         WatchlistTableItemRow(
                             item = item,
                             isDownloaderInstalled = isDownloaderInstalled,
+                            isSmallScreen = isSmallScreen,
                             onRowClick = { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
                         )
                     }
@@ -92,6 +106,7 @@ fun TrackedWatchlistTableView(
                         WatchlistTableItemRow(
                             item = item,
                             isDownloaderInstalled = isDownloaderInstalled,
+                            isSmallScreen = isSmallScreen,
                             onRowClick = { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
                         )
                     }
@@ -106,7 +121,8 @@ fun WatchlistTableHeader(
     sortField: TableSortField,
     sortDirection: SortDirection,
     onSortToggle: (TableSortField) -> Unit,
-    isDownloaderInstalled: Boolean
+    isDownloaderInstalled: Boolean,
+    isSmallScreen: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -122,31 +138,33 @@ fun WatchlistTableHeader(
             sortField,
             sortDirection,
             onSortToggle,
-            Modifier.weight(TableWeights.NAME)
+            Modifier.weight(if (isSmallScreen) SmallTableWeights.NAME else TableWeights.NAME)
         )
-        SortableHeaderItem(
-            "Last Ep",
-            TableSortField.LAST_EP,
-            sortField,
-            sortDirection,
-            onSortToggle,
-            Modifier.weight(TableWeights.LAST_EP)
-        )
-        SortableHeaderItem(
-            "Next Ep",
-            TableSortField.NEXT_EP,
-            sortField,
-            sortDirection,
-            onSortToggle,
-            Modifier.weight(TableWeights.NEXT_EP)
-        )
+        if (!isSmallScreen) {
+            SortableHeaderItem(
+                "Last Ep",
+                TableSortField.LAST_EP,
+                sortField,
+                sortDirection,
+                onSortToggle,
+                Modifier.weight(TableWeights.LAST_EP)
+            )
+            SortableHeaderItem(
+                "Next Ep",
+                TableSortField.NEXT_EP,
+                sortField,
+                sortDirection,
+                onSortToggle,
+                Modifier.weight(TableWeights.NEXT_EP)
+            )
+        }
         SortableHeaderItem(
             "Watched",
             TableSortField.WATCHED,
             sortField,
             sortDirection,
             onSortToggle,
-            Modifier.weight(TableWeights.WATCHED)
+            Modifier.weight(if (isSmallScreen) SmallTableWeights.WATCHED else TableWeights.WATCHED)
         )
         if (isDownloaderInstalled) {
             SortableHeaderItem(
@@ -155,7 +173,7 @@ fun WatchlistTableHeader(
                 sortField,
                 sortDirection,
                 onSortToggle,
-                Modifier.weight(TableWeights.DOWNLOADED)
+                Modifier.weight(if (isSmallScreen) SmallTableWeights.DOWNLOADED else TableWeights.DOWNLOADED)
             )
         }
         Spacer(modifier = Modifier.width(32.dp)) // Expand icon space
@@ -215,7 +233,8 @@ fun WatchlistTableSectionHeader(title: String, count: Int) {
 fun WatchlistTableItemRow(
     item: WatchlistTableItem,
     isDownloaderInstalled: Boolean,
-    onRowClick: () -> Unit
+    isSmallScreen: Boolean,
+    onRowClick: () -> Unit,
 ) {
     val categoryColor = when (item.watchlistItem.type) {
         MediaType.ANIME -> Color(0xFFD0BCFF)
@@ -253,24 +272,30 @@ fun WatchlistTableItemRow(
                     color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(TableWeights.NAME)
+                    modifier = Modifier.weight(if (isSmallScreen) SmallTableWeights.NAME else TableWeights.NAME)
                 )
 
-                // Last Ep
-                Text(
-                    text = item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
-                    fontSize = 12.sp,
-                    color = Color(0xFFE6E1E5),
-                    modifier = Modifier.weight(TableWeights.LAST_EP)
-                )
+                if (!isSmallScreen) {
+                    // Last Ep
+                    Text(
+                        text = item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
+                        fontSize = 12.sp,
+                        color = Color(0xFFE6E1E5),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(TableWeights.LAST_EP)
+                    )
 
-                // Next Ep
-                Text(
-                    text = item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
-                    fontSize = 12.sp,
-                    color = Color(0xFFD0BCFF),
-                    modifier = Modifier.weight(TableWeights.NEXT_EP)
-                )
+                    // Next Ep
+                    Text(
+                        text = item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
+                        fontSize = 12.sp,
+                        color = Color(0xFFD0BCFF),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(TableWeights.NEXT_EP)
+                    )
+                }
 
                 // Watched
                 val watchedColor =
@@ -280,7 +305,9 @@ fun WatchlistTableItemRow(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = watchedColor,
-                    modifier = Modifier.weight(TableWeights.WATCHED)
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(if (isSmallScreen) SmallTableWeights.WATCHED else TableWeights.WATCHED)
                 )
 
                 // Downloaded
@@ -294,7 +321,9 @@ fun WatchlistTableItemRow(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = downloadedColor,
-                        modifier = Modifier.weight(TableWeights.DOWNLOADED)
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(if (isSmallScreen) SmallTableWeights.DOWNLOADED else TableWeights.DOWNLOADED)
                     )
                 }
 

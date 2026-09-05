@@ -24,6 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,6 +56,9 @@ fun ReleaseDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
+    val windowInfo = LocalWindowInfo.current
+    val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 600.dp
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val allItems by viewModel.allCalendarItems.collectAsState()
@@ -614,19 +619,36 @@ fun ReleaseDetailScreen(
                                             }
 
                                             if (activeItem.type != MediaType.MOVIE) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
-                                                    ItemWatchedStatusDropdown(
-                                                        item = epItem,
-                                                        viewModel = viewModel,
-                                                        updatingWatchKeys = updatingWatchKeys
-                                                    )
-                                                    ItemMediaStatusDropdown(
-                                                        item = epItem,
-                                                        viewModel = viewModel
-                                                    )
+                                                if (isSmallScreen) {
+                                                    Column(
+                                                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                                                        horizontalAlignment = Alignment.End
+                                                    ) {
+                                                        ItemWatchedStatusDropdown(
+                                                            item = epItem,
+                                                            viewModel = viewModel,
+                                                            updatingWatchKeys = updatingWatchKeys
+                                                        )
+                                                        ItemMediaStatusDropdown(
+                                                            item = epItem,
+                                                            viewModel = viewModel
+                                                        )
+                                                    }
+                                                } else {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        ItemWatchedStatusDropdown(
+                                                            item = epItem,
+                                                            viewModel = viewModel,
+                                                            updatingWatchKeys = updatingWatchKeys
+                                                        )
+                                                        ItemMediaStatusDropdown(
+                                                            item = epItem,
+                                                            viewModel = viewModel
+                                                        )
+                                                    }
                                                 }
                                             }
 
