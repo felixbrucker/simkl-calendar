@@ -9,6 +9,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.migration.AutoMigrationSpec
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
@@ -97,8 +98,8 @@ class Converters {
 }
 
 @Database(
-    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class],
-    version = 19,
+    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class],
+    version = 20,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -145,6 +146,25 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun itemDownloadSettingsDao(): ItemDownloadSettingsDao
 
     companion object {
+        private val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create new table for local state
+                db.execSQL("CREATE TABLE IF NOT EXISTS `local_item_state` (`primaryKey` TEXT NOT NULL, `mediaStatus` TEXT NOT NULL DEFAULT 'NOT_AIRED_YET', `downloadTaskId` TEXT, PRIMARY KEY(`primaryKey`), FOREIGN KEY(`primaryKey`) REFERENCES `calendar_items`(`primaryKey`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+
+                // 2. Transfer data from calendar_items to local_item_state
+                db.execSQL("INSERT INTO `local_item_state` (primaryKey, mediaStatus, downloadTaskId) SELECT primaryKey, mediaStatus, downloadTaskId FROM calendar_items")
+
+                // 3. Recreate calendar_items table without mediaStatus and downloadTaskId columns
+                db.execSQL("CREATE TABLE IF NOT EXISTS `calendar_items_new` (`primaryKey` TEXT NOT NULL, `simklId` INTEGER NOT NULL, `episodeTitle` TEXT, `season` INTEGER, `episodeNumber` INTEGER, `date` INTEGER NOT NULL, `movieReleaseType` TEXT, `isSeasonPremiere` INTEGER NOT NULL, `isSeasonFinale` INTEGER NOT NULL, `isNotified` INTEGER NOT NULL, `watchedAt` INTEGER, PRIMARY KEY(`primaryKey`), FOREIGN KEY(`simklId`) REFERENCES `tracked_watchlist_items`(`simklId`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+                db.execSQL("INSERT INTO `calendar_items_new` (primaryKey, simklId, episodeTitle, season, episodeNumber, date, movieReleaseType, isSeasonPremiere, isSeasonFinale, isNotified, watchedAt) SELECT primaryKey, simklId, episodeTitle, season, episodeNumber, date, movieReleaseType, isSeasonPremiere, isSeasonFinale, isNotified, watchedAt FROM calendar_items")
+                db.execSQL("DROP TABLE calendar_items")
+                db.execSQL("ALTER TABLE calendar_items_new RENAME TO calendar_items")
+
+                // 4. Recreate index on calendar_items
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_calendar_items_simklId` ON `calendar_items` (`simklId`)")
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -155,6 +175,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "simkl_calendar_database"
                 )
+                .addMigrations(MIGRATION_19_20)
                 .build()
                 INSTANCE = instance
                 instance

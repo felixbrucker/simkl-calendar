@@ -54,6 +54,9 @@ interface CalendarItemDao {
     @Update
     suspend fun updateCalendarItems(items: List<CalendarItem>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertLocalItemStates(states: List<LocalItemState>)
+
     @Delete
     suspend fun deleteCalendarItems(items: List<CalendarItem>)
 
@@ -76,14 +79,49 @@ interface CalendarItemDao {
     @Query("UPDATE calendar_items SET isNotified = 0")
     suspend fun resetAllNotified()
 
-    @Query("UPDATE calendar_items SET mediaStatus = :status WHERE primaryKey = :primaryKey")
-    suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus)
+    @Query("INSERT OR IGNORE INTO local_item_state (primaryKey) VALUES (:primaryKey)")
+    suspend fun ensureLocalStateExists(primaryKey: String)
 
-    @Query("UPDATE calendar_items SET mediaStatus = :status WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) AND date <= :now")
-    suspend fun updateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus, now: Instant)
+    @Query("UPDATE local_item_state SET mediaStatus = :status WHERE primaryKey = :primaryKey")
+    suspend fun performUpdateMediaStatus(primaryKey: String, status: MediaStatus)
 
-    @Query("UPDATE calendar_items SET downloadTaskId = :taskId, mediaStatus = :status WHERE primaryKey = :primaryKey")
-    suspend fun updateDownloadTaskId(primaryKey: String, taskId: String?, status: MediaStatus)
+    @Transaction
+    suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus) {
+        ensureLocalStateExists(primaryKey)
+        performUpdateMediaStatus(primaryKey, status)
+    }
+
+    @Query("""
+        INSERT OR IGNORE INTO local_item_state (primaryKey)
+        SELECT primaryKey FROM calendar_items
+        WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) AND date <= :now
+    """)
+    suspend fun ensureLocalStatesExistForSeason(simklId: Int, season: Int, now: Instant)
+
+    @Query("""
+        UPDATE local_item_state 
+        SET mediaStatus = :status 
+        WHERE primaryKey IN (
+            SELECT primaryKey FROM calendar_items 
+            WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) AND date <= :now
+        )
+    """)
+    suspend fun performUpdateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus, now: Instant)
+
+    @Transaction
+    suspend fun updateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus, now: Instant) {
+        ensureLocalStatesExistForSeason(simklId, season, now)
+        performUpdateSeasonMediaStatus(simklId, season, status, now)
+    }
+
+    @Query("UPDATE local_item_state SET mediaStatus = :status, downloadTaskId = :taskId WHERE primaryKey = :primaryKey")
+    suspend fun performUpdateDownloadTaskId(primaryKey: String, taskId: String?, status: MediaStatus)
+
+    @Transaction
+    suspend fun updateDownloadTaskId(primaryKey: String, taskId: String?, status: MediaStatus) {
+        ensureLocalStateExists(primaryKey)
+        performUpdateDownloadTaskId(primaryKey, taskId, status)
+    }
 
     @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL) OR (:season IS NULL AND (season = 1 OR season IS NULL))) AND episodeNumber = :episodeNumber")
     suspend fun markEpisodeWatched(simklId: Int, season: Int?, episodeNumber: Int, watchedAt: Instant?)

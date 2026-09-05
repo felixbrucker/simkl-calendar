@@ -46,14 +46,11 @@ data class CalendarItem(
     val isSeasonPremiere: Boolean,
     val isSeasonFinale: Boolean,
     val isNotified: Boolean = false, // Track whether notification has been dispatched
-    val watchedAt: Instant? = null, // Timestamp of when the episode was watched
-    @ColumnInfo(defaultValue = "NOT_AIRED_YET") val mediaStatus: MediaStatus = MediaStatus.NOT_AIRED_YET,
-    val downloadTaskId: String? = null
+    val watchedAt: Instant? = null // Timestamp of when the episode was watched
 ) {
-    val isWatched: Boolean
-        get() = watchedAt != null
+    val isWatched: Boolean get() = watchedAt != null
 
-    fun updatedWithApiBasedItem(newItem: CalendarItem): CalendarItem {
+    fun updatedWith(newItem: CalendarItem): CalendarItem {
         val isDateRescheduledToFuture = this.date != newItem.date && newItem.date.isAfter(Instant.now())
         val updatedNotified = if (isDateRescheduledToFuture) false else this.isNotified
 
@@ -66,14 +63,27 @@ data class CalendarItem(
             isSeasonPremiere = newItem.isSeasonPremiere,
             isSeasonFinale = newItem.isSeasonFinale,
             isNotified = updatedNotified,
-            watchedAt = newItem.watchedAt,
-            // media status and download task id are generated locally and unknown to the api, thus
-            // never use the newItem values and always retain the current values.
-            mediaStatus = this.mediaStatus,
-            downloadTaskId = this.downloadTaskId
+            watchedAt = newItem.watchedAt
         )
     }
 }
+
+@Entity(
+    tableName = "local_item_state",
+    foreignKeys = [
+        ForeignKey(
+            entity = CalendarItem::class,
+            parentColumns = ["primaryKey"],
+            childColumns = ["primaryKey"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class LocalItemState(
+    @PrimaryKey val primaryKey: String, // Reference to CalendarItem.primaryKey
+    @ColumnInfo(defaultValue = "NOT_AIRED_YET") val mediaStatus: MediaStatus = MediaStatus.NOT_AIRED_YET,
+    val downloadTaskId: String? = null
+)
 
 @Entity(tableName = "notification_settings")
 data class NotificationSetting(
@@ -115,7 +125,12 @@ data class CalendarItemWithWatchlist(
         parentColumn = "simklId",
         entityColumn = "simklId"
     )
-    val watchlistItem: TrackedWatchlistItem?
+    val watchlistItem: TrackedWatchlistItem?,
+    @Relation(
+        parentColumn = "primaryKey",
+        entityColumn = "primaryKey"
+    )
+    val localState: LocalItemState? = null
 ) {
     val primaryKey: String get() = calendarItem.primaryKey
     val simklId: Int get() = calendarItem.simklId
@@ -133,8 +148,8 @@ data class CalendarItemWithWatchlist(
     val isNotified: Boolean get() = calendarItem.isNotified
     val watchedAt: Instant? get() = calendarItem.watchedAt
     val isWatched: Boolean get() = calendarItem.isWatched
-    val mediaStatus: MediaStatus get() = calendarItem.mediaStatus
-    val downloadTaskId: String? get() = calendarItem.downloadTaskId
+    val mediaStatus: MediaStatus get() = localState?.mediaStatus ?: MediaStatus.NOT_AIRED_YET
+    val downloadTaskId: String? get() = localState?.downloadTaskId
     val notificationId: Int get() = abs(primaryKey.hashCode())
 }
 

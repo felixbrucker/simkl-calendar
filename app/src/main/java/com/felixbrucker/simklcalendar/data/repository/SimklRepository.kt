@@ -53,6 +53,7 @@ import java.net.URLEncoder
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
+import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import kotlinx.coroutines.delay
@@ -125,7 +126,7 @@ class SimklRepository(private val context: Context) {
 
     suspend fun updateItemAiredStatus(item: CalendarItemWithWatchlist) = withContext(Dispatchers.IO) {
         val calendarItem = item.calendarItem
-        if (calendarItem.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext
+        if (item.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext
 
         val settings = itemDownloadSettingsDao.getSettings(item.simklId)
 
@@ -470,17 +471,19 @@ class SimklRepository(private val context: Context) {
 
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
+        val localStatesToInsert = mutableListOf<LocalItemState>()
 
-        fun processCalendarItem(newItem: CalendarItem) {
+        fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
             val existing = existingItemsMap[newItem.primaryKey]
             if (existing == null) {
                 val currentInsert = itemsToInsert[newItem.primaryKey]
-                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWithApiBasedItem(newItem) ?: newItem
+                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+                localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
                 return
             }
 
             val base = itemsToUpdate[newItem.primaryKey] ?: existing
-            val updated = base.updatedWithApiBasedItem(newItem)
+            val updated = base.updatedWith(newItem)
             if (updated != base) {
                 itemsToUpdate[newItem.primaryKey] = updated
             }
@@ -532,6 +535,13 @@ class SimklRepository(private val context: Context) {
                         continue
                     }
 
+                    val status = determineStatus(
+                        airDate = instant,
+                        settings = settingsMap[show.simklId],
+                        mediaType = show.type,
+                        isTheaterRelease = false,
+                    )
+
                     processCalendarItem(
                         CalendarItem(
                             primaryKey = keyUnique,
@@ -544,13 +554,8 @@ class SimklRepository(private val context: Context) {
                             isSeasonPremiere = epNum == 1,
                             isSeasonFinale = false, // Not available in this endpoint, will be updated by calendar jsons if recent
                             watchedAt = epWatchedTimestamp,
-                            mediaStatus = determineStatus(
-                                airDate = instant,
-                                settings = settingsMap[show.simklId],
-                                mediaType = show.type,
-                                isTheaterRelease = false,
-                            )
-                        )
+                        ),
+                        initialStatus = status
                     )
                 }
             }
@@ -558,6 +563,7 @@ class SimklRepository(private val context: Context) {
 
         if (itemsToInsert.isNotEmpty()) {
             calendarDao.insertCalendarItems(itemsToInsert.values.toList())
+            calendarDao.insertLocalItemStates(localStatesToInsert)
         }
         if (itemsToUpdate.isNotEmpty()) {
             calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
@@ -829,17 +835,19 @@ class SimklRepository(private val context: Context) {
         val existingItemsMap = existingDbItems.associateBy { it.primaryKey }
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
+        val localStatesToInsert = mutableListOf<LocalItemState>()
 
-        fun processCalendarItem(newItem: CalendarItem) {
+        fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
             val existing = existingItemsMap[newItem.primaryKey]
             if (existing == null) {
                 val currentInsert = itemsToInsert[newItem.primaryKey]
-                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWithApiBasedItem(newItem) ?: newItem
+                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+                localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
                 return
             }
 
             val base = itemsToUpdate[newItem.primaryKey] ?: existing
-            val updated = base.updatedWithApiBasedItem(newItem)
+            val updated = base.updatedWith(newItem)
             if (updated != base) {
                 itemsToUpdate[newItem.primaryKey] = updated
             }
@@ -955,6 +963,12 @@ class SimklRepository(private val context: Context) {
                         if (defaultType == MediaType.MOVIE) {
                             // 1. Process Theater Release
                             DateUtil.parseToInstant(entry.date)?.let { theaterInstant ->
+                                val status = determineStatus(
+                                    airDate = theaterInstant,
+                                    settings = settingsMap[simklId],
+                                    mediaType = MediaType.MOVIE,
+                                    isTheaterRelease = true,
+                                )
                                 processCalendarItem(
                                     CalendarItem(
                                         primaryKey = "v2_${simklId}_theater",
@@ -966,19 +980,20 @@ class SimklRepository(private val context: Context) {
                                         movieReleaseType = MovieReleaseType.THEATER,
                                         isSeasonPremiere = false,
                                         isSeasonFinale = false,
-                                        mediaStatus = determineStatus(
-                                            airDate = theaterInstant,
-                                            settings = settingsMap[simklId],
-                                            mediaType = MediaType.MOVIE,
-                                            isTheaterRelease = true,
-                                        )
-                                    )
+                                    ),
+                                    initialStatus = status
                                 )
                             }
 
                             // 2. Process Digital / DVD Release from metadata if available
                             meta?.dvdDate?.takeIf { it.isNotBlank() }?.let { dvdDateStr ->
                                 DateUtil.parseToInstant(dvdDateStr)?.let { dvdInstant ->
+                                    val status = determineStatus(
+                                        airDate = dvdInstant,
+                                        settings = settingsMap[simklId],
+                                        mediaType = MediaType.MOVIE,
+                                        isTheaterRelease = false,
+                                    )
                                     processCalendarItem(
                                         CalendarItem(
                                             primaryKey = "v2_${simklId}_digital",
@@ -990,13 +1005,8 @@ class SimklRepository(private val context: Context) {
                                             movieReleaseType = MovieReleaseType.DIGITAL,
                                             isSeasonPremiere = false,
                                             isSeasonFinale = false,
-                                            mediaStatus = determineStatus(
-                                                airDate = dvdInstant,
-                                                settings = settingsMap[simklId],
-                                                mediaType = MediaType.MOVIE,
-                                                isTheaterRelease = false,
-                                            )
-                                        )
+                                        ),
+                                        initialStatus = status
                                     )
                                 }
                             }
@@ -1029,6 +1039,13 @@ class SimklRepository(private val context: Context) {
                                 continue
                             }
 
+                            val status = determineStatus(
+                                airDate = instant,
+                                settings = settingsMap[simklId],
+                                mediaType = defaultType,
+                                isTheaterRelease = false,
+                            )
+
                             processCalendarItem(
                                 CalendarItem(
                                     primaryKey = keyUnique,
@@ -1041,13 +1058,8 @@ class SimklRepository(private val context: Context) {
                                     isSeasonPremiere = isPremiere,
                                     isSeasonFinale = isFinale,
                                     watchedAt = epWatchedTimestamp,
-                                    mediaStatus = determineStatus(
-                                        airDate = instant,
-                                        settings = settingsMap[simklId],
-                                        mediaType = defaultType,
-                                        isTheaterRelease = false,
-                                    )
-                                )
+                                ),
+                                initialStatus = status
                             )
                         }
                     }
@@ -1087,6 +1099,12 @@ class SimklRepository(private val context: Context) {
                     // 1. Process Theatrical release date from regular released property
                     movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
                         DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
+                            val status = determineStatus(
+                                airDate = theaterInstant,
+                                settings = settingsMap[movieId],
+                                mediaType = MediaType.MOVIE,
+                                isTheaterRelease = true,
+                            )
                             processCalendarItem(
                                 CalendarItem(
                                     primaryKey = "v2_${movieId}_theater",
@@ -1098,13 +1116,8 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = MovieReleaseType.THEATER,
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
-                                    mediaStatus = determineStatus(
-                                        airDate = theaterInstant,
-                                        settings = settingsMap[movieId],
-                                        mediaType = MediaType.MOVIE,
-                                        isTheaterRelease = true,
-                                    )
-                                )
+                                ),
+                                initialStatus = status
                             )
                         }
                     }
@@ -1112,6 +1125,12 @@ class SimklRepository(private val context: Context) {
                     // 2. Extract Digital / DVD release date from release_dates timeline
                     movieDetail.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
                         DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
+                            val status = determineStatus(
+                                airDate = digitalInstant,
+                                settings = settingsMap[movieId],
+                                mediaType = MediaType.MOVIE,
+                                isTheaterRelease = false,
+                            )
                             processCalendarItem(
                                 CalendarItem(
                                     primaryKey = "v2_${movieId}_digital",
@@ -1123,13 +1142,8 @@ class SimklRepository(private val context: Context) {
                                     movieReleaseType = MovieReleaseType.DIGITAL,
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
-                                    mediaStatus = determineStatus(
-                                        airDate = digitalInstant,
-                                        settings = settingsMap[movieId],
-                                        mediaType = MediaType.MOVIE,
-                                        isTheaterRelease = false,
-                                    )
-                                )
+                                ),
+                                initialStatus = status
                             )
                         }
                     }
@@ -1156,6 +1170,7 @@ class SimklRepository(private val context: Context) {
 
         if (itemsToInsert.isNotEmpty()) {
             calendarDao.insertCalendarItems(itemsToInsert.values.toList())
+            calendarDao.insertLocalItemStates(localStatesToInsert)
         }
 
         if (itemsToUpdate.isNotEmpty()) {

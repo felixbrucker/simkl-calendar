@@ -27,7 +27,6 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 import androidx.core.content.edit
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class MainViewMode {
@@ -284,7 +283,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     @Suppress("UNCHECKED_CAST")
     val watchlistTableItems: StateFlow<List<WatchlistTableItem>> = combine(
         repository.watchlistItems,
-        repository.calendarEntities,
+        repository.calendarItems,
         searchQuery,
         showTv,
         showAnime,
@@ -294,7 +293,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         tableSortDirection
     ) { flows ->
         val watchlist = flows[0] as List<TrackedWatchlistItem>
-        val calendar = flows[1] as List<CalendarItem>
+        val calendar = flows[1] as List<CalendarItemWithWatchlist>
         val query = flows[2] as String
         val tv = flows[3] as Boolean
         val anime = flows[4] as Boolean
@@ -902,7 +901,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                                         // Wait a few seconds to allow completion intent to be processed
                                         delay(3.seconds)
                                         // Fetch current items from repository flow
-                                        val currentEntity = repository.calendarEntities.first().find { it.primaryKey == item.primaryKey }
+                                        val currentEntity = repository.calendarItems.first().find { it.primaryKey == item.primaryKey }
                                         if (currentEntity?.mediaStatus == MediaStatus.DOWNLOADING && currentEntity.downloadTaskId == taskId) {
                                             Log.d("CalendarViewModel", "Task $taskId still not found after 3s and status is still DOWNLOADING with same taskId, reverting for ${item.primaryKey}")
                                             repository.updateDownloadTaskId(item.primaryKey, null, MediaStatus.WANTED)
