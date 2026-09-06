@@ -44,6 +44,7 @@ import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import com.felixbrucker.simklcalendar.ui.composable.Table
+import com.felixbrucker.simklcalendar.ui.composable.WatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -166,7 +167,9 @@ fun WatchlistItemDetailScreen(
                             viewModel = viewModel,
                             simklId = simklId,
                             episodes = episodes,
-                            isAnimeSeasonOneOnly = isAnimeSeasonOneOnly
+                            isAnimeSeasonOneOnly = isAnimeSeasonOneOnly,
+                            updatingWatchKeys = updatingWatchKeys,
+                            mediaType = watchlistItem.type
                         )
                     }
                 } else {
@@ -247,7 +250,9 @@ fun WatchlistItemDetailScreen(
                                             count = seasonEpisodes.size,
                                             viewModel = viewModel,
                                             simklId = simklId,
-                                            episodes = seasonEpisodes
+                                            episodes = seasonEpisodes,
+                                            updatingWatchKeys = updatingWatchKeys,
+                                            mediaType = watchlistItem.type
                                         )
                                     }
 
@@ -305,7 +310,9 @@ fun WatchlistItemSummaryStats(
     viewModel: CalendarViewModel,
     simklId: Int,
     episodes: List<CalendarItemWithWatchlist>,
-    isAnimeSeasonOneOnly: Boolean
+    isAnimeSeasonOneOnly: Boolean,
+    updatingWatchKeys: Set<String>,
+    mediaType: MediaType
 ) {
     if (item == null) return
 
@@ -353,7 +360,21 @@ fun WatchlistItemSummaryStats(
         if (isAnimeSeasonOneOnly) {
             VerticalDivider(modifier = Modifier.height(32.dp).padding(horizontal = 12.dp), color = Color(0xFF49454F))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val isWatched = episodes.all { it.isWatched }
+                val isLoading = episodes.any { updatingWatchKeys.contains(it.primaryKey) }
+                WatchedStatusDropdown(
+                    isWatched = isWatched,
+                    onStatusChange = { watched ->
+                        if (watched) {
+                            viewModel.markSeasonWatched(simklId, 1, mediaType)
+                        } else {
+                            viewModel.markSeasonUnwatched(simklId, 1, mediaType)
+                        }
+                    },
+                    isLoading = isLoading
+                )
+
                 MediaStatusDropdown(
                     currentStatus = commonStatus ?: MediaStatus.IGNORED,
                     onStatusChange = { viewModel.updateSeasonMediaStatus(simklId, 1, it) }
@@ -379,7 +400,9 @@ fun SeasonSectionHeader(
     count: Int,
     viewModel: CalendarViewModel,
     simklId: Int,
-    episodes: List<CalendarItemWithWatchlist>
+    episodes: List<CalendarItemWithWatchlist>,
+    updatingWatchKeys: Set<String>,
+    mediaType: MediaType
 ) {
     val commonStatus = remember(episodes) {
         val statuses = episodes.map { it.mediaStatus }.distinct()
@@ -401,7 +424,22 @@ fun SeasonSectionHeader(
             color = Color(0xFFD0BCFF)
         )
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val isWatched = episodes.all { it.isWatched }
+            val isLoading = episodes.any { updatingWatchKeys.contains(it.primaryKey) }
+
+            WatchedStatusDropdown(
+                isWatched = isWatched,
+                onStatusChange = { watched ->
+                    if (watched) {
+                        viewModel.markSeasonWatched(simklId, season, mediaType)
+                    } else {
+                        viewModel.markSeasonUnwatched(simklId, season, mediaType)
+                    }
+                },
+                isLoading = isLoading
+            )
+
             MediaStatusDropdown(
                 currentStatus = commonStatus ?: MediaStatus.IGNORED,
                 onStatusChange = { viewModel.updateSeasonMediaStatus(simklId, season, it) }
