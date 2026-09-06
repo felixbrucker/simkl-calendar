@@ -47,7 +47,7 @@ import com.felixbrucker.simklcalendar.ui.composable.Table
 import com.felixbrucker.simklcalendar.ui.composable.WatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WatchlistItemDetailScreen(
     viewModel: CalendarViewModel,
@@ -321,29 +321,90 @@ fun WatchlistItemSummaryStats(
         if (statuses.size == 1) statuses.first() else null
     }
 
-    Row(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .background(Color(0xFF2B2930), RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(12.dp)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                StatItem("Last Ep", item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-", modifier = Modifier.weight(1f))
-                StatItem("Next Ep", item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-", modifier = Modifier.weight(1f))
+        val isNarrow = maxWidth < 450.dp
 
-                val watchedColor =
-                    getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
+        if (isNarrow && isAnimeSeasonOneOnly) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                SummaryStatsContent(item, isNarrow = true)
+
+                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp)
+
+                SummaryDropdowns(
+                    viewModel = viewModel,
+                    simklId = simklId,
+                    episodes = episodes,
+                    updatingWatchKeys = updatingWatchKeys,
+                    mediaType = mediaType,
+                    commonStatus = commonStatus
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    SummaryStatsContent(item, isNarrow = isNarrow)
+                }
+
+                if (isAnimeSeasonOneOnly) {
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .padding(horizontal = 12.dp),
+                        color = Color(0xFF49454F)
+                    )
+                    SummaryDropdowns(
+                        viewModel = viewModel,
+                        simklId = simklId,
+                        episodes = episodes,
+                        updatingWatchKeys = updatingWatchKeys,
+                        mediaType = mediaType,
+                        commonStatus = commonStatus
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryStatsContent(item: WatchlistTableItem, isNarrow: Boolean) {
+    if (isNarrow) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                StatItem(
+                    "Last Ep",
+                    item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-"
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                StatItem(
+                    "Next Ep",
+                    item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-"
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                val watchedColor = getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
                 StatItem(
                     label = "Watched",
                     value = "${item.watchedReleasedCount}/${item.totalReleasedCount}",
-                    valueColor = watchedColor,
-                    modifier = Modifier.weight(0.8f)
+                    valueColor = watchedColor
                 )
-
+                Spacer(modifier = Modifier.height(8.dp))
                 val downloadedColor = getTableItemColor(
                     item.downloadedReleasedCount,
                     item.totalDownloadableReleasedCount
@@ -351,36 +412,80 @@ fun WatchlistItemSummaryStats(
                 StatItem(
                     label = "Downloaded",
                     value = "${item.downloadedReleasedCount}/${item.totalDownloadableReleasedCount}",
-                    valueColor = downloadedColor,
-                    modifier = Modifier.weight(0.8f)
+                    valueColor = downloadedColor
                 )
             }
         }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StatItem(
+                "Last Ep",
+                item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
+                modifier = Modifier.weight(1f)
+            )
+            StatItem(
+                "Next Ep",
+                item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
+                modifier = Modifier.weight(1f)
+            )
 
-        if (isAnimeSeasonOneOnly) {
-            VerticalDivider(modifier = Modifier.height(32.dp).padding(horizontal = 12.dp), color = Color(0xFF49454F))
+            val watchedColor = getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
+            StatItem(
+                label = "Watched",
+                value = "${item.watchedReleasedCount}/${item.totalReleasedCount}",
+                valueColor = watchedColor,
+                modifier = Modifier.weight(1f)
+            )
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val isWatched = episodes.all { it.isWatched }
-                val isLoading = episodes.any { updatingWatchKeys.contains(it.primaryKey) }
-                WatchedStatusDropdown(
-                    isWatched = isWatched,
-                    onStatusChange = { watched ->
-                        if (watched) {
-                            viewModel.markSeasonWatched(simklId, 1, mediaType)
-                        } else {
-                            viewModel.markSeasonUnwatched(simklId, 1, mediaType)
-                        }
-                    },
-                    isLoading = isLoading
-                )
-
-                MediaStatusDropdown(
-                    currentStatus = commonStatus ?: MediaStatus.IGNORED,
-                    onStatusChange = { viewModel.updateSeasonMediaStatus(simklId, 1, it) }
-                )
-            }
+            val downloadedColor = getTableItemColor(
+                item.downloadedReleasedCount,
+                item.totalDownloadableReleasedCount
+            )
+            StatItem(
+                label = "Downloaded",
+                value = "${item.downloadedReleasedCount}/${item.totalDownloadableReleasedCount}",
+                valueColor = downloadedColor,
+                modifier = Modifier.weight(1f)
+            )
         }
+    }
+}
+
+@Composable
+private fun SummaryDropdowns(
+    viewModel: CalendarViewModel,
+    simklId: Int,
+    episodes: List<CalendarItemWithWatchlist>,
+    updatingWatchKeys: Set<String>,
+    mediaType: MediaType,
+    commonStatus: MediaStatus?
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        val isWatched = episodes.all { it.isWatched }
+        val isLoading = episodes.any { updatingWatchKeys.contains(it.primaryKey) }
+        WatchedStatusDropdown(
+            isWatched = isWatched,
+            onStatusChange = { watched ->
+                if (watched) {
+                    viewModel.markSeasonWatched(simklId, 1, mediaType)
+                } else {
+                    viewModel.markSeasonUnwatched(simklId, 1, mediaType)
+                }
+            },
+            isLoading = isLoading
+        )
+
+        MediaStatusDropdown(
+            currentStatus = commonStatus ?: MediaStatus.IGNORED,
+            onStatusChange = { viewModel.updateSeasonMediaStatus(simklId, 1, it) }
+        )
     }
 }
 
