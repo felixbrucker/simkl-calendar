@@ -218,8 +218,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val autoDownloadUnwatchedTv = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_tv", false))
     val autoDownloadUnwatchedAnime = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_anime", false))
     val autoDownloadUnwatchedMovie = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_movie", false))
-    val autoDownloadPreferredKeywords = MutableStateFlow(downloadPrefs.getStringSet("preferred_keywords", setOf("erai", "subsplease", "megusta", "PSA"))?.toList() ?: listOf("erai", "subsplease", "megusta", "PSA"))
-    val autoDownloadIgnoreKeywords = MutableStateFlow(downloadPrefs.getStringSet("ignore_keywords", setOf("ita"))?.toList() ?: listOf("ita"))
+    val autoDownloadPreferredKeywords = MutableStateFlow(downloadPrefs.getStringSet("preferred_keywords", emptySet())?.toList() ?: emptyList())
+    val autoDownloadIgnoreKeywords = MutableStateFlow(downloadPrefs.getStringSet("ignore_keywords", emptySet())?.toList() ?: emptyList())
 
     fun updateAutoDownloadQuality(quality: String) {
         autoDownloadQuality.value = quality
