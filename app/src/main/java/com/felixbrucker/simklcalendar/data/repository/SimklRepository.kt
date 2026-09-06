@@ -135,6 +135,7 @@ class SimklRepository(private val context: Context) {
             settings = settings,
             mediaType = item.type,
             isTheaterRelease = calendarItem.movieReleaseType == MovieReleaseType.THEATER,
+            isWatched = item.isWatched,
         )
         calendarDao.updateMediaStatus(calendarItem.primaryKey, newStatus)
     }
@@ -144,19 +145,20 @@ class SimklRepository(private val context: Context) {
         settings: ItemDownloadSettings?,
         mediaType: MediaType,
         isTheaterRelease: Boolean,
+        isWatched: Boolean,
     ): MediaStatus {
         if (airDate.isAfter(Instant.now())) return MediaStatus.NOT_AIRED_YET
-        if (isTheaterRelease) return MediaStatus.IGNORED
+        if (isTheaterRelease || isWatched) return MediaStatus.IGNORED
 
         val globalKey = when (mediaType) {
             MediaType.TV -> "auto_download_unwatched_tv"
             MediaType.ANIME -> "auto_download_unwatched_anime"
             MediaType.MOVIE -> "auto_download_unwatched_movie"
         }
-        val globalUnwatched = downloadPrefs.getBoolean(globalKey, false)
+        val globalIsAutoDownloadUnwatched = downloadPrefs.getBoolean(globalKey, false)
 
-        val isUnwatched = settings?.downloadUnwatched ?: globalUnwatched
-        return if (isUnwatched) MediaStatus.WANTED else MediaStatus.IGNORED
+        val isAutoDownloadUnwatched = settings?.downloadUnwatched ?: globalIsAutoDownloadUnwatched
+        return if (isAutoDownloadUnwatched) MediaStatus.WANTED else MediaStatus.IGNORED
     }
 
     fun generateCompletionIntentUri(primaryKey: String): String {
@@ -540,6 +542,7 @@ class SimklRepository(private val context: Context) {
                         settings = settingsMap[show.simklId],
                         mediaType = show.type,
                         isTheaterRelease = false,
+                        isWatched = epWatchedTimestamp != null,
                     )
 
                     processCalendarItem(
@@ -968,6 +971,7 @@ class SimklRepository(private val context: Context) {
                                     settings = settingsMap[simklId],
                                     mediaType = MediaType.MOVIE,
                                     isTheaterRelease = true,
+                                    isWatched = false,
                                 )
                                 processCalendarItem(
                                     CalendarItem(
@@ -993,6 +997,7 @@ class SimklRepository(private val context: Context) {
                                         settings = settingsMap[simklId],
                                         mediaType = MediaType.MOVIE,
                                         isTheaterRelease = false,
+                                        isWatched = false,
                                     )
                                     processCalendarItem(
                                         CalendarItem(
@@ -1044,6 +1049,7 @@ class SimklRepository(private val context: Context) {
                                 settings = settingsMap[simklId],
                                 mediaType = defaultType,
                                 isTheaterRelease = false,
+                                isWatched = epWatchedTimestamp != null,
                             )
 
                             processCalendarItem(
@@ -1104,6 +1110,7 @@ class SimklRepository(private val context: Context) {
                                 settings = settingsMap[movieId],
                                 mediaType = MediaType.MOVIE,
                                 isTheaterRelease = true,
+                                isWatched = false,
                             )
                             processCalendarItem(
                                 CalendarItem(
@@ -1130,6 +1137,7 @@ class SimklRepository(private val context: Context) {
                                 settings = settingsMap[movieId],
                                 mediaType = MediaType.MOVIE,
                                 isTheaterRelease = false,
+                                isWatched = false,
                             )
                             processCalendarItem(
                                 CalendarItem(
