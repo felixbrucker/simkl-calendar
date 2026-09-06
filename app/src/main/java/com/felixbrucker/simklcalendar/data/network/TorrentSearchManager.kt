@@ -1,4 +1,4 @@
-package com.felixbrucker.simklcalendar.data.util
+package com.felixbrucker.simklcalendar.data.network
 
 import android.content.SharedPreferences
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -9,6 +9,7 @@ import com.felixbrucker.torrent_search_api.NyaaProvider
 import com.felixbrucker.torrent_search_api.OrderBy
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.felixbrucker.torrent_search_api.TpbProvider
+import java.util.Locale
 
 class TorrentSearchManager(
     private val itemSettingsDao: ItemDownloadSettingsDao,
@@ -31,42 +32,32 @@ class TorrentSearchManager(
         val globalPreferHevc = downloadPrefs.getBoolean("prefer_hevc", true)
         val preferredKeywords = downloadPrefs.getStringSet("preferred_keywords", emptySet()) ?: emptySet()
         val ignoreKeywords = downloadPrefs.getStringSet("ignore_keywords", emptySet()) ?: emptySet()
-
-        val quality = itemSettings?.qualityOverride ?: globalQuality
+        val allPreferredKeywords = preferredKeywords.toMutableSet()
         val preferHevc = itemSettings?.preferHevcOverride ?: globalPreferHevc
+        if (preferHevc) {
+            allPreferredKeywords.addAll(listOf("hevc", "x265"))
+        }
 
-        var baseQuery = when(item.type) {
-            MediaType.TV -> String.format(java.util.Locale.US, "%s S%02dE%02d", searchTitle, searchSeason, episode ?: 1)
-            MediaType.ANIME -> String.format(java.util.Locale.US, "%s %02d", searchTitle, episode ?: 1)
+        var term = when(item.type) {
+            MediaType.TV -> String.format(Locale.US, "%s S%02dE%02d", searchTitle, searchSeason, episode ?: 1)
+            MediaType.ANIME -> String.format(Locale.US, "%s %02d", searchTitle, episode ?: 1)
             MediaType.MOVIE -> searchTitle
         }
 
+        val quality = itemSettings?.qualityOverride ?: globalQuality
         if (quality.isNotEmpty()) {
-            baseQuery += " $quality"
+            term += " $quality"
         }
 
         val provider = if (item.type == MediaType.ANIME) nyaaProvider else tpbProvider
         val category = if (item.type == MediaType.ANIME) Category.ANIME_ENGLISH_TRANSLATED else Category.VIDEO
 
-        if (preferHevc) {
-            val hevcSuffix = if (item.type == MediaType.ANIME) " hevc" else " x265"
-            val hevcQuery = baseQuery + hevcSuffix
-            val hevcResults = provider
-                .search(term = hevcQuery, category = category, orderBy = OrderBy.SeederDescending)
-                .getOrThrow()
-                .results
-            val filteredAndRankedHevcResults = processResults(hevcResults, preferredKeywords, ignoreKeywords)
-            if (filteredAndRankedHevcResults.isNotEmpty()) {
-                return filteredAndRankedHevcResults
-            }
-        }
-
         val results = provider
-            .search(term = baseQuery, category = category, orderBy = OrderBy.SeederDescending)
+            .search(term = term, category = category, orderBy = OrderBy.SeederDescending)
             .getOrThrow()
             .results
 
-        return processResults(results, preferredKeywords, ignoreKeywords)
+        return processResults(results, allPreferredKeywords, ignoreKeywords)
     }
 
     private fun processResults(

@@ -30,7 +30,7 @@ import com.felixbrucker.simklcalendar.data.network.SyncSeasonItem
 import com.felixbrucker.simklcalendar.data.network.SyncShowItem
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.PkceUtil
-import com.felixbrucker.simklcalendar.data.util.TorrentSearchManager
+import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.data.util.destinationSubdirectory
 import com.felixbrucker.torrent_search_api.SearchResultItem
