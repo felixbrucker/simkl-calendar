@@ -138,6 +138,9 @@ class SimklRepository(private val context: Context) {
             isWatched = item.isWatched,
         )
         calendarDao.updateMediaStatus(calendarItem.primaryKey, newStatus)
+        if (newStatus == MediaStatus.WANTED) {
+            searchAndDownloadEpisode(item) { _, _ -> }
+        }
     }
 
     fun determineStatus(
