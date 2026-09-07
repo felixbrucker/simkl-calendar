@@ -34,6 +34,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
+import com.felixbrucker.simklcalendar.data.util.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
@@ -291,6 +292,7 @@ fun WatchlistItemDetailScreen(
                         simklId = watchlistItem.simklId,
                         itemTitle = watchlistItem.title,
                         mediaType = watchlistItem.type,
+                        defaultSubdirectory = watchlistItem.defaultDestinationSubdirectory(),
                         modifier = Modifier.padding(16.dp),
                     )
                 }

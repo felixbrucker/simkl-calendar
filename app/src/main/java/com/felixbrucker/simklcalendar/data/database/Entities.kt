@@ -130,7 +130,12 @@ data class CalendarItemWithWatchlist(
         parentColumn = "primaryKey",
         entityColumn = "primaryKey"
     )
-    val localState: LocalItemState? = null
+    val localState: LocalItemState? = null,
+    @Relation(
+        parentColumn = "simklId",
+        entityColumn = "simklId"
+    )
+    val downloadSettings: ItemDownloadSettings? = null
 ) {
     val primaryKey: String get() = calendarItem.primaryKey
     val simklId: Int get() = calendarItem.simklId
@@ -278,7 +283,8 @@ data class ItemDownloadSettings(
     val qualityOverride: String? = null, // "4K", "1080p", "720p"
     val preferHevcOverride: Boolean? = null,
     val titleOverride: String? = null,
-    val seasonOverrides: Map<Int, Int>? = null // Map of <Original Season, Search Season Override>
+    val seasonOverrides: Map<Int, Int>? = null, // Map of <Original Season, Search Season Override>
+    val downloadSubdirectoryOverride: String? = null
 )
 
 

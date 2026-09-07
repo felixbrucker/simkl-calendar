@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 import androidx.core.content.edit
+import com.felixbrucker.simklcalendar.data.util.DirectoryUtils
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class MainViewMode {
@@ -382,6 +383,15 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         return repository.getItemDownloadSettingsFlow(simklId)
     }
 
+    private val _downloadSubdirectories = MutableStateFlow<List<String>>(emptyList())
+    val downloadSubdirectories: StateFlow<List<String>> = _downloadSubdirectories.asStateFlow()
+
+    fun refreshDownloadSubdirectories() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _downloadSubdirectories.value = DirectoryUtils.getDownloadSubdirectories()
+        }
+    }
+
     private val _updatingWatchStatusKeys = MutableStateFlow<Set<String>>(emptySet())
     val updatingWatchStatusKeys: StateFlow<Set<String>> = _updatingWatchStatusKeys.asStateFlow()
 
@@ -645,6 +655,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     private val _syncError = MutableStateFlow<String?>(null)
 
     init {
+        refreshDownloadSubdirectories()
         // Automatically sync calendar on launch only if user is logged in
         viewModelScope.launch {
             repository.activeUserToken.collect { token ->

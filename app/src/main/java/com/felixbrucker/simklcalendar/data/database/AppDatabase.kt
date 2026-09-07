@@ -99,7 +99,7 @@ class Converters {
 
 @Database(
     entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class],
-    version = 20,
+    version = 21,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -113,7 +113,8 @@ class Converters {
         AutoMigration(from = 15, to = 16),
         AutoMigration(from = 16, to = 17, spec = AppDatabase.Migration16To17::class),
         AutoMigration(from = 17, to = 18),
-        AutoMigration(from = 18, to = 19, spec = AppDatabase.Migration18To19::class)
+        AutoMigration(from = 18, to = 19, spec = AppDatabase.Migration18To19::class),
+        AutoMigration(from = 20, to = 21)
     ]
 )
 @TypeConverters(Converters::class)

@@ -562,12 +562,14 @@ fun DetailHeader(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DownloadSettingsCard(
     viewModel: CalendarViewModel,
     simklId: Int,
     itemTitle: String,
     mediaType: MediaType,
+    defaultSubdirectory: String,
     modifier: Modifier = Modifier,
 ) {
     val globalUnwatchedTv by viewModel.autoDownloadUnwatchedTv.collectAsState()
@@ -583,6 +585,7 @@ fun DownloadSettingsCard(
     val globalPreferHevc by viewModel.autoDownloadPreferHevc.collectAsState()
     val itemSettings by viewModel.getItemDownloadSettingsFlow(simklId).collectAsState(null)
     val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
+    val availableSubdirectories by viewModel.downloadSubdirectories.collectAsState()
 
     Card(
         modifier = modifier,
@@ -642,6 +645,29 @@ fun DownloadSettingsCard(
                     },
                     enabled = isDownloaderInstalled
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Download Subdirectory Override
+            Text("Download Subdirectory", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            val subdirs = (listOf(defaultSubdirectory) + availableSubdirectories).distinct().sorted()
+            FlowRow(
+                modifier = Modifier.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                subdirs.forEach { subdir ->
+                    val isSelected = (itemSettings?.downloadSubdirectoryOverride == subdir) || (itemSettings?.downloadSubdirectoryOverride == null && subdir == defaultSubdirectory)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            val next = if (subdir == defaultSubdirectory) null else subdir
+                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSubdirectoryOverride = next))
+                        },
+                        label = { Text(subdir, fontSize = 11.sp) },
+                        enabled = isDownloaderInstalled
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

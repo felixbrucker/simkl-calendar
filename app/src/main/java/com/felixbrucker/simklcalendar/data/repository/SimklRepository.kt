@@ -82,7 +82,6 @@ class SimklRepository(private val context: Context) {
     val watchedEpisodes: Flow<List<WatchedEpisode>> = watchedDao.getAllWatchedEpisodesFlow()
     val customSearchLinks: Flow<List<CustomSearchLink>> = searchLinkDao.getAllSearchLinks()
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = watchlistDao.getAllTrackedItemsFlow()
-    val calendarEntities: Flow<List<CalendarItem>> = calendarDao.getAllCalendarEntitiesFlow()
 
     suspend fun saveItemDownloadSettings(settings: ItemDownloadSettings) = withContext(Dispatchers.IO) {
         itemDownloadSettingsDao.insertOrUpdate(settings)
@@ -139,7 +138,8 @@ class SimklRepository(private val context: Context) {
         )
         calendarDao.updateMediaStatus(calendarItem.primaryKey, newStatus)
         if (newStatus == MediaStatus.WANTED) {
-            searchAndDownloadEpisode(item) { _, _ -> }
+            val updatedItem = calendarDao.findItem(calendarItem.primaryKey) ?: return@withContext
+            searchAndDownloadEpisode(updatedItem) { _, _ -> }
         }
     }
 
