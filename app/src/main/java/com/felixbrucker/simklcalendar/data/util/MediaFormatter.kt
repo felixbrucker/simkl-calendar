@@ -15,7 +15,7 @@ object MediaFormatter {
      * Checks if this media item is an Anime and belongs to Season 1 (or season is unspecified).
      */
     fun isAnimeSeasonOne(mediaType: MediaType, season: Int?): Boolean {
-        return mediaType == MediaType.ANIME && (season == null || season == 1)
+        return mediaType == MediaType.ANIME && season == 1
     }
 
     /**

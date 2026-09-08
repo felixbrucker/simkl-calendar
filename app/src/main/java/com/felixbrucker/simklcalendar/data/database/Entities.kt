@@ -75,7 +75,8 @@ data class CalendarItem(
             entity = CalendarItem::class,
             parentColumns = ["primaryKey"],
             childColumns = ["primaryKey"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE
         )
     ]
 )

@@ -532,14 +532,14 @@ class SimklRepository(private val context: Context) {
                     if (ep.type != "episode" || !ep.aired) continue
 
                     val instant = DateUtil.parseToInstant(ep.date) ?: continue
-                    val seasonNum = ep.season ?: if (show.type == MediaType.ANIME) null else 1
+                    val seasonNum = ep.season ?: 1
                     val epNum = ep.episode ?: continue
                     val epTitle = ep.title
 
-                    val keyUnique = if (seasonNum != null) "v2_${show.simklId}_${seasonNum}_${epNum}" else "v2_${show.simklId}_${epNum}"
+                    val keyUnique = "v2_${show.simklId}_${seasonNum}_${epNum}"
 
                     val watchedEntry = showWatchedList?.firstOrNull {
-                        (it.season == (seasonNum ?: 1) || (seasonNum == null && it.season == 0)) && it.episodeNumber == epNum
+                        it.season == seasonNum && it.episodeNumber == epNum
                     }
                     val epWatchedTimestamp = watchedEntry?.watchedAt
 
@@ -1034,7 +1034,7 @@ class SimklRepository(private val context: Context) {
                             val instant = DateUtil.parseToInstant(entry.date) ?: continue
 
                             val ep = entry.episode
-                            val seasonNum = ep?.season ?: if (defaultType == MediaType.ANIME) null else 1
+                            val seasonNum = ep?.season ?: 1
                             val epNum = ep?.episode ?: 1
                             val epTitle = ep?.title
 
@@ -1046,11 +1046,11 @@ class SimklRepository(private val context: Context) {
                                 epNum >= meta.totalEpisodes
                             val isFinale = isExplicitFinale || isMetadataFinale
 
-                            val keyUnique = if (seasonNum != null) "v2_${simklId}_${seasonNum}_${epNum}" else "v2_${simklId}_${epNum}"
+                            val keyUnique = "v2_${simklId}_${seasonNum}_${epNum}"
 
                             val showWatchedList = watchedLookup[simklId]
                             val watchedEntry = showWatchedList?.firstOrNull {
-                                (it.season == (seasonNum ?: 1) || (seasonNum == null && (it.season == 1 || it.season == 0))) && it.episodeNumber == epNum
+                                it.season == seasonNum && it.episodeNumber == epNum
                             }
                             val epWatchedTimestamp = watchedEntry?.watchedAt
 

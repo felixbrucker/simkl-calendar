@@ -99,7 +99,7 @@ class Converters {
 
 @Database(
     entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class],
-    version = 21,
+    version = 22,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -147,6 +147,30 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun itemDownloadSettingsDao(): ItemDownloadSettingsDao
 
     companion object {
+        private val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Recreate local_item_state to add ON UPDATE CASCADE
+                db.execSQL("CREATE TABLE IF NOT EXISTS `local_item_state_new` (`primaryKey` TEXT NOT NULL, `mediaStatus` TEXT NOT NULL DEFAULT 'NOT_AIRED_YET', `downloadTaskId` TEXT, PRIMARY KEY(`primaryKey`), FOREIGN KEY(`primaryKey`) REFERENCES `calendar_items`(`primaryKey`) ON UPDATE CASCADE ON DELETE CASCADE )")
+                db.execSQL("INSERT INTO `local_item_state_new` SELECT * FROM `local_item_state`")
+                db.execSQL("DROP TABLE `local_item_state`")
+                db.execSQL("ALTER TABLE `local_item_state_new` RENAME TO `local_item_state`")
+
+                // 2. Update season to 1 for items where it's null and not a movie
+                db.execSQL("UPDATE calendar_items SET season = 1 WHERE season IS NULL AND movieReleaseType IS NULL")
+
+                // 3. Update primaryKey in calendar_items (v2_simklId_1_episodeNumber)
+                // The ON UPDATE CASCADE will handle the update in local_item_state
+                db.execSQL("PRAGMA foreign_keys = ON")
+                db.execSQL("""
+                    UPDATE calendar_items 
+                    SET primaryKey = 'v2_' || simklId || '_1_' || episodeNumber 
+                    WHERE season = 1 
+                    AND movieReleaseType IS NULL 
+                    AND primaryKey = 'v2_' || simklId || '_' || episodeNumber
+                """.trimIndent())
+            }
+        }
+
         private val MIGRATION_19_20 = object : Migration(19, 20) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // 1. Create new table for local state
@@ -176,7 +200,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "simkl_calendar_database"
                 )
-                .addMigrations(MIGRATION_19_20)
+                .addMigrations(MIGRATION_19_20, MIGRATION_21_22)
                 .build()
                 INSTANCE = instance
                 instance

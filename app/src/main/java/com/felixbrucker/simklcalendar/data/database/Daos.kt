@@ -94,7 +94,7 @@ interface CalendarItemDao {
     @Query("""
         INSERT OR IGNORE INTO local_item_state (primaryKey)
         SELECT primaryKey FROM calendar_items
-        WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) AND date <= :now
+        WHERE simklId = :simklId AND season = :season AND date <= :now
     """)
     suspend fun ensureLocalStatesExistForSeason(simklId: Int, season: Int, now: Instant)
 
@@ -103,7 +103,7 @@ interface CalendarItemDao {
         SET mediaStatus = :status 
         WHERE primaryKey IN (
             SELECT primaryKey FROM calendar_items 
-            WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) AND date <= :now
+            WHERE simklId = :simklId AND season = :season AND date <= :now
         )
     """)
     suspend fun performUpdateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus, now: Instant)
@@ -123,10 +123,10 @@ interface CalendarItemDao {
         performUpdateDownloadTaskId(primaryKey, taskId, status)
     }
 
-    @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL) OR (:season IS NULL AND (season = 1 OR season IS NULL))) AND episodeNumber = :episodeNumber")
+    @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND season = :season AND episodeNumber = :episodeNumber")
     suspend fun markEpisodeWatched(simklId: Int, season: Int?, episodeNumber: Int, watchedAt: Instant?)
 
-    @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL))")
+    @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND season = :season")
     suspend fun markSeasonWatched(simklId: Int, season: Int, watchedAt: Instant?)
 
     @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId")
@@ -139,7 +139,7 @@ interface CalendarItemDao {
     suspend fun markAllUnwatched()
 
     @Transaction
-    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) ORDER BY date ASC")
+    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId AND season = :season ORDER BY date ASC")
     suspend fun getItemsInSeason(simklId: Int, season: Int?): List<CalendarItemWithWatchlist>
 }
 
@@ -214,10 +214,10 @@ interface WatchedEpisodeDao {
     @Query("DELETE FROM watched_episodes WHERE simklId = :simklId")
     suspend fun deleteWatchedForShow(simklId: Int)
 
-    @Query("DELETE FROM watched_episodes WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) AND episodeNumber = :episodeNumber")
+    @Query("DELETE FROM watched_episodes WHERE simklId = :simklId AND season = :season AND episodeNumber = :episodeNumber")
     suspend fun deleteWatchedEpisode(simklId: Int, season: Int, episodeNumber: Int)
 
-    @Query("DELETE FROM watched_episodes WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL))")
+    @Query("DELETE FROM watched_episodes WHERE simklId = :simklId AND season = :season")
     suspend fun deleteWatchedSeason(simklId: Int, season: Int)
 
     @Query("DELETE FROM watched_episodes")
