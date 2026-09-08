@@ -719,7 +719,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             _autoDownloadStatus.value = "Starting search..."
             delay(500.milliseconds)
 
-            repository.searchAndDownloadWantedItems { current, total, title, _ ->
+            repository.searchAndDownloadWantedItems(withDelay = 800.milliseconds) { current, total, title, _ ->
                 _autoDownloadStatus.value = "Searching ($current/$total): $title"
             }
 
@@ -785,7 +785,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             }
             _isForceSyncing.value = true
             try {
-                repository.forceWatchlistResync()
+                repository.syncCalendar(force = true)
                 _isForceSyncing.value = false
                 onComplete(true, "Watchlist re-synced successfully")
             } catch (e: Exception) {
