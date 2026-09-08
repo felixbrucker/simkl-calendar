@@ -99,7 +99,7 @@ class Converters {
 
 @Database(
     entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class],
-    version = 22,
+    version = 23,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -147,6 +147,29 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun itemDownloadSettingsDao(): ItemDownloadSettingsDao
 
     companion object {
+        private val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Fix orphaned local_item_state entries where the parent primaryKey changed but the child didn't cascade
+                // Old key: v2_${simklId}_${epNum}, New key: v2_${simklId}_1_${epNum}
+                db.execSQL("PRAGMA foreign_keys = OFF")
+                db.execSQL("""
+                    UPDATE local_item_state 
+                    SET primaryKey = (
+                        SELECT ci.primaryKey 
+                        FROM calendar_items ci 
+                        WHERE ci.simklId = CAST(SUBSTR(local_item_state.primaryKey, 4, INSTR(SUBSTR(local_item_state.primaryKey, 4), '_') - 1) AS INTEGER)
+                          AND ci.episodeNumber = CAST(SUBSTR(local_item_state.primaryKey, INSTR(SUBSTR(local_item_state.primaryKey, 4), '_') + 4) AS INTEGER)
+                          AND ci.season = 1
+                          AND ci.movieReleaseType IS NULL
+                    )
+                    WHERE primaryKey NOT IN (SELECT primaryKey FROM calendar_items)
+                      AND primaryKey LIKE 'v2_%'
+                      AND (LENGTH(primaryKey) - LENGTH(REPLACE(primaryKey, '_', ''))) = 2
+                """.trimIndent())
+                db.execSQL("PRAGMA foreign_keys = ON")
+            }
+        }
+
         private val MIGRATION_21_22 = object : Migration(21, 22) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // 1. Recreate local_item_state to add ON UPDATE CASCADE
@@ -159,8 +182,21 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("UPDATE calendar_items SET season = 1 WHERE season IS NULL AND movieReleaseType IS NULL")
 
                 // 3. Update primaryKey in calendar_items (v2_simklId_1_episodeNumber)
-                // The ON UPDATE CASCADE will handle the update in local_item_state
-                db.execSQL("PRAGMA foreign_keys = ON")
+                // We perform a manual update on local_item_state as a safeguard because PRAGMA foreign_keys 
+                // might not be effective within a Room migration transaction.
+                db.execSQL("PRAGMA foreign_keys = OFF")
+                
+                db.execSQL("""
+                    UPDATE local_item_state 
+                    SET primaryKey = 'v2_' || (SELECT simklId FROM calendar_items WHERE calendar_items.primaryKey = local_item_state.primaryKey) || '_1_' || (SELECT episodeNumber FROM calendar_items WHERE calendar_items.primaryKey = local_item_state.primaryKey)
+                    WHERE primaryKey IN (
+                        SELECT primaryKey FROM calendar_items 
+                        WHERE season = 1 
+                        AND movieReleaseType IS NULL 
+                        AND primaryKey = 'v2_' || simklId || '_' || episodeNumber
+                    )
+                """.trimIndent())
+
                 db.execSQL("""
                     UPDATE calendar_items 
                     SET primaryKey = 'v2_' || simklId || '_1_' || episodeNumber 
@@ -168,6 +204,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AND movieReleaseType IS NULL 
                     AND primaryKey = 'v2_' || simklId || '_' || episodeNumber
                 """.trimIndent())
+
+                db.execSQL("PRAGMA foreign_keys = ON")
             }
         }
 
@@ -200,7 +238,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "simkl_calendar_database"
                 )
-                .addMigrations(MIGRATION_19_20, MIGRATION_21_22)
+                .addMigrations(MIGRATION_19_20, MIGRATION_21_22, MIGRATION_22_23)
                 .build()
                 INSTANCE = instance
                 instance
