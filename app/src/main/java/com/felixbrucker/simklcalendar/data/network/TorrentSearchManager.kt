@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.util.ensureAdded
 import com.felixbrucker.simklcalendar.data.util.getStringListWithMigration
 import com.felixbrucker.torrent_search_api.Category
 import com.felixbrucker.torrent_search_api.NyaaProvider
@@ -31,15 +32,18 @@ class TorrentSearchManager(
 
         val globalQuality = downloadPrefs.getString("quality", "1080p") ?: "1080p"
         val globalPreferHevc = downloadPrefs.getBoolean("prefer_hevc", true)
-        val preferredKeywords = downloadPrefs.getStringListWithMigration("preferred_keywords")
+        val preferredKeywords = downloadPrefs
+            .getStringListWithMigration("preferred_keywords")
+            .toMutableList()
         val ignoreKeywords = downloadPrefs.getStringListWithMigration("ignore_keywords")
-        val allPreferredKeywords = preferredKeywords.toMutableList()
         val preferHevc = itemSettings?.preferHevcOverride ?: globalPreferHevc
         if (preferHevc) {
-            listOf("hevc", "x265").forEach { keyword ->
-                if (!allPreferredKeywords.contains(keyword)) {
-                    allPreferredKeywords.add(keyword)
-                }
+            // Anime uses HEVC primarily, while x265 is used everywhere else. Avoid adding both to
+            // prevent results with both to score higher than other preferred items.
+            if (item.type == MediaType.ANIME) {
+                preferredKeywords.ensureAdded("hevc")
+            } else {
+                preferredKeywords.ensureAdded("x265")
             }
         }
 
@@ -67,7 +71,7 @@ class TorrentSearchManager(
             .getOrThrow()
             .results
             .filteredUsing(ignoreKeywords)
-            .sortedUsing(allPreferredKeywords)
+            .sortedUsing(preferredKeywords)
 
         // Only anime episode search terms are generic enough to match partially
         if (item.type == MediaType.ANIME) {
@@ -93,7 +97,7 @@ private fun List<SearchResultItem>.filteredUsing(ignoreKeywords: List<String>): 
 
 // Sort using the number of preferred keyword matches first, and if it's the same, using the
 // position of the preferred keyword in the list. For example assuming the following list
-// ["Erai-Raws", "SubsPlease", "hevc", "x265"]
+// ["Erai-Raws", "SubsPlease", "hevc"]
 // and the following search result names
 // ["[SubsPlease] One Piece 1234", "[AWS] One Piece 1234 HEVC", "[Erai-Raws] One Piece 1234", "[Erai-Raws] One Piece 1234 HEVC"]
 // we would sort the results as follows:
