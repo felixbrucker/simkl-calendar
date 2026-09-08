@@ -36,15 +36,19 @@ class TorrentSearchManager(
             .getStringListWithMigration("preferred_keywords")
             .map { Keyword.Single(it) }
             .toMutableList()
-        val ignoreKeywords = downloadPrefs.getStringListWithMigration("ignore_keywords")
+        val ignoreKeywords = downloadPrefs
+            .getStringListWithMigration("ignore_keywords")
+            .map { Keyword.Single(it) }
         val preferHevc = itemSettings?.preferHevcOverride ?: globalPreferHevc
         if (preferHevc) {
             preferredKeywords.ensureAdded(Keyword.Multiple(listOf("hevc", "x265")))
         }
 
+        val seasonAndEpisodeTerm = String.format(Locale.US, "S%02dE%02d", searchSeason, episode ?: 1)
+        val episodeTerm = String.format(Locale.US, "%02d", episode ?: 1)
         val episodeSearchTerm = when(item.type) {
-            MediaType.TV -> String.format(Locale.US, "S%02dE%02d", searchSeason, episode ?: 1)
-            MediaType.ANIME -> String.format(Locale.US, "%02d", episode ?: 1)
+            MediaType.TV -> seasonAndEpisodeTerm
+            MediaType.ANIME -> episodeTerm
             MediaType.MOVIE -> ""
         }
         var term = if (episodeSearchTerm.isNotEmpty()) {
@@ -65,26 +69,35 @@ class TorrentSearchManager(
             .search(term = term, category = category, orderBy = OrderBy.SeederDescending)
             .getOrThrow()
             .results
-            .filteredUsing(ignoreKeywords)
+            .excluding(ignoreKeywords)
             .sortedUsing(preferredKeywords)
 
-        // Only anime episode search terms are generic enough to match partially
+        // Only anime episode search terms are generic enough to match partially, filter out invalid
+        // matches
         if (item.type == MediaType.ANIME) {
-            return results.filteredUsingTerm(episodeSearchTerm)
+            val keyword = Keyword.Multiple(listOf(
+                " $episodeTerm ",
+                seasonAndEpisodeTerm
+            ))
+
+            return results.including(listOf(keyword))
         }
 
         return results
     }
 }
 
-// Filter out partial matches of the term by matching the term explicitly with spaces around it
-private fun List<SearchResultItem>.filteredUsingTerm(searchTerm: String): List<SearchResultItem> {
-    return filter { it.name.contains(" $searchTerm ", ignoreCase = true) }
+private fun List<SearchResultItem>.including(keywords: List<Keyword>): List<SearchResultItem> {
+    return filter { item ->
+        keywords.any { keyword ->
+            item.name.contains(keyword, ignoreCase = true)
+        }
+    }
 }
 
-private fun List<SearchResultItem>.filteredUsing(ignoreKeywords: List<String>): List<SearchResultItem> {
+private fun List<SearchResultItem>.excluding(keywords: List<Keyword>): List<SearchResultItem> {
     return filter { item ->
-        ignoreKeywords.none { keyword ->
+        keywords.none { keyword ->
             item.name.contains(keyword, ignoreCase = true)
         }
     }
