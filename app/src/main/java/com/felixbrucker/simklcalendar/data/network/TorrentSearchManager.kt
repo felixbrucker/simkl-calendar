@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.util.getStringListWithMigration
 import com.felixbrucker.torrent_search_api.Category
 import com.felixbrucker.torrent_search_api.NyaaProvider
 import com.felixbrucker.torrent_search_api.OrderBy
@@ -30,12 +31,16 @@ class TorrentSearchManager(
 
         val globalQuality = downloadPrefs.getString("quality", "1080p") ?: "1080p"
         val globalPreferHevc = downloadPrefs.getBoolean("prefer_hevc", true)
-        val preferredKeywords = downloadPrefs.getStringSet("preferred_keywords", emptySet()) ?: emptySet()
-        val ignoreKeywords = downloadPrefs.getStringSet("ignore_keywords", emptySet()) ?: emptySet()
-        val allPreferredKeywords = preferredKeywords.toMutableSet()
+        val preferredKeywords = downloadPrefs.getStringListWithMigration("preferred_keywords")
+        val ignoreKeywords = downloadPrefs.getStringListWithMigration("ignore_keywords")
+        val allPreferredKeywords = preferredKeywords.toMutableList()
         val preferHevc = itemSettings?.preferHevcOverride ?: globalPreferHevc
         if (preferHevc) {
-            allPreferredKeywords.addAll(listOf("hevc", "x265"))
+            listOf("hevc", "x265").forEach { keyword ->
+                if (!allPreferredKeywords.contains(keyword)) {
+                    allPreferredKeywords.add(keyword)
+                }
+            }
         }
 
         val episodeSearchTerm = when(item.type) {
@@ -62,7 +67,7 @@ class TorrentSearchManager(
             .getOrThrow()
             .results
             .filteredUsing(ignoreKeywords)
-            .sortedUsing(preferredKeywords)
+            .sortedUsing(allPreferredKeywords)
 
         // Only anime episode search terms are generic enough to match partially
         if (item.type == MediaType.ANIME) {
@@ -78,7 +83,7 @@ private fun List<SearchResultItem>.filteredUsingTerm(searchTerm: String): List<S
     return filter { it.name.contains(" $searchTerm ", ignoreCase = true) }
 }
 
-private fun List<SearchResultItem>.filteredUsing(ignoreKeywords: Set<String>): List<SearchResultItem> {
+private fun List<SearchResultItem>.filteredUsing(ignoreKeywords: List<String>): List<SearchResultItem> {
     return filter { item ->
         ignoreKeywords.none { keyword ->
             item.name.contains(keyword, ignoreCase = true)
@@ -86,10 +91,30 @@ private fun List<SearchResultItem>.filteredUsing(ignoreKeywords: Set<String>): L
     }
 }
 
-private fun List<SearchResultItem>.sortedUsing(preferredKeywords: Set<String>): List<SearchResultItem> {
-    return sortedByDescending { item ->
-        preferredKeywords.count { keyword ->
-            item.name.contains(keyword, ignoreCase = true)
+// Sort using the number of preferred keyword matches first, and if it's the same, using the
+// position of the preferred keyword in the list. For example assuming the following list
+// ["Erai-Raws", "SubsPlease", "hevc", "x265"]
+// and the following search result names
+// ["[SubsPlease] One Piece 1234", "[AWS] One Piece 1234 HEVC", "[Erai-Raws] One Piece 1234", "[Erai-Raws] One Piece 1234 HEVC"]
+// we would sort the results as follows:
+// 1. "[Erai-Raws] One Piece 1234 HEVC" (2 matches, first preferred keyword)
+// 2. "[Erai-Raws] One Piece 1234" (1 match, first preferred keyword)
+// 3. "[SubsPlease] One Piece 1234" (1 match, second preferred keyword)
+// 4. "[AWS] One Piece 1234 HEVC" (1 match, third preferred keyword)
+private fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<String>): List<SearchResultItem> {
+    return sortedWith(
+        compareByDescending<SearchResultItem> { item ->
+            preferredKeywords.count { keyword ->
+                item.name.contains(keyword, ignoreCase = true)
+            }
+        }.thenByDescending { item ->
+            preferredKeywords.mapIndexed { index, keyword ->
+                if (item.name.contains(keyword, ignoreCase = true)) {
+                    preferredKeywords.size - index
+                } else {
+                    0
+                }
+            }.sum()
         }
-    }
+    )
 }

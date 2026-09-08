@@ -23,10 +23,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -791,10 +794,11 @@ fun SettingsScreen(
                     // Preferred Keywords
                     KeywordManagerSection(
                         title = "Preferred Keywords",
-                        subtitle = "Torrents containing these tags will be prioritized.",
+                        subtitle = "Torrents containing these tags will be prioritized. First items take precedence.",
                         keywords = autoPreferredKeywords,
                         onAdd = { viewModel.addPreferredKeyword(it) },
                         onRemove = { viewModel.removePreferredKeyword(it) },
+                        onReorder = { viewModel.updatePreferredKeywordsOrder(it) },
                         enabled = isDownloaderInstalled
                     )
 
@@ -807,6 +811,7 @@ fun SettingsScreen(
                         keywords = autoIgnoreKeywords,
                         onAdd = { viewModel.addIgnoreKeyword(it) },
                         onRemove = { viewModel.removeIgnoreKeyword(it) },
+                        onReorder = { viewModel.updateIgnoreKeywordsOrder(it) },
                         enabled = isDownloaderInstalled,
                         color = Color(0xFFF2B8B5)
                     )
@@ -1471,12 +1476,18 @@ fun KeywordManagerSection(
     keywords: List<String>,
     onAdd: (String) -> Unit,
     onRemove: (String) -> Unit,
+    onReorder: (List<String>) -> Unit,
     enabled: Boolean,
     color: Color = Color(0xFFD0BCFF)
 ) {
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingKeyword by remember { mutableStateOf<String?>(null) }
     var keywordInput by remember { mutableStateOf("") }
+
+    val itemBounds = remember { mutableMapOf<String, Rect>() }
+    var draggingKeyword by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var originalCenter by remember { mutableStateOf(Offset.Zero) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -1501,42 +1512,129 @@ fun KeywordManagerSection(
             }
         }
 
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            keywords.forEach { keyword ->
-                InputChip(
-                    selected = false,
-                    onClick = {
-                        if (enabled) {
-                            editingKeyword = keyword
-                            keywordInput = keyword
-                            showAddEditDialog = true
-                        }
-                    },
-                    label = { Text(keyword, fontSize = 12.sp) },
-                    trailingIcon = {
-                        if (enabled) {
-                            IconButton(
-                                onClick = { onRemove(keyword) },
-                                modifier = Modifier.size(16.dp)
+        if (keywords.isEmpty()) {
+            Text(
+                "No keywords added",
+                color = Color(0xFF79747E),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        } else {
+            val currentKeywordsState by rememberUpdatedState(keywords)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    keywords.forEach { keyword ->
+                        key(keyword) {
+                            val isDragging = draggingKeyword == keyword
+                            Box(
+                                modifier = Modifier
+                                    .onGloballyPositioned { coords ->
+                                        itemBounds[keyword] = coords.boundsInParent()
+                                    }
+                                    .graphicsLayer {
+                                        if (isDragging) {
+                                            // When dragging in a FlowRow, we need to compensate for the
+                                            // base position shift if we've swapped items.
+                                            val currentBaseCenter = itemBounds[keyword]?.center ?: Offset.Zero
+                                            if (currentBaseCenter != Offset.Zero && originalCenter != Offset.Zero) {
+                                                translationX = (originalCenter.x + dragOffset.x) - currentBaseCenter.x
+                                                translationY = (originalCenter.y + dragOffset.y) - currentBaseCenter.y
+                                            } else {
+                                                translationX = dragOffset.x
+                                                translationY = dragOffset.y
+                                            }
+                                            scaleX = 1.1f
+                                            scaleY = 1.1f
+                                        }
+                                    }
+                                    .alpha(if (isDragging) 0.8f else 1f)
+                                    .zIndex(if (isDragging) 10f else 1f)
+                                    .pointerInput(keyword, enabled) {
+                                        if (enabled) {
+                                            detectDragGesturesAfterLongPress(
+                                                onDragStart = {
+                                                    draggingKeyword = keyword
+                                                    dragOffset = Offset.Zero
+                                                    originalCenter = itemBounds[keyword]?.center ?: Offset.Zero
+                                                },
+                                                onDrag = { change, dragAmount ->
+                                                    change.consume()
+                                                    dragOffset += dragAmount
+
+                                                    if (originalCenter != Offset.Zero) {
+                                                        val currentCenter = originalCenter + dragOffset
+                                                        val targetEntry = itemBounds.entries
+                                                            .filter { it.key != keyword && currentKeywordsState.contains(it.key) }
+                                                            .minByOrNull { (it.value.center - currentCenter).getDistance() }
+
+                                                        if (targetEntry != null) {
+                                                            val targetKeyword = targetEntry.key
+                                                            val targetBounds = targetEntry.value
+                                                            if (targetBounds.contains(currentCenter)) {
+                                                                val fromIndex = currentKeywordsState.indexOf(keyword)
+                                                                val toIndex = currentKeywordsState.indexOf(targetKeyword)
+                                                                if (fromIndex != -1 && toIndex != -1 && fromIndex != toIndex) {
+                                                                    val newList = currentKeywordsState.toMutableList().apply {
+                                                                        add(toIndex, removeAt(fromIndex))
+                                                                    }
+                                                                    onReorder(newList)
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                onDragEnd = {
+                                                    draggingKeyword = null
+                                                    dragOffset = Offset.Zero
+                                                    originalCenter = Offset.Zero
+                                                },
+                                                onDragCancel = {
+                                                    draggingKeyword = null
+                                                    dragOffset = Offset.Zero
+                                                    originalCenter = Offset.Zero
+                                                }
+                                            )
+                                        }
+                                    }
                             ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Remove",
-                                    modifier = Modifier.size(14.dp)
+                                InputChip(
+                                    selected = false,
+                                    onClick = {
+                                        if (enabled) {
+                                            editingKeyword = keyword
+                                            keywordInput = keyword
+                                            showAddEditDialog = true
+                                        }
+                                    },
+                                    label = { Text(keyword, fontSize = 12.sp) },
+                                    trailingIcon = {
+                                        if (enabled) {
+                                            IconButton(
+                                                onClick = { onRemove(keyword) },
+                                                modifier = Modifier.size(16.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Close,
+                                                    contentDescription = "Remove",
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
+                                        }
+                                    },
+                                    colors = InputChipDefaults.inputChipColors(
+                                        containerColor = Color(0xFF1C1B1F),
+                                        labelColor = Color(0xFFE6E1E5)
+                                    ),
+                                    enabled = enabled
                                 )
                             }
                         }
-                    },
-                    colors = InputChipDefaults.inputChipColors(
-                        containerColor = Color(0xFF1C1B1F),
-                        labelColor = Color(0xFFE6E1E5)
-                    ),
-                    enabled = enabled
-                )
+                    }
+                }
             }
         }
     }

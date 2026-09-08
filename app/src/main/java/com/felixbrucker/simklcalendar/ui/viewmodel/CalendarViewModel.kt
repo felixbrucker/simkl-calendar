@@ -28,6 +28,8 @@ import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.data.util.DirectoryUtils
+import com.felixbrucker.simklcalendar.data.util.getStringListWithMigration
+import com.felixbrucker.simklcalendar.data.util.putStringList
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class MainViewMode {
@@ -219,8 +221,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val autoDownloadUnwatchedTv = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_tv", false))
     val autoDownloadUnwatchedAnime = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_anime", false))
     val autoDownloadUnwatchedMovie = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_movie", false))
-    val autoDownloadPreferredKeywords = MutableStateFlow(downloadPrefs.getStringSet("preferred_keywords", emptySet())?.toList() ?: emptyList())
-    val autoDownloadIgnoreKeywords = MutableStateFlow(downloadPrefs.getStringSet("ignore_keywords", emptySet())?.toList() ?: emptyList())
+    val autoDownloadPreferredKeywords = MutableStateFlow(downloadPrefs.getStringListWithMigration("preferred_keywords"))
+    val autoDownloadIgnoreKeywords = MutableStateFlow(downloadPrefs.getStringListWithMigration("ignore_keywords"))
 
     fun updateAutoDownloadQuality(quality: String) {
         autoDownloadQuality.value = quality
@@ -252,7 +254,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         if (!current.contains(keyword)) {
             current.add(keyword)
             autoDownloadPreferredKeywords.value = current
-            downloadPrefs.edit { putStringSet("preferred_keywords", current.toSet())}
+            downloadPrefs.edit { putStringList("preferred_keywords", current) }
         }
     }
 
@@ -260,8 +262,13 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val current = autoDownloadPreferredKeywords.value.toMutableList()
         if (current.remove(keyword)) {
             autoDownloadPreferredKeywords.value = current
-            downloadPrefs.edit { putStringSet("preferred_keywords", current.toSet())}
+            downloadPrefs.edit { putStringList("preferred_keywords", current) }
         }
+    }
+
+    fun updatePreferredKeywordsOrder(reordered: List<String>) {
+        autoDownloadPreferredKeywords.value = reordered
+        downloadPrefs.edit { putStringList("preferred_keywords", reordered) }
     }
 
     fun addIgnoreKeyword(keyword: String) {
@@ -269,7 +276,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         if (!current.contains(keyword)) {
             current.add(keyword)
             autoDownloadIgnoreKeywords.value = current
-            downloadPrefs.edit { putStringSet("ignore_keywords", current.toSet())}
+            downloadPrefs.edit { putStringList("ignore_keywords", current) }
         }
     }
 
@@ -277,8 +284,13 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val current = autoDownloadIgnoreKeywords.value.toMutableList()
         if (current.remove(keyword)) {
             autoDownloadIgnoreKeywords.value = current
-            downloadPrefs.edit { putStringSet("ignore_keywords", current.toSet()) }
+            downloadPrefs.edit { putStringList("ignore_keywords_list", current) }
         }
+    }
+
+    fun updateIgnoreKeywordsOrder(reordered: List<String>) {
+        autoDownloadIgnoreKeywords.value = reordered
+        downloadPrefs.edit { putStringList("ignore_keywords_list", reordered) }
     }
 
     @Suppress("UNCHECKED_CAST")
