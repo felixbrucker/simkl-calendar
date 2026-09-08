@@ -32,19 +32,14 @@ class TorrentSearchManager(
 
         val globalQuality = downloadPrefs.getString("quality", "1080p") ?: "1080p"
         val globalPreferHevc = downloadPrefs.getBoolean("prefer_hevc", true)
-        val preferredKeywords = downloadPrefs
+        val preferredKeywords: MutableList<Keyword> = downloadPrefs
             .getStringListWithMigration("preferred_keywords")
+            .map { Keyword.Single(it) }
             .toMutableList()
         val ignoreKeywords = downloadPrefs.getStringListWithMigration("ignore_keywords")
         val preferHevc = itemSettings?.preferHevcOverride ?: globalPreferHevc
         if (preferHevc) {
-            // Anime uses HEVC primarily, while x265 is used everywhere else. Avoid adding both to
-            // prevent results with both to score higher than other preferred items.
-            if (item.type == MediaType.ANIME) {
-                preferredKeywords.ensureAdded("hevc")
-            } else {
-                preferredKeywords.ensureAdded("x265")
-            }
+            preferredKeywords.ensureAdded(Keyword.Multiple(listOf("hevc", "x265")))
         }
 
         val episodeSearchTerm = when(item.type) {
@@ -105,7 +100,7 @@ private fun List<SearchResultItem>.filteredUsing(ignoreKeywords: List<String>): 
 // 2. "[Erai-Raws] One Piece 1234" (1 match, first preferred keyword)
 // 3. "[SubsPlease] One Piece 1234" (1 match, second preferred keyword)
 // 4. "[AWS] One Piece 1234 HEVC" (1 match, third preferred keyword)
-private fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<String>): List<SearchResultItem> {
+private fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<Keyword>): List<SearchResultItem> {
     return sortedWith(
         compareByDescending<SearchResultItem> { item ->
             preferredKeywords.count { keyword ->
@@ -121,4 +116,16 @@ private fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<String>):
             }.sum()
         }
     )
+}
+
+private fun String.contains(keyword: Keyword, ignoreCase: Boolean): Boolean {
+    return when (keyword) {
+        is Keyword.Single -> contains(keyword.value, ignoreCase)
+        is Keyword.Multiple -> keyword.values.any { contains(it, ignoreCase) }
+    }
+}
+
+private sealed class Keyword {
+    data class Single(val value: String) : Keyword()
+    data class Multiple(val values: List<String>) : Keyword()
 }
