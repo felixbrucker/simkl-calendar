@@ -138,6 +138,7 @@ interface CalendarItemDao {
     @Query("UPDATE calendar_items SET watchedAt = NULL")
     suspend fun markAllUnwatched()
 
+    @Transaction
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId AND ((season = :season) OR (:season = 1 AND season IS NULL)) ORDER BY date ASC")
     suspend fun getItemsInSeason(simklId: Int, season: Int?): List<CalendarItemWithWatchlist>
 }
