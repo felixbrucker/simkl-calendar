@@ -94,8 +94,10 @@ class NotificationManager {
 
         private suspend fun makeConfiguredNotificationBuilder(item: CalendarItemWithWatchlist, context: Context): NotificationCompat.Builder {
             val db = AppDatabase.getDatabase(context)
-            val itemsInSeason = db.calendarItemDao().getItemsInSeason(item.simklId, item.season)
-            val totalEpisodesInSeason = itemsInSeason.maxOfOrNull { it.episodeNumber ?: 1 } ?: 1
+            val itemsInSeasonOrRelatedItems = db
+                .calendarItemDao()
+                .getItemsInSeasonOrRelatedItems(item.simklId, item.season)
+            val totalEpisodesInSeason = itemsInSeasonOrRelatedItems.maxOfOrNull { it.episodeNumber ?: 1 } ?: 1
             val (title, message) = item.formatNotificationContent(totalEpisodesInSeason)
             val openIntent = item.makeOpenReleaseDetailViewIntent(context)
 
@@ -111,9 +113,9 @@ class NotificationManager {
                 .setAutoCancel(true)
 
             val isWatched = if (item.type == MediaType.MOVIE) {
-                itemsInSeason.any { it.isWatched }
+                itemsInSeasonOrRelatedItems.any { it.isWatched }
             } else if (item.isSeasonFinale) {
-                itemsInSeason.all { it.isWatched }
+                itemsInSeasonOrRelatedItems.all { it.isWatched }
             } else {
                 item.isWatched
             }

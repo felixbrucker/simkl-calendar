@@ -139,8 +139,8 @@ interface CalendarItemDao {
     suspend fun markAllUnwatched()
 
     @Transaction
-    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId AND season = :season ORDER BY date ASC")
-    suspend fun getItemsInSeason(simklId: Int, season: Int?): List<CalendarItemWithWatchlist>
+    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId AND (season = :season OR season IS NULL) ORDER BY date ASC")
+    suspend fun getItemsInSeasonOrRelatedItems(simklId: Int, season: Int?): List<CalendarItemWithWatchlist>
 }
 
 @Dao
