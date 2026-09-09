@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 data class DownloadProgress(
     val taskId: String,
@@ -139,9 +141,8 @@ class TorrentServiceHelper(context: Context) {
         createSubfolderByName: Boolean = true,
         notifyOnCompletion: Boolean = true,
         fileSelectionMode: String = "ALL",
-        onCompletionIntentUri: String? = null,
-        onResult: (Boolean, String?) -> Unit
-    ) {
+        onCompletionIntentUri: String? = null
+    ): Result<String> {
         if (!_isBound.value) {
             bind(start = true)
         }
@@ -149,33 +150,40 @@ class TorrentServiceHelper(context: Context) {
         val s = try {
             _service.filterNotNull().first()
         } catch (e: Exception) {
-            onResult(false, "Failed to connect to service: ${e.message}")
-            return
+            return Result.failure(e)
         }
 
-        val params = AddTorrentParams().apply {
-            this.uri = uri
-            this.name = name
-            this.destinationSubdirectory = destinationSubdirectory
-            this.createSubfolderByName = createSubfolderByName
-            this.notifyOnCompletion = notifyOnCompletion
-            this.fileSelectionMode = fileSelectionMode
-            this.onCompletionIntentUri = onCompletionIntentUri
-        }
+        return suspendCancellableCoroutine { continuation ->
+            val params = AddTorrentParams().apply {
+                this.uri = uri
+                this.name = name
+                this.destinationSubdirectory = destinationSubdirectory
+                this.createSubfolderByName = createSubfolderByName
+                this.notifyOnCompletion = notifyOnCompletion
+                this.fileSelectionMode = fileSelectionMode
+                this.onCompletionIntentUri = onCompletionIntentUri
+            }
 
-        try {
-            s.addTorrent(params, object : IAddTorrentCallback.Stub() {
-                override fun onSuccess(taskId: String) {
-                    taskIdToUri[taskId] = uri
-                    onResult(true, taskId)
-                }
+            try {
+                s.addTorrent(params, object : IAddTorrentCallback.Stub() {
+                    override fun onSuccess(taskId: String) {
+                        taskIdToUri[taskId] = uri
+                        if (continuation.isActive) {
+                            continuation.resume(Result.success(taskId))
+                        }
+                    }
 
-                override fun onFailure(error: String) {
-                    onResult(false, error)
+                    override fun onFailure(error: String) {
+                        if (continuation.isActive) {
+                            continuation.resume(Result.failure(Exception(error)))
+                        }
+                    }
+                })
+            } catch (e: Exception) {
+                if (continuation.isActive) {
+                    continuation.resume(Result.failure(e))
                 }
-            })
-        } catch (e: Exception) {
-            onResult(false, e.message)
+            }
         }
     }
 

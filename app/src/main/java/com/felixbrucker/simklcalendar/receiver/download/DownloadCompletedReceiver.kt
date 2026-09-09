@@ -4,8 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,8 +30,25 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
         scope.launch {
             try {
                 val repo = SimklRepository(context)
+                val db = AppDatabase.getDatabase(context)
+
                 repo.updateDownloadTaskId(itemPrimaryKey, null, MediaStatus.DOWNLOADED)
                 Log.d(TAG, "Updated item $itemPrimaryKey to DOWNLOADED status and cleared taskId")
+
+                val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+
+                // Update notification for the item that was just downloaded (if active)
+                NotificationManager.updateNotification(item, context)
+
+                // If it's a TV show/anime episode, also check if there's an active season finale
+                // notification that needs updating to reflect the new aggregate download status.
+                val season = item.season
+                if (season != null) {
+                    val finaleItem = db.calendarItemDao().getSeasonFinaleItem(item.simklId, season)
+                    if (finaleItem != null && finaleItem.primaryKey != item.primaryKey) {
+                        NotificationManager.updateNotification(finaleItem, context)
+                    }
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling download completion", e)
             } finally {

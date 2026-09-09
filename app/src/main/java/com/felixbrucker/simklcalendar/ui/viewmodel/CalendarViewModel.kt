@@ -864,7 +864,12 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     ) {
         viewModelScope.launch {
             _isSearchingTorrents.value = true
-            repository.searchAndDownloadEpisode(item, onResult)
+            val result = repository.searchAndDownloadEpisode(item)
+            result.onSuccess {
+                onResult(true, "Download started")
+            }.onFailure {
+                onResult(false, it.message ?: "Error searching torrents")
+            }
             _isSearchingTorrents.value = false
         }
     }

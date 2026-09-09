@@ -22,7 +22,10 @@ import com.felixbrucker.simklcalendar.MainActivity
 import com.felixbrucker.simklcalendar.R
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
+import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.toPosterUrl
@@ -62,10 +65,20 @@ class NotificationManager {
             if (!isNotificationPermissionGranted) {
                 return
             }
-            val notification = buildNotificationForUpdate(item, context)
+
             val notificationId = item.notificationId
+            val notificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            // Only update if the notification is currently active/visible
+            val isActive = notificationManager.activeNotifications.any { it.id == notificationId }
+            if (!isActive) {
+                Log.d(TAG, "Notification id=$notificationId is not active, skipping update.")
+                return
+            }
+
+            val notification = buildNotificationForUpdate(item, context)
             try {
-                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 notificationManager.notify(notificationId, notification)
                 Log.d(TAG, "Successfully updated notification id=$notificationId")
             } catch (e: Exception) {
@@ -120,9 +133,39 @@ class NotificationManager {
                 item.isWatched
             }
 
-            if (isWatched) {
-                builder.setSubText("Watched")
-                builder.setStyle(NotificationCompat.BigTextStyle().bigText(message).setSummaryText("Watched"))
+            // Calculate aggregate media status
+            val aggregateMediaStatus = if (item.type == MediaType.MOVIE) {
+                itemsInSeasonOrRelatedItems.firstOrNull { it.movieReleaseType == MovieReleaseType.DIGITAL }?.mediaStatus
+                    ?: item.mediaStatus
+            } else if (item.isSeasonFinale) {
+                val statuses = itemsInSeasonOrRelatedItems.map { it.mediaStatus }
+                when {
+                    statuses.all { it == MediaStatus.DOWNLOADED } -> MediaStatus.DOWNLOADED
+                    statuses.any { it == MediaStatus.DOWNLOADING } -> MediaStatus.DOWNLOADING
+                    statuses.any { it == MediaStatus.WANTED } -> MediaStatus.WANTED
+                    else -> MediaStatus.IGNORED
+                }
+            } else {
+                item.mediaStatus
+            }
+
+            val statusText = when (aggregateMediaStatus) {
+                MediaStatus.DOWNLOADED -> "Downloaded"
+                MediaStatus.DOWNLOADING -> "Downloading"
+                MediaStatus.WANTED -> "Wanted"
+                else -> null
+            }
+
+            val subText = listOfNotNull(
+                if (isWatched) "Watched" else null,
+                statusText
+            ).joinToString(" · ")
+
+            if (subText.isNotEmpty()) {
+                builder.setSubText(subText)
+                builder.setStyle(
+                    NotificationCompat.BigTextStyle().bigText(message).setSummaryText(subText)
+                )
             } else {
                 builder.setStyle(NotificationCompat.BigTextStyle().bigText(message))
             }
@@ -132,7 +175,7 @@ class NotificationManager {
                 builder.setLargeIcon(posterBitmap)
             }
 
-            // Add notification action buttons directly in the notification if not already watched
+            // Add notification action buttons
             if (!isWatched) {
                 if (item.isSeasonFinale) {
                     builder.addAction(
@@ -146,6 +189,41 @@ class NotificationManager {
                         "Mark as Watched",
                         item.makeMarkWatchedIntent(context)
                     )
+                }
+            }
+
+            val repo = SimklRepository(context)
+            val isTorrentServiceInstalled = repo.torrentServiceHelper.isInstalled.value
+            if (isTorrentServiceInstalled) {
+                // Download actions
+                if (item.type == MediaType.MOVIE) {
+                    val digitalRelease =
+                        itemsInSeasonOrRelatedItems.find { it.movieReleaseType == MovieReleaseType.DIGITAL }
+                    if (digitalRelease != null && digitalRelease.mediaStatus == MediaStatus.IGNORED) {
+                        builder.addAction(
+                            R.drawable.ic_download,
+                            "Download",
+                            digitalRelease.makeDownloadItemIntent(context)
+                        )
+                    }
+                } else {
+                    val hasIgnoredEpisodes =
+                        itemsInSeasonOrRelatedItems.any { it.mediaStatus == MediaStatus.IGNORED }
+                    if (hasIgnoredEpisodes) {
+                        if (item.isSeasonFinale) {
+                            builder.addAction(
+                                R.drawable.ic_download,
+                                "Download missing episodes",
+                                item.makeDownloadSeasonMissingEpisodesIntent(context)
+                            )
+                        } else if (item.mediaStatus == MediaStatus.IGNORED) {
+                            builder.addAction(
+                                R.drawable.ic_download,
+                                "Download",
+                                item.makeDownloadItemIntent(context)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -259,6 +337,34 @@ fun CalendarItemWithWatchlist.formatNotificationContent(totalEpisodesInSeason: I
         isFinale = isSeasonFinale,
         totalEpisodes = totalEpisodesInSeason,
         movieReleaseType = movieReleaseType
+    )
+}
+
+fun CalendarItemWithWatchlist.makeDownloadItemIntent(context: Context): PendingIntent {
+    val downloadIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+        action = NotificationActionReceiver.ACTION_DOWNLOAD_ITEM
+        putExtra(NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
+    }
+
+    return PendingIntent.getBroadcast(
+        context,
+        notificationId * 10 + 3,
+        downloadIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+}
+
+fun CalendarItemWithWatchlist.makeDownloadSeasonMissingEpisodesIntent(context: Context): PendingIntent {
+    val downloadIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+        action = NotificationActionReceiver.ACTION_DOWNLOAD_SEASON_MISSING_EPISODES
+        putExtra(NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
+    }
+
+    return PendingIntent.getBroadcast(
+        context,
+        notificationId * 10 + 4,
+        downloadIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 }
 

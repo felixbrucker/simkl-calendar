@@ -36,14 +36,12 @@ import com.felixbrucker.simklcalendar.data.util.destinationSubdirectory
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -140,7 +138,7 @@ class SimklRepository(private val context: Context) {
         updateMediaStatus(calendarItem.primaryKey, newStatus)
         if (newStatus == MediaStatus.WANTED) {
             val updatedItem = calendarDao.findItem(calendarItem.primaryKey) ?: return@withContext
-            searchAndDownloadEpisode(updatedItem) { _, _ -> }
+            searchAndDownloadEpisode(updatedItem)
         }
     }
 
@@ -174,9 +172,8 @@ class SimklRepository(private val context: Context) {
     }
 
     suspend fun searchAndDownloadEpisode(
-        item: CalendarItemWithWatchlist,
-        onResult: (Boolean, String) -> Unit = { _, _ -> }
-    ) = withContext(Dispatchers.IO) {
+        item: CalendarItemWithWatchlist
+    ): Result<String> = withContext(Dispatchers.IO) {
         // 1. Set status to WANTED (if not already)
         if (item.mediaStatus != MediaStatus.WANTED) {
             updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
@@ -186,20 +183,18 @@ class SimklRepository(private val context: Context) {
         val results = try {
             searchTorrents(item)
         } catch (e: Exception) {
-            onResult(false, "Error searching torrents: ${e.message}")
-            return@withContext
+            return@withContext Result.failure(e)
         }
 
         if (results.isEmpty()) {
-            onResult(false, "No torrent results found for this episode.")
-            return@withContext
+            return@withContext Result.failure(Exception("No torrent results found for this episode."))
         }
 
         // 3. Select first result and start download
         val firstResult = results.first()
         val completionUri = generateCompletionIntentUri(item.primaryKey)
 
-        torrentServiceHelper.addTorrent(
+        val result = torrentServiceHelper.addTorrent(
             uri = firstResult.uri.toString(),
             name = firstResult.name,
             destinationSubdirectory = item.destinationSubdirectory(),
@@ -207,17 +202,14 @@ class SimklRepository(private val context: Context) {
             notifyOnCompletion = true,
             fileSelectionMode = "BIGGEST",
             onCompletionIntentUri = completionUri,
-        ) { success, taskId ->
-            if (success && taskId != null) {
-                // 4. Update status to DOWNLOADING with taskId
-                CoroutineScope(Dispatchers.IO).launch {
-                    updateDownloadTaskId(item.primaryKey, taskId, MediaStatus.DOWNLOADING)
-                    onResult(true, "Download started: ${firstResult.name}")
-                }
-            } else {
-                onResult(false, "Failed to start download.")
-            }
+        )
+
+        result.onSuccess { taskId ->
+            // 4. Update status to DOWNLOADING with taskId
+            updateDownloadTaskId(item.primaryKey, taskId, MediaStatus.DOWNLOADING)
         }
+
+        result
     }
 
     suspend fun searchAndDownloadWantedItems(
@@ -230,11 +222,8 @@ class SimklRepository(private val context: Context) {
         if (wantedItems.isEmpty()) return@withContext
 
         wantedItems.forEachIndexed { index, item ->
-            var successResult = false
-            searchAndDownloadEpisode(item) { success, _ ->
-                successResult = success
-            }
-            onProgress(index + 1, wantedItems.size, item.title, successResult)
+            val result = searchAndDownloadEpisode(item)
+            onProgress(index + 1, wantedItems.size, item.title, result.isSuccess)
             delay(withDelay) // Artificial delay to prevent flicker and show progress
         }
     }

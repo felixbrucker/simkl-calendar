@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +19,9 @@ class NotificationActionReceiver: BroadcastReceiver() {
         private const val TAG = "NotificationActionReceiver"
         const val ACTION_MARK_ITEM_WATCHED = "com.felixbrucker.simklcalendar.ACTION_MARK_ITEM_WATCHED"
         const val ACTION_MARK_SEASON_WATCHED = "com.felixbrucker.simklcalendar.ACTION_MARK_SEASON_WATCHED"
+        const val ACTION_DOWNLOAD_ITEM = "com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_ITEM"
+        const val ACTION_DOWNLOAD_SEASON_MISSING_EPISODES =
+            "com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_SEASON_MISSING_EPISODES"
         const val EXTRA_ITEM_PRIMARY_KEY = "extra_item_primary_key"
     }
 
@@ -29,8 +33,19 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 handleMarkItemWatched(context, intent)
                 return
             }
+
             ACTION_MARK_SEASON_WATCHED -> {
                 handleMarkSeasonWatched(context, intent)
+                return
+            }
+
+            ACTION_DOWNLOAD_ITEM -> {
+                handleDownloadItem(context, intent)
+                return
+            }
+
+            ACTION_DOWNLOAD_SEASON_MISSING_EPISODES -> {
+                handleDownloadSeasonMissingEpisodes(context, intent)
                 return
             }
         }
@@ -102,6 +117,75 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Error marking season as watched from notification action", e)
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private fun handleDownloadItem(context: Context, intent: Intent) {
+        val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
+        val repo = SimklRepository(context)
+        val db = AppDatabase.getDatabase(context)
+
+        val pendingResult = goAsync()
+        scope.launch {
+            try {
+                val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+
+                // Update status to WANTED first
+                repo.updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
+
+                // Refresh item from DB
+                val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+
+                // Trigger search and download
+                repo.searchAndDownloadEpisode(updatedItem)
+
+                // Refetch again to reflect intermediate state change (WANTED -> DOWNLOADING / IGNORED)
+                val finalItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                NotificationManager.updateNotification(
+                    item = finalItem,
+                    context = context
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting download from notification action", e)
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private fun handleDownloadSeasonMissingEpisodes(context: Context, intent: Intent) {
+        val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
+        val repo = SimklRepository(context)
+        val db = AppDatabase.getDatabase(context)
+
+        val pendingResult = goAsync()
+        scope.launch {
+            try {
+                val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                val season = item.season ?: 1
+
+                val seasonItems =
+                    db.calendarItemDao().getItemsInSeasonOrRelatedItems(item.simklId, season)
+                val ignoredItems = seasonItems.filter { it.mediaStatus == MediaStatus.IGNORED }
+
+                for (ignored in ignoredItems) {
+                    repo.updateMediaStatus(ignored.primaryKey, MediaStatus.WANTED)
+                }
+
+                // Trigger batch search and download for all WANTED items
+                repo.searchAndDownloadWantedItems()
+
+                // Update the notification that triggered this to reflect new season aggregate status
+                val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                NotificationManager.updateNotification(
+                    item = updatedItem,
+                    context = context
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting season download from notification action", e)
             } finally {
                 pendingResult.finish()
             }

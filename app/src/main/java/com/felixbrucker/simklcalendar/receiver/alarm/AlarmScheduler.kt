@@ -27,7 +27,9 @@ class AlarmScheduler {
         suspend fun scheduleAllItemsAiredAlarms(context: Context) = withContext(Dispatchers.IO) {
             try {
                 val db = AppDatabase.getDatabase(context)
-                val allUpcomingItems = db.calendarItemDao().getAllUpcomingCalendarItems(now())
+                // To account for app updates when an alarm was scheduled include last minute
+                val cutOff = now().minusSeconds(60)
+                val allUpcomingItems = db.calendarItemDao().getAllUpcomingCalendarItems(cutOff)
                 for (item in allUpcomingItems) {
                     scheduleItemAiredAlarmForItem(item, context)
                 }
@@ -45,9 +47,6 @@ class AlarmScheduler {
                     .toInstant()
             } else {
                 item.date
-            }
-            if (triggerAt.isBefore(now())) {
-                return
             }
             val alarmManager = getAlarmManager(context) ?: return
 
