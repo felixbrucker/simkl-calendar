@@ -99,7 +99,7 @@ class Converters {
 
 @Database(
     entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class],
-    version = 23,
+    version = 24,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -114,7 +114,7 @@ class Converters {
         AutoMigration(from = 16, to = 17, spec = AppDatabase.Migration16To17::class),
         AutoMigration(from = 17, to = 18),
         AutoMigration(from = 18, to = 19, spec = AppDatabase.Migration18To19::class),
-        AutoMigration(from = 20, to = 21)
+        AutoMigration(from = 20, to = 21),
     ]
 )
 @TypeConverters(Converters::class)
@@ -147,6 +147,38 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun itemDownloadSettingsDao(): ItemDownloadSettingsDao
 
     companion object {
+        private val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Recreate notification_settings with FK CASCADE and cleanup orphaned rows
+                db.execSQL("CREATE TABLE IF NOT EXISTS `notification_settings_new` (`simklId` INTEGER NOT NULL, `notifyEveryEpisode` INTEGER NOT NULL, `notifyAiredLastEpisode` INTEGER NOT NULL, PRIMARY KEY(`simklId`), FOREIGN KEY(`simklId`) REFERENCES `tracked_watchlist_items`(`simklId`) ON UPDATE CASCADE ON DELETE CASCADE )")
+                db.execSQL("INSERT INTO `notification_settings_new` SELECT * FROM `notification_settings` WHERE simklId IN (SELECT simklId FROM tracked_watchlist_items)")
+                db.execSQL("DROP TABLE `notification_settings`")
+                db.execSQL("ALTER TABLE `notification_settings_new` RENAME TO `notification_settings`")
+
+                // 2. Recreate watched_episodes with FK CASCADE, Index, and cleanup orphaned rows
+                db.execSQL("CREATE TABLE IF NOT EXISTS `watched_episodes_new` (`simklId` INTEGER NOT NULL, `season` INTEGER NOT NULL, `episodeNumber` INTEGER NOT NULL, `watchedAt` INTEGER, PRIMARY KEY(`simklId`, `season`, `episodeNumber`), FOREIGN KEY(`simklId`) REFERENCES `tracked_watchlist_items`(`simklId`) ON UPDATE CASCADE ON DELETE CASCADE )")
+                db.execSQL("INSERT INTO `watched_episodes_new` SELECT * FROM `watched_episodes` WHERE simklId IN (SELECT simklId FROM tracked_watchlist_items)")
+                db.execSQL("DROP TABLE `watched_episodes`")
+                db.execSQL("ALTER TABLE `watched_episodes_new` RENAME TO `watched_episodes`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_watched_episodes_simklId` ON `watched_episodes` (`simklId`)")
+
+                // 3. Recreate item_download_settings with FK CASCADE and cleanup orphaned rows
+                db.execSQL("CREATE TABLE IF NOT EXISTS `item_download_settings_new` (`simklId` INTEGER NOT NULL, `downloadUnwatched` INTEGER, `qualityOverride` TEXT, `preferHevcOverride` INTEGER, `titleOverride` TEXT, `seasonOverrides` TEXT, `downloadSubdirectoryOverride` TEXT, PRIMARY KEY(`simklId`), FOREIGN KEY(`simklId`) REFERENCES `tracked_watchlist_items`(`simklId`) ON UPDATE CASCADE ON DELETE CASCADE )")
+                db.execSQL("INSERT INTO `item_download_settings_new` SELECT * FROM `item_download_settings` WHERE simklId IN (SELECT simklId FROM tracked_watchlist_items)")
+                db.execSQL("DROP TABLE `item_download_settings`")
+                db.execSQL("ALTER TABLE `item_download_settings_new` RENAME TO `item_download_settings`")
+
+                // 4. Recreate calendar_items to update ON UPDATE CASCADE
+                db.execSQL("PRAGMA foreign_keys = OFF")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `calendar_items_new` (`primaryKey` TEXT NOT NULL, `simklId` INTEGER NOT NULL, `episodeTitle` TEXT, `season` INTEGER, `episodeNumber` INTEGER, `date` INTEGER NOT NULL, `movieReleaseType` TEXT, `isSeasonPremiere` INTEGER NOT NULL, `isSeasonFinale` INTEGER NOT NULL, `isNotified` INTEGER NOT NULL, `watchedAt` INTEGER, PRIMARY KEY(`primaryKey`), FOREIGN KEY(`simklId`) REFERENCES `tracked_watchlist_items`(`simklId`) ON UPDATE CASCADE ON DELETE CASCADE )")
+                db.execSQL("INSERT INTO `calendar_items_new` SELECT * FROM `calendar_items` WHERE simklId IN (SELECT simklId FROM tracked_watchlist_items)")
+                db.execSQL("DROP TABLE `calendar_items`")
+                db.execSQL("ALTER TABLE `calendar_items_new` RENAME TO `calendar_items`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_calendar_items_simklId` ON `calendar_items` (`simklId`)")
+                db.execSQL("PRAGMA foreign_keys = ON")
+            }
+        }
+
         private val MIGRATION_22_23 = object : Migration(22, 23) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Fix orphaned local_item_state entries where the parent primaryKey changed but the child didn't cascade
@@ -182,10 +214,10 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("UPDATE calendar_items SET season = 1 WHERE season IS NULL AND movieReleaseType IS NULL")
 
                 // 3. Update primaryKey in calendar_items (v2_simklId_1_episodeNumber)
-                // We perform a manual update on local_item_state as a safeguard because PRAGMA foreign_keys 
+                // We perform a manual update on local_item_state as a safeguard because PRAGMA foreign_keys
                 // might not be effective within a Room migration transaction.
                 db.execSQL("PRAGMA foreign_keys = OFF")
-                
+
                 db.execSQL("""
                     UPDATE local_item_state 
                     SET primaryKey = 'v2_' || (SELECT simklId FROM calendar_items WHERE calendar_items.primaryKey = local_item_state.primaryKey) || '_1_' || (SELECT episodeNumber FROM calendar_items WHERE calendar_items.primaryKey = local_item_state.primaryKey)
@@ -238,7 +270,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "simkl_calendar_database"
                 )
-                .addMigrations(MIGRATION_19_20, MIGRATION_21_22, MIGRATION_22_23)
+                .addMigrations(MIGRATION_19_20, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24)
                 .build()
                 INSTANCE = instance
                 instance

@@ -28,7 +28,8 @@ data class UserToken(
             entity = TrackedWatchlistItem::class,
             parentColumns = ["simklId"],
             childColumns = ["simklId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE,
         )
     ],
     indices = [
@@ -76,7 +77,7 @@ data class CalendarItem(
             parentColumns = ["primaryKey"],
             childColumns = ["primaryKey"],
             onDelete = ForeignKey.CASCADE,
-            onUpdate = ForeignKey.CASCADE
+            onUpdate = ForeignKey.CASCADE,
         )
     ]
 )
@@ -86,7 +87,18 @@ data class LocalItemState(
     val downloadTaskId: String? = null
 )
 
-@Entity(tableName = "notification_settings")
+@Entity(
+    tableName = "notification_settings",
+    foreignKeys = [
+        ForeignKey(
+            entity = TrackedWatchlistItem::class,
+            parentColumns = ["simklId"],
+            childColumns = ["simklId"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE,
+        )
+    ]
+)
 data class NotificationSetting(
     @PrimaryKey val simklId: Int, // Simkl ID
     val notifyEveryEpisode: Boolean = false,
@@ -159,7 +171,22 @@ data class CalendarItemWithWatchlist(
     val notificationId: Int get() = abs(primaryKey.hashCode())
 }
 
-@Entity(tableName = "watched_episodes", primaryKeys = ["simklId", "season", "episodeNumber"])
+@Entity(
+    tableName = "watched_episodes",
+    primaryKeys = ["simklId", "season", "episodeNumber"],
+    foreignKeys = [
+        ForeignKey(
+            entity = TrackedWatchlistItem::class,
+            parentColumns = ["simklId"],
+            childColumns = ["simklId"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [
+        Index(value = ["simklId"])
+    ]
+)
 data class WatchedEpisode(
     val simklId: Int,
     val season: Int,
@@ -277,7 +304,18 @@ data class CustomSearchLink(
     }
 }
 
-@Entity(tableName = "item_download_settings")
+@Entity(
+    tableName = "item_download_settings",
+    foreignKeys = [
+        ForeignKey(
+            entity = TrackedWatchlistItem::class,
+            parentColumns = ["simklId"],
+            childColumns = ["simklId"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE,
+        )
+    ]
+)
 data class ItemDownloadSettings(
     @PrimaryKey val simklId: Int,
     val downloadUnwatched: Boolean? = null,

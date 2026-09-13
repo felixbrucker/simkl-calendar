@@ -9,6 +9,7 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
+import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.UserToken
@@ -51,10 +52,10 @@ import java.net.URLEncoder
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
-import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import kotlinx.coroutines.delay
+import java.util.Calendar
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -440,11 +441,11 @@ class SimklRepository(private val context: Context) {
         val now = Instant.now()
         val lastSyncInstant = Instant.ofEpochMilli(lastSyncTimestamp)
 
-        val nowCal = java.util.Calendar.getInstance()
-        val lastCal = java.util.Calendar.getInstance().apply { timeInMillis = lastSyncTimestamp }
+        val nowCal = Calendar.getInstance()
+        val lastCal = Calendar.getInstance().apply { timeInMillis = lastSyncTimestamp }
 
-        val sameMonth = nowCal.get(java.util.Calendar.YEAR) == lastCal.get(java.util.Calendar.YEAR) &&
-                nowCal.get(java.util.Calendar.MONTH) == lastCal.get(java.util.Calendar.MONTH)
+        val sameMonth = nowCal.get(Calendar.YEAR) == lastCal.get(Calendar.YEAR) &&
+                nowCal.get(Calendar.MONTH) == lastCal.get(Calendar.MONTH)
 
         val oneDayAgo = now.minus(1, java.time.temporal.ChronoUnit.DAYS)
         val moreThanOneDayAgo = lastSyncInstant.isBefore(oneDayAgo)
@@ -457,19 +458,17 @@ class SimklRepository(private val context: Context) {
 
         Log.d("SimklRepository", "Starting backfill for past episodes...")
 
-        val allTracked = watchlistDao.getAllTrackedItems()
-        val trackedShows = allTracked.filter { it.type == MediaType.TV || it.type == MediaType.ANIME }
-
+        val trackedShows = watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME))
         if (trackedShows.isEmpty()) return@withContext SyncResult()
 
+        val trackedIds = trackedShows.map { it.simklId }
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
-        val existingDbItems = calendarDao.getAllCalendarEntities()
-        val existingItemsMap = existingDbItems.associateBy { it.primaryKey }
-        val allWatchedList = watchedDao.getAllWatchedEpisodes()
-        val watchedLookup = allWatchedList.groupBy { it.simklId }
 
-        val allSettings = itemDownloadSettingsDao.getAllSettingsList()
-        val settingsMap = allSettings.associateBy { it.simklId }
+        // Fetch targeted data from DB
+        val existingDbItems = calendarDao.getCalendarEntitiesForSimklIds(trackedIds)
+        val existingItemsMap = existingDbItems.associateBy { it.primaryKey }
+        val watchedLookup = watchedDao.getWatchedEpisodesForSimklIds(trackedIds).groupBy { it.simklId }
+        val settingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(trackedIds).associateBy { it.simklId }
 
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
@@ -635,8 +634,12 @@ class SimklRepository(private val context: Context) {
                     dateFrom = savedTimestamp,
                 )
 
-                val existingTracked = watchlistDao.getAllTrackedItems()
-                val existingTrackedMap = existingTracked.associateBy { it.simklId }
+                val collectedSimklIds = mutableSetOf<Int>()
+                syncResponse.shows?.forEach { collectedSimklIds.add(it.show.ids.simkl) }
+                syncResponse.anime?.forEach { collectedSimklIds.add(it.show.ids.simkl) }
+                syncResponse.movies?.forEach { collectedSimklIds.add(it.movie.ids.simkl) }
+
+                val existingTrackedMap = watchlistDao.getTrackedItemsBySimklIds(collectedSimklIds.toList()).associateBy { it.simklId }
                 val trackedToInsert = mutableMapOf<Int, TrackedWatchlistItem>()
                 val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
                 val trackedToDelete = mutableSetOf<Int>()
@@ -719,7 +722,6 @@ class SimklRepository(private val context: Context) {
                 if (trackedToDelete.isNotEmpty()) {
                     for (simklId in trackedToDelete) {
                         watchlistDao.deleteItem(simklId)
-                        watchedDao.deleteWatchedForShow(simklId)
                     }
                     Log.d("SimklRepository", "Deleted ${trackedToDelete.size} untracked watchlist items from DB")
                 }
@@ -727,6 +729,27 @@ class SimklRepository(private val context: Context) {
                 if (trackedToInsert.isNotEmpty()) {
                     watchlistDao.insertItems(trackedToInsert.values.toList())
                     Log.d("SimklRepository", "Inserted ${trackedToInsert.size} new tracked watchlist items into DB")
+
+                    // Initialize default notification settings for newly inserted shows
+                    try {
+                        val notifPrefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+                        val defaultAiring = notifPrefs.getBoolean("default_notify_airing", false)
+                        val defaultSeasonFinished = notifPrefs.getBoolean("default_notify_season_finished", true)
+                        val defaultMovieTheater = notifPrefs.getBoolean("default_notify_movie_theater", false)
+                        val defaultMovieDigital = notifPrefs.getBoolean("default_notify_movie_digital", true)
+
+                        val newSettings = trackedToInsert.values.map { item ->
+                            val isMovie = item.type == MediaType.MOVIE
+                            NotificationSetting(
+                                simklId = item.simklId,
+                                notifyEveryEpisode = if (isMovie) defaultMovieTheater else defaultAiring,
+                                notifyAiredLastEpisode = if (isMovie) defaultMovieDigital else defaultSeasonFinished
+                            )
+                        }
+                        settingDao.insertSettings(newSettings)
+                    } catch (e: Exception) {
+                        Log.e("SimklRepository", "Error initializing default notification settings", e)
+                    }
                 }
                 if (trackedToUpdate.isNotEmpty()) {
                     watchlistDao.updateItems(trackedToUpdate.values.toList())
@@ -738,7 +761,7 @@ class SimklRepository(private val context: Context) {
                     calendarDao.markAllUnwatched()
                 } else {
                     // Remove any WatchedEpisode entities in our DB that aren't present in the list returned by the API
-                    val existingWatched = watchedDao.getAllWatchedEpisodes()
+                    val existingWatched = watchedDao.getWatchedEpisodesForSimklIds(collectedSimklIds.toList())
                     val newWatchedEpisodesBySimklId = newWatchedEpisodes.groupBy { it.simklId }
                     val existingWatchedBySimklId = existingWatched.groupBy { it.simklId }
                     val allWatchedToRemove = mutableListOf<WatchedEpisode>()
@@ -777,16 +800,6 @@ class SimklRepository(private val context: Context) {
                     }
                 }
 
-                // Remove calendar items for shows no longer tracked
-                val allTracked = watchlistDao.getAllTrackedItems()
-                val trackedIds = allTracked.map { it.simklId }.toSet()
-                val existingCalendar = calendarDao.getAllCalendarEntities()
-                val itemsToRemove = existingCalendar.filter { !trackedIds.contains(it.simklId) }
-                if (itemsToRemove.isNotEmpty()) {
-                    calendarDao.deleteCalendarItems(itemsToRemove)
-                    Log.d("SimklRepository", "Deleted ${itemsToRemove.size} untracked calendar items during watchlist sync")
-                }
-
                 if (!currentActivitiesTimestamp.isNullOrEmpty()) {
                     syncPrefs.edit { putString("last_activities_all", currentActivitiesTimestamp) }
                 }
@@ -820,34 +833,23 @@ class SimklRepository(private val context: Context) {
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
         val bearer = "Bearer ${userToken.accessToken}"
 
-        // Load local tracked items
-        val allTrackedItems = watchlistDao.getAllTrackedItems()
-        val trackedItemMap = allTrackedItems.associateBy { it.simklId }.toMutableMap()
-        val trackedShowIds = allTrackedItems.filter { it.type == MediaType.TV }.map { it.simklId }.toSet()
-        val trackedAnimeIds = allTrackedItems.filter { it.type == MediaType.ANIME }.map { it.simklId }.toSet()
-        val trackedMovieIds = allTrackedItems.filter { it.type == MediaType.MOVIE }.map { it.simklId }.toSet()
-        val allTrackedIds = allTrackedItems.map { it.simklId }.toSet()
-
-        if (allTrackedItems.isEmpty()) {
+        // Load local tracked items (IDs only for filtering)
+        val allTrackedIds = watchlistDao.getAllTrackedIds().toSet()
+        if (allTrackedIds.isEmpty()) {
             Log.d("SimklRepository", "No tracked items in watchlist, skipping calendar json sync.")
             return@withContext SyncResult()
         }
 
-        // Load all watched episodes to match with calendar entries
-        val allWatchedList = watchedDao.getAllWatchedEpisodes()
-        val watchedLookup = allWatchedList.groupBy { it.simklId }
-
-        val allSettings = itemDownloadSettingsDao.getAllSettingsList()
-        val settingsMap = allSettings.associateBy { it.simklId }
-
-        // Load existing local calendar items to perform incremental diff comparison
-        val existingDbItems = calendarDao.getAllCalendarEntities()
-        val existingItemsMap = existingDbItems.associateBy { it.primaryKey }
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
         val localStatesToInsert = mutableListOf<LocalItemState>()
+        val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
 
-        fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
+        fun processCalendarItem(
+            newItem: CalendarItem,
+            initialStatus: MediaStatus,
+            existingItemsMap: Map<String, CalendarItem>
+        ) {
             val existing = existingItemsMap[newItem.primaryKey]
             if (existing == null) {
                 val currentInsert = itemsToInsert[newItem.primaryKey]
@@ -863,15 +865,15 @@ class SimklRepository(private val context: Context) {
             }
         }
 
-        val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
-
-        fun processTrackedItem(newItem: TrackedWatchlistItem) {
+        fun processTrackedItem(
+            newItem: TrackedWatchlistItem,
+            trackedItemMap: Map<Int, TrackedWatchlistItem>
+        ) {
             val existing = trackedItemMap[newItem.simklId] ?: return
             val base = trackedToUpdate[newItem.simklId] ?: existing
             val updated = base.updatedWith(newItem)
             if (updated != base) {
                 trackedToUpdate[newItem.simklId] = updated
-                trackedItemMap[newItem.simklId] = updated
             }
         }
 
@@ -880,14 +882,14 @@ class SimklRepository(private val context: Context) {
         val oneMonthAgo = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS)
 
         // 2. Fetch CDN Calendars for current month plus next 3 months (0..3) (TV, Anime, Movies) from data.simkl.in
-        val currentCal = java.util.Calendar.getInstance()
+        val currentCal = Calendar.getInstance()
         val monthsToFetch = (0..3).map { offset ->
-            val cal = java.util.Calendar.getInstance().apply {
+            val cal = Calendar.getInstance().apply {
                 time = currentCal.time
-                add(java.util.Calendar.MONTH, offset)
+                add(Calendar.MONTH, offset)
             }
-            val year = cal.get(java.util.Calendar.YEAR)
-            val month = cal.get(java.util.Calendar.MONTH) + 1 // 1-12
+            val year = cal.get(Calendar.YEAR)
+            val month = cal.get(Calendar.MONTH) + 1 // 1-12
             year to month
         }
 
@@ -940,21 +942,23 @@ class SimklRepository(private val context: Context) {
                             .putString(lastModifiedHeaderKey, responseLastModifiedHeader ?: "")
                     }
 
-                    val entries = calendarResponse.calendar
-                    if (entries.isEmpty()) continue
+                    val relevantEntries = calendarResponse.calendar.filter {
+                        allTrackedIds.contains(it.simklId)
+                    }
+                    if (relevantEntries.isEmpty()) continue
 
                     val metadataMap = calendarResponse.metadata
 
-                    for (entry in entries) {
-                        val simklId = entry.simklId
-                        val isTracked = when (defaultType) {
-                            MediaType.TV -> trackedShowIds.contains(simklId)
-                            MediaType.ANIME -> trackedAnimeIds.contains(simklId)
-                            MediaType.MOVIE -> trackedMovieIds.contains(simklId)
-                        }
-                        if (!isTracked) continue
+                    // Targeted DB fetch for this JSON's content
+                    val relevantSimklIds = relevantEntries.map { it.simklId }.distinct()
+                    val currentTrackedItemMap = watchlistDao.getTrackedItemsBySimklIds(relevantSimklIds).associateBy { it.simklId }
+                    val currentExistingItemsMap = calendarDao.getCalendarEntitiesForSimklIds(relevantSimklIds).associateBy { it.primaryKey }
+                    val currentWatchedLookup = watchedDao.getWatchedEpisodesForSimklIds(relevantSimklIds).groupBy { it.simklId }
+                    val currentSettingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(relevantSimklIds).associateBy { it.simklId }
 
-                        val meta = metadataMap[simklId.toString()] ?: metadataMap[simklId.toString().lowercase()]
+                    for (entry in relevantEntries) {
+                        val simklId = entry.simklId
+                        val meta = metadataMap[simklId.toString()]
                         if (meta != null) {
                             processTrackedItem(
                                 TrackedWatchlistItem(
@@ -963,7 +967,8 @@ class SimklRepository(private val context: Context) {
                                     title = meta.title,
                                     titleRomaji = meta.titleRomaji,
                                     poster = meta.poster
-                                )
+                                ),
+                                currentTrackedItemMap
                             )
                         }
 
@@ -972,7 +977,7 @@ class SimklRepository(private val context: Context) {
                             DateUtil.parseToInstant(entry.date)?.let { theaterInstant ->
                                 val status = determineStatus(
                                     airDate = theaterInstant,
-                                    settings = settingsMap[simklId],
+                                    settings = currentSettingsMap[simklId],
                                     mediaType = MediaType.MOVIE,
                                     isTheaterRelease = true,
                                     isWatched = false,
@@ -989,7 +994,8 @@ class SimklRepository(private val context: Context) {
                                         isSeasonPremiere = false,
                                         isSeasonFinale = false,
                                     ),
-                                    initialStatus = status
+                                    initialStatus = status,
+                                    currentExistingItemsMap
                                 )
                             }
 
@@ -998,7 +1004,7 @@ class SimklRepository(private val context: Context) {
                                 DateUtil.parseToInstant(dvdDateStr)?.let { dvdInstant ->
                                     val status = determineStatus(
                                         airDate = dvdInstant,
-                                        settings = settingsMap[simklId],
+                                        settings = currentSettingsMap[simklId],
                                         mediaType = MediaType.MOVIE,
                                         isTheaterRelease = false,
                                         isWatched = false,
@@ -1015,7 +1021,8 @@ class SimklRepository(private val context: Context) {
                                             isSeasonPremiere = false,
                                             isSeasonFinale = false,
                                         ),
-                                        initialStatus = status
+                                        initialStatus = status,
+                                        currentExistingItemsMap
                                     )
                                 }
                             }
@@ -1037,7 +1044,7 @@ class SimklRepository(private val context: Context) {
 
                             val keyUnique = "v2_${simklId}_${seasonNum}_${epNum}"
 
-                            val showWatchedList = watchedLookup[simklId]
+                            val showWatchedList = currentWatchedLookup[simklId]
                             val watchedEntry = showWatchedList?.firstOrNull {
                                 it.season == seasonNum && it.episodeNumber == epNum
                             }
@@ -1050,7 +1057,7 @@ class SimklRepository(private val context: Context) {
 
                             val status = determineStatus(
                                 airDate = instant,
-                                settings = settingsMap[simklId],
+                                settings = currentSettingsMap[simklId],
                                 mediaType = defaultType,
                                 isTheaterRelease = false,
                                 isWatched = epWatchedTimestamp != null,
@@ -1069,7 +1076,8 @@ class SimklRepository(private val context: Context) {
                                     isSeasonFinale = isFinale,
                                     watchedAt = epWatchedTimestamp,
                                 ),
-                                initialStatus = status
+                                initialStatus = status,
+                                currentExistingItemsMap
                             )
                         }
                     }
@@ -1080,11 +1088,16 @@ class SimklRepository(private val context: Context) {
         }
 
         // Fetch movie details for all tracked movies missing either theatrical or DVD/digital release dates
-        val candidateMovieIds = trackedMovieIds
+        val candidateMovieIds = watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE))
+
+        // Targeted fetch for movie details backfill
+        val movieExistingItemsMap = calendarDao.getCalendarEntitiesForSimklIds(candidateMovieIds).associateBy { it.primaryKey }
+        val movieSettingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(candidateMovieIds).associateBy { it.simklId }
+        val movieTrackedItemMap = watchlistDao.getTrackedItemsBySimklIds(candidateMovieIds).associateBy { it.simklId }
 
         val moviesNeedingDetails = candidateMovieIds.filter { movieId ->
-            val hasDigital = existingItemsMap.containsKey("v2_${movieId}_digital") || itemsToInsert.containsKey("v2_${movieId}_digital")
-            val hasTheater = existingItemsMap.containsKey("v2_${movieId}_theater") || itemsToInsert.containsKey("v2_${movieId}_theater")
+            val hasDigital = movieExistingItemsMap.containsKey("v2_${movieId}_digital") || itemsToInsert.containsKey("v2_${movieId}_digital")
+            val hasTheater = movieExistingItemsMap.containsKey("v2_${movieId}_theater") || itemsToInsert.containsKey("v2_${movieId}_theater")
             !hasDigital || !hasTheater
         }
 
@@ -1103,7 +1116,8 @@ class SimklRepository(private val context: Context) {
                             type = MediaType.MOVIE,
                             title = movieDetail.title,
                             poster = movieDetail.poster
-                        )
+                        ),
+                        movieTrackedItemMap
                     )
 
                     // 1. Process Theatrical release date from regular released property
@@ -1111,7 +1125,7 @@ class SimklRepository(private val context: Context) {
                         DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
                             val status = determineStatus(
                                 airDate = theaterInstant,
-                                settings = settingsMap[movieId],
+                                settings = movieSettingsMap[movieId],
                                 mediaType = MediaType.MOVIE,
                                 isTheaterRelease = true,
                                 isWatched = false,
@@ -1128,7 +1142,8 @@ class SimklRepository(private val context: Context) {
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
                                 ),
-                                initialStatus = status
+                                initialStatus = status,
+                                movieExistingItemsMap
                             )
                         }
                     }
@@ -1138,7 +1153,7 @@ class SimklRepository(private val context: Context) {
                         DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
                             val status = determineStatus(
                                 airDate = digitalInstant,
-                                settings = settingsMap[movieId],
+                                settings = movieSettingsMap[movieId],
                                 mediaType = MediaType.MOVIE,
                                 isTheaterRelease = false,
                                 isWatched = false,
@@ -1155,7 +1170,8 @@ class SimklRepository(private val context: Context) {
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
                                 ),
-                                initialStatus = status
+                                initialStatus = status,
+                                movieExistingItemsMap
                             )
                         }
                     }
@@ -1163,16 +1179,6 @@ class SimklRepository(private val context: Context) {
                     Log.e("SimklRepository", "Failed fetching movie details for movieId $movieId", e)
                 }
             }
-        }
-
-        // Identify items that are no longer tracked in user's watchlist
-        val itemsToDelete = existingDbItems.filter { item ->
-            !allTrackedIds.contains(item.simklId)
-        }
-
-        if (itemsToDelete.isNotEmpty()) {
-            calendarDao.deleteCalendarItems(itemsToDelete)
-            Log.d("SimklRepository", "Deleted ${itemsToDelete.size} untracked calendar items from DB")
         }
 
         if (trackedToUpdate.isNotEmpty()) {
@@ -1192,36 +1198,11 @@ class SimklRepository(private val context: Context) {
         // Cleanup any old watched items from calendar table
         cleanupOldWatchedCalendarItems()
 
-        val totalCalendarItemDbChanges = itemsToDelete.size + itemsToInsert.size + itemsToUpdate.size
+        val totalCalendarItemDbChanges = itemsToInsert.size + itemsToUpdate.size
         if (totalCalendarItemDbChanges == 0) {
             Log.d("SimklRepository", "Calendar sync complete: no changes detected, skipped DB writes")
         } else {
-            Log.d("SimklRepository", "Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated, ${itemsToDelete.size} deleted)")
-        }
-
-        // Initialize default notification settings for newly inserted shows
-        if (itemsToInsert.isNotEmpty()) {
-            try {
-                val notifPrefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
-                val defaultAiring = notifPrefs.getBoolean("default_notify_airing", false)
-                val defaultSeasonFinished = notifPrefs.getBoolean("default_notify_season_finished", true)
-                val defaultMovieTheater = notifPrefs.getBoolean("default_notify_movie_theater", false)
-                val defaultMovieDigital = notifPrefs.getBoolean("default_notify_movie_digital", true)
-
-                val distinctShows = itemsToInsert.values.groupBy { it.simklId }
-                val newSettings = distinctShows.map { (simklId, _) ->
-                    val tracked = trackedItemMap[simklId]
-                    val isMovie = tracked?.type == MediaType.MOVIE
-                    NotificationSetting(
-                        simklId = simklId,
-                        notifyEveryEpisode = if (isMovie) defaultMovieTheater else defaultAiring,
-                        notifyAiredLastEpisode = if (isMovie) defaultMovieDigital else defaultSeasonFinished
-                    )
-                }
-                settingDao.insertSettings(newSettings)
-            } catch (e: Exception) {
-                Log.e("SimklRepository", "Error initializing default notification settings", e)
-            }
+            Log.d("SimklRepository", "Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         }
 
         syncPrefs.edit { putLong("last_calendar_json_sync", nowMillis) }
@@ -1332,7 +1313,7 @@ class SimklRepository(private val context: Context) {
             val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
 
             // Determine if show should be marked as "completed"
-            val showCalendarItems = calendarDao.getItemsForShow(simklId)
+            val showCalendarItems = calendarDao.getItemsForSimklId(simklId)
             val showWatchedItems = watchedDao.getWatchedEpisodesForShow(simklId)
 
             val seasonsSet = mutableSetOf<Int>()

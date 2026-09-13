@@ -43,10 +43,13 @@ interface CalendarItemDao {
 
     @Transaction
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC")
-    suspend fun getItemsForShow(simklId: Int): List<CalendarItemWithWatchlist>
+    suspend fun getItemsForSimklId(simklId: Int): List<CalendarItemWithWatchlist>
+
+    @Query("SELECT * FROM calendar_items WHERE simklId IN (:simklIds) ORDER BY date ASC")
+    suspend fun getCalendarEntitiesForSimklIds(simklIds: List<Int>): List<CalendarItem>
 
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC")
-    suspend fun getCalendarEntitiesForShow(simklId: Int): List<CalendarItem>
+    suspend fun getCalendarEntitiesForSimklId(simklId: Int): List<CalendarItem>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCalendarItems(items: List<CalendarItem>)
@@ -176,8 +179,20 @@ interface WatchlistDao {
     @Query("SELECT * FROM tracked_watchlist_items")
     suspend fun getAllTrackedItems(): List<TrackedWatchlistItem>
 
+    @Query("SELECT simklId FROM tracked_watchlist_items")
+    suspend fun getAllTrackedIds(): List<Int>
+
+    @Query("SELECT simklId FROM tracked_watchlist_items WHERE type IN (:types)")
+    suspend fun getTrackedIdsByTypes(types: List<MediaType>): List<Int>
+
     @Query("SELECT * FROM tracked_watchlist_items WHERE simklId = :simklId LIMIT 1")
     suspend fun getItem(simklId: Int): TrackedWatchlistItem?
+
+    @Query("SELECT * FROM tracked_watchlist_items WHERE simklId IN (:simklIds)")
+    suspend fun getTrackedItemsBySimklIds(simklIds: List<Int>): List<TrackedWatchlistItem>
+
+    @Query("SELECT * FROM tracked_watchlist_items WHERE type IN (:types)")
+    suspend fun getTrackedItemsByTypes(types: List<MediaType>): List<TrackedWatchlistItem>
 
     @Query("SELECT * FROM tracked_watchlist_items WHERE type = :type")
     suspend fun getTrackedItemsByType(type: MediaType): List<TrackedWatchlistItem>
@@ -208,6 +223,9 @@ interface WatchedEpisodeDao {
 
     @Query("SELECT * FROM watched_episodes WHERE simklId = :simklId")
     suspend fun getWatchedEpisodesForShow(simklId: Int): List<WatchedEpisode>
+
+    @Query("SELECT * FROM watched_episodes WHERE simklId IN (:simklIds)")
+    suspend fun getWatchedEpisodesForSimklIds(simklIds: List<Int>): List<WatchedEpisode>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWatchedEpisodes(episodes: List<WatchedEpisode>)
@@ -256,6 +274,9 @@ interface CustomSearchLinkDao {
 interface ItemDownloadSettingsDao {
     @Query("SELECT * FROM item_download_settings WHERE simklId = :simklId LIMIT 1")
     suspend fun getSettings(simklId: Int): ItemDownloadSettings?
+
+    @Query("SELECT * FROM item_download_settings WHERE simklId IN (:simklIds)")
+    suspend fun getSettingsBySimklIds(simklIds: List<Int>): List<ItemDownloadSettings>
 
     @Query("SELECT * FROM item_download_settings WHERE simklId = :simklId LIMIT 1")
     fun getSettingsFlow(simklId: Int): Flow<ItemDownloadSettings?>
