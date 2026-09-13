@@ -33,7 +33,9 @@ data class UserToken(
         )
     ],
     indices = [
-        Index(value = ["simklId"])
+        Index(value = ["simklId"]),
+        Index(value = ["date"]),
+        Index(value = ["watchedAt"])
     ]
 )
 data class CalendarItem(
@@ -105,7 +107,12 @@ data class NotificationSetting(
     val notifyAiredLastEpisode: Boolean = true
 )
 
-@Entity(tableName = "tracked_watchlist_items")
+@Entity(
+    tableName = "tracked_watchlist_items",
+    indices = [
+        Index(value = ["type"])
+    ]
+)
 data class TrackedWatchlistItem(
     @PrimaryKey val simklId: Int, // Simkl ID
     val type: MediaType,
@@ -194,7 +201,12 @@ data class WatchedEpisode(
     val watchedAt: Instant? = null
 )
 
-@Entity(tableName = "custom_search_links")
+@Entity(
+    tableName = "custom_search_links",
+    indices = [
+        Index(value = ["position"])
+    ]
+)
 data class CustomSearchLink(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
