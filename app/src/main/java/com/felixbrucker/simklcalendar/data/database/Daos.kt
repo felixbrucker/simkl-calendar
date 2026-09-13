@@ -1,6 +1,7 @@
 package com.felixbrucker.simklcalendar.data.database
 
 import androidx.room.*
+import androidx.paging.PagingSource
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import kotlinx.coroutines.flow.Flow
@@ -145,6 +146,66 @@ interface CalendarItemDao {
     @Transaction
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId AND (season = :season OR season IS NULL) ORDER BY date ASC")
     suspend fun getItemsInSeasonOrRelatedItems(simklId: Int, season: Int?): List<CalendarItemWithWatchlist>
+
+    @Query("DELETE FROM calendar_items WHERE simklId NOT IN (SELECT simklId FROM tracked_watchlist_items)")
+    suspend fun deleteUntrackedCalendarItems()
+
+    @Transaction
+    @Query("""
+        SELECT c.* FROM calendar_items c
+        INNER JOIN tracked_watchlist_items w ON c.simklId = w.simklId
+        WHERE c.watchedAt IS NULL
+          AND (c.date >= :todayStart OR :showEarlier = 1)
+          AND (
+               (w.type = 'TV' AND :showTv = 1) OR 
+               (w.type = 'ANIME' AND :showAnime = 1) OR 
+               (w.type = 'MOVIE' AND :showMovies = 1)
+          )
+          AND (
+               :hasSubtypeFilter = 0 OR
+               (:premieres = 1 AND c.isSeasonPremiere = 1) OR
+               (:finales = 1 AND c.isSeasonFinale = 1) OR
+               (:digitalDvd = 1 AND w.type = 'MOVIE' AND c.movieReleaseType = 'DIGITAL')
+          )
+          AND (
+               :query = '' OR
+               w.title LIKE '%' || :query || '%' OR
+               w.titleRomaji LIKE '%' || :query || '%' OR
+               c.episodeTitle LIKE '%' || :query || '%'
+          )
+        ORDER BY c.date ASC, w.title ASC
+    """)
+    fun getPagedCalendarItems(
+        todayStart: Instant,
+        showEarlier: Boolean,
+        showTv: Boolean,
+        showAnime: Boolean,
+        showMovies: Boolean,
+        hasSubtypeFilter: Boolean,
+        premieres: Boolean,
+        finales: Boolean,
+        digitalDvd: Boolean,
+        query: String
+    ): PagingSource<Int, CalendarItemWithWatchlist>
+
+    @Query("""
+        SELECT EXISTS(
+            SELECT 1 FROM calendar_items 
+            WHERE watchedAt IS NULL AND date < :todayStart
+        )
+    """)
+    fun hasEarlierReleases(todayStart: Instant): Flow<Boolean>
+
+    @Transaction
+    @Query("""
+        SELECT * FROM calendar_items c
+        INNER JOIN local_item_state l ON c.primaryKey = l.primaryKey
+        WHERE l.mediaStatus = 'WANTED'
+    """)
+    suspend fun getWantedItems(): List<CalendarItemWithWatchlist>
+
+    @Query("SELECT * FROM calendar_items WHERE simklId IN (:simklIds)")
+    suspend fun getCalendarEntitiesForIds(simklIds: Collection<Int>): List<CalendarItem>
 }
 
 @Dao
@@ -176,11 +237,60 @@ interface WatchlistDao {
     @Query("SELECT * FROM tracked_watchlist_items")
     suspend fun getAllTrackedItems(): List<TrackedWatchlistItem>
 
+    @Query("SELECT simklId FROM tracked_watchlist_items")
+    suspend fun getTrackedSimklIds(): List<Int>
+
     @Query("SELECT * FROM tracked_watchlist_items WHERE simklId = :simklId LIMIT 1")
     suspend fun getItem(simklId: Int): TrackedWatchlistItem?
 
     @Query("SELECT * FROM tracked_watchlist_items WHERE type = :type")
     suspend fun getTrackedItemsByType(type: MediaType): List<TrackedWatchlistItem>
+
+    @Transaction
+    @Query("""
+        SELECT w.*,
+          EXISTS(SELECT 1 FROM calendar_items WHERE simklId = w.simklId AND watchedAt IS NULL) AS hasUnwatched,
+          EXISTS(SELECT 1 FROM calendar_items WHERE simklId = w.simklId AND watchedAt IS NULL AND date <= :now) AS hasUnwatchedReleased,
+          (SELECT MIN(date) FROM calendar_items WHERE simklId = w.simklId AND date > :now) AS nextEpisodeDate,
+          (SELECT MAX(date) FROM calendar_items WHERE simklId = w.simklId AND date <= :now) AS lastAiredDate,
+          (SELECT COUNT(*) FROM calendar_items WHERE simklId = w.simklId AND watchedAt IS NOT NULL AND date <= :now) AS watchedReleasedCount,
+          (SELECT COUNT(*) FROM calendar_items WHERE simklId = w.simklId AND date <= :now) AS totalReleasedCount,
+          (SELECT COUNT(*) FROM calendar_items c INNER JOIN local_item_state l ON c.primaryKey = l.primaryKey WHERE c.simklId = w.simklId AND c.date <= :now AND l.mediaStatus = 'DOWNLOADED') AS downloadedReleasedCount,
+          (SELECT COUNT(*) FROM calendar_items c INNER JOIN local_item_state l ON c.primaryKey = l.primaryKey WHERE c.simklId = w.simklId AND c.date <= :now AND l.mediaStatus IN ('WANTED', 'DOWNLOADING', 'DOWNLOADED')) AS totalDownloadableReleasedCount
+        FROM tracked_watchlist_items w
+        WHERE (
+               (w.type = 'TV' AND :showTv = 1) OR 
+               (w.type = 'ANIME' AND :showAnime = 1) OR 
+               (w.type = 'MOVIE' AND :showMovies = 1)
+          )
+          AND (:onlyUnwatchedReleased = 0 OR EXISTS(SELECT 1 FROM calendar_items WHERE simklId = w.simklId AND watchedAt IS NULL AND date <= :now))
+          AND (
+               :query = '' OR
+               w.title LIKE '%' || :query || '%' OR
+               w.titleRomaji LIKE '%' || :query || '%'
+          )
+        ORDER BY 
+          CASE WHEN :sortField = 'NAME' AND :isDesc = 0 THEN w.title END ASC,
+          CASE WHEN :sortField = 'NAME' AND :isDesc = 1 THEN w.title END DESC,
+          CASE WHEN :sortField = 'LAST_EP' AND :isDesc = 0 THEN (SELECT MAX(date) FROM calendar_items WHERE simklId = w.simklId AND date <= :now) END ASC,
+          CASE WHEN :sortField = 'LAST_EP' AND :isDesc = 1 THEN (SELECT MAX(date) FROM calendar_items WHERE simklId = w.simklId AND date <= :now) END DESC,
+          CASE WHEN :sortField = 'NEXT_EP' AND :isDesc = 0 THEN (SELECT MIN(date) FROM calendar_items WHERE simklId = w.simklId AND date > :now) END ASC,
+          CASE WHEN :sortField = 'NEXT_EP' AND :isDesc = 1 THEN (SELECT MIN(date) FROM calendar_items WHERE simklId = w.simklId AND date > :now) END DESC,
+          CASE WHEN :sortField = 'WATCHED' AND :isDesc = 0 THEN (CAST((SELECT COUNT(*) FROM calendar_items WHERE simklId = w.simklId AND watchedAt IS NOT NULL AND date <= :now) AS REAL) / CASE WHEN (SELECT COUNT(*) FROM calendar_items WHERE simklId = w.simklId AND date <= :now) > 0 THEN (SELECT COUNT(*) FROM calendar_items WHERE simklId = w.simklId AND date <= :now) ELSE 1 END) END ASC,
+          CASE WHEN :sortField = 'WATCHED' AND :isDesc = 1 THEN (CAST((SELECT COUNT(*) FROM calendar_items WHERE simklId = w.simklId AND watchedAt IS NOT NULL AND date <= :now) AS REAL) / CASE WHEN (SELECT COUNT(*) FROM calendar_items WHERE simklId = w.simklId AND date <= :now) > 0 THEN (SELECT COUNT(*) FROM calendar_items WHERE simklId = w.simklId AND date <= :now) ELSE 1 END) END DESC,
+          CASE WHEN :sortField = 'DOWNLOADED' AND :isDesc = 0 THEN (CAST((SELECT COUNT(*) FROM calendar_items c INNER JOIN local_item_state l ON c.primaryKey = l.primaryKey WHERE c.simklId = w.simklId AND c.date <= :now AND l.mediaStatus = 'DOWNLOADED') AS REAL) / CASE WHEN (SELECT COUNT(*) FROM calendar_items c INNER JOIN local_item_state l ON c.primaryKey = l.primaryKey WHERE c.simklId = w.simklId AND c.date <= :now AND l.mediaStatus IN ('WANTED', 'DOWNLOADING', 'DOWNLOADED')) > 0 THEN (SELECT COUNT(*) FROM calendar_items c INNER JOIN local_item_state l ON c.primaryKey = l.primaryKey WHERE c.simklId = w.simklId AND c.date <= :now AND l.mediaStatus IN ('WANTED', 'DOWNLOADING', 'DOWNLOADED')) ELSE 1 END) END ASC,
+          CASE WHEN :sortField = 'DOWNLOADED' AND :isDesc = 1 THEN (CAST((SELECT COUNT(*) FROM calendar_items c INNER JOIN local_item_state l ON c.primaryKey = l.primaryKey WHERE c.simklId = w.simklId AND c.date <= :now AND l.mediaStatus = 'DOWNLOADED') AS REAL) / CASE WHEN (SELECT COUNT(*) FROM calendar_items c INNER JOIN local_item_state l ON c.primaryKey = l.primaryKey WHERE c.simklId = w.simklId AND c.date <= :now AND l.mediaStatus IN ('WANTED', 'DOWNLOADING', 'DOWNLOADED')) > 0 THEN (SELECT COUNT(*) FROM calendar_items c INNER JOIN local_item_state l ON c.primaryKey = l.primaryKey WHERE c.simklId = w.simklId AND c.date <= :now AND l.mediaStatus IN ('WANTED', 'DOWNLOADING', 'DOWNLOADED')) ELSE 1 END) END DESC
+    """)
+    fun getPagedWatchlistItems(
+        now: Instant,
+        showTv: Boolean,
+        showAnime: Boolean,
+        showMovies: Boolean,
+        onlyUnwatchedReleased: Boolean,
+        query: String,
+        sortField: String,
+        isDesc: Int
+    ): PagingSource<Int, WatchlistWithStats>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItems(items: List<TrackedWatchlistItem>)
@@ -226,6 +336,9 @@ interface WatchedEpisodeDao {
 
     @Query("DELETE FROM watched_episodes")
     suspend fun clearAll()
+
+    @Query("SELECT * FROM watched_episodes WHERE simklId IN (:simklIds)")
+    suspend fun getWatchedEpisodesForIds(simklIds: Collection<Int>): List<WatchedEpisode>
 }
 
 @Dao

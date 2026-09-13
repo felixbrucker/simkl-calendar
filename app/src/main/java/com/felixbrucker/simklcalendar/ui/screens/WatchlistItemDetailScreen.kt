@@ -42,7 +42,10 @@ import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.MediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistItemDetailViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.MediaActionViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.DownloadConfigViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import com.felixbrucker.simklcalendar.ui.composable.Table
 import com.felixbrucker.simklcalendar.ui.composable.WatchedStatusDropdown
@@ -51,16 +54,19 @@ import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WatchlistItemDetailScreen(
-    viewModel: CalendarViewModel,
     simklId: Int,
     onNavigateBack: () -> Unit,
-    onNavigateToEpisode: (String) -> Unit
+    onNavigateToEpisode: (String) -> Unit,
+    viewModel: WatchlistItemDetailViewModel = viewModel()
 ) {
-    val allCalendarItems by viewModel.allCalendarItems.collectAsState()
-    val watchlistItems by viewModel.repository.watchlistItems.collectAsState(initial = emptyList())
-    val tableItems by viewModel.watchlistTableItems.collectAsState()
+    val watchlistItemState = viewModel.getWatchlistItem(simklId).collectAsState(null)
+    val watchlistItem = watchlistItemState.value
+    val episodesRaw by viewModel.getCalendarItemsForShow(simklId).collectAsState(emptyList())
+    val tableItemState = viewModel.getWatchlistTableItem(simklId).collectAsState(null)
+    val tableItem = tableItemState.value
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
     val torrentDownloads by viewModel.torrentDownloads.collectAsState()
+    val customSearchLinks by viewModel.customSearchLinks.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -82,17 +88,8 @@ fun WatchlistItemDetailScreen(
         settingsList.find { it.simklId == simklId }
     }
 
-    val watchlistItem = remember(watchlistItems, simklId) {
-        watchlistItems.find { it.simklId == simklId }
-    }
-
-    val tableItem = remember(tableItems, simklId) {
-        tableItems.find { it.watchlistItem.simklId == simklId }
-    }
-
-    val episodes = remember(allCalendarItems, simklId) {
-        allCalendarItems.filter { it.simklId == simklId }
-            .sortedWith(compareBy<CalendarItemWithWatchlist> { it.season ?: 0 }
+    val episodes = remember(episodesRaw) {
+        episodesRaw.sortedWith(compareBy<CalendarItemWithWatchlist> { it.season ?: 0 }
                 .thenBy { it.episodeNumber ?: 0 }
                 .thenBy { it.date })
     }
@@ -149,14 +146,15 @@ fun WatchlistItemDetailScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
+                val item = watchlistItem
                 // 1. Header with Poster & Title
                 item {
                     DetailHeader(
-                        simklId = watchlistItem.simklId,
-                        type = watchlistItem.type,
-                        title = watchlistItem.title,
-                        poster = watchlistItem.poster,
-                        titleRomaji = watchlistItem.titleRomaji
+                        simklId = item.simklId,
+                        type = item.type,
+                        title = item.title,
+                        poster = item.poster,
+                        titleRomaji = item.titleRomaji
                     )
                 }
 
@@ -170,10 +168,11 @@ fun WatchlistItemDetailScreen(
                             episodes = episodes,
                             isAnimeSeasonOneOnly = isAnimeSeasonOneOnly,
                             updatingWatchKeys = updatingWatchKeys,
-                            mediaType = watchlistItem.type
+                            mediaType = item.type
                         )
                     }
-                } else {
+                }
+else {
                     // Movie shared actions
                     item {
                         val digitalRelease = episodes.find { it.movieReleaseType == MovieReleaseType.DIGITAL }
@@ -209,7 +208,7 @@ fun WatchlistItemDetailScreen(
 
                 item {
                     CustomSearchLinksCard(
-                        viewModel = viewModel,
+                        allSearchLinks = customSearchLinks,
                         title = watchlistItem.title,
                         titleRomaji = watchlistItem.titleRomaji,
                         itemType = watchlistItem.type,
@@ -289,10 +288,10 @@ fun WatchlistItemDetailScreen(
                 item {
                     DownloadSettingsCard(
                         viewModel = viewModel,
-                        simklId = watchlistItem.simklId,
-                        itemTitle = watchlistItem.title,
-                        mediaType = watchlistItem.type,
-                        defaultSubdirectory = watchlistItem.defaultDestinationSubdirectory(),
+                        simklId = item.simklId,
+                        itemTitle = item.title,
+                        mediaType = item.type,
+                        defaultSubdirectory = item.defaultDestinationSubdirectory(),
                         modifier = Modifier.padding(16.dp),
                     )
                 }
@@ -309,7 +308,7 @@ fun WatchlistItemDetailScreen(
 @Composable
 fun WatchlistItemSummaryStats(
     item: WatchlistTableItem?,
-    viewModel: CalendarViewModel,
+    viewModel: MediaActionViewModel,
     simklId: Int,
     episodes: List<CalendarItemWithWatchlist>,
     isAnimeSeasonOneOnly: Boolean,
@@ -459,7 +458,7 @@ private fun SummaryStatsContent(item: WatchlistTableItem, isNarrow: Boolean) {
 
 @Composable
 private fun SummaryDropdowns(
-    viewModel: CalendarViewModel,
+    viewModel: MediaActionViewModel,
     simklId: Int,
     episodes: List<CalendarItemWithWatchlist>,
     updatingWatchKeys: Set<String>,
@@ -505,7 +504,7 @@ fun StatItem(label: String, value: String, modifier: Modifier = Modifier, valueC
 fun SeasonSectionHeader(
     season: Int,
     count: Int,
-    viewModel: CalendarViewModel,
+    viewModel: MediaActionViewModel,
     simklId: Int,
     episodes: List<CalendarItemWithWatchlist>,
     updatingWatchKeys: Set<String>,
@@ -558,7 +557,7 @@ fun SeasonSectionHeader(
 @Composable
 fun EpisodesTable(
     episodes: List<CalendarItemWithWatchlist>,
-    viewModel: CalendarViewModel,
+    viewModel: MediaActionViewModel,
     updatingWatchKeys: Set<String>,
     torrentDownloads: Map<String, DownloadProgress>,
     onNavigateToEpisode: (String) -> Unit

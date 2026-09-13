@@ -27,28 +27,28 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.felixbrucker.simklcalendar.R
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.MainViewModel
 import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    viewModel: CalendarViewModel,
+    viewModel: MainViewModel,
     onLoginSuccess: () -> Unit,
     modifier: Modifier = Modifier,
     onLaunchAuthTab: ((url: String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val token by viewModel.userToken.collectAsState()
+    val authState by viewModel.authState.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
 
     var oauthError by remember { mutableStateOf<String?>(null) }
 
-    val isConfigured = viewModel.repository.isRealApiConfigured()
+    val isConfigured = viewModel.isRealApiConfigured()
 
     // Redirect to calendar dashboard if already logged in
-    LaunchedEffect(token) {
-        if (token != null) {
+    LaunchedEffect(authState.token) {
+        if (authState.token != null) {
             onLoginSuccess()
         }
     }

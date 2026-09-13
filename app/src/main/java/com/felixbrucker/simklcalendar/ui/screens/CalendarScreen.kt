@@ -1,12 +1,15 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
+import android.R
 import android.content.Context
 import android.os.Build
+import android.text.format.Formatter
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,7 +18,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -50,6 +52,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.LazyPagingItems
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -61,10 +65,12 @@ import com.felixbrucker.simklcalendar.data.util.toPosterUrl
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarListItem
 import com.felixbrucker.simklcalendar.ui.viewmodel.MainViewMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.math.abs
 
 private enum class SearchBarDisplayMode {
     DEFAULT,
@@ -82,7 +88,8 @@ fun CalendarScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val items by viewModel.filteredCalendarItems.collectAsState()
+    val items = viewModel.calendarItems.collectAsLazyPagingItems()
+    val hasEarlierReleases by viewModel.hasEarlierReleases.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val shouldShowAutoDownloadStatus by viewModel.shouldShowAutoDownloadStatus.collectAsState()
     val isSearchingWantedTorrents by viewModel.isSearchingWantedTorrents.collectAsState()
@@ -97,7 +104,6 @@ fun CalendarScreen(
     val windowInfo = LocalWindowInfo.current
     val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 600.dp
 
-    // Filters states are now handled inside CalendarView
     val showEarlierReleases by viewModel.showEarlierReleases.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
 
@@ -139,23 +145,6 @@ fun CalendarScreen(
         isSearchFocused = false
         focusManager.clearFocus()
         keyboardController?.hide()
-    }
-
-    // Separate earlier releases from today/upcoming releases
-    val (earlierItems, upcomingItems) = remember(items) {
-        items.partition { DateUtil.isEarlierThanToday(it.date) }
-    }
-
-    val earlierGrouped = remember(earlierItems) {
-        earlierItems.groupBy { item ->
-            DateUtil.formatAiringDateHeader(item.date)
-        }
-    }
-
-    val upcomingGrouped = remember(upcomingItems) {
-        upcomingItems.groupBy { item ->
-            DateUtil.formatAiringDateHeader(item.date)
-        }
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -526,7 +515,6 @@ fun CalendarScreen(
             val tvFilter by viewModel.showTv.collectAsState()
             val animeFilter by viewModel.showAnime.collectAsState()
             val moviesFilter by viewModel.showMovies.collectAsState()
-            val unwatchedFilter by viewModel.showOnlyUnwatchedReleased.collectAsState()
             val premieresOnly by viewModel.onlySeasonPremieres.collectAsState()
             val finalesOnly by viewModel.onlySeasonFinales.collectAsState()
             val digitalDvdOnly by viewModel.onlyDigitalDvd.collectAsState()
@@ -590,30 +578,6 @@ fun CalendarScreen(
                         color = Color(0xFF49454F)
                     )
 
-                    // Unwatched Released Toggle (Only in Table View)
-                    if (viewMode == MainViewMode.TABLE) {
-                        FilterChip(
-                            selected = unwatchedFilter,
-                            onClick = { viewModel.toggleShowOnlyUnwatchedReleased() },
-                            label = { Text("Unwatched") },
-                            leadingIcon = {
-                                if (unwatchedFilter) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                    )
-                                }
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFD0BCFF),
-                                selectedLabelColor = Color(0xFF381E72),
-                                containerColor = Color(0xFF313033),
-                                labelColor = Color(0xFFCAC4D0)
-                            )
-                        )
-                    }
-
                     // Calendar Subtype Filters (Only in Calendar View)
                     if (viewMode == MainViewMode.CALENDAR) {
                         FilterChip(
@@ -664,7 +628,7 @@ fun CalendarScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Results for \"$searchQuery\" (${items.size})",
+                            text = "Results for \"$searchQuery\"",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFFD0BCFF)
@@ -705,9 +669,7 @@ fun CalendarScreen(
                     if (mode == MainViewMode.CALENDAR) {
                         CalendarView(
                             items = items,
-                            earlierItems = earlierItems,
-                            upcomingGrouped = upcomingGrouped,
-                            earlierGrouped = earlierGrouped,
+                            hasEarlierReleases = hasEarlierReleases,
                             showEarlierReleases = showEarlierReleases,
                             searchQuery = searchQuery,
                             torrentDownloads = torrentDownloads,
@@ -716,7 +678,6 @@ fun CalendarScreen(
                         )
                     } else {
                         TrackedWatchlistTableView(
-                            viewModel = viewModel,
                             onNavigateToSeriesDetail = onNavigateToWatchlistItemDetail
                         )
                     }
@@ -850,10 +811,8 @@ private fun ViewModeToggle(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CalendarView(
-    items: List<CalendarItemWithWatchlist>,
-    earlierItems: List<CalendarItemWithWatchlist>,
-    upcomingGrouped: Map<String, List<CalendarItemWithWatchlist>>,
-    earlierGrouped: Map<String, List<CalendarItemWithWatchlist>>,
+    items: LazyPagingItems<CalendarListItem>,
+    hasEarlierReleases: Boolean,
     showEarlierReleases: Boolean,
     searchQuery: String,
     torrentDownloads: Map<String, DownloadProgress>,
@@ -867,7 +826,7 @@ private fun CalendarView(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Calendar Group list
-        if (items.isEmpty()) {
+        if (items.itemCount == 0) {
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -922,16 +881,16 @@ private fun CalendarView(
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
                 // Earlier Releases Expandable Header Card
-                if (earlierItems.isNotEmpty()) {
+                if (hasEarlierReleases && !showEarlierReleases && searchQuery.isBlank()) {
                     item(key = "earlier_releases_toggle_card") {
                         Card(
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (showEarlierReleases) Color(0xFF381E72).copy(alpha = 0.5f) else Color(0xFF2B2930)
+                                containerColor = Color(0xFF2B2930)
                             ),
-                            border = androidx.compose.foundation.BorderStroke(
+                            border = BorderStroke(
                                 1.dp,
-                                if (showEarlierReleases) Color(0xFFD0BCFF) else Color(0xFF49454F)
+                                Color(0xFF49454F)
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -957,36 +916,34 @@ private fun CalendarView(
                                     )
                                     Column {
                                         Text(
-                                            text = if (showEarlierReleases) "Hide Earlier Releases" else "Show Earlier Releases",
+                                            text = "Show Earlier Releases",
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 14.sp,
                                             color = Color(0xFFE6E1E5)
                                         )
                                         Text(
-                                            text = if (searchQuery.isNotBlank()) {
-                                                "${earlierItems.size} matching past ${if (earlierItems.size == 1) "release" else "releases"}"
-                                            } else {
-                                                "${earlierItems.size} past ${if (earlierItems.size == 1) "release" else "releases"} hidden by default"
-                                            },
+                                            text = "Past releases hidden by default",
                                             fontSize = 12.sp,
                                             color = Color(0xFFCAC4D0)
                                         )
                                     }
                                 }
                                 Icon(
-                                    imageVector = if (showEarlierReleases) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    contentDescription = if (showEarlierReleases) "Collapse earlier releases" else "Expand earlier releases",
+                                    imageVector = Icons.Default.ExpandMore,
+                                    contentDescription = "Expand earlier releases",
                                     tint = Color(0xFFD0BCFF),
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
                     }
+                }
 
-                    // When expanded, render earlier day groups
-                    if (showEarlierReleases) {
-                        earlierGrouped.forEach { (dateHeader, dayItems) ->
-                            stickyHeader(key = "earlier_header_$dateHeader") {
+                for (i in 0 until items.itemCount) {
+                    val listItem = items.peek(i)
+                    when (listItem) {
+                        is CalendarListItem.DateHeader -> {
+                            stickyHeader(key = "header_${listItem.dateText}") {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -994,95 +951,27 @@ private fun CalendarView(
                                         .padding(horizontal = 16.dp, vertical = 6.dp)
                                 ) {
                                     Text(
-                                        text = dateHeader,
+                                        text = listItem.dateText,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF9E9AA3),
-                                        letterSpacing = 1.sp
                                     )
                                 }
                             }
-
-                            items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
+                        }
+                        is CalendarListItem.Item -> {
+                            val calendarItem = listItem.item
+                            item(key = calendarItem.primaryKey) {
                                 CalendarItemCard(
-                                    item = item,
-                                    onClick = { onNavigateToShowDetail(item.primaryKey) },
-                                    downloadProgress = torrentDownloads[item.downloadTaskId],
-                                    modifier = Modifier.animateItem(),
+                                    item = calendarItem,
+                                    onClick = { onNavigateToShowDetail(calendarItem.primaryKey) },
+                                    downloadProgress = torrentDownloads[calendarItem.downloadTaskId],
+                                    modifier = Modifier.animateItem()
                                 )
                             }
                         }
-                    }
-                }
-
-                // Upcoming releases (today and future dates)
-                if (upcomingGrouped.isNotEmpty()) {
-                    upcomingGrouped.forEach { (dateHeader, dayItems) ->
-                        stickyHeader(key = "upcoming_header_$dateHeader") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFF1C1B1F))
-                                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = dateHeader,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFCAC4D0),
-                                    letterSpacing = 1.sp
-                                )
-                            }
-                        }
-
-                        items(dayItems, key = { it.primaryKey }) { item ->
-                            CalendarItemCard(
-                                item = item,
-                                onClick = { onNavigateToShowDetail(item.primaryKey) },
-                                downloadProgress = torrentDownloads[item.downloadTaskId],
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                    }
-                } else if (earlierItems.isNotEmpty() && !showEarlierReleases) {
-                    // Notice when upcoming is empty but earlier items exist
-                    item(key = "no_upcoming_prompt") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.EventAvailable,
-                                    contentDescription = null,
-                                    tint = Color(0xFF3E3D4F),
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    if (searchQuery.isNotBlank()) {
-                                        "No upcoming releases matching \"$searchQuery\""
-                                    } else {
-                                        "No upcoming releases for active filters"
-                                    },
-                                    color = Color(0xFFA5A3B1),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                  )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                TextButton(onClick = { viewModel.setShowEarlierReleases(true) }) {
-                                    Text(
-                                        if (searchQuery.isNotBlank()) {
-                                            "View ${earlierItems.size} Matching Earlier Releases"
-                                        } else {
-                                            "View ${earlierItems.size} Earlier Releases"
-                                        },
-                                        color = Color(0xFFD0BCFF)
-                                    )
-                                }
-                            }
+                        null -> {
+                            // Placeholder
                         }
                     }
                 }
@@ -1109,7 +998,7 @@ fun CalendarItemCard(
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFF2B2930)
         ),
-        border = androidx.compose.foundation.BorderStroke(
+        border = BorderStroke(
             1.dp,
             if (item.mediaStatus == MediaStatus.DOWNLOADING) Color(0xFF004A77) else Color(0xFF49454F)
         ),
@@ -1137,7 +1026,7 @@ fun CalendarItemCard(
                         contentDescription = "${item.title} Poster",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
-                        error = painterResource(id = android.R.drawable.ic_menu_gallery)
+                        error = painterResource(id = R.drawable.ic_menu_gallery)
                     )
 
                     // Slim type overlay bar
@@ -1315,8 +1204,8 @@ fun CalendarItemCard(
                 ) {
                     val progress = if (downloadProgress.totalBytes > 0) downloadProgress.bytesDownloaded.toFloat() / downloadProgress.totalBytes else 0f
                     val percentage = (progress * 100).toInt()
-                    val downloaded = android.text.format.Formatter.formatFileSize(LocalContext.current, downloadProgress.bytesDownloaded)
-                    val total = android.text.format.Formatter.formatFileSize(LocalContext.current, downloadProgress.totalBytes)
+                    val downloaded = Formatter.formatFileSize(LocalContext.current, downloadProgress.bytesDownloaded)
+                    val total = Formatter.formatFileSize(LocalContext.current, downloadProgress.totalBytes)
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1347,7 +1236,7 @@ fun CalendarItemCard(
 
                     if (downloadProgress.downloadSpeed > 0) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        val speedStr = android.text.format.Formatter.formatFileSize(LocalContext.current, downloadProgress.downloadSpeed.toLong()) + "/s"
+                        val speedStr = Formatter.formatFileSize(LocalContext.current, downloadProgress.downloadSpeed.toLong()) + "/s"
                         val remainingBytes = downloadProgress.totalBytes - downloadProgress.bytesDownloaded
                         val remainingSeconds = (remainingBytes / downloadProgress.downloadSpeed).toLong()
                         val eta = DateUtil.formatDuration(remainingSeconds)

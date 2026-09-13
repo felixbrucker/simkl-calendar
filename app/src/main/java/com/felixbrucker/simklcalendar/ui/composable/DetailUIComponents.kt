@@ -28,6 +28,8 @@ import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
+import com.felixbrucker.simklcalendar.ui.viewmodel.MediaActionViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.DownloadConfigViewModel
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
@@ -272,7 +274,7 @@ fun WatchedStatusDropdown(
 @Composable
 fun ItemWatchedStatusDropdown(
     item: CalendarItemWithWatchlist,
-    viewModel: CalendarViewModel,
+    viewModel: MediaActionViewModel,
     updatingWatchKeys: Set<String>
 ) {
     WatchedStatusDropdown(
@@ -280,15 +282,15 @@ fun ItemWatchedStatusDropdown(
         onStatusChange = { watched ->
             if (item.type == MediaType.MOVIE) {
                 if (watched) {
-                    viewModel.markMovieWatched(item.simklId, item.primaryKey, item.title) { _, _ -> }
+                    viewModel.markMovieWatched(item.simklId, item.title, item.primaryKey) { _, _ -> }
                 } else {
-                    viewModel.markMovieUnwatched(item.simklId, item.primaryKey, item.title) { _, _ -> }
+                    viewModel.markMovieUnwatched(item.simklId, item.primaryKey) { _, _ -> }
                 }
             } else {
                 if (watched) {
                     viewModel.markEpisodeWatched(item.simklId, item.season, item.episodeNumber ?: 1, item.type, item.primaryKey, item.title) { _, _ -> }
                 } else {
-                    viewModel.markEpisodeUnwatched(item.simklId, item.season, item.episodeNumber ?: 1, item.type, item.primaryKey, item.title) { _, _ -> }
+                    viewModel.markEpisodeUnwatched(item.simklId, item.season, item.episodeNumber ?: 1, item.type, item.primaryKey) { _, _ -> }
                 }
             }
         },
@@ -299,7 +301,7 @@ fun ItemWatchedStatusDropdown(
 @Composable
 fun ItemMediaStatusDropdown(
     item: CalendarItemWithWatchlist,
-    viewModel: CalendarViewModel
+    viewModel: MediaActionViewModel
 ) {
     MediaStatusDropdown(
         currentStatus = item.mediaStatus,
@@ -322,7 +324,7 @@ fun NotificationSettingsCard(
     onNotifyEveryEpisodeChange: (Boolean) -> Unit,
     onNotifySeasonFinishedChange: (Boolean) -> Unit,
     checkPermission: () -> Unit,
-    viewModel: CalendarViewModel,
+    viewModel: MediaActionViewModel,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -353,8 +355,8 @@ fun NotificationSettingsCard(
                             if (isChecked) checkPermission()
                             viewModel.toggleNotification(
                                 simklId = simklId,
-                                notifyEpisode = isChecked,
-                                notifySeasonFinished = notifySeasonFinished
+                                every = isChecked,
+                                last = notifySeasonFinished
                             )
                         }
                     )
@@ -379,8 +381,8 @@ fun NotificationSettingsCard(
                             if (isChecked) checkPermission()
                             viewModel.toggleNotification(
                                 simklId = simklId,
-                                notifyEpisode = notifyEveryEpisode,
-                                notifySeasonFinished = isChecked
+                                every = notifyEveryEpisode,
+                                last = isChecked
                             )
                         }
                     )
@@ -403,8 +405,8 @@ fun NotificationSettingsCard(
                             if (isChecked) checkPermission()
                             viewModel.toggleNotification(
                                 simklId = simklId,
-                                notifyEpisode = isChecked,
-                                notifySeasonFinished = notifySeasonFinished
+                                every = isChecked,
+                                last = notifySeasonFinished
                             )
                         }
                     )
@@ -429,8 +431,8 @@ fun NotificationSettingsCard(
                             if (isChecked) checkPermission()
                             viewModel.toggleNotification(
                                 simklId = simklId,
-                                notifyEpisode = notifyEveryEpisode,
-                                notifySeasonFinished = isChecked
+                                every = notifyEveryEpisode,
+                                last = isChecked
                             )
                         }
                     )
@@ -565,7 +567,7 @@ fun DetailHeader(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DownloadSettingsCard(
-    viewModel: CalendarViewModel,
+    viewModel: DownloadConfigViewModel,
     simklId: Int,
     itemTitle: String,
     mediaType: MediaType,

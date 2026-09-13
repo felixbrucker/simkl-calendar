@@ -44,7 +44,8 @@ import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.SettingsViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker
 import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
@@ -56,9 +57,9 @@ import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: CalendarViewModel,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val userToken by viewModel.userToken.collectAsState()
@@ -220,7 +221,9 @@ fun SettingsScreen(
 
                         Button(
                             onClick = {
-                                viewModel.logoutUser()
+                                viewModel.logout {
+                        onNavigateBack()
+                    }
                                 onNavigateBack()
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -558,7 +561,7 @@ fun SettingsScreen(
             }
 
             // Automatic Downloads Card
-            val isDownloaderInstalled = remember { viewModel.isTorrentServiceInstalled() }
+            val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
@@ -999,7 +1002,7 @@ fun SettingsScreen(
                                                                 add(to, removeAt(from))
                                                             }
                                                             localLinks = updated
-                                                            viewModel.updateSearchLinksOrder(updated)
+                                                            viewModel.updateSearchLinks(updated)
                                                         }
                                                         draggingIndex = null
                                                         dragOffsetY = 0f
@@ -1193,11 +1196,11 @@ fun SettingsScreen(
 
                     Button(
                         onClick = {
-                            viewModel.forceWatchlistResync { _, message ->
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(message)
-                                }
-                            }
+                            viewModel.forceWatchlistResync { message ->
+                        scope.launch {
+                            snackbarHostState.showSnackbar(message)
+                        }
+                    }
                         },
                         enabled = !isForceSyncing,
                         colors = ButtonDefaults.buttonColors(
@@ -1416,9 +1419,12 @@ fun SettingsScreen(
                             position = editingLink?.position ?: 0
                         )
 
-                        viewModel.saveCustomSearchLink(linkToSave) {
-                            showAddEditDialog = false
+                        if (editingLink == null) {
+                            viewModel.insertSearchLink(linkToSave)
+                        } else {
+                            viewModel.updateSearchLink(linkToSave)
                         }
+                        showAddEditDialog = false
                     },
                     modifier = Modifier.testTag("save_custom_search_link_button")
                 ) {
@@ -1446,9 +1452,8 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteCustomSearchLink(link) {
-                            deleteConfirmLink = null
-                        }
+                        viewModel.deleteSearchLink(link)
+                        deleteConfirmLink = null
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,

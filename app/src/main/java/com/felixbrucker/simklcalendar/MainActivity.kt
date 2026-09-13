@@ -44,6 +44,7 @@ import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.MainViewModel
 import androidx.core.net.toUri
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import java.net.URLEncoder
@@ -51,6 +52,7 @@ import java.net.URLDecoder
 
 class MainActivity : ComponentActivity() {
     private val viewModel: CalendarViewModel by viewModels()
+    private val mainViewModel: MainViewModel by viewModels()
 
     // Modern AuthTab ActivityResultLauncher
     private val authTabLauncher = AuthTabIntent.registerActivityResultLauncher(this) { result ->
@@ -89,7 +91,7 @@ class MainActivity : ComponentActivity() {
         SyncCalendarWorker.enqueuePeriodicSync(this, syncIntervalHours)
 
         val searchIntervalHours = syncPrefs.getInt("search_interval_hours", 12).toLong()
-        if (viewModel.isTorrentServiceInstalled()) {
+        if (viewModel.isTorrentServiceInstalled.value) {
             AutoDownloadWorker.enqueuePeriodicSearch(this, searchIntervalHours)
         }
 
@@ -100,6 +102,7 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 SimklCalendarApp(
                     viewModel = viewModel,
+                    mainViewModel = mainViewModel,
                     onLaunchAuthTab = { authUrl ->
                         launchAuthTab(authUrl, "simklcalendar")
                     }
@@ -136,7 +139,7 @@ class MainActivity : ComponentActivity() {
             } else null
 
         if (!itemKey.isNullOrEmpty()) {
-            viewModel.setPendingDetailKey(itemKey)
+            mainViewModel.setPendingDetailKey(itemKey)
         }
     }
 
@@ -145,7 +148,7 @@ class MainActivity : ComponentActivity() {
             val code = uri.getQueryParameter("code")
             val state = uri.getQueryParameter("state")
             if (!code.isNullOrEmpty()) {
-                viewModel.exchangeOAuthCode(
+                mainViewModel.exchangeOAuthCode(
                     code = code,
                     state = state,
                     redirectUri = "simklcalendar://auth",
@@ -168,11 +171,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SimklCalendarApp(
     viewModel: CalendarViewModel,
+    mainViewModel: MainViewModel,
     onLaunchAuthTab: (url: String) -> Unit = {}
 ) {
     val navController = rememberNavController()
-    val authState by viewModel.authState.collectAsState()
-    val pendingDetailKey by viewModel.pendingDetailKey.collectAsState()
+    val authState by mainViewModel.authState.collectAsState()
+    val pendingDetailKey by mainViewModel.pendingDetailKey.collectAsState()
     val context = LocalContext.current
 
     // Don't render navigation until we know if the user is logged in or not
@@ -192,7 +196,7 @@ fun SimklCalendarApp(
             navController.navigate("release_detail/$encodedKey") {
                 launchSingleTop = true
             }
-            viewModel.clearPendingDetailKey()
+            mainViewModel.clearPendingDetailKey()
         }
     }
 
@@ -226,7 +230,7 @@ fun SimklCalendarApp(
             // 1. Authentication Login (OAuth via AuthTab)
             composable("login") {
                 LoginScreen(
-                    viewModel = viewModel,
+                    viewModel = mainViewModel,
                     onLaunchAuthTab = onLaunchAuthTab,
                     onLoginSuccess = {
                         navController.navigate("calendar") {
@@ -263,7 +267,6 @@ fun SimklCalendarApp(
             // 3. Settings configuration screen
             composable("settings") {
                 SettingsScreen(
-                    viewModel = viewModel,
                     onNavigateBack = {
                         navController.popBackStack()
                     }
@@ -283,7 +286,6 @@ fun SimklCalendarApp(
                     rawKey
                 }
                 ReleaseDetailScreen(
-                    viewModel = viewModel,
                     itemKey = itemKey,
                     onNavigateBack = {
                         navController.popBackStack()
@@ -301,7 +303,6 @@ fun SimklCalendarApp(
             ) { backStackEntry ->
                 val simklId = backStackEntry.arguments?.getInt("simklId") ?: 0
                 WatchlistItemDetailScreen(
-                    viewModel = viewModel,
                     simklId = simklId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToEpisode = { itemKey ->

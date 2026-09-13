@@ -25,6 +25,7 @@ torrentSearchApiKt = "1.0.2"
 workRuntimeKtx = "2.11.2"
 secretsGradlePlugin = "2.0.1"
 androidxBrowser = "1.10.0"
+paging = "3.5.1"
 
 [libraries]
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "androidxBrowser" }
@@ -42,6 +43,7 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "roomRuntime" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomCompiler" }
+androidx-room-paging = { group = "androidx.room", name = "room-paging", version.ref = "roomRuntime" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
@@ -55,6 +57,8 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 moshi-kotlin = { group = "com.squareup.moshi", name = "moshi-kotlin", version.ref = "moshiKotlin" }
 moshi-kotlin-codegen = { group = "com.squareup.moshi", name = "moshi-kotlin-codegen", version.ref = "moshiKotlinCodegen" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
+androidx-paging-runtime = { group = "androidx.paging", name = "paging-runtime", version.ref = "paging" }
+androidx-paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
 torrent-search-api-kt = { module = "com.github.felixbrucker:torrent-search-api-kt", version.ref = "torrentSearchApiKt" }
 
 [plugins]

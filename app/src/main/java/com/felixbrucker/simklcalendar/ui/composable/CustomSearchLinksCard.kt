@@ -39,13 +39,13 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
 fun CustomSearchLinksCard(
-    viewModel: CalendarViewModel,
+    allSearchLinks: List<CustomSearchLink>,
     title: String,
     titleRomaji: String?,
     itemType: MediaType,
@@ -56,7 +56,6 @@ fun CustomSearchLinksCard(
     context: Context,
     modifier: Modifier = Modifier,
 ) {
-    val allSearchLinks by viewModel.customSearchLinks.collectAsState()
     // Matching Custom Search Links
     val matchingSearchLinks = remember(allSearchLinks, itemType) {
         allSearchLinks.filter { it.associatedTypes.contains(itemType) }

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.util.Log
 import com.felixbrucker.simklcalendar.BuildConfig
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
+import com.felixbrucker.simklcalendar.data.database.WatchlistWithStats
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
@@ -54,7 +55,11 @@ import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import kotlinx.coroutines.delay
+import java.time.temporal.ChronoUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -81,6 +86,66 @@ class SimklRepository(private val context: Context) {
     val watchedEpisodes: Flow<List<WatchedEpisode>> = watchedDao.getAllWatchedEpisodesFlow()
     val customSearchLinks: Flow<List<CustomSearchLink>> = searchLinkDao.getAllSearchLinks()
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = watchlistDao.getAllTrackedItemsFlow()
+
+    fun getCalendarPaged(
+        showEarlier: Boolean,
+        showTv: Boolean,
+        showAnime: Boolean,
+        showMovies: Boolean,
+        hasSubtypeFilter: Boolean,
+        premieres: Boolean,
+        finales: Boolean,
+        digitalDvd: Boolean,
+        query: String
+    ): Flow<PagingData<CalendarItemWithWatchlist>> {
+        return Pager(
+            config = PagingConfig(pageSize = 50, enablePlaceholders = false),
+            pagingSourceFactory = {
+                calendarDao.getPagedCalendarItems(
+                    todayStart = Instant.now().truncatedTo(ChronoUnit.DAYS),
+                    showEarlier = showEarlier,
+                    showTv = showTv,
+                    showAnime = showAnime,
+                    showMovies = showMovies,
+                    hasSubtypeFilter = hasSubtypeFilter,
+                    premieres = premieres,
+                    finales = finales,
+                    digitalDvd = digitalDvd,
+                    query = query.trim()
+                )
+            }
+        ).flow
+    }
+
+    fun hasEarlierReleases(): Flow<Boolean> {
+        return calendarDao.hasEarlierReleases(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.DAYS))
+    }
+
+    fun getWatchlistPaged(
+        showTv: Boolean,
+        showAnime: Boolean,
+        showMovies: Boolean,
+        onlyUnwatchedReleased: Boolean,
+        query: String,
+        sortField: String,
+        isDesc: Boolean
+    ): Flow<PagingData<WatchlistWithStats>> {
+        return Pager(
+            config = PagingConfig(pageSize = 30, enablePlaceholders = false),
+            pagingSourceFactory = {
+                watchlistDao.getPagedWatchlistItems(
+                    now = Instant.now(),
+                    showTv = showTv,
+                    showAnime = showAnime,
+                    showMovies = showMovies,
+                    onlyUnwatchedReleased = onlyUnwatchedReleased,
+                    query = query.trim(),
+                    sortField = sortField,
+                    isDesc = if (isDesc) 1 else 0
+                )
+            }
+        ).flow
+    }
 
     suspend fun saveItemDownloadSettings(settings: ItemDownloadSettings) = withContext(Dispatchers.IO) {
         itemDownloadSettingsDao.insertOrUpdate(settings)
@@ -216,8 +281,7 @@ class SimklRepository(private val context: Context) {
         withDelay: Duration = 50.milliseconds,
         onProgress: (current: Int, total: Int, itemTitle: String, success: Boolean) -> Unit = { _, _, _, _ -> }
     ) = withContext(Dispatchers.IO) {
-        val items = calendarItems.first()
-        val wantedItems = items.filter { it.mediaStatus == MediaStatus.WANTED }
+        val wantedItems = calendarDao.getWantedItems()
 
         if (wantedItems.isEmpty()) return@withContext
 
@@ -463,33 +527,12 @@ class SimklRepository(private val context: Context) {
         if (trackedShows.isEmpty()) return@withContext SyncResult()
 
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
-        val existingDbItems = calendarDao.getAllCalendarEntities()
-        val existingItemsMap = existingDbItems.associateBy { it.primaryKey }
-        val allWatchedList = watchedDao.getAllWatchedEpisodes()
-        val watchedLookup = allWatchedList.groupBy { it.simklId }
-
         val allSettings = itemDownloadSettingsDao.getAllSettingsList()
         val settingsMap = allSettings.associateBy { it.simklId }
 
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
         val localStatesToInsert = mutableListOf<LocalItemState>()
-
-        fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
-            val existing = existingItemsMap[newItem.primaryKey]
-            if (existing == null) {
-                val currentInsert = itemsToInsert[newItem.primaryKey]
-                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
-                localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
-                return
-            }
-
-            val base = itemsToUpdate[newItem.primaryKey] ?: existing
-            val updated = base.updatedWith(newItem)
-            if (updated != base) {
-                itemsToUpdate[newItem.primaryKey] = updated
-            }
-        }
 
         coroutineScope {
             val deferred = trackedShows.map { show ->
@@ -514,7 +557,24 @@ class SimklRepository(private val context: Context) {
             for ((show, episodes) in results) {
                 if (episodes == null) continue
 
-                val showWatchedList = watchedLookup[show.simklId]
+                val showCalendarItems = calendarDao.getCalendarEntitiesForShow(show.simklId).associateBy { it.primaryKey }
+                val showWatchedList = watchedDao.getWatchedEpisodesForShow(show.simklId)
+
+                fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
+                    val existing = showCalendarItems[newItem.primaryKey]
+                    if (existing == null) {
+                        val currentInsert = itemsToInsert[newItem.primaryKey]
+                        itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+                        localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
+                        return
+                    }
+
+                    val base = itemsToUpdate[newItem.primaryKey] ?: existing
+                    val updated = base.updatedWith(newItem)
+                    if (updated != base) {
+                        itemsToUpdate[newItem.primaryKey] = updated
+                    }
+                }
 
                 for (ep in episodes) {
                     // Only regular episodes (no specials) and already aired
@@ -527,7 +587,7 @@ class SimklRepository(private val context: Context) {
 
                     val keyUnique = "v2_${show.simklId}_${seasonNum}_${epNum}"
 
-                    val watchedEntry = showWatchedList?.firstOrNull {
+                    val watchedEntry = showWatchedList.firstOrNull {
                         it.season == seasonNum && it.episodeNumber == epNum
                     }
                     val epWatchedTimestamp = watchedEntry?.watchedAt
@@ -738,13 +798,13 @@ class SimklRepository(private val context: Context) {
                     calendarDao.markAllUnwatched()
                 } else {
                     // Remove any WatchedEpisode entities in our DB that aren't present in the list returned by the API
-                    val existingWatched = watchedDao.getAllWatchedEpisodes()
-                    val newWatchedEpisodesBySimklId = newWatchedEpisodes.groupBy { it.simklId }
-                    val existingWatchedBySimklId = existingWatched.groupBy { it.simklId }
+                    val simklIdsToSync = newWatchedEpisodes.map { it.simklId }.distinct()
                     val allWatchedToRemove = mutableListOf<WatchedEpisode>()
-                    newWatchedEpisodesBySimklId.forEach { (simklId, newWatchedEpisodes) ->
-                        val existingEpisodes = existingWatchedBySimklId[simklId] ?: emptyList()
-                        val newWatchedKeys = newWatchedEpisodes.map { "${it.simklId}_${it.season}_${it.episodeNumber}" }.toSet()
+
+                    for (simklId in simklIdsToSync) {
+                        val existingEpisodes = watchedDao.getWatchedEpisodesForShow(simklId)
+                        val newWatchedForShow = newWatchedEpisodes.filter { it.simklId == simklId }
+                        val newWatchedKeys = newWatchedForShow.map { "${it.simklId}_${it.season}_${it.episodeNumber}" }.toSet()
                         val watchedToRemove = existingEpisodes.filter {
                             "${it.simklId}_${it.season}_${it.episodeNumber}" !in newWatchedKeys
                         }
@@ -778,14 +838,8 @@ class SimklRepository(private val context: Context) {
                 }
 
                 // Remove calendar items for shows no longer tracked
-                val allTracked = watchlistDao.getAllTrackedItems()
-                val trackedIds = allTracked.map { it.simklId }.toSet()
-                val existingCalendar = calendarDao.getAllCalendarEntities()
-                val itemsToRemove = existingCalendar.filter { !trackedIds.contains(it.simklId) }
-                if (itemsToRemove.isNotEmpty()) {
-                    calendarDao.deleteCalendarItems(itemsToRemove)
-                    Log.d("SimklRepository", "Deleted ${itemsToRemove.size} untracked calendar items during watchlist sync")
-                }
+                calendarDao.deleteUntrackedCalendarItems()
+
 
                 if (!currentActivitiesTimestamp.isNullOrEmpty()) {
                     syncPrefs.edit { putString("last_activities_all", currentActivitiesTimestamp) }
@@ -833,36 +887,12 @@ class SimklRepository(private val context: Context) {
             return@withContext SyncResult()
         }
 
-        // Load all watched episodes to match with calendar entries
-        val allWatchedList = watchedDao.getAllWatchedEpisodes()
-        val watchedLookup = allWatchedList.groupBy { it.simklId }
-
         val allSettings = itemDownloadSettingsDao.getAllSettingsList()
         val settingsMap = allSettings.associateBy { it.simklId }
 
-        // Load existing local calendar items to perform incremental diff comparison
-        val existingDbItems = calendarDao.getAllCalendarEntities()
-        val existingItemsMap = existingDbItems.associateBy { it.primaryKey }
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
         val localStatesToInsert = mutableListOf<LocalItemState>()
-
-        fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
-            val existing = existingItemsMap[newItem.primaryKey]
-            if (existing == null) {
-                val currentInsert = itemsToInsert[newItem.primaryKey]
-                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
-                localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
-                return
-            }
-
-            val base = itemsToUpdate[newItem.primaryKey] ?: existing
-            val updated = base.updatedWith(newItem)
-            if (updated != base) {
-                itemsToUpdate[newItem.primaryKey] = updated
-            }
-        }
-
         val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
 
         fun processTrackedItem(newItem: TrackedWatchlistItem) {
@@ -876,6 +906,7 @@ class SimklRepository(private val context: Context) {
         }
 
         val sixHoursMillis = 6 * 60 * 60 * 1000L
+
         val nowMillis = System.currentTimeMillis()
         val oneMonthAgo = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS)
 
@@ -944,6 +975,26 @@ class SimklRepository(private val context: Context) {
                     if (entries.isEmpty()) continue
 
                     val metadataMap = calendarResponse.metadata
+
+                    val responseSimklIds = entries.map { it.simklId }.toSet()
+                    val existingShowCalendarItems = calendarDao.getCalendarEntitiesForIds(responseSimklIds).associateBy { it.primaryKey }
+                    val showWatchedLookup = watchedDao.getWatchedEpisodesForIds(responseSimklIds).groupBy { it.simklId }
+
+                    fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
+                        val existing = existingShowCalendarItems[newItem.primaryKey]
+                        if (existing == null) {
+                            val currentInsert = itemsToInsert[newItem.primaryKey]
+                            itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+                            localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
+                            return
+                        }
+
+                        val base = itemsToUpdate[newItem.primaryKey] ?: existing
+                        val updated = base.updatedWith(newItem)
+                        if (updated != base) {
+                            itemsToUpdate[newItem.primaryKey] = updated
+                        }
+                    }
 
                     for (entry in entries) {
                         val simklId = entry.simklId
@@ -1037,8 +1088,8 @@ class SimklRepository(private val context: Context) {
 
                             val keyUnique = "v2_${simklId}_${seasonNum}_${epNum}"
 
-                            val showWatchedList = watchedLookup[simklId]
-                            val watchedEntry = showWatchedList?.firstOrNull {
+                            val showWatchedList = showWatchedLookup[simklId] ?: emptyList()
+                            val watchedEntry = showWatchedList.firstOrNull {
                                 it.season == seasonNum && it.episodeNumber == epNum
                             }
                             val epWatchedTimestamp = watchedEntry?.watchedAt
@@ -1081,15 +1132,36 @@ class SimklRepository(private val context: Context) {
 
         // Fetch movie details for all tracked movies missing either theatrical or DVD/digital release dates
         val candidateMovieIds = trackedMovieIds
+        val existingMovieItems = calendarDao.getCalendarEntitiesForIds(candidateMovieIds).groupBy { it.simklId }
 
         val moviesNeedingDetails = candidateMovieIds.filter { movieId ->
-            val hasDigital = existingItemsMap.containsKey("v2_${movieId}_digital") || itemsToInsert.containsKey("v2_${movieId}_digital")
-            val hasTheater = existingItemsMap.containsKey("v2_${movieId}_theater") || itemsToInsert.containsKey("v2_${movieId}_theater")
+            val movieCalendar = existingMovieItems[movieId] ?: emptyList()
+            val hasDigital = movieCalendar.any { it.primaryKey == "v2_${movieId}_digital" } || itemsToInsert.containsKey("v2_${movieId}_digital")
+            val hasTheater = movieCalendar.any { it.primaryKey == "v2_${movieId}_theater" } || itemsToInsert.containsKey("v2_${movieId}_theater")
             !hasDigital || !hasTheater
         }
 
         if (moviesNeedingDetails.isNotEmpty()) {
             Log.d("SimklRepository", "Fetching details for ${moviesNeedingDetails.size} movies missing release dates")
+
+            // Local helper to process items during movie detail fetch
+            fun processMovieCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus, movieId: Int) {
+                val movieCalendar = existingMovieItems[movieId] ?: emptyList()
+                val existing = movieCalendar.firstOrNull { it.primaryKey == newItem.primaryKey }
+                if (existing == null) {
+                    val currentInsert = itemsToInsert[newItem.primaryKey]
+                    itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+                    localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
+                    return
+                }
+
+                val base = itemsToUpdate[newItem.primaryKey] ?: existing
+                val updated = base.updatedWith(newItem)
+                if (updated != base) {
+                    itemsToUpdate[newItem.primaryKey] = updated
+                }
+            }
+
             for (movieId in moviesNeedingDetails) {
                 try {
                     val movieDetail = apiService.getMovieDetails(
@@ -1116,7 +1188,7 @@ class SimklRepository(private val context: Context) {
                                 isTheaterRelease = true,
                                 isWatched = false,
                             )
-                            processCalendarItem(
+                            processMovieCalendarItem(
                                 CalendarItem(
                                     primaryKey = "v2_${movieId}_theater",
                                     simklId = movieId,
@@ -1128,7 +1200,8 @@ class SimklRepository(private val context: Context) {
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
                                 ),
-                                initialStatus = status
+                                initialStatus = status,
+                                movieId = movieId
                             )
                         }
                     }
@@ -1143,7 +1216,7 @@ class SimklRepository(private val context: Context) {
                                 isTheaterRelease = false,
                                 isWatched = false,
                             )
-                            processCalendarItem(
+                            processMovieCalendarItem(
                                 CalendarItem(
                                     primaryKey = "v2_${movieId}_digital",
                                     simklId = movieId,
@@ -1155,7 +1228,8 @@ class SimklRepository(private val context: Context) {
                                     isSeasonPremiere = false,
                                     isSeasonFinale = false,
                                 ),
-                                initialStatus = status
+                                initialStatus = status,
+                                movieId = movieId
                             )
                         }
                     }
@@ -1165,15 +1239,8 @@ class SimklRepository(private val context: Context) {
             }
         }
 
-        // Identify items that are no longer tracked in user's watchlist
-        val itemsToDelete = existingDbItems.filter { item ->
-            !allTrackedIds.contains(item.simklId)
-        }
-
-        if (itemsToDelete.isNotEmpty()) {
-            calendarDao.deleteCalendarItems(itemsToDelete)
-            Log.d("SimklRepository", "Deleted ${itemsToDelete.size} untracked calendar items from DB")
-        }
+        // Remove Untracked calendar items
+        calendarDao.deleteUntrackedCalendarItems()
 
         if (trackedToUpdate.isNotEmpty()) {
             watchlistDao.updateItems(trackedToUpdate.values.toList())
@@ -1192,12 +1259,13 @@ class SimklRepository(private val context: Context) {
         // Cleanup any old watched items from calendar table
         cleanupOldWatchedCalendarItems()
 
-        val totalCalendarItemDbChanges = itemsToDelete.size + itemsToInsert.size + itemsToUpdate.size
+        val totalCalendarItemDbChanges = itemsToInsert.size + itemsToUpdate.size
         if (totalCalendarItemDbChanges == 0) {
             Log.d("SimklRepository", "Calendar sync complete: no changes detected, skipped DB writes")
         } else {
-            Log.d("SimklRepository", "Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated, ${itemsToDelete.size} deleted)")
+            Log.d("SimklRepository", "Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         }
+
 
         // Initialize default notification settings for newly inserted shows
         if (itemsToInsert.isNotEmpty()) {

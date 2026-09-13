@@ -159,6 +159,18 @@ data class CalendarItemWithWatchlist(
     val notificationId: Int get() = abs(primaryKey.hashCode())
 }
 
+data class WatchlistWithStats(
+    @Embedded val watchlistItem: TrackedWatchlistItem,
+    val hasUnwatched: Boolean,
+    val hasUnwatchedReleased: Boolean,
+    val nextEpisodeDate: Instant?,
+    val lastAiredDate: Instant?,
+    val watchedReleasedCount: Int,
+    val totalReleasedCount: Int,
+    val downloadedReleasedCount: Int,
+    val totalDownloadableReleasedCount: Int
+)
+
 @Entity(tableName = "watched_episodes", primaryKeys = ["simklId", "season", "episodeNumber"])
 data class WatchedEpisode(
     val simklId: Int,

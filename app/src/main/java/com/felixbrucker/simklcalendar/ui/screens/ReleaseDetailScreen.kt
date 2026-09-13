@@ -38,7 +38,9 @@ import com.felixbrucker.simklcalendar.data.util.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.ReleaseDetailViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
@@ -50,11 +52,11 @@ import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ReleaseDetailScreen(
-    viewModel: CalendarViewModel,
     itemKey: String,
     onNavigateBack: () -> Unit,
     onNavigateToWatchlistItem: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: ReleaseDetailViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -62,10 +64,34 @@ fun ReleaseDetailScreen(
     val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 600.dp
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val allItems by viewModel.allCalendarItems.collectAsState()
-    val allWatchedEpisodes by viewModel.watchedEpisodes.collectAsState()
+    
+    var activeItemKey by remember(itemKey) { mutableStateOf(itemKey) }
+    
+    val activeItemState = viewModel.getCalendarItem(activeItemKey).collectAsState(null)
+    val activeItem = activeItemState.value
+    
+    val showScheduleItems by remember(activeItem) {
+        if (activeItem != null) {
+            viewModel.getCalendarItemsForShow(activeItem.simklId)
+        } else {
+            flowOf(emptyList())
+        }
+    }.collectAsState(emptyList())
+
+    val showWatched by remember(activeItem) {
+        if (activeItem != null) {
+            viewModel.getWatchedEpisodesForShow(activeItem.simklId)
+        } else {
+            flowOf(emptyList())
+        }
+    }.collectAsState(emptyList())
+
     val isMarkingWatched by viewModel.isMarkingWatched.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
+    
+    val torrentDownloads by viewModel.torrentDownloads.collectAsState()
+    val notificationSettings by viewModel.notificationSettings.collectAsState()
+    val customSearchLinks by viewModel.customSearchLinks.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -76,32 +102,6 @@ fun ReleaseDetailScreen(
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
-        }
-    }
-
-    var activeItemKey by remember(itemKey) { mutableStateOf(itemKey) }
-
-    val activeItem = remember(allItems, activeItemKey, itemKey) {
-        allItems.firstOrNull { it.primaryKey == activeItemKey }
-            ?: allItems.firstOrNull { it.simklId.toString() == activeItemKey }
-            ?: allItems.firstOrNull { it.primaryKey == itemKey }
-            ?: allItems.firstOrNull { it.simklId.toString() == itemKey }
-    }
-
-    val showScheduleItems = remember(allItems, activeItem) {
-        if (activeItem != null) {
-            allItems.filter { it.simklId == activeItem.simklId }
-                .sortedWith(compareBy<CalendarItemWithWatchlist> { it.date }.thenBy { it.season }.thenBy { it.episodeNumber })
-        } else {
-            emptyList()
-        }
-    }
-
-    val showWatched = remember(allWatchedEpisodes, activeItem) {
-        if (activeItem != null) {
-            allWatchedEpisodes.filter { it.simklId == activeItem.simklId }
-        } else {
-            emptyList()
         }
     }
 
@@ -452,8 +452,7 @@ fun ReleaseDetailScreen(
                                     viewModel.markSeasonWatched(
                                         simklId = activeItem.simklId,
                                         season = sNum,
-                                        mediaType = activeItem.type,
-                                        showTitle = activeItem.title
+                                        mediaType = activeItem.type
                                     ) { success, msg ->
                                         if (success) {
                                             scope.launch {
@@ -466,8 +465,7 @@ fun ReleaseDetailScreen(
                                                     viewModel.markSeasonUnwatched(
                                                         simklId = activeItem.simklId,
                                                         season = sNum,
-                                                        mediaType = activeItem.type,
-                                                        showTitle = activeItem.title
+                                                        mediaType = activeItem.type
                                                     ) { _, revertMsg ->
                                                         scope.launch { snackbarHostState.showSnackbar(revertMsg) }
                                                     }
@@ -526,7 +524,7 @@ fun ReleaseDetailScreen(
                     }
 
                     CustomSearchLinksCard(
-                        viewModel = viewModel,
+                        allSearchLinks = customSearchLinks,
                         title = activeItem.title,
                         titleRomaji = activeItem.titleRomaji,
                         itemType = activeItem.type,
