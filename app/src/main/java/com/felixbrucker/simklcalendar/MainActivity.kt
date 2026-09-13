@@ -37,7 +37,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker
 import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
-import com.felixbrucker.simklcalendar.ui.screens.CalendarScreen
+import com.felixbrucker.simklcalendar.ui.screens.MainScreen
 import com.felixbrucker.simklcalendar.ui.screens.LoginScreen
 import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen
@@ -239,7 +239,7 @@ fun SimklCalendarApp(
 
             // 2. Calendar Schedule Dashboard
             composable("calendar") {
-                CalendarScreen(
+                MainScreen(
                     viewModel = viewModel,
                     onNavigateToSettings = {
                         navController.navigate("settings") {
