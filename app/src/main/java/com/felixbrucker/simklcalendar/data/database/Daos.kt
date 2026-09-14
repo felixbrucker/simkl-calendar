@@ -35,8 +35,14 @@ interface CalendarItemDao {
     suspend fun getAllCalendarItemsList(): List<CalendarItemWithWatchlist>
 
     @Transaction
-    @Query("SELECT * FROM calendar_items WHERE date > :now ORDER BY date ASC")
-    suspend fun getAllUpcomingCalendarItems(now: Instant): List<CalendarItemWithWatchlist>
+    @Query("""
+        SELECT ci.* FROM calendar_items ci 
+        LEFT JOIN local_item_state lis ON ci.primaryKey = lis.primaryKey 
+        WHERE ci.date > :now 
+        OR (ci.date <= :now AND lis.mediaStatus = 'NOT_AIRED_YET')
+        ORDER BY ci.date ASC
+        """)
+    suspend fun getCalendarItemsForAiredAlarm(now: Instant): List<CalendarItemWithWatchlist>
 
     @Query("SELECT * FROM calendar_items ORDER BY date ASC")
     suspend fun getAllCalendarEntities(): List<CalendarItem>
