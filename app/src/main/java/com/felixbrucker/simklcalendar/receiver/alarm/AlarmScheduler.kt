@@ -40,7 +40,7 @@ class AlarmScheduler {
             val triggerAt = if (item.type == MediaType.MOVIE) {
                 item.date.atZone(ZoneId.systemDefault())
                     .toLocalDate()
-                    .atTime(9, 0)
+                    .atTime(0, 0)
                     .atZone(ZoneId.systemDefault())
                     .toInstant()
             } else {
