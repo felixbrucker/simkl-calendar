@@ -55,6 +55,7 @@ import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import kotlinx.coroutines.delay
+import java.time.temporal.ChronoUnit
 import java.util.Calendar
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -447,7 +448,7 @@ class SimklRepository(private val context: Context) {
         val sameMonth = nowCal.get(Calendar.YEAR) == lastCal.get(Calendar.YEAR) &&
                 nowCal.get(Calendar.MONTH) == lastCal.get(Calendar.MONTH)
 
-        val oneDayAgo = now.minus(1, java.time.temporal.ChronoUnit.DAYS)
+        val oneDayAgo = now.minus(1, ChronoUnit.DAYS)
         val moreThanOneDayAgo = lastSyncInstant.isBefore(oneDayAgo)
 
         // Logic: Sync when month changed AND more than 1 day since last sync
@@ -508,7 +509,7 @@ class SimklRepository(private val context: Context) {
             }
 
             val results = deferred.awaitAll()
-            val oneMonthAgo = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS)
+            val oneMonthAgo = Instant.now().minus(30, ChronoUnit.DAYS)
 
             for ((show, episodes) in results) {
                 if (episodes == null) continue
@@ -586,7 +587,7 @@ class SimklRepository(private val context: Context) {
      */
     suspend fun cleanupOldWatchedCalendarItems(cutoffDays: Long = 30): Int = withContext(Dispatchers.IO) {
         try {
-            val cutoff = Instant.now().minus(cutoffDays, java.time.temporal.ChronoUnit.DAYS)
+            val cutoff = Instant.now().minus(cutoffDays, ChronoUnit.DAYS)
             val deletedCount = calendarDao.deleteWatchedItemsOlderThan(cutoff)
             if (deletedCount > 0) {
                 Log.d("SimklRepository", "Cleaned up $deletedCount old watched calendar items (watched over $cutoffDays days ago)")
@@ -879,7 +880,7 @@ class SimklRepository(private val context: Context) {
 
         val sixHoursMillis = 6 * 60 * 60 * 1000L
         val nowMillis = System.currentTimeMillis()
-        val oneMonthAgo = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS)
+        val oneMonthAgo = Instant.now().minus(30, ChronoUnit.DAYS)
 
         // 2. Fetch CDN Calendars for current month plus next 3 months (0..3) (TV, Anime, Movies) from data.simkl.in
         val currentCal = Calendar.getInstance()
