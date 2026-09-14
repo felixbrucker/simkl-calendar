@@ -3,7 +3,6 @@ package com.felixbrucker.simklcalendar.data.util
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -43,36 +42,38 @@ object DateUtil {
      * Parses an ISO 8601 date/time string into a native Instant object.
      * Uses standard ISO 8601 parsers without manual string slicing:
      * - Standard ISO 8601 UTC / Offset timestamps (e.g. "2026-08-22T20:30:00Z", "2026-08-22T20:30:00+00:00")
-     * - Date-only strings (e.g. movie DVD release date "2026-08-22")
+     * - Date-only strings (e.g. movie DVD release date "2026-08-22", "08/22/2026")
      * - ISO date-time variations with space separator (e.g. "2026-08-22 20:30:00")
      */
     fun parseToInstant(rawDateStr: String?): Instant? {
         if (rawDateStr.isNullOrBlank()) return null
         val trimmed = rawDateStr.trim()
         return try {
+            // Try parsing from ISO 8601 UTC / Offset timestamps
             Instant.parse(trimmed)
         } catch (_: Exception) {
             try {
-                OffsetDateTime.parse(trimmed).toInstant()
+                // Date-only (ISO 8601: "2026-08-22") or non-standard ("08/22/2026")
+                val localDate = if (trimmed.contains("/")) {
+                    LocalDate.parse(trimmed, DateTimeFormatter.ofPattern("MM/dd/yyyy"))
+                } else {
+                    LocalDate.parse(trimmed)
+                }
+                localDate.atStartOfDay(ZoneId.systemDefault()).toInstant()
             } catch (_: Exception) {
                 try {
-                    // Date-only ISO format (e.g., movie DVD release date "2026-08-22")
-                    LocalDate.parse(trimmed).atStartOfDay(ZoneId.systemDefault()).toInstant()
-                } catch (_: Exception) {
-                    try {
-                        val isoFormatted = trimmed.replace(" ", "T")
-                        if (isoFormatted.contains("T")) {
-                            if (!isoFormatted.endsWith("Z") && !isoFormatted.contains("+") && !isoFormatted.substringAfter("T").contains("-")) {
-                                LocalDateTime.parse(isoFormatted).atZone(ZoneOffset.UTC).toInstant()
-                            } else {
-                                Instant.parse(isoFormatted)
-                            }
+                    val isoFormatted = trimmed.replace(" ", "T")
+                    if (isoFormatted.contains("T")) {
+                        if (!isoFormatted.endsWith("Z") && !isoFormatted.contains("+") && !isoFormatted.substringAfter("T").contains("-")) {
+                            LocalDateTime.parse(isoFormatted).atZone(ZoneOffset.UTC).toInstant()
                         } else {
-                            null
+                            Instant.parse(isoFormatted)
                         }
-                    } catch (_: Exception) {
+                    } else {
                         null
                     }
+                } catch (_: Exception) {
+                    null
                 }
             }
         }
