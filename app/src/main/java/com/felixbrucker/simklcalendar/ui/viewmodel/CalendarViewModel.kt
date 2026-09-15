@@ -316,7 +316,6 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val sortDirection = flows[8] as SortDirection
 
         // Pre-group calendar items by simklId upfront to convert lookup complexity from O(N*M) to O(N+M).
-        // Thread safety: calendarBySimklId is a local immutable map scoped to this pure combine block.
         val calendarBySimklId = calendar.groupBy { it.simklId }
 
         watchlist.map { item ->
