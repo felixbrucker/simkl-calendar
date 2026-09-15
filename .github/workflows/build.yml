@@ -84,6 +84,8 @@ jobs:
           min-coverage-changed-files: 0
           title: 'Coverage Report'
           update-comment: true
+          pass-if-no-measurements: true
+          base-coverage-report-path: ${{ github.workspace }}/base-coverage/report.xml
 
       - name: Build Release APK
         env:
