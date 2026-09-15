@@ -19,6 +19,16 @@ Whenever modifying the Room database or entities in this project:
 3. **Data Safety**:
    - Never enable destructive migrations. Always write non-destructive migrations to preserve user data.
 
+## Test Generation & Structure
+
+When writing or modifying tests, you MUST follow these guidelines to ensure comprehensive coverage and readability:
+
+* **Exhaustive Path Coverage:** Never test just a single code path. You must generate tests for **all** possible code paths within the target method. 
+* **Branch Testing:** If the method contains conditional logic (e.g., `if`/`else`, `when` statements), you must explicitly write tests that cover every possible case and outcome.
+* **Strict 3-Section Pattern:** Every test must be structured into three clearly separated sections (Arrange, Act, Assert):
+  1. **Setup:** Configure only the state and variables specific to what this exact test is verifying. *Note: Generic setup that applies to multiple tests must be abstracted into `before` hooks (or equivalent setup methods).*
+  2. **Execution:** Call the target method being tested.
+  3. **Verification:** Assert and verify the expected results or state changes.
 
 ## Google Jules Agent Environment Setup
 
