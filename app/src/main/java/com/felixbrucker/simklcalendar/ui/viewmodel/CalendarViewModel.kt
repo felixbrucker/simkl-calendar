@@ -315,10 +315,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val sortField = flows[7] as TableSortField
         val sortDirection = flows[8] as SortDirection
 
-        // Performance Optimization (Bolt ⚡):
-        // Group calendar items by simklId upfront to avoid doing an O(N) list search for every item in watchlist.
-        // This converts the lookup complexity from O(N * M) (up to ~1,000,000 operations) to O(N + M) (~2,500 operations).
-        // Thread safety: calendarBySimklId is a thread-safe local immutable map instance scoped strictly to this pure combine transform block.
+        // Pre-group calendar items by simklId upfront to convert lookup complexity from O(N*M) to O(N+M).
+        // Thread safety: calendarBySimklId is a local immutable map scoped to this pure combine block.
         val calendarBySimklId = calendar.groupBy { it.simklId }
 
         watchlist.map { item ->
