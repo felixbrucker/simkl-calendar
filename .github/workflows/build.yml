@@ -80,12 +80,10 @@ jobs:
         with:
           paths: ${{ github.workspace }}/app/build/reports/kover/report.xml
           token: ${{ secrets.GITHUB_TOKEN }}
-          min-coverage-overall: 0
+          min-coverage-overall: 90
           min-coverage-changed-files: 0
           title: 'Coverage Report'
           update-comment: true
-          pass-if-no-measurements: true
-          base-coverage-report-path: ${{ github.workspace }}/base-coverage/report.xml
 
       - name: Build Release APK
         env:
