@@ -315,8 +315,11 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val sortField = flows[7] as TableSortField
         val sortDirection = flows[8] as SortDirection
 
+        // Pre-group calendar items by simklId upfront to convert lookup complexity from O(N*M) to O(N+M).
+        val calendarBySimklId = calendar.groupBy { it.simklId }
+
         watchlist.map { item ->
-            val itemCalendar = calendar.filter { it.simklId == item.simklId }
+            val itemCalendar = calendarBySimklId[item.simklId] ?: emptyList()
             val now = Instant.now()
             val releasedItems = itemCalendar.filter { it.date.isBefore(now) }
 
