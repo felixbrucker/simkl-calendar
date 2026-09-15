@@ -76,6 +76,29 @@ ksp {
   arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+kover {
+  reports {
+    filters {
+      excludes {
+        classes(
+          "*.BuildConfig",
+          "*_*",
+          "*JsonAdapter*",
+          "com.felixbrucker.torrenthttpdownloader.*",
+          "com.felixbrucker.simklcalendar.ui.composable.*",
+          "com.felixbrucker.simklcalendar.ui.screens.*",
+          "com.felixbrucker.simklcalendar.ui.theme.*",
+          "com.felixbrucker.simklcalendar.MainActivity*",
+          "com.felixbrucker.simklcalendar.receiver.download.*",
+          "com.felixbrucker.simklcalendar.receiver.notification.*",
+          "com.felixbrucker.simklcalendar.receiver.startup.*",
+          "com.felixbrucker.simklcalendar.worker.*"
+        )
+      }
+    }
+  }
+}
+
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
