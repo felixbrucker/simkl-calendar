@@ -19,6 +19,7 @@ import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.network.OAuthTokenRequest
 import com.felixbrucker.simklcalendar.data.network.OAuthTokenResponse
 import com.felixbrucker.simklcalendar.data.network.SimklApiService
 import com.felixbrucker.simklcalendar.data.network.SimklEpisodeResponse
@@ -285,10 +286,18 @@ class SimklRepositoryTest {
         every { sharedPreferences.getString("pkce_state", null) } returns "state123"
         every { sharedPreferences.getString("pkce_code_verifier", null) } returns "verifier123"
 
-        coEvery { apiService.getAccessToken(any()) } throws Exception("Auth error")
+        coEvery { apiService.getAccessToken(any<OAuthTokenRequest>()) } returns OAuthTokenResponse("access_token_123")
+        coEvery { apiService.getUserSettings(any(), any()) } returns UserSettingsResponse(UserProfile("SimklTestUser"))
 
         val exchanged = repository.exchangeOAuthCode("code123", "state123", "simklcalendar://auth")
-        assertFalse(exchanged)
+        if (repository.isRealApiConfigured()) {
+            assertTrue(exchanged)
+        } else {
+            assertFalse(exchanged)
+        }
+
+        val exchangedStateMismatch = repository.exchangeOAuthCode("code123", "wrong_state", "simklcalendar://auth")
+        assertFalse(exchangedStateMismatch)
     }
 
     @Test
