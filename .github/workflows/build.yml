@@ -10,11 +10,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pull-requests: write
 
 jobs:
   build:
-    name: Build APK
+    name: Build APK & Coverage Report
     runs-on: ubuntu-latest
 
     steps:
@@ -51,10 +52,40 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
           fi
 
-      - name: Run Unit Tests
+      - name: Run Unit Tests and Generate Coverage Report
         run: |
           chmod +x ./gradlew
-          ./gradlew test --stacktrace
+          ./gradlew test koverXmlReport --stacktrace
+
+      - name: Upload Kover Coverage Report Artifact
+        uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        with:
+          name: kover-coverage-report
+          path: app/build/reports/kover/report.xml
+
+      - name: Download Base Branch Coverage Artifact
+        uses: dawidd6/action-download-artifact@v9
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        with:
+          branch: ${{ github.base_ref }}
+          name: kover-coverage-report
+          path: base-coverage
+          workflow_conclusion: success
+
+      - name: Post Coverage Report Comment on Pull Request
+        uses: madrapps/jacoco-report@v1.7.1
+        if: github.event_name == 'pull_request' && !cancelled()
+        with:
+          paths: ${{ github.workspace }}/app/build/reports/kover/report.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 0
+          min-coverage-changed-files: 0
+          title: 'Coverage Report'
+          update-comment: true
+          pass-if-no-measurements: true
+          base-coverage-report-path: ${{ github.workspace }}/base-coverage/report.xml
 
       - name: Build Release APK
         env:
