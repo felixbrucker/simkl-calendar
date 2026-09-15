@@ -63,6 +63,10 @@ android {
     buildConfig = true
     aidl = true
   }
+
+  testOptions {
+    unitTests.isReturnDefaultValues = true
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -89,10 +93,6 @@ kover {
           "com.felixbrucker.simklcalendar.ui.screens.*",
           "com.felixbrucker.simklcalendar.ui.theme.*",
           "com.felixbrucker.simklcalendar.MainActivity*",
-          "com.felixbrucker.simklcalendar.receiver.download.*",
-          "com.felixbrucker.simklcalendar.receiver.notification.*",
-          "com.felixbrucker.simklcalendar.receiver.startup.*",
-          "com.felixbrucker.simklcalendar.worker.*"
         )
       }
     }
