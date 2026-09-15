@@ -129,18 +129,24 @@ fun MainScreen(
 
     // Separate earlier releases from today/upcoming releases
     val (earlierItems, upcomingItems) = remember(items) {
-        items.partition { DateUtil.isEarlierThanToday(it.date) }
+        val zone = java.time.ZoneId.systemDefault()
+        val today = java.time.LocalDate.now(zone)
+        items.partition { DateUtil.isEarlierThanToday(it.date, zone, today) }
     }
 
     val earlierGrouped = remember(earlierItems) {
+        val zone = java.time.ZoneId.systemDefault()
+        val today = java.time.LocalDate.now(zone)
         earlierItems.groupBy { item ->
-            DateUtil.formatAiringDateHeader(item.date)
+            DateUtil.formatAiringDateHeader(item.date, zone, today)
         }
     }
 
     val upcomingGrouped = remember(upcomingItems) {
+        val zone = java.time.ZoneId.systemDefault()
+        val today = java.time.LocalDate.now(zone)
         upcomingItems.groupBy { item ->
-            DateUtil.formatAiringDateHeader(item.date)
+            DateUtil.formatAiringDateHeader(item.date, zone, today)
         }
     }
 

@@ -105,6 +105,7 @@ dependencies {
   implementation(libs.retrofit)
   implementation(libs.torrent.search.api.kt)
   debugImplementation(libs.androidx.compose.ui.tooling)
+  testImplementation(libs.junit)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }

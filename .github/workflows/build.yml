@@ -51,6 +51,11 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
           fi
 
+      - name: Run Unit Tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew test --stacktrace
+
       - name: Build Release APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
