@@ -2,6 +2,7 @@ package com.felixbrucker.simklcalendar
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
@@ -39,6 +40,8 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -70,6 +73,12 @@ class SimklRepositoryTest {
 
     @Before
     fun setUp() {
+        mockkStatic(Log::class)
+        every { Log.d(any(), any()) } returns 0
+        every { Log.w(any(), any<String>()) } returns 0
+        every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
+
         context = mockk(relaxed = true)
         sharedPreferences = mockk(relaxed = true)
         appDatabase = mockk(relaxed = true)
@@ -107,6 +116,7 @@ class SimklRepositoryTest {
 
     @After
     fun tearDown() {
+        unmockkStatic(Log::class)
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
         field.set(null, null)
