@@ -19,9 +19,13 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import io.mockk.slot
 import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 import java.time.Instant
@@ -40,7 +44,8 @@ class AlarmSchedulerTest {
         every { Uri.parse(any()) } returns uri
 
         mockkStatic(PendingIntent::class)
-        every { PendingIntent.getBroadcast(any(), any(), any(), any()) } returns mockk(relaxed = true)
+        val pendingIntent = mockk<PendingIntent>(relaxed = true)
+        every { PendingIntent.getBroadcast(any(), any(), any(), any()) } returns pendingIntent
     }
 
     @After
@@ -58,7 +63,7 @@ class AlarmSchedulerTest {
             episodeTitle = "Ep 1",
             season = 1,
             episodeNumber = 1,
-            date = Instant.now(),
+            date = Instant.ofEpochMilli(1700000000000L),
             movieReleaseType = null,
             isSeasonPremiere = true,
             isSeasonFinale = false
@@ -73,11 +78,21 @@ class AlarmSchedulerTest {
         val item = CalendarItemWithWatchlist(calItem, watchItem, null)
 
         val context = mockk<Context>(relaxed = true)
-        item.makeItemAiredAlarmIntent(0, context)
+        val result = item.makeItemAiredAlarmIntent(0, context)
+        assertNotNull(result)
+
+        verify {
+            PendingIntent.getBroadcast(
+                context,
+                item.notificationId,
+                any<Intent>(),
+                0
+            )
+        }
     }
 
     @Test
-    fun testScheduleAllItemsAiredAlarms() {
+    fun testScheduleAllItemsAiredAlarmsInexact() {
         runBlocking {
             val context = mockk<Context>(relaxed = true)
             val alarmManager = mockk<AlarmManager>(relaxed = true)
@@ -87,15 +102,17 @@ class AlarmSchedulerTest {
 
             every { context.getSystemService(Context.ALARM_SERVICE) } returns alarmManager
             every { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) } returns sharedPreferences
+            every { sharedPreferences.getBoolean("use_exact_alarms", false) } returns false
             every { appDatabase.calendarItemDao() } returns calendarDao
 
+            val calDate = Instant.ofEpochMilli(1700000000000L)
             val calItem = CalendarItem(
                 primaryKey = "v2_100_1_1",
                 simklId = 100,
                 episodeTitle = "Ep 1",
                 season = 1,
                 episodeNumber = 1,
-                date = Instant.now(),
+                date = calDate,
                 movieReleaseType = null,
                 isSeasonPremiere = true,
                 isSeasonFinale = false
@@ -117,6 +134,20 @@ class AlarmSchedulerTest {
 
             try {
                 AlarmScheduler.scheduleAllItemsAiredAlarms(context)
+
+                // Verify alarm was scheduled with setAndAllowWhileIdle
+                val typeSlot = slot<Int>()
+                val triggerSlot = slot<Long>()
+                verify {
+                    alarmManager.setAndAllowWhileIdle(
+                        capture(typeSlot),
+                        capture(triggerSlot),
+                        any<PendingIntent>()
+                    )
+                }
+
+                assertEquals(AlarmManager.RTC_WAKEUP, typeSlot.captured)
+                assertEquals(1700000000000L, triggerSlot.captured)
             } finally {
                 field.set(null, null)
             }
