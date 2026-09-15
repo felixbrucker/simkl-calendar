@@ -57,23 +57,6 @@ jobs:
           chmod +x ./gradlew
           ./gradlew test koverXmlReport --stacktrace
 
-      - name: Upload Kover Coverage Report Artifact
-        uses: actions/upload-artifact@v7
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-        with:
-          name: kover-coverage-report
-          path: app/build/reports/kover/report.xml
-
-      - name: Download Base Branch Coverage Artifact
-        uses: dawidd6/action-download-artifact@v24
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        with:
-          branch: ${{ github.base_ref }}
-          name: kover-coverage-report
-          path: base-coverage
-          workflow_conclusion: success
-
       - name: Post Coverage Report Comment on Pull Request
         uses: madrapps/jacoco-report@v1.8.0
         if: github.event_name == 'pull_request' && !cancelled()
@@ -81,11 +64,9 @@ jobs:
           paths: ${{ github.workspace }}/app/build/reports/kover/report.xml
           token: ${{ secrets.GITHUB_TOKEN }}
           min-coverage-overall: 90
-          min-coverage-changed-files: 0
+          min-coverage-changed-files: 90
           title: 'Coverage Report'
           update-comment: true
-          pass-if-no-measurements: true
-          base-coverage-report-path: ${{ github.workspace }}/base-coverage/report.xml
 
       - name: Build Release APK
         env:
