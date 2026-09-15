@@ -317,31 +317,55 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
         // Pre-group calendar items by simklId upfront to convert lookup complexity from O(N*M) to O(N+M).
         val calendarBySimklId = calendar.groupBy { it.simklId }
+        val now = Instant.now()
 
         watchlist.map { item ->
             val itemCalendar = calendarBySimklId[item.simklId] ?: emptyList()
-            val now = Instant.now()
-            val releasedItems = itemCalendar.filter { it.date.isBefore(now) }
 
-            // Check for unwatched episodes in calendar
-            val hasUnwatched = itemCalendar.any { !it.isWatched }
-            val hasUnwatchedReleased = releasedItems.any { !it.isWatched }
+            // Single pass over itemCalendar without intermediate list allocations
+            var hasUnwatched = false
+            var hasUnwatchedReleased = false
+            var nextEp: Instant? = null
+            var lastAired: Instant? = null
+            var watchedReleasedCount = 0
+            var totalReleasedCount = 0
+            var downloadedReleasedCount = 0
+            var totalDownloadableReleasedCount = 0
 
-            val nextEp = itemCalendar.filter { it.date.isAfter(now) }
-                .minByOrNull { it.date }?.date
+            for (i in 0 until itemCalendar.size) {
+                val calItem = itemCalendar[i]
+                val calDate = calItem.date
+                val isReleased = calDate.isBefore(now)
 
-            val lastAired = releasedItems.maxByOrNull { it.date }?.date
+                if (!calItem.isWatched) {
+                    hasUnwatched = true
+                    if (isReleased) {
+                        hasUnwatchedReleased = true
+                    }
+                }
 
-            val watchedReleasedCount = releasedItems.count { it.isWatched }
-            val totalReleasedCount = releasedItems.size
-
-            val downloadedReleasedCount = releasedItems.count {
-                it.mediaStatus == MediaStatus.DOWNLOADED
-            }
-            val totalDownloadableReleasedCount = releasedItems.count {
-                it.mediaStatus == MediaStatus.WANTED ||
-                it.mediaStatus == MediaStatus.DOWNLOADING ||
-                it.mediaStatus == MediaStatus.DOWNLOADED
+                if (isReleased) {
+                    totalReleasedCount++
+                    if (calItem.isWatched) {
+                        watchedReleasedCount++
+                    }
+                    if (calItem.mediaStatus == MediaStatus.DOWNLOADED) {
+                        downloadedReleasedCount++
+                    }
+                    if (calItem.mediaStatus == MediaStatus.WANTED ||
+                        calItem.mediaStatus == MediaStatus.DOWNLOADING ||
+                        calItem.mediaStatus == MediaStatus.DOWNLOADED
+                    ) {
+                        totalDownloadableReleasedCount++
+                    }
+                    if (lastAired == null || calDate.isAfter(lastAired)) {
+                        lastAired = calDate
+                    }
+                } else if (calDate.isAfter(now)) {
+                    if (nextEp == null || calDate.isBefore(nextEp)) {
+                        nextEp = calDate
+                    }
+                }
             }
 
             WatchlistTableItem(

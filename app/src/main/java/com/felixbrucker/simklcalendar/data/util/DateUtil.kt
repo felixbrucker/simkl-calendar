@@ -14,6 +14,12 @@ import java.text.SimpleDateFormat
 
 object DateUtil {
 
+    // Thread-safe cached formatters to avoid pattern compilation during UI rendering
+    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
+    private val headerSameYearFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault())
+    private val headerDiffYearFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.getDefault())
+    private val slashDateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
+
     /**
      * Parses an HTTP date string (e.g. from Last-Modified header in RFC 1123 format) into an Instant.
      */
@@ -55,7 +61,7 @@ object DateUtil {
             try {
                 // Date-only (ISO 8601: "2026-08-22") or non-standard ("08/22/2026")
                 val localDate = if (trimmed.contains("/")) {
-                    LocalDate.parse(trimmed, DateTimeFormatter.ofPattern("MM/dd/yyyy"))
+                    LocalDate.parse(trimmed, slashDateFormatter)
                 } else {
                     LocalDate.parse(trimmed)
                 }
@@ -81,10 +87,13 @@ object DateUtil {
 
     /**
      * Checks if a given Instant is strictly before today in the user's local timezone.
+     * Accepts optional pre-computed today/zone to avoid repeated system calls in loops.
      */
-    fun isEarlierThanToday(date: Instant): Boolean {
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now(zone)
+    fun isEarlierThanToday(
+        date: Instant,
+        zone: ZoneId = ZoneId.systemDefault(),
+        today: LocalDate = LocalDate.now(zone)
+    ): Boolean {
         val itemLocalDate = date.atZone(zone).toLocalDate()
         return itemLocalDate.isBefore(today)
     }
@@ -92,19 +101,21 @@ object DateUtil {
     /**
      * Formats an Instant into a calendar group header in the user's local date/time
      * (e.g. "TODAY - SUNDAY, AUGUST 23", "TOMORROW - MONDAY, AUGUST 24", or "SUNDAY, AUGUST 23").
+     * Accepts optional pre-computed today/zone to avoid repeated system calls in loops.
      */
-    fun formatAiringDateHeader(date: Instant): String {
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now(zone)
+    fun formatAiringDateHeader(
+        date: Instant,
+        zone: ZoneId = ZoneId.systemDefault(),
+        today: LocalDate = LocalDate.now(zone)
+    ): String {
         val localDate = date.atZone(zone).toLocalDate()
 
         val diffDays = ChronoUnit.DAYS.between(today, localDate)
-        val pattern = if (localDate.year != today.year) {
-            "EEEE, MMMM d, yyyy"
+        val displayFormatter = if (localDate.year != today.year) {
+            headerDiffYearFormatter
         } else {
-            "EEEE, MMMM d"
+            headerSameYearFormatter
         }
-        val displayFormatter = DateTimeFormatter.ofPattern(pattern, Locale.getDefault())
         val dateLabel = localDate.format(displayFormatter).uppercase(Locale.getDefault())
 
         return when (diffDays) {
@@ -122,7 +133,7 @@ object DateUtil {
     fun formatLocalizedTime(date: Instant, isDateOnly: Boolean = false): String? {
         if (isDateOnly) return null
         val zonedDateTime = date.atZone(ZoneId.systemDefault())
-        return zonedDateTime.format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
+        return zonedDateTime.format(timeFormatter)
     }
 
     /**
@@ -143,7 +154,7 @@ object DateUtil {
         }
         val zonedDateTime = date.atZone(ZoneId.systemDefault())
         val dateStr = zonedDateTime.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG))
-        val timeStr = zonedDateTime.format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
+        val timeStr = zonedDateTime.format(timeFormatter)
         return "$dateStr at $timeStr"
     }
 

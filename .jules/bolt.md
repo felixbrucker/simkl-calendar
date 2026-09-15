@@ -1,0 +1,3 @@
+## 2026-09-15 - Maven Central HTTP 429 & Date Formatting Allocations
+**Learning:** Maven Central downloads in the VM container can hit Cloudflare 429 rate limits. Using `~/.gradle/init.gradle` to redirect `repo.maven.apache.org` to Google's Maven Central mirror resolves dependencies without violating project file modification rules. Additionally, allocating `DateTimeFormatter` via `ofPattern()` during list operations and Compose item rendering causes significant object churn.
+**Action:** Apply Maven Central mirror redirection in `~/.gradle/init.gradle` if 429 rate limits occur. Cache thread-safe `DateTimeFormatter` instances as constants in `DateUtil` and hoist time/zone calls when partitioning lists.
