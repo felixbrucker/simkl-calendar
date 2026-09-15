@@ -1,7 +1,10 @@
 package com.felixbrucker.simklcalendar
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.Uri
+import android.util.Base64
 import android.util.Log
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
@@ -19,7 +22,6 @@ import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.network.OAuthTokenRequest
 import com.felixbrucker.simklcalendar.data.network.OAuthTokenResponse
 import com.felixbrucker.simklcalendar.data.network.SimklApiService
 import com.felixbrucker.simklcalendar.data.network.SimklEpisodeResponse
@@ -54,6 +56,7 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
 import java.time.Instant
+import java.util.Base64 as JavaBase64
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SimklRepositoryTest {
@@ -80,6 +83,21 @@ class SimklRepositoryTest {
         every { Log.e(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
 
+        mockkStatic(Uri::class)
+        val uriMock = mockk<Uri>(relaxed = true)
+        every { Uri.parse(any()) } returns uriMock
+
+        mockkStatic(PendingIntent::class)
+        val pendingIntentMock = mockk<PendingIntent>(relaxed = true)
+        every { PendingIntent.getActivity(any(), any(), any(), any()) } returns pendingIntentMock
+        every { PendingIntent.getBroadcast(any(), any(), any(), any()) } returns pendingIntentMock
+
+        mockkStatic(Base64::class)
+        every { Base64.encodeToString(any(), any()) } answers {
+            val bytes = firstArg<ByteArray>()
+            JavaBase64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+        }
+
         context = mockk(relaxed = true)
         sharedPreferences = mockk(relaxed = true)
         appDatabase = mockk(relaxed = true)
@@ -104,6 +122,12 @@ class SimklRepositoryTest {
         every { appDatabase.customSearchLinkDao() } returns searchLinkDao
         every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
 
+        coEvery { apiService.getSyncActivities(any(), any()) } returns SyncActivitiesResponse()
+        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any(), any(), any(), any()) } returns SyncAllItemsResponse()
+        coEvery { apiService.getV2Calendar(any(), any(), any()) } returns Response.success(SimklV2CalendarResponse(emptyList(), emptyMap()))
+        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse("access_token_123")
+        coEvery { apiService.getUserSettings(any(), any()) } returns UserSettingsResponse(UserProfile("SimklTestUser"))
+
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
         field.set(null, appDatabase)
@@ -117,6 +141,9 @@ class SimklRepositoryTest {
 
     @After
     fun tearDown() {
+        unmockkStatic(PendingIntent::class)
+        unmockkStatic(Uri::class)
+        unmockkStatic(Base64::class)
         unmockkStatic(Log::class)
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
@@ -285,9 +312,6 @@ class SimklRepositoryTest {
 
         every { sharedPreferences.getString("pkce_state", null) } returns "state123"
         every { sharedPreferences.getString("pkce_code_verifier", null) } returns "verifier123"
-
-        coEvery { apiService.getAccessToken(any<OAuthTokenRequest>()) } returns OAuthTokenResponse("access_token_123")
-        coEvery { apiService.getUserSettings(any(), any()) } returns UserSettingsResponse(UserProfile("SimklTestUser"))
 
         val exchanged = repository.exchangeOAuthCode("code123", "state123", "simklcalendar://auth")
         if (repository.isRealApiConfigured()) {
