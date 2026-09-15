@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   push:
     branches:
-      - '**'
+      - main
   pull_request:
     branches:
       - '**'
@@ -60,14 +60,14 @@ jobs:
           chmod +x ./gradlew
           ./gradlew assembleRelease --stacktrace
 
-      - name: Publish Nightly Release
+      - name: Publish Edge Release
         uses: softprops/action-gh-release@v3
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         with:
-          tag_name: nightly
-          name: "Nightly Build"
+          tag_name: edge
+          name: "Edge Build"
           body: |
-            Automated nightly release.
+            Automated edge release.
             Commit: ${{ github.sha }}
           prerelease: true
           files: app/build/outputs/apk/release/*.apk
