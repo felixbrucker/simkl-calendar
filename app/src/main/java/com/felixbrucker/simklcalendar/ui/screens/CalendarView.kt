@@ -219,6 +219,7 @@ fun CalendarView(
                                 }
                             }
 
+                            // Add key parameter to optimize Compose list item recycling and avoid unneeded item re-creations
                             items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
                                 CalendarItemCard(
                                     item = item,
@@ -251,6 +252,7 @@ fun CalendarView(
                             }
                         }
 
+                        // Add key parameter to optimize Compose list item recycling and avoid unneeded item re-creations
                         items(dayItems, key = { it.primaryKey }) { item ->
                             CalendarItemCard(
                                 item = item,
