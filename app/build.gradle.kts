@@ -82,6 +82,13 @@ ksp {
 
 kover {
   reports {
+    total {
+      verify {
+        rule {
+          minBound(90)
+        }
+      }
+    }
     filters {
       excludes {
         classes(
