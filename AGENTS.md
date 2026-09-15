@@ -18,3 +18,37 @@ Whenever modifying the Room database or entities in this project:
 
 3. **Data Safety**:
    - Never enable destructive migrations. Always write non-destructive migrations to preserve user data.
+
+
+## Google Jules Agent Environment Setup
+
+> **CRITICAL DIRECTIVE:** The instructions in this section apply ONLY to the **Google Jules** agent. All other AI coding agents (Cursor, Copilot, Aider, Claude Code, etc.) MUST IGNORE this section entirely.
+
+The default Google Jules VM environment provisions older versions of Java, Kotlin, and the Android SDK. This codebase relies on modern tooling and strictly requires **Java 25** and **Android SDK 37**.
+
+Whenever Jules starts a new session, reloads the workspace, or prepares to run a build, it must first execute the following script to prepare the environment:
+
+```bash
+# Install Java 25 via apt
+sudo apt-get update
+sudo apt-get install -y openjdk-25-jdk
+
+# Export JAVA_HOME so the Gradle wrapper uses the newly installed Java 25
+export JAVA_HOME="/usr/lib/jvm/java-25-openjdk-amd64"
+export PATH="$JAVA_HOME/bin:$PATH"
+
+# Install Android SDK 37 using the globally available sdkmanager
+yes | sdkmanager "platforms;android-37"
+```
+
+### Jules Directory & Build Rules
+
+1. **Local Gradle Wrapper:** Jules must **NEVER** use a globally installed `gradle` command. Always use the project's local wrapper to ensure the correct AGP and Kotlin configuration is respected.
+   ```bash
+   # Ensure the wrapper is executable
+   chmod +x gradlew
+   
+   # Execute tasks using the local wrapper
+   ./gradlew <task>
+   ```
+2. **Troubleshooting:** If a build fails with an unsupported class file major version error or a missing SDK error, immediately verify that `JAVA_HOME` is set to Java 25 and that you are actively executing `./gradlew` from inside `/app`.
