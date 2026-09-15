@@ -23,6 +23,8 @@ Whenever modifying the Room database or entities in this project:
 
 When writing or modifying tests, you MUST follow these guidelines to ensure comprehensive coverage and readability:
 
+* **Mandatory Unit Tests:** All newly written code MUST be accompanied by unit tests.
+* **Testing Exemptions:** Before writing tests, check the `kover` exclude patterns configured in `app/build.gradle.kts`. You do not need to generate tests for any classes, packages, or files that match those exclusion rules.
 * **Exhaustive Path Coverage:** Never test just a single code path. You must generate tests for **all** possible code paths within the target method. 
 * **Branch Testing:** If the method contains conditional logic (e.g., `if`/`else`, `when` statements), you must explicitly write tests that cover every possible case and outcome.
 * **Strict 3-Section Pattern:** Every test must be structured into three clearly separated sections (Arrange, Act, Assert):
