@@ -34,15 +34,23 @@ class TorrentSearchManager(
         val globalPreferHevc = downloadPrefs.getBoolean("prefer_hevc", true)
         val preferredKeywords: MutableList<Keyword> = downloadPrefs
             .getStringListWithMigration("preferred_keywords")
-            .map { Keyword.Single(it) }
+            .map { Keyword.single(it) }
             .toMutableList()
-        val ignoreKeywords = downloadPrefs
+        val ignoreKeywords: MutableList<Keyword> = downloadPrefs
             .getStringListWithMigration("ignore_keywords")
-            .map { Keyword.Single(it) }
+            .map { Keyword.single(it) }
+            .toMutableList()
         val preferHevc = itemSettings?.preferHevcOverride ?: globalPreferHevc
         if (preferHevc) {
-            preferredKeywords.ensureAdded(Keyword.Multiple(listOf("hevc", "x265")))
+            preferredKeywords.ensureAdded(Keyword(listOf("hevc", "x265")))
         }
+        // Ignore low quality releases
+        ignoreKeywords.ensureAdded(
+            Keyword(listOf("TS", "TELESYNC", "Telesync", "TeleCine", "HDTS", "hdts"), ignoreCase = false),
+            Keyword(listOf("CAM", "CamRip"), ignoreCase = false),
+            Keyword(listOf("DCPRip"), ignoreCase = false),
+            Keyword(listOf("DVDScr"), ignoreCase = false),
+        )
 
         val seasonAndEpisodeTerm = String.format(Locale.US, "S%02dE%02d", searchSeason, episode ?: 1)
         val episodeTerm = String.format(Locale.US, "%02d", episode ?: 1)
@@ -75,7 +83,7 @@ class TorrentSearchManager(
         // Only anime episode search terms are generic enough to match partially, filter out invalid
         // matches
         if (item.type == MediaType.ANIME) {
-            val keyword = Keyword.Multiple(listOf(
+            val keyword = Keyword(listOf(
                 " $episodeTerm ",
                 seasonAndEpisodeTerm
             ))
@@ -90,7 +98,7 @@ class TorrentSearchManager(
 private fun List<SearchResultItem>.including(keywords: List<Keyword>): List<SearchResultItem> {
     return filter { item ->
         keywords.any { keyword ->
-            item.name.contains(keyword, ignoreCase = true)
+            item.name.contains(keyword)
         }
     }
 }
@@ -98,7 +106,7 @@ private fun List<SearchResultItem>.including(keywords: List<Keyword>): List<Sear
 private fun List<SearchResultItem>.excluding(keywords: List<Keyword>): List<SearchResultItem> {
     return filter { item ->
         keywords.none { keyword ->
-            item.name.contains(keyword, ignoreCase = true)
+            item.name.contains(keyword)
         }
     }
 }
@@ -117,11 +125,11 @@ private fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<Keyword>)
     return sortedWith(
         compareByDescending<SearchResultItem> { item ->
             preferredKeywords.count { keyword ->
-                item.name.contains(keyword, ignoreCase = true)
+                item.name.contains(keyword)
             }
         }.thenByDescending { item ->
             preferredKeywords.mapIndexed { index, keyword ->
-                if (item.name.contains(keyword, ignoreCase = true)) {
+                if (item.name.contains(keyword)) {
                     preferredKeywords.size - index
                 } else {
                     0
@@ -131,14 +139,15 @@ private fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<Keyword>)
     )
 }
 
-private fun String.contains(keyword: Keyword, ignoreCase: Boolean): Boolean {
-    return when (keyword) {
-        is Keyword.Single -> contains(keyword.value, ignoreCase)
-        is Keyword.Multiple -> keyword.values.any { contains(it, ignoreCase) }
-    }
+private fun String.contains(keyword: Keyword): Boolean {
+    return keyword.variants.any { contains(it, ignoreCase = keyword.ignoreCase) }
 }
 
-private sealed class Keyword {
-    data class Single(val value: String) : Keyword()
-    data class Multiple(val values: List<String>) : Keyword()
+private data class Keyword(
+    val variants: List<String>,
+    val ignoreCase: Boolean = true,
+) {
+    companion object {
+        fun single(variant: String, ignoreCase: Boolean = true) = Keyword(listOf(variant), ignoreCase)
+    }
 }
