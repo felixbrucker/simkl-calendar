@@ -27,10 +27,13 @@ When writing or modifying tests, you MUST follow these guidelines to ensure comp
 * **Testing Exemptions:** Before writing tests, check the `kover` exclude patterns configured in `app/build.gradle.kts`. You do not need to generate tests for any classes, packages, or files that match those exclusion rules.
 * **Exhaustive Path Coverage:** Never test just a single code path. You must generate tests for **all** possible code paths within the target method. 
 * **Branch Testing:** If the method contains conditional logic (e.g., `if`/`else`, `when` statements), you must explicitly write tests that cover every possible case and outcome.
-* **Strict 3-Section Pattern:** Every test must be structured into three clearly separated sections (Arrange, Act, Assert):
-  1. **Setup:** Configure only the state and variables specific to what this exact test is verifying. *Note: Generic setup that applies to multiple tests must be abstracted into `before` hooks (or equivalent setup methods).*
-  2. **Execution:** Call the target method being tested.
-  3. **Verification:** Assert and verify the expected results or state changes.
+* **Strict 3-Section Pattern:** Every test must visually separate the Arrange, Act, and Assert phases using the following formatting rules:
+  * **Block Formatting:** Each section must be a single, continuous block of code with NO empty lines inside it.
+  * **Spacing:** Separate each of the three sections with exactly one empty line.
+  * **No Redundant Comments:** Do NOT add comments labeling the sections (e.g., never write `// Setup`, `// 1. Arrange`, `// Call`, etc.). The structure and empty lines alone should dictate the sections.
+  * **Phase 1 (Setup):** Configure only the state and variables specific to what this exact test is verifying. *Note: Generic setup that applies to multiple tests must be abstracted into `before` hooks (or equivalent setup methods).*
+  * **Phase 2 (Execution):** Call the target method being tested.
+  * **Phase 3 (Verification):** Assert and verify the expected results or state changes.
 
 ## Google Jules Agent Environment Setup
 
