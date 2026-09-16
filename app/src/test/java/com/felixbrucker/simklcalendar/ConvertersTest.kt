@@ -17,63 +17,89 @@ class ConvertersTest {
         val now = Instant.now()
         val epoch = now.toEpochMilli()
 
-        assertEquals(epoch, converters.dateToTimestamp(now))
-        assertEquals(now.toEpochMilli(), converters.fromTimestamp(epoch)?.toEpochMilli())
+        val convertedTimestamp = converters.dateToTimestamp(now)
+        val convertedDate = converters.fromTimestamp(epoch)
+        val nullTimestamp = converters.dateToTimestamp(null)
+        val nullDate = converters.fromTimestamp(null)
 
-        assertNull(converters.dateToTimestamp(null))
-        assertNull(converters.fromTimestamp(null))
+        assertEquals(epoch, convertedTimestamp)
+        assertEquals(now.toEpochMilli(), convertedDate?.toEpochMilli())
+        assertNull(nullTimestamp)
+        assertNull(nullDate)
     }
 
     @Test
     fun testMediaTypeConverters() {
-        assertEquals("tv", converters.fromMediaType(MediaType.TV))
-        assertEquals(MediaType.TV, converters.toMediaType("tv"))
-        assertNull(converters.fromMediaType(null))
-        assertNull(converters.toMediaType(null))
+        val strMediaType = converters.fromMediaType(MediaType.TV)
+        val objMediaType = converters.toMediaType("tv")
+        val nullStrMediaType = converters.fromMediaType(null)
+        val nullObjMediaType = converters.toMediaType(null)
+
+        assertEquals("tv", strMediaType)
+        assertEquals(MediaType.TV, objMediaType)
+        assertNull(nullStrMediaType)
+        assertNull(nullObjMediaType)
     }
 
     @Test
     fun testMovieReleaseTypeConverters() {
-        assertEquals("THEATER", converters.fromMovieReleaseType(MovieReleaseType.THEATER))
-        assertEquals(MovieReleaseType.THEATER, converters.toMovieReleaseType("THEATER"))
-        assertNull(converters.fromMovieReleaseType(null))
-        assertNull(converters.toMovieReleaseType("INVALID"))
-        assertNull(converters.toMovieReleaseType(null))
+        val strReleaseType = converters.fromMovieReleaseType(MovieReleaseType.THEATER)
+        val objReleaseType = converters.toMovieReleaseType("THEATER")
+        val nullStrReleaseType = converters.fromMovieReleaseType(null)
+        val invalidObjReleaseType = converters.toMovieReleaseType("INVALID")
+        val nullObjReleaseType = converters.toMovieReleaseType(null)
+
+        assertEquals("THEATER", strReleaseType)
+        assertEquals(MovieReleaseType.THEATER, objReleaseType)
+        assertNull(nullStrReleaseType)
+        assertNull(invalidObjReleaseType)
+        assertNull(nullObjReleaseType)
     }
 
     @Test
     fun testMediaTypeListConverters() {
         val list = listOf(MediaType.TV, MediaType.ANIME)
-        val str = converters.fromMediaTypeList(list)
-        assertEquals("tv,anime", str)
+        val strList = converters.fromMediaTypeList(list)
 
-        val parsed = converters.toMediaTypeList(str)
-        assertEquals(list, parsed)
+        val parsedList = converters.toMediaTypeList(strList)
+        val nullStrList = converters.fromMediaTypeList(null)
+        val nullParsedList = converters.toMediaTypeList(null)
+        val emptyParsedList = converters.toMediaTypeList("")
 
-        assertNull(converters.fromMediaTypeList(null))
-        assertEquals(emptyList<MediaType>(), converters.toMediaTypeList(null))
-        assertEquals(emptyList<MediaType>(), converters.toMediaTypeList(""))
+        assertEquals("tv,anime", strList)
+        assertEquals(list, parsedList)
+        assertNull(nullStrList)
+        assertEquals(emptyList<MediaType>(), nullParsedList)
+        assertEquals(emptyList<MediaType>(), emptyParsedList)
     }
 
     @Test
     fun testSeasonOverridesConverters() {
         val map = mapOf(1 to 2, 2 to 3)
-        val str = converters.fromSeasonOverrides(map)
-        assertEquals("1:2,2:3", str)
+        val strMap = converters.fromSeasonOverrides(map)
 
-        val parsed = converters.toSeasonOverrides(str)
-        assertEquals(map, parsed)
+        val parsedMap = converters.toSeasonOverrides(strMap)
+        val nullStrMap = converters.fromSeasonOverrides(null)
+        val nullParsedMap = converters.toSeasonOverrides(null)
+        val invalidParsedMap = converters.toSeasonOverrides("invalid")
 
-        assertNull(converters.fromSeasonOverrides(null))
-        assertNull(converters.toSeasonOverrides(null))
-        assertNull(converters.toSeasonOverrides("invalid"))
+        assertEquals("1:2,2:3", strMap)
+        assertEquals(map, parsedMap)
+        assertNull(nullStrMap)
+        assertNull(nullParsedMap)
+        assertNull(invalidParsedMap)
     }
 
     @Test
     fun testMediaStatusConverters() {
-        assertEquals("WANTED", converters.fromMediaStatus(MediaStatus.WANTED))
-        assertEquals(MediaStatus.WANTED, converters.toMediaStatus("WANTED"))
-        assertNull(converters.fromMediaStatus(null))
-        assertNull(converters.toMediaStatus(null))
+        val strStatus = converters.fromMediaStatus(MediaStatus.WANTED)
+        val objStatus = converters.toMediaStatus("WANTED")
+        val nullStrStatus = converters.fromMediaStatus(null)
+        val nullObjStatus = converters.toMediaStatus(null)
+
+        assertEquals("WANTED", strStatus)
+        assertEquals(MediaStatus.WANTED, objStatus)
+        assertNull(nullStrStatus)
+        assertNull(nullObjStatus)
     }
 }

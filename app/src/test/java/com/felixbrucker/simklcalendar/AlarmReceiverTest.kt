@@ -5,7 +5,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.util.Log
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
@@ -88,125 +91,97 @@ class AlarmReceiverTest {
 
     @Test
     fun testConstants() {
-        // 1. Setup & 2. Call
         val extraKey = AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY
         val action = AlarmReceiver.ACTION_ITEM_AIRED_ALARM
 
-        // 3. Assert
         assertEquals("extra_item_primary_key", extraKey)
         assertEquals("com.felixbrucker.simklcalendar.ACTION_ITEM_AIRED_ALARM", action)
     }
 
     @Test
     fun testOnReceiveNullContextOrIntent() {
-        // 1. Setup
         val receiver = AlarmReceiver()
 
-        // 2. Call
         receiver.onReceive(null, null)
         receiver.onReceive(context, null)
 
-        // 3. Verify - no interactions or exceptions
         coVerify(exactly = 0) { calendarDao.findItem(any()) }
     }
 
     @Test
     fun testOnReceiveInvalidAction() {
-        // 1. Setup
         val receiver = AlarmReceiver()
         val invalidIntent = mockk<Intent>()
         every { invalidIntent.action } returns "INVALID_ACTION"
 
-        // 2. Call
         receiver.onReceive(context, invalidIntent)
 
-        // 3. Verify
         coVerify(exactly = 0) { calendarDao.findItem(any()) }
     }
 
     @Test
     fun testOnReceiveMissingPrimaryKey() {
-        // 1. Setup
         val receiver = AlarmReceiver()
         val missingKeyIntent = mockk<Intent>()
         every { missingKeyIntent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
         every { missingKeyIntent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns null
 
-        // 2. Call
         receiver.onReceive(context, missingKeyIntent)
 
-        // 3. Verify
         coVerify(exactly = 0) { calendarDao.findItem(any()) }
     }
 
     @Test
     fun testOnReceiveItemNotFoundInDatabase() {
-        // 1. Setup
         val receiver = spyk(AlarmReceiver())
         val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
         every { receiver.goAsync() } returns pendingResult
-
         val intent = mockk<Intent>()
         every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
         every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_999_1_1"
-
         coEvery { calendarDao.findItem("v2_999_1_1") } returns null
 
-        // 2. Call
         receiver.onReceive(context, intent)
 
-        // 3. Verify
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(exactly = 0) { calendarDao.markItemAsNotified(any()) }
     }
 
     @Test
     fun testOnReceiveItemAlreadyNotified() {
-        // 1. Setup
         val receiver = spyk(AlarmReceiver())
         val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
         every { receiver.goAsync() } returns pendingResult
-
         val intent = mockk<Intent>()
         every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
         every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_100_1_1"
-
         val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, true, null)
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.DOWNLOADED))
-
         coEvery { calendarDao.findItem("v2_100_1_1") } returns item
 
-        // 2. Call
         receiver.onReceive(context, intent)
 
-        // 3. Verify
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(exactly = 0) { calendarDao.markItemAsNotified(any()) }
     }
 
     @Test
     fun testOnReceiveMovieTheaterNotificationPostedWhenEnabled() {
-        // 1. Setup
         val receiver = spyk(AlarmReceiver())
         val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
         every { receiver.goAsync() } returns pendingResult
-
         val intent = mockk<Intent>()
         every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
         every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_200_theater"
-
         val calItem = CalendarItem("v2_200_theater", 200, null, null, null, Instant.now(), MovieReleaseType.THEATER, false, false, false, null)
         val watchItem = TrackedWatchlistItem(200, MediaType.MOVIE, "Movie", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_200_theater", MediaStatus.DOWNLOADED))
-
         coEvery { calendarDao.findItem("v2_200_theater") } returns item
         coEvery { settingDao.getSettingForShow(200) } returns NotificationSetting(200, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
 
-        // 2. Call
         receiver.onReceive(context, intent)
 
-        // 3. Verify
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { NotificationManager.showNotification(item, context) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_200_theater") }
@@ -214,52 +189,40 @@ class AlarmReceiverTest {
 
     @Test
     fun testOnReceiveMovieTheaterNotificationNotPostedWhenDisabled() {
-        // 1. Setup
         val receiver = spyk(AlarmReceiver())
         val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
         every { receiver.goAsync() } returns pendingResult
-
         val intent = mockk<Intent>()
         every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
         every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_200_theater"
-
         val calItem = CalendarItem("v2_200_theater", 200, null, null, null, Instant.now(), MovieReleaseType.THEATER, false, false, false, null)
         val watchItem = TrackedWatchlistItem(200, MediaType.MOVIE, "Movie", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_200_theater", MediaStatus.DOWNLOADED))
-
         coEvery { calendarDao.findItem("v2_200_theater") } returns item
         coEvery { settingDao.getSettingForShow(200) } returns NotificationSetting(200, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
 
-        // 2. Call
         receiver.onReceive(context, intent)
 
-        // 3. Verify
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(exactly = 0) { calendarDao.markItemAsNotified(any()) }
     }
 
     @Test
     fun testOnReceiveMovieDigitalNotificationPostedWhenEnabled() {
-        // 1. Setup
         val receiver = spyk(AlarmReceiver())
         val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
         every { receiver.goAsync() } returns pendingResult
-
         val intent = mockk<Intent>()
         every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
         every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_200_digital"
-
         val calItem = CalendarItem("v2_200_digital", 200, null, null, null, Instant.now(), MovieReleaseType.DIGITAL, false, false, false, null)
         val watchItem = TrackedWatchlistItem(200, MediaType.MOVIE, "Movie", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_200_digital", MediaStatus.DOWNLOADED))
-
         coEvery { calendarDao.findItem("v2_200_digital") } returns item
         coEvery { settingDao.getSettingForShow(200) } returns NotificationSetting(200, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
 
-        // 2. Call
         receiver.onReceive(context, intent)
 
-        // 3. Verify
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { NotificationManager.showNotification(item, context) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_200_digital") }
@@ -267,26 +230,20 @@ class AlarmReceiverTest {
 
     @Test
     fun testOnReceiveSeasonFinaleNotificationPostedWhenEnabled() {
-        // 1. Setup
         val receiver = spyk(AlarmReceiver())
         val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
         every { receiver.goAsync() } returns pendingResult
-
         val intent = mockk<Intent>()
         every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
         every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_100_1_10"
-
         val calItem = CalendarItem("v2_100_1_10", 100, "Finale", 1, 10, Instant.now(), null, false, true, false, null)
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_10", MediaStatus.DOWNLOADED))
-
         coEvery { calendarDao.findItem("v2_100_1_10") } returns item
         coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
 
-        // 2. Call
         receiver.onReceive(context, intent)
 
-        // 3. Verify
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { NotificationManager.showNotification(item, context) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_100_1_10") }
@@ -294,26 +251,20 @@ class AlarmReceiverTest {
 
     @Test
     fun testOnReceiveTvEpisodeNotificationDisabled() {
-        // 1. Setup
         val receiver = spyk(AlarmReceiver())
         val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
         every { receiver.goAsync() } returns pendingResult
-
         val intent = mockk<Intent>()
         every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
         every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_100_1_2"
-
         val calItem = CalendarItem("v2_100_1_2", 100, "Episode 2", 1, 2, Instant.now(), null, false, false, false, null)
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_2", MediaStatus.DOWNLOADED))
-
         coEvery { calendarDao.findItem("v2_100_1_2") } returns item
         coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
 
-        // 2. Call
         receiver.onReceive(context, intent)
 
-        // 3. Verify
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(exactly = 0) { calendarDao.markItemAsNotified(any()) }
     }

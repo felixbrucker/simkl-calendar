@@ -151,41 +151,50 @@ class SimklRepositoryTest {
     }
 
     @Test
-    fun testDetermineStatus() {
+    fun testDetermineStatusFutureNotAiredYet() {
         val future = Instant.now().plusSeconds(3600)
+
+        val status = repository.determineStatus(future, null, MediaType.TV, false, false)
+
+        assertEquals(MediaStatus.NOT_AIRED_YET, status)
+    }
+
+    @Test
+    fun testDetermineStatusTheaterIgnored() {
         val past = Instant.now().minusSeconds(3600)
 
-        // Future -> NOT_AIRED_YET
-        assertEquals(
-            MediaStatus.NOT_AIRED_YET,
-            repository.determineStatus(future, null, MediaType.TV, false, false)
-        )
+        val status = repository.determineStatus(past, null, MediaType.MOVIE, true, false)
 
-        // Theater release -> IGNORED
-        assertEquals(
-            MediaStatus.IGNORED,
-            repository.determineStatus(past, null, MediaType.MOVIE, true, false)
-        )
+        assertEquals(MediaStatus.IGNORED, status)
+    }
 
-        // Watched -> IGNORED
-        assertEquals(
-            MediaStatus.IGNORED,
-            repository.determineStatus(past, null, MediaType.TV, false, true)
-        )
+    @Test
+    fun testDetermineStatusWatchedIgnored() {
+        val past = Instant.now().minusSeconds(3600)
 
-        // Global download enabled -> WANTED
+        val status = repository.determineStatus(past, null, MediaType.TV, false, true)
+
+        assertEquals(MediaStatus.IGNORED, status)
+    }
+
+    @Test
+    fun testDetermineStatusGlobalAutoDownloadWanted() {
+        val past = Instant.now().minusSeconds(3600)
         every { sharedPreferences.getBoolean("auto_download_unwatched_tv", false) } returns true
-        assertEquals(
-            MediaStatus.WANTED,
-            repository.determineStatus(past, null, MediaType.TV, false, false)
-        )
 
-        // Item specific setting overrides global -> IGNORED
+        val status = repository.determineStatus(past, null, MediaType.TV, false, false)
+
+        assertEquals(MediaStatus.WANTED, status)
+    }
+
+    @Test
+    fun testDetermineStatusSpecificSettingOverridesGlobal() {
+        val past = Instant.now().minusSeconds(3600)
         val settings = ItemDownloadSettings(simklId = 100, downloadUnwatched = false)
-        assertEquals(
-            MediaStatus.IGNORED,
-            repository.determineStatus(past, settings, MediaType.TV, false, false)
-        )
+
+        val status = repository.determineStatus(past, settings, MediaType.TV, false, false)
+
+        assertEquals(MediaStatus.IGNORED, status)
     }
 
     @Test
@@ -193,10 +202,10 @@ class SimklRepositoryTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
 
         val token = repository.getActiveUserToken()
+        repository.logout()
+
         assertNotNull(token)
         assertEquals("token123", token?.accessToken)
-
-        repository.logout()
         coVerify { tokenDao.clearUserToken() }
         coVerify { calendarDao.clearCalendarItems() }
         coVerify { watchlistDao.clearAll() }
@@ -208,31 +217,23 @@ class SimklRepositoryTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
         coEvery { apiService.markHistoryWatched(any(), any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(shows = 1))
         coEvery { apiService.markHistoryUnwatched(any(), any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(shows = 1))
-
-        // Episode watched / unwatched
-        val resEpWatch = repository.markEpisodeWatched(100, 1, 1, MediaType.TV)
-        assertTrue(resEpWatch.isSuccess)
-
-        val resEpUnwatch = repository.markEpisodeUnwatched(100, 1, 1, MediaType.TV)
-        assertTrue(resEpUnwatch.isSuccess)
-
-        // Season watched / unwatched
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, true, false, false, null)
         val itemWithWatchlist = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.DOWNLOADED))
         coEvery { calendarDao.getItemsForSimklId(100) } returns listOf(itemWithWatchlist)
 
+        val resEpWatch = repository.markEpisodeWatched(100, 1, 1, MediaType.TV)
+        val resEpUnwatch = repository.markEpisodeUnwatched(100, 1, 1, MediaType.TV)
         val resSeasonWatch = repository.markSeasonWatched(100, 1, MediaType.TV)
-        assertTrue(resSeasonWatch.isSuccess)
-
         val resSeasonUnwatch = repository.markSeasonUnwatched(100, 1, MediaType.TV)
-        assertTrue(resSeasonUnwatch.isSuccess)
-
-        // Movie watched / unwatched
         val resMovieWatch = repository.markMovieWatched(200)
-        assertTrue(resMovieWatch.isSuccess)
-
         val resMovieUnwatch = repository.markMovieUnwatched(200)
+
+        assertTrue(resEpWatch.isSuccess)
+        assertTrue(resEpUnwatch.isSuccess)
+        assertTrue(resSeasonWatch.isSuccess)
+        assertTrue(resSeasonUnwatch.isSuccess)
+        assertTrue(resMovieWatch.isSuccess)
         assertTrue(resMovieUnwatch.isSuccess)
     }
 
@@ -240,7 +241,6 @@ class SimklRepositoryTest {
     fun testSyncWatchlistWithDeltas() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
         coEvery { apiService.getSyncActivities(any(), any()) } returns SyncActivitiesResponse("2026-03-30T00:00:00Z")
-
         val syncAllResponse = SyncAllItemsResponse(
             shows = listOf(
                 SyncShowItem(
@@ -259,6 +259,7 @@ class SimklRepositoryTest {
         coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any(), any(), any(), any()) } returns syncAllResponse
 
         val result = repository.syncWatchlist(forceFullSync = true)
+
         assertTrue(result.hasWatchlistItemChanges)
         coVerify { watchlistDao.insertItems(any()) }
     }
@@ -267,7 +268,6 @@ class SimklRepositoryTest {
     fun testSyncCalendarJsonsAndBackfill() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
         coEvery { watchlistDao.getAllTrackedIds() } returns listOf(100)
-
         val v2Response = SimklV2CalendarResponse(
             calendar = listOf(
                 SimklV2CalendarEntry(
@@ -278,13 +278,7 @@ class SimklRepositoryTest {
             ),
             metadata = mapOf("100" to SimklV2Metadata(title = "Show Title"))
         )
-
         coEvery { apiService.getV2Calendar(any(), any(), any()) } returns Response.success(v2Response)
-
-        val calendarResult = repository.syncCalendarJsons(forceFullSync = true)
-        assertTrue(calendarResult.hasCalendarItemChanges || calendarResult.hasWantedItems || !calendarResult.hasCalendarItemChanges)
-
-        // Backfill test
         val trackedShow = TrackedWatchlistItem(100, MediaType.TV, "Show Title", null, null)
         coEvery { watchlistDao.getTrackedItemsByTypes(any()) } returns listOf(trackedShow)
         val epList = listOf(
@@ -299,35 +293,39 @@ class SimklRepositoryTest {
         )
         coEvery { apiService.getTvEpisodes(100, any()) } returns epList
 
+        val calendarResult = repository.syncCalendarJsons(forceFullSync = true)
         val backfillResult = repository.backfillPastEpisodes(lastSyncTimestamp = 0L)
+
+        assertTrue(calendarResult.hasCalendarItemChanges || calendarResult.hasWantedItems || !calendarResult.hasCalendarItemChanges)
         assertNotNull(backfillResult)
     }
 
     @Test
     fun testOAuthExchangeAndAuthUrl() = runTest {
-        val authUrl = repository.createAuthorizationUrl()
-        if (authUrl != null) {
-            assertTrue(authUrl.contains("simkl.com/oauth/authorize"))
-        }
-
         every { sharedPreferences.getString("pkce_state", null) } returns "state123"
         every { sharedPreferences.getString("pkce_code_verifier", null) } returns "verifier123"
 
+        val authUrl = repository.createAuthorizationUrl()
         val exchanged = repository.exchangeOAuthCode("code123", "state123", "simklcalendar://auth")
+        val exchangedStateMismatch = repository.exchangeOAuthCode("code123", "wrong_state", "simklcalendar://auth")
+
+        if (authUrl != null) {
+            assertTrue(authUrl.contains("simkl.com/oauth/authorize"))
+        }
         if (repository.isRealApiConfigured()) {
             assertTrue(exchanged)
         } else {
             assertFalse(exchanged)
         }
-
-        val exchangedStateMismatch = repository.exchangeOAuthCode("code123", "wrong_state", "simklcalendar://auth")
         assertFalse(exchangedStateMismatch)
     }
 
     @Test
     fun testCleanupOldWatchedCalendarItems() = runTest {
         coEvery { calendarDao.deleteWatchedItemsOlderThan(any()) } returns 5
+
         val deleted = repository.cleanupOldWatchedCalendarItems(30)
+
         assertEquals(5, deleted)
     }
 }

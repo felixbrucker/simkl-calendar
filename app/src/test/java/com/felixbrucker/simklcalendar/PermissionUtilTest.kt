@@ -1,6 +1,7 @@
-package com.felixbrucker.simklcalendar.data.util
+package com.felixbrucker.simklcalendar
 
 import android.content.Context
+import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import io.mockk.mockk
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -8,9 +9,11 @@ import org.junit.Test
 class PermissionUtilTest {
 
     @Test
-    fun testHasExactAlarmPermissionPreAndroid12() {
-        val context = mockk<Context>()
-        // Default Build.VERSION.SDK_INT in standard JUnit environment is usually 0, so it returns true
-        assertTrue(PermissionUtil.hasExactAlarmPermission(context))
+    fun testHasExactAlarmPermission() {
+        val context = mockk<Context>(relaxed = true)
+
+        val result = PermissionUtil.hasExactAlarmPermission(context)
+
+        assertTrue(result)
     }
 }

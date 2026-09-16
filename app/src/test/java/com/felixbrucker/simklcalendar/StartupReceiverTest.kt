@@ -1,57 +1,84 @@
 package com.felixbrucker.simklcalendar
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
-import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
+import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.startup.StartupReceiver
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
+import io.mockk.mockkObject
 import io.mockk.spyk
-import io.mockk.unmockkStatic
+import io.mockk.unmockkObject
+import io.mockk.verify
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
 class StartupReceiverTest {
 
+    private lateinit var context: Context
+
     @Before
     fun setUp() {
-        mockkStatic(Log::class)
-        every { Log.d(any(), any()) } returns 0
-        every { Log.e(any(), any()) } returns 0
+        context = mockk(relaxed = true)
+        mockkObject(AlarmScheduler)
+        coEvery { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) } returns Unit
     }
 
     @After
     fun tearDown() {
-        unmockkStatic(Log::class)
+        unmockkObject(AlarmScheduler)
     }
 
     @Test
     fun testOnReceiveBootCompleted() {
         val receiver = spyk(StartupReceiver())
-        every { receiver.goAsync() } returns mockk(relaxed = true)
+        val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
+        every { receiver.goAsync() } returns pendingResult
+        val intent = mockk<Intent>()
+        every { intent.action } returns Intent.ACTION_BOOT_COMPLETED
 
-        val context = mockk<Context>(relaxed = true)
-        val appDatabase = mockk<AppDatabase>(relaxed = true)
-        val calendarDao = mockk<CalendarItemDao>(relaxed = true)
+        receiver.onReceive(context, intent)
 
-        every { appDatabase.calendarItemDao() } returns calendarDao
+        verify(timeout = 3000) { pendingResult.finish() }
+        coVerify(timeout = 3000) { AlarmScheduler.scheduleAllItemsAiredAlarms(context) }
+    }
 
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
+    @Test
+    fun testOnReceiveMyPackageReplaced() {
+        val receiver = spyk(StartupReceiver())
+        val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
+        every { receiver.goAsync() } returns pendingResult
+        val intent = mockk<Intent>()
+        every { intent.action } returns Intent.ACTION_MY_PACKAGE_REPLACED
 
-        try {
-            receiver.onReceive(null, null)
+        receiver.onReceive(context, intent)
 
-            val intent = mockk<Intent>()
-            every { intent.action } returns Intent.ACTION_BOOT_COMPLETED
-            receiver.onReceive(context, intent)
-        } finally {
-            field.set(null, null)
-        }
+        verify(timeout = 3000) { pendingResult.finish() }
+        coVerify(timeout = 3000) { AlarmScheduler.scheduleAllItemsAiredAlarms(context) }
+    }
+
+    @Test
+    fun testOnReceiveNullContextOrIntent() {
+        val receiver = StartupReceiver()
+
+        receiver.onReceive(null, null)
+        receiver.onReceive(context, null)
+
+        coVerify(exactly = 0) { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) }
+    }
+
+    @Test
+    fun testOnReceiveOtherAction() {
+        val receiver = StartupReceiver()
+        val intent = mockk<Intent>()
+        every { intent.action } returns "OTHER_ACTION"
+
+        receiver.onReceive(context, intent)
+
+        coVerify(exactly = 0) { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) }
     }
 }
