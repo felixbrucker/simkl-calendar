@@ -17,6 +17,7 @@ class PreferenceExtensionsTest {
 
         val defaultList = listOf("a", "b")
         val result = prefs.getStringList("key", defaultList)
+
         assertEquals(defaultList, result)
     }
 
@@ -26,6 +27,7 @@ class PreferenceExtensionsTest {
         every { prefs.getString("key", null) } returns "item1\nitem2\n\nitem3 "
 
         val result = prefs.getStringList("key")
+
         assertEquals(listOf("item1", "item2", "item3 "), result)
     }
 
@@ -34,7 +36,6 @@ class PreferenceExtensionsTest {
         val editor = mockk<SharedPreferences.Editor>(relaxed = true)
         val keySlot = slot<String>()
         val valueSlot = slot<String>()
-
         every { editor.putString(capture(keySlot), capture(valueSlot)) } returns editor
 
         editor.putStringList("key", listOf("1", "2", "3"))
@@ -48,13 +49,25 @@ class PreferenceExtensionsTest {
     fun testGetStringListWithMigrationLegacySet() {
         val prefs = mockk<SharedPreferences>(relaxed = true)
         val editor = mockk<SharedPreferences.Editor>(relaxed = true)
-
         every { prefs.getString("key", null) } throws ClassCastException()
         every { prefs.getStringSet("key", null) } returns setOf("item1", "item2")
         every { prefs.edit() } returns editor
 
         val result = prefs.getStringListWithMigration("key")
+
         assertEquals(2, result.size)
         assertEquals(setOf("item1", "item2"), result.toSet())
+    }
+
+    @Test
+    fun testGetStringListWithMigrationLegacySetNull() {
+        val prefs = mockk<SharedPreferences>(relaxed = true)
+        every { prefs.getString("key", null) } throws ClassCastException()
+        every { prefs.getStringSet("key", null) } returns null
+
+        val defaultList = listOf("default1")
+        val result = prefs.getStringListWithMigration("key", defaultList)
+
+        assertEquals(defaultList, result)
     }
 }
