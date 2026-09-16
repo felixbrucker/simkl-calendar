@@ -3,6 +3,7 @@ package com.felixbrucker.simklcalendar.data.util
 import android.os.Environment
 import io.mockk.every
 import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,12 +20,13 @@ class DirectoryUtilsTest {
     fun setUp() {
         mockkStatic(Environment::class)
         tempDir = Files.createTempDirectory("test_downloads").toFile()
+        every { Environment.getExternalStoragePublicDirectory(any()) } returns tempDir
     }
 
     @After
     fun tearDown() {
+        unmockkStatic(Environment::class)
         tempDir.deleteRecursively()
-        every { Environment.getExternalStoragePublicDirectory(any()) } returns File("/non_existent_dir_for_test")
     }
 
     @Test

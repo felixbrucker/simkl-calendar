@@ -1,6 +1,7 @@
 package com.felixbrucker.simklcalendar.data.database
 
 import android.net.Uri
+import com.felixbrucker.simklcalendar.data.model.MediaType
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -37,7 +38,7 @@ class CustomSearchLinkTest {
         val url = link.buildUrl(
             title = "Attack on Titan",
             titleRomaji = "Shingeki no Kyojin",
-            type = com.felixbrucker.simklcalendar.data.model.MediaType.ANIME,
+            type = MediaType.ANIME,
             season = 2,
             episode = 5
         )
@@ -46,15 +47,38 @@ class CustomSearchLinkTest {
     }
 
     @Test
-    fun testExtractDomainAndFavicon() {
+    fun testBuildUrlForMovieAndCustomTokens() {
         val link = CustomSearchLink(
             id = 2,
+            name = "Movie Search",
+            urlTemplate = "test.com/search?title={TITLE}&romaji={TITLE_ROMAJI}&s={SEASON}&e={EPISODE}",
+            position = 1
+        )
+
+        val url = link.buildUrl(
+            title = "Inception",
+            titleRomaji = null,
+            type = MediaType.MOVIE,
+            season = null,
+            episode = null
+        )
+
+        assertEquals("https://test.com/search?title=Inception&romaji=Inception&s=&e=", url)
+    }
+
+    @Test
+    fun testExtractDomainAndFavicon() {
+        val link = CustomSearchLink(
+            id = 3,
             name = "Google",
             urlTemplate = "https://www.google.com/search?q={TITLE}",
             position = 1
         )
 
-        assertEquals("www.google.com", link.extractDomain())
-        assertEquals("https://www.google.com/s2/favicons?domain=www.google.com&sz=64", link.getFaviconUrl())
+        val domain = link.extractDomain()
+        val faviconUrl = link.getFaviconUrl()
+
+        assertEquals("www.google.com", domain)
+        assertEquals("https://www.google.com/s2/favicons?domain=www.google.com&sz=64", faviconUrl)
     }
 }

@@ -72,6 +72,9 @@ class CalendarViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        mockkStatic(Dispatchers::class)
+        every { Dispatchers.IO } returns testDispatcher
+
         mockkStatic(Environment::class)
         every { Environment.getExternalStoragePublicDirectory(any<String>()) } returns File("/non_existent_dir_for_test")
 
@@ -167,6 +170,7 @@ class CalendarViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkStatic(Dispatchers::class)
         unmockkStatic(Environment::class)
 
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")

@@ -1,7 +1,7 @@
 package com.felixbrucker.simklcalendar.data.util
 
-import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
@@ -13,9 +13,13 @@ class MediaExtensionsTest {
 
     @Test
     fun testSubdirectoryName() {
-        assertEquals("movies", MediaType.MOVIE.subdirectoryName())
-        assertEquals("series", MediaType.TV.subdirectoryName())
-        assertEquals("anime", MediaType.ANIME.subdirectoryName())
+        val movieSubdir = MediaType.MOVIE.subdirectoryName()
+        val tvSubdir = MediaType.TV.subdirectoryName()
+        val animeSubdir = MediaType.ANIME.subdirectoryName()
+
+        assertEquals("movies", movieSubdir)
+        assertEquals("series", tvSubdir)
+        assertEquals("anime", animeSubdir)
     }
 
     @Test
@@ -27,7 +31,10 @@ class MediaExtensionsTest {
             titleRomaji = null,
             poster = "poster.jpg"
         )
-        assertEquals("movies", movieItem.defaultDestinationSubdirectory())
+
+        val subdir = movieItem.defaultDestinationSubdirectory()
+
+        assertEquals("movies", subdir)
     }
 
     @Test
@@ -39,7 +46,10 @@ class MediaExtensionsTest {
             titleRomaji = null,
             poster = "poster.jpg"
         )
-        assertEquals("series/Breaking Bad", tvItem.defaultDestinationSubdirectory())
+
+        val subdir = tvItem.defaultDestinationSubdirectory()
+
+        assertEquals("series/Breaking Bad", subdir)
     }
 
     @Test
@@ -51,7 +61,10 @@ class MediaExtensionsTest {
             titleRomaji = "Attack on Titan",
             poster = "poster.jpg"
         )
-        assertEquals("anime/Attack on Titan", animeItem.defaultDestinationSubdirectory())
+
+        val subdir = animeItem.defaultDestinationSubdirectory()
+
+        assertEquals("anime/Attack on Titan", subdir)
     }
 
     @Test
@@ -74,15 +87,11 @@ class MediaExtensionsTest {
             titleRomaji = null,
             poster = "poster.jpg"
         )
-
         val itemWithWatchlist = CalendarItemWithWatchlist(
             calendarItem = calendarItem,
             watchlistItem = watchlistItem,
             downloadSettings = null
         )
-
-        assertEquals("series/Breaking Bad", itemWithWatchlist.destinationSubdirectory())
-
         val itemWithOverride = CalendarItemWithWatchlist(
             calendarItem = calendarItem,
             watchlistItem = watchlistItem,
@@ -92,6 +101,10 @@ class MediaExtensionsTest {
             )
         )
 
-        assertEquals("custom/path", itemWithOverride.destinationSubdirectory())
+        val defaultSubdir = itemWithWatchlist.destinationSubdirectory()
+        val overrideSubdir = itemWithOverride.destinationSubdirectory()
+
+        assertEquals("series/Breaking Bad", defaultSubdir)
+        assertEquals("custom/path", overrideSubdir)
     }
 }
