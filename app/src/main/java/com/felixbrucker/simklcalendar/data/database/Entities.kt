@@ -11,6 +11,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import java.time.Instant
+import androidx.compose.runtime.Immutable
 import androidx.core.net.toUri
 import kotlin.math.abs
 
@@ -139,6 +140,7 @@ data class TrackedWatchlistItem(
 /**
  * Joined relational model combining a CalendarItem episode/movie release with its parent TrackedWatchlistItem metadata.
  */
+@Immutable
 data class CalendarItemWithWatchlist(
     @Embedded val calendarItem: CalendarItem,
     @Relation(

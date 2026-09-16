@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
+import androidx.compose.runtime.Immutable
 import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.data.util.DirectoryUtils
 import com.felixbrucker.simklcalendar.data.util.getStringListWithMigration
@@ -50,6 +51,7 @@ enum class SortDirection {
     DESCENDING
 }
 
+@Immutable
 data class WatchlistTableItem(
     val watchlistItem: TrackedWatchlistItem,
     val hasUnwatched: Boolean,
