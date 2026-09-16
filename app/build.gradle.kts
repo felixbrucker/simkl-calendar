@@ -3,6 +3,7 @@ plugins {
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.secrets)
+  alias(libs.plugins.kover)
 }
 
 android {
@@ -62,6 +63,10 @@ android {
     buildConfig = true
     aidl = true
   }
+
+  testOptions {
+    unitTests.isReturnDefaultValues = true
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -73,6 +78,32 @@ secrets {
 
 ksp {
   arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+kover {
+  reports {
+    total {
+      verify {
+        rule {
+          minBound(90)
+        }
+      }
+    }
+    filters {
+      excludes {
+        classes(
+          "*.BuildConfig",
+          "*_*",
+          "*JsonAdapter*",
+          "com.felixbrucker.torrenthttpdownloader.*",
+          "com.felixbrucker.simklcalendar.ui.composable.*",
+          "com.felixbrucker.simklcalendar.ui.screens.*",
+          "com.felixbrucker.simklcalendar.ui.theme.*",
+          "com.felixbrucker.simklcalendar.MainActivity*",
+        )
+      }
+    }
+  }
 }
 
 // Some unused dependencies are commented out below instead of being removed.
@@ -106,6 +137,8 @@ dependencies {
   implementation(libs.torrent.search.api.kt)
   debugImplementation(libs.androidx.compose.ui.tooling)
   testImplementation(libs.junit)
+  testImplementation(libs.mockk)
+  testImplementation(libs.kotlinx.coroutines.test)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }

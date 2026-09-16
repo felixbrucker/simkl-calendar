@@ -26,8 +26,12 @@ workRuntimeKtx = "2.11.2"
 secretsGradlePlugin = "2.0.1"
 androidxBrowser = "1.10.0"
 junit = "4.13.2"
+kover = "0.9.9"
+mockk = "1.14.11"
 
 [libraries]
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesAndroid" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "androidxBrowser" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -64,3 +68,4 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-devtools-ksp = { id = "com.google.devtools.ksp", version.ref = "googleDevtoolsKsp" }
 secrets = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secretsGradlePlugin" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

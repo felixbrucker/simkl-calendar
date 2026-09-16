@@ -10,11 +10,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pull-requests: write
 
 jobs:
   build:
-    name: Build APK
+    name: Build APK & Coverage Report
     runs-on: ubuntu-latest
 
     steps:
@@ -51,10 +52,21 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
           fi
 
-      - name: Run Unit Tests
+      - name: Run Unit Tests and Generate Coverage Report
         run: |
           chmod +x ./gradlew
-          ./gradlew test --stacktrace
+          ./gradlew test koverXmlReport --stacktrace
+
+      - name: Post Coverage Report Comment on Pull Request
+        uses: madrapps/jacoco-report@v1.8.0
+        if: github.event_name == 'pull_request' && !cancelled()
+        with:
+          paths: ${{ github.workspace }}/app/build/reports/kover/report.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 90
+          min-coverage-changed-files: 90
+          title: 'Coverage Report'
+          update-comment: true
 
       - name: Build Release APK
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
