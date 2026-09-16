@@ -1,4 +1,4 @@
-name: Build Android APK
+name: CI
 
 on:
   push:
@@ -10,47 +10,22 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  build:
-    name: Build APK & Coverage Report
+  test:
+    name: Unit Tests & Coverage Report
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      pull-requests: write
+      
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Set up JDK 25
-        uses: actions/setup-java@v6
+      - name: Setup Environment
+        uses: ./.github/actions/setup-env
         with:
-          distribution: 'temurin'
-          java-version: '25'
-          cache: 'gradle'
-
-      - name: Prepare environment and keystore
-        env:
-          SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          # Copy base template if available
-          if [ -f .env.example ]; then
-            cp .env.example .env
-          else
-            touch .env
-          fi
-          
-          # Inject SIMKL_CLIENT_ID from secrets if provided
-          if [ -n "$SIMKL_CLIENT_ID" ]; then
-            sed -i '/^SIMKL_CLIENT_ID=/d' .env
-            echo "SIMKL_CLIENT_ID=$SIMKL_CLIENT_ID" >> .env
-          fi
-          
-          # If custom KEYSTORE_BASE64 is provided in GitHub Secrets, use it
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
-          fi
+          simkl_client_id: ${{ secrets.SIMKL_CLIENT_ID }}
+          keystore_base64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Run Unit Tests and Generate Coverage Report
         run: |
@@ -68,8 +43,23 @@ jobs:
           title: 'Coverage Report'
           update-comment: true
 
+  release:
+    name: Build APK & Publish Edge Release
+    runs-on: ubuntu-latest
+    needs: test
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+      
+    steps:
+      # Use the same exact block as the test job
+      - name: Setup Environment
+        uses: ./.github/actions/setup-env
+        with:
+          simkl_client_id: ${{ secrets.SIMKL_CLIENT_ID }}
+          keystore_base64: ${{ secrets.KEYSTORE_BASE64 }}
+
       - name: Build Release APK
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -80,7 +70,6 @@ jobs:
 
       - name: Publish Edge Release
         uses: softprops/action-gh-release@v3
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         with:
           tag_name: edge
           name: "Edge Build"
