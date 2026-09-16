@@ -1,13 +1,18 @@
 package com.felixbrucker.simklcalendar
 
+import android.app.Notification
 import android.app.NotificationManager as AndroidNotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.service.notification.StatusBarNotification
 import android.util.Log
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
@@ -35,8 +40,10 @@ import com.felixbrucker.simklcalendar.receiver.notification.makeOpenReleaseDetai
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkConstructor
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
+import io.mockk.unmockkConstructor
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
@@ -56,6 +63,7 @@ class NotificationManagerFullTest {
 
     private lateinit var context: Context
     private lateinit var androidNotificationManager: AndroidNotificationManager
+    private lateinit var packageManager: PackageManager
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var appDatabase: AppDatabase
     private lateinit var userTokenDao: UserTokenDao
@@ -90,7 +98,11 @@ class NotificationManagerFullTest {
         every { PendingIntent.getActivity(any(), any(), any(), any()) } returns pendingIntentMock
         every { PendingIntent.getBroadcast(any(), any(), any(), any()) } returns pendingIntentMock
 
+        mockkConstructor(NotificationCompat.Builder::class)
+        every { anyConstructed<NotificationCompat.Builder>().build() } returns mockk(relaxed = true)
+
         context = mockk(relaxed = true)
+        packageManager = mockk(relaxed = true)
         androidNotificationManager = mockk(relaxed = true)
         sharedPreferences = mockk(relaxed = true)
         appDatabase = mockk(relaxed = true)
@@ -102,6 +114,12 @@ class NotificationManagerFullTest {
         searchLinkDao = mockk(relaxed = true)
         itemDownloadSettingsDao = mockk(relaxed = true)
         torrentServiceHelper = mockk(relaxed = true)
+
+        every { context.applicationContext } returns context
+        every { context.packageManager } returns packageManager
+        every { context.applicationInfo } returns ApplicationInfo()
+        every { context.resources } returns mockk(relaxed = true)
+        every { packageManager.getPackageInfo(any<String>(), any<Int>()) } returns PackageInfo()
 
         every { userTokenDao.getUserToken() } returns flowOf(null)
         every { calendarDao.getAllCalendarItems() } returns flowOf(emptyList())
@@ -136,6 +154,7 @@ class NotificationManagerFullTest {
 
     @After
     fun tearDown() {
+        unmockkConstructor(NotificationCompat.Builder::class)
         unmockkStatic(PendingIntent::class)
         unmockkStatic(Uri::class)
         unmockkStatic(ContextCompat::class)
@@ -154,19 +173,83 @@ class NotificationManagerFullTest {
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
 
         val (title, msg) = item.formatNotificationContent(10)
+        val openIntent = item.makeOpenReleaseDetailViewIntent(context)
+        val markWatchedIntent = item.makeMarkWatchedIntent(context)
+        val markSeasonWatchedIntent = item.makeMarkSeasonWatchedIntent(context)
+        val downloadItemIntent = item.makeDownloadItemIntent(context)
+        val downloadSeasonIntent = item.makeDownloadSeasonMissingEpisodesIntent(context)
+
         assertEquals("New Episode Released", title)
         assertNotNull(msg)
-
-        assertNotNull(item.makeOpenReleaseDetailViewIntent(context))
-        assertNotNull(item.makeMarkWatchedIntent(context))
-        assertNotNull(item.makeMarkSeasonWatchedIntent(context))
-        assertNotNull(item.makeDownloadItemIntent(context))
-        assertNotNull(item.makeDownloadSeasonMissingEpisodesIntent(context))
+        assertNotNull(openIntent)
+        assertNotNull(markWatchedIntent)
+        assertNotNull(markSeasonWatchedIntent)
+        assertNotNull(downloadItemIntent)
+        assertNotNull(downloadSeasonIntent)
     }
 
     @Test
     fun testCreateNotificationChannel() {
         NotificationManager.createNotificationChannel(context)
+
         verify { androidNotificationManager.createNotificationChannel(any()) }
+    }
+
+    @Test
+    fun testShowNotificationWhenPermissionGranted() = runTest {
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
+
+        NotificationManager.showNotification(item, context)
+
+        verify { androidNotificationManager.notify(item.notificationId, any()) }
+    }
+
+    @Test
+    fun testUpdateNotificationWhenActive() = runTest {
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
+        val activeNotif = mockk<StatusBarNotification>()
+        every { activeNotif.id } returns item.notificationId
+        every { androidNotificationManager.activeNotifications } returns arrayOf(activeNotif)
+
+        NotificationManager.updateNotification(item, context)
+
+        verify { androidNotificationManager.notify(item.notificationId, any()) }
+    }
+
+    @Test
+    fun testUpdateNotificationWhenInactive() = runTest {
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
+        every { androidNotificationManager.activeNotifications } returns arrayOf()
+
+        NotificationManager.updateNotification(item, context)
+
+        verify(exactly = 0) { androidNotificationManager.notify(any(), any<Notification>()) }
+    }
+
+    @Test
+    fun testShowNotificationMovieAndFinaleWithTorrentService() = runTest {
+        every { torrentServiceHelper.isInstalled } returns MutableStateFlow(true)
+        val watchMovie = TrackedWatchlistItem(200, MediaType.MOVIE, "Movie", null, null)
+        val calMovie = CalendarItem("v2_200_theater", 200, "Movie", null, null, Instant.now(), MovieReleaseType.THEATER, false, false, false, null)
+        val movieItem = CalendarItemWithWatchlist(calMovie, watchMovie, LocalItemState("v2_200_theater", MediaStatus.IGNORED))
+
+        val watchFinale = TrackedWatchlistItem(300, MediaType.TV, "Finale Show", null, null)
+        val calFinale = CalendarItem("v2_300_1_10", 300, "Finale Ep", 1, 10, Instant.now(), null, false, true, false, null)
+        val finaleItem = CalendarItemWithWatchlist(calFinale, watchFinale, LocalItemState("v2_300_1_10", MediaStatus.IGNORED))
+
+        coEvery { calendarDao.getItemsInSeasonOrRelatedItems(200, null) } returns listOf(movieItem)
+        coEvery { calendarDao.getItemsInSeasonOrRelatedItems(300, 1) } returns listOf(finaleItem)
+
+        NotificationManager.showNotification(movieItem, context)
+        NotificationManager.showNotification(finaleItem, context)
+
+        verify { androidNotificationManager.notify(movieItem.notificationId, any()) }
+        verify { androidNotificationManager.notify(finaleItem.notificationId, any()) }
     }
 }

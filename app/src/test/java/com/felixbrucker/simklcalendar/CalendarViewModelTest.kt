@@ -72,8 +72,11 @@ class CalendarViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        mockkStatic(Dispatchers::class)
+        every { Dispatchers.IO } returns testDispatcher
+
         mockkStatic(Environment::class)
-        every { Environment.getExternalStoragePublicDirectory(any()) } returns File("/non_existent_dir_for_test")
+        every { Environment.getExternalStoragePublicDirectory(any<String>()) } returns File("/non_existent_dir_for_test")
 
         userTokenFlow.value = null
         calendarItemsFlow.value = emptyList()
@@ -167,6 +170,7 @@ class CalendarViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkStatic(Dispatchers::class)
         unmockkStatic(Environment::class)
 
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
@@ -723,6 +727,20 @@ class CalendarViewModelTest {
     }
 
     @Test
+    fun testRunAutoDownloadManualWithWantedItems() = runTest {
+        val viewModel = createViewModel()
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
+        calendarItemsFlow.value = listOf(item)
+
+        viewModel.runAutoDownloadManual()
+        advanceUntilIdle()
+
+        coVerify { repositoryMock.searchAndDownloadWantedItems(any(), any()) }
+    }
+
+    @Test
     fun testOAuthAndLogoutAndNotificationToggle() = runTest {
         val viewModel = createViewModel()
         every { repositoryMock.createAuthorizationUrl(any()) } returns "https://simkl.com/auth"
@@ -741,6 +759,24 @@ class CalendarViewModelTest {
         assertFalse(exchangeSuccess)
         coVerify { repositoryMock.logout() }
         coVerify { repositoryMock.toggleNotificationSetting(1, true, false) }
+    }
+
+    @Test
+    fun testExchangeOAuthCodeSuccessCallback() = runTest {
+        val viewModel = createViewModel()
+        coEvery { repositoryMock.exchangeOAuthCode("code123", "state123", "simklcalendar://auth") } returns true
+
+        var successCalled = false
+        var failureCalled = false
+        viewModel.exchangeOAuthCode("code123", "state123", "simklcalendar://auth", onSuccess = {
+            successCalled = true
+        }, onFailure = {
+            failureCalled = true
+        })
+        advanceUntilIdle()
+
+        assertTrue(successCalled)
+        assertFalse(failureCalled)
     }
 
     @Test

@@ -27,6 +27,7 @@ class WorkersTest {
 
         val operationMock = mockk<Operation>(relaxed = true)
         every { workManager.enqueueUniquePeriodicWork(any(), any(), any()) } returns operationMock
+        every { workManager.cancelUniqueWork(any()) } returns operationMock
 
         mockkObject(WorkManager.Companion)
         every { WorkManager.getInstance(any()) } returns workManager
@@ -39,17 +40,35 @@ class WorkersTest {
 
     @Test
     fun testAutoDownloadWorkerConstantsAndEnqueue() {
-        assertEquals("simkl_periodic_auto_download", AutoDownloadWorker.UNIQUE_WORK_NAME)
+        val uniqueName = AutoDownloadWorker.UNIQUE_WORK_NAME
 
         AutoDownloadWorker.enqueuePeriodicSearch(context, 12)
+
+        assertEquals("simkl_periodic_auto_download", uniqueName)
+        verify { workManager.enqueueUniquePeriodicWork(AutoDownloadWorker.UNIQUE_WORK_NAME, any(), any()) }
+    }
+
+    @Test
+    fun testAutoDownloadWorkerEnqueueZeroCoercesInterval() {
+        AutoDownloadWorker.enqueuePeriodicSearch(context, 0)
+
         verify { workManager.enqueueUniquePeriodicWork(AutoDownloadWorker.UNIQUE_WORK_NAME, any(), any()) }
     }
 
     @Test
     fun testSyncCalendarWorkerConstantsAndEnqueue() {
-        assertEquals("simkl_periodic_calendar_sync", SyncCalendarWorker.UNIQUE_WORK_NAME)
+        val uniqueName = SyncCalendarWorker.UNIQUE_WORK_NAME
 
         SyncCalendarWorker.enqueuePeriodicSync(context, 12)
+
+        assertEquals("simkl_periodic_calendar_sync", uniqueName)
+        verify { workManager.enqueueUniquePeriodicWork(SyncCalendarWorker.UNIQUE_WORK_NAME, any(), any()) }
+    }
+
+    @Test
+    fun testSyncCalendarWorkerEnqueueZeroCoercesInterval() {
+        SyncCalendarWorker.enqueuePeriodicSync(context, 0)
+
         verify { workManager.enqueueUniquePeriodicWork(SyncCalendarWorker.UNIQUE_WORK_NAME, any(), any()) }
     }
 }
