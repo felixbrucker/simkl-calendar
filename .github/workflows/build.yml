@@ -21,6 +21,9 @@ jobs:
       pull-requests: write
       
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
       - name: Setup Environment
         uses: ./.github/actions/setup-env
         with:
@@ -52,7 +55,9 @@ jobs:
       contents: write
       
     steps:
-      # Use the same exact block as the test job
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
       - name: Setup Environment
         uses: ./.github/actions/setup-env
         with:
