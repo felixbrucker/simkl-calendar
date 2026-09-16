@@ -1,5 +1,13 @@
 # AI Agent Guidelines for Simkl Calendar
 
+## Code Conventions
+
+### Kotlin & Architecture
+- **Prefer KTX Extensions**: Use Android KTX extensions and standard library utilities over verbose legacy methods.
+- **Separation of Concerns**: Maintain clear class boundaries. Isolate distinct business, data, and UI logic into separate single-responsibility classes.
+- **Preferences via DataStore**: Use Jetpack DataStore with Kotlin `Flow` for all preference reads and writes. Do not use legacy synchronous `SharedPreferences`.
+- **Fluent APIs**: Create custom extension functions when they produce cleaner, more natural call sites without cluttering core domain definitions.
+
 ## Database Migrations & Schema Export Rules
 
 Whenever modifying the Room database or entities in this project:
