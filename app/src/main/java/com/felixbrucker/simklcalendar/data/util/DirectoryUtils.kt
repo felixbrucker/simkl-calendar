@@ -14,7 +14,7 @@ object DirectoryUtils {
     )
 
     fun getDownloadSubdirectories(): List<String> {
-        val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) ?: return emptyList()
         if (!downloadDir.exists() || !downloadDir.isDirectory) return emptyList()
 
         val subdirectories = mutableListOf<String>()
