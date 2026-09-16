@@ -39,13 +39,18 @@ import com.felixbrucker.simklcalendar.data.network.SyncShowItem
 import com.felixbrucker.simklcalendar.data.network.UserSettingsResponse
 import com.felixbrucker.simklcalendar.data.network.UserProfile
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.torrent_search_api.PaginatedSearchResult
+import com.felixbrucker.torrent_search_api.TpbProvider
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkConstructor
 import io.mockk.mockkStatic
+import io.mockk.unmockkConstructor
 import io.mockk.unmockkStatic
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -98,6 +103,9 @@ class SimklRepositoryTest {
             JavaBase64.getUrlEncoder().withoutPadding().encodeToString(bytes)
         }
 
+        mockkConstructor(TpbProvider::class)
+        coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(PaginatedSearchResult(results = emptyList(), page = 1, hasNextPage = false))
+
         context = mockk(relaxed = true)
         sharedPreferences = mockk(relaxed = true)
         appDatabase = mockk(relaxed = true)
@@ -113,6 +121,12 @@ class SimklRepositoryTest {
         every { context.getSharedPreferences(any(), any()) } returns sharedPreferences
         val editor = mockk<SharedPreferences.Editor>(relaxed = true)
         every { sharedPreferences.edit() } returns editor
+        every { sharedPreferences.getStringSet(any(), any()) } answers { secondArg() ?: emptySet() }
+        every { sharedPreferences.getString(any(), any()) } answers { secondArg() ?: "" }
+        every { sharedPreferences.getBoolean(any(), any()) } answers { secondArg() as Boolean }
+
+        coEvery { itemDownloadSettingsDao.getSettings(any()) } returns null
+        coEvery { itemDownloadSettingsDao.getSettingsFlow(any()) } returns flowOf(null)
 
         every { appDatabase.userTokenDao() } returns tokenDao
         every { appDatabase.calendarItemDao() } returns calendarDao
@@ -141,6 +155,7 @@ class SimklRepositoryTest {
 
     @After
     fun tearDown() {
+        unmockkConstructor(TpbProvider::class)
         unmockkStatic(PendingIntent::class)
         unmockkStatic(Uri::class)
         unmockkStatic(Base64::class)
@@ -238,6 +253,37 @@ class SimklRepositoryTest {
     }
 
     @Test
+    fun testMarkAnimeHistoryWatchedAndUnwatched() = runTest {
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
+        coEvery { apiService.markHistoryWatched(any(), any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(anime = 1))
+        coEvery { apiService.markHistoryUnwatched(any(), any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(anime = 1))
+
+        val resEpWatch = repository.markEpisodeWatched(300, 1, 1, MediaType.ANIME)
+        val resEpUnwatch = repository.markEpisodeUnwatched(300, 1, 1, MediaType.ANIME)
+        val resSeasonWatch = repository.markSeasonWatched(300, 1, MediaType.ANIME)
+        val resSeasonUnwatch = repository.markSeasonUnwatched(300, 1, MediaType.ANIME)
+
+        assertTrue(resEpWatch.isSuccess)
+        assertTrue(resEpUnwatch.isSuccess)
+        assertTrue(resSeasonWatch.isSuccess)
+        assertTrue(resSeasonUnwatch.isSuccess)
+    }
+
+    @Test
+    fun testUpdateItemAiredStatusNotAiredAndAlreadyAired() = runTest {
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val pastDate = Instant.now().minusSeconds(7200)
+        val calItemAired = CalendarItem("v2_100_1_1", 100, "Ep 1", 1, 1, pastDate, null, true, false, false, null)
+        val itemAiredNotAiredStatus = CalendarItemWithWatchlist(calItemAired, watchItem, LocalItemState("v2_100_1_1", MediaStatus.NOT_AIRED_YET))
+        val itemAiredAlreadyDownloaded = CalendarItemWithWatchlist(calItemAired, watchItem, LocalItemState("v2_100_1_1", MediaStatus.DOWNLOADED))
+
+        repository.updateItemAiredStatus(itemAiredNotAiredStatus)
+        repository.updateItemAiredStatus(itemAiredAlreadyDownloaded)
+
+        coVerify { calendarDao.updateMediaStatus("v2_100_1_1", any()) }
+    }
+
+    @Test
     fun testSyncWatchlistWithDeltas() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
         coEvery { apiService.getSyncActivities(any(), any()) } returns SyncActivitiesResponse("2026-03-30T00:00:00Z")
@@ -327,5 +373,17 @@ class SimklRepositoryTest {
         val deleted = repository.cleanupOldWatchedCalendarItems(30)
 
         assertEquals(5, deleted)
+    }
+
+    @Test
+    fun testSearchAndDownloadEpisodeNoResults() = runTest {
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, true, false, false, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
+
+        val result = repository.searchAndDownloadEpisode(item)
+
+        assertTrue(result.isFailure)
+        assertEquals("No torrent results found for this episode.", result.exceptionOrNull()?.message)
     }
 }
