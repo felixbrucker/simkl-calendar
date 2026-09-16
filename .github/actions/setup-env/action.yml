@@ -1,5 +1,5 @@
 name: 'Setup Android Environment'
-description: 'Checks out code, sets up Java, and prepares the environment/keystore'
+description: 'Sets up Java and prepares the environment/keystore'
 
 inputs:
   simkl_client_id:
@@ -12,9 +12,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Checkout repository
-      uses: actions/checkout@v7
-
     - name: Set up JDK 25
       uses: actions/setup-java@v6
       with:
@@ -23,7 +20,7 @@ runs:
         cache: 'gradle'
 
     - name: Prepare environment and keystore
-      shell: bash # Required for run steps in composite actions
+      shell: bash
       env:
         SIMKL_CLIENT_ID: ${{ inputs.simkl_client_id }}
         KEYSTORE_BASE64: ${{ inputs.keystore_base64 }}
