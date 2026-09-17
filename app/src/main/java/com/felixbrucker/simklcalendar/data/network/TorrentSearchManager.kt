@@ -42,7 +42,7 @@ class TorrentSearchManager(
             .toMutableList()
         val preferHevc = itemSettings?.preferHevcOverride ?: globalPreferHevc
         if (preferHevc) {
-            preferredKeywords.ensureAdded(Keyword(listOf("hevc", "x265")))
+            preferredKeywords.ensureAdded(Keyword(listOf("hevc", "x265", "H.265")))
         }
         // Ignore low quality releases
         ignoreKeywords.ensureAdded(
