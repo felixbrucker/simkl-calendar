@@ -664,6 +664,8 @@ fun SettingsScreen(
                         )
                     }
 
+                    HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
                     // Default Download Unwatched TV
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
