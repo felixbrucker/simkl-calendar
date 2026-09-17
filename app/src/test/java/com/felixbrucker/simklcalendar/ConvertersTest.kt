@@ -1,5 +1,6 @@
 package com.felixbrucker.simklcalendar.data.database
 
+import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
@@ -101,5 +102,27 @@ class ConvertersTest {
         assertEquals(MediaStatus.WANTED, objStatus)
         assertNull(nullStrStatus)
         assertNull(nullObjStatus)
+    }
+
+    @Test
+    fun testEpisodeSearchStyleConverters() {
+        val styleSeason = EpisodeSearchStyle.seasonAndEpisode
+        val styleEpisode = EpisodeSearchStyle.episode
+
+        val strSeason = converters.fromEpisodeSearchStyle(styleSeason)
+        val strEpisode = converters.fromEpisodeSearchStyle(styleEpisode)
+        val objSeason = converters.toEpisodeSearchStyle("seasonAndEpisode")
+        val objEpisode = converters.toEpisodeSearchStyle("episode")
+        val nullStrStyle = converters.fromEpisodeSearchStyle(null)
+        val invalidObjStyle = converters.toEpisodeSearchStyle("INVALID")
+        val nullObjStyle = converters.toEpisodeSearchStyle(null)
+
+        assertEquals("seasonAndEpisode", strSeason)
+        assertEquals("episode", strEpisode)
+        assertEquals(EpisodeSearchStyle.seasonAndEpisode, objSeason)
+        assertEquals(EpisodeSearchStyle.episode, objEpisode)
+        assertNull(nullStrStyle)
+        assertNull(invalidObjStyle)
+        assertNull(nullObjStyle)
     }
 }

@@ -25,6 +25,7 @@ import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
+import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
@@ -562,7 +563,7 @@ fun DetailHeader(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadSettingsCard(
     viewModel: CalendarViewModel,
@@ -775,6 +776,37 @@ fun DownloadSettingsCard(
                         },
                         onDismiss = { showSeasonDialog = false }
                     )
+                }
+
+                // Episode Search Style
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Episode Search Style", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                val currentSearchStyle = itemSettings?.episodeSearchStyle ?: when (mediaType) {
+                    MediaType.ANIME -> EpisodeSearchStyle.episode
+                    else -> EpisodeSearchStyle.seasonAndEpisode
+                }
+                SingleChoiceSegmentedButtonRow(
+                    modifier = Modifier.padding(top = 8.dp).fillMaxWidth()
+                ) {
+                    EpisodeSearchStyle.entries.forEachIndexed { index, style ->
+                        SegmentedButton(
+                            selected = currentSearchStyle == style,
+                            onClick = {
+                                viewModel.saveItemDownloadSettings(
+                                    (itemSettings ?: ItemDownloadSettings(simklId)).copy(episodeSearchStyle = style)
+                                )
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = EpisodeSearchStyle.entries.size),
+                            enabled = isDownloaderInstalled
+                        ) {
+                            Text(
+                                when (style) {
+                                    EpisodeSearchStyle.seasonAndEpisode -> "S01E01"
+                                    EpisodeSearchStyle.episode -> "01"
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

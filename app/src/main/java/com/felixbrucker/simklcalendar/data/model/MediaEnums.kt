@@ -59,3 +59,8 @@ enum class MediaStatus(val displayName: String) {
         }
     }
 }
+
+enum class EpisodeSearchStyle {
+    seasonAndEpisode,
+    episode
+}

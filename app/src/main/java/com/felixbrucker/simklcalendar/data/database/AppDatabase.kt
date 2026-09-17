@@ -11,6 +11,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
@@ -95,11 +96,27 @@ class Converters {
     fun toMediaStatus(value: String?): MediaStatus? {
         return value?.let { MediaStatus.fromString(it) }
     }
+
+    @TypeConverter
+    fun fromEpisodeSearchStyle(style: EpisodeSearchStyle?): String? {
+        return style?.name
+    }
+
+    @TypeConverter
+    fun toEpisodeSearchStyle(value: String?): EpisodeSearchStyle? {
+        return value?.let {
+            try {
+                EpisodeSearchStyle.valueOf(it)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
 }
 
 @Database(
     entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class],
-    version = 26,
+    version = 27,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -117,6 +134,7 @@ class Converters {
         AutoMigration(from = 20, to = 21),
         AutoMigration(from = 24, to = 25),
         AutoMigration(from = 25, to = 26),
+        AutoMigration(from = 26, to = 27),
     ]
 )
 @TypeConverters(Converters::class)
