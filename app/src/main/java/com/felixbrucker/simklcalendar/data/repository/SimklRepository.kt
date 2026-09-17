@@ -124,6 +124,15 @@ class SimklRepository(private val context: Context) {
         calendarDao.updateDownloadTaskId(primaryKey, taskId, status)
     }
 
+    suspend fun searchAndDownloadSeason(simklId: Int, season: Int) = withContext(Dispatchers.IO) {
+        val unwatchedItems = calendarDao.getUnwatchedDownloadableSeasonItems(simklId, season)
+        unwatchedItems.forEach { item ->
+            updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
+            val updatedItem = calendarDao.findItem(item.primaryKey) ?: item
+            searchAndDownloadEpisode(updatedItem)
+        }
+    }
+
     suspend fun updateItemAiredStatus(item: CalendarItemWithWatchlist) = withContext(Dispatchers.IO) {
         val calendarItem = item.calendarItem
         if (item.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext
@@ -141,6 +150,17 @@ class SimklRepository(private val context: Context) {
         if (newStatus == MediaStatus.WANTED) {
             val updatedItem = calendarDao.findItem(calendarItem.primaryKey) ?: return@withContext
             searchAndDownloadEpisode(updatedItem)
+        }
+
+        if (calendarItem.isSeasonFinale && calendarItem.season != null && item.type != MediaType.MOVIE) {
+            val isDownloadSeasonUnwatchedEnabled = settings?.downloadSeasonUnwatched ?: when (item.type) {
+                MediaType.TV -> downloadPrefs.getBoolean("auto_download_season_unwatched_tv", false)
+                MediaType.ANIME -> downloadPrefs.getBoolean("auto_download_season_unwatched_anime", false)
+                MediaType.MOVIE -> false
+            }
+            if (isDownloadSeasonUnwatchedEnabled) {
+                searchAndDownloadSeason(item.simklId, calendarItem.season)
+            }
         }
     }
 

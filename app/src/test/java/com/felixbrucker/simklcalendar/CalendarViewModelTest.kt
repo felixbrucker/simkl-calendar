@@ -265,6 +265,10 @@ class CalendarViewModelTest {
         val unwatchedAnime = viewModel.autoDownloadUnwatchedAnime.value
         viewModel.updateAutoDownloadUnwatchedMovie(true)
         val unwatchedMovie = viewModel.autoDownloadUnwatchedMovie.value
+        viewModel.updateAutoDownloadSeasonUnwatchedTv(true)
+        val seasonUnwatchedTv = viewModel.autoDownloadSeasonUnwatchedTv.value
+        viewModel.updateAutoDownloadSeasonUnwatchedAnime(true)
+        val seasonUnwatchedAnime = viewModel.autoDownloadSeasonUnwatchedAnime.value
         viewModel.addPreferredKeyword("SubsPlease")
         val keywordsAfterAdd = viewModel.autoDownloadPreferredKeywords.value
         viewModel.addPreferredKeyword("SubsPlease")
@@ -291,6 +295,8 @@ class CalendarViewModelTest {
         assertTrue(unwatchedTv)
         assertTrue(unwatchedAnime)
         assertTrue(unwatchedMovie)
+        assertTrue(seasonUnwatchedTv)
+        assertTrue(seasonUnwatchedAnime)
         assertTrue(keywordsAfterAdd.contains("SubsPlease"))
         assertEquals(1, keywordsAfterDuplicateAdd.size)
         assertFalse(keywordsAfterRemove.contains("SubsPlease"))

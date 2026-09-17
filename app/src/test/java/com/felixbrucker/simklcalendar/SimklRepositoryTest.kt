@@ -184,6 +184,34 @@ class SimklRepositoryTest {
     }
 
     @Test
+    fun testSearchAndDownloadSeason() = runTest {
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val calItem = CalendarItem("v2_100_1_2", 100, "Ep 2", 1, 2, Instant.now().minusSeconds(3600), null, false, false, false, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_2", MediaStatus.IGNORED))
+        coEvery { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) } returns listOf(item)
+        coEvery { calendarDao.findItem("v2_100_1_2") } returns item
+
+        repository.searchAndDownloadSeason(100, 1)
+
+        coVerify { calendarDao.updateMediaStatus("v2_100_1_2", MediaStatus.WANTED) }
+    }
+
+    @Test
+    fun testUpdateItemAiredStatusSeasonFinaleTriggersSeasonUnwatchedDownloads() = runTest {
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val pastDate = Instant.now().minusSeconds(7200)
+        val calItemFinale = CalendarItem("v2_100_1_12", 100, "Finale", 1, 12, pastDate, null, false, true, false, null)
+        val itemFinale = CalendarItemWithWatchlist(calItemFinale, watchItem, LocalItemState("v2_100_1_12", MediaStatus.NOT_AIRED_YET))
+        val settings = ItemDownloadSettings(simklId = 100, downloadSeasonUnwatched = true)
+        coEvery { itemDownloadSettingsDao.getSettings(100) } returns settings
+        coEvery { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) } returns emptyList()
+
+        repository.updateItemAiredStatus(itemFinale)
+
+        coVerify { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) }
+    }
+
+    @Test
     fun testDetermineStatusWatchedIgnored() {
         val past = Instant.now().minusSeconds(3600)
 

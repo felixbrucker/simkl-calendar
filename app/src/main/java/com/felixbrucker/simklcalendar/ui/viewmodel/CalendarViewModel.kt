@@ -223,6 +223,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val autoDownloadUnwatchedTv = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_tv", false))
     val autoDownloadUnwatchedAnime = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_anime", false))
     val autoDownloadUnwatchedMovie = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_movie", false))
+    val autoDownloadSeasonUnwatchedTv = MutableStateFlow(downloadPrefs.getBoolean("auto_download_season_unwatched_tv", false))
+    val autoDownloadSeasonUnwatchedAnime = MutableStateFlow(downloadPrefs.getBoolean("auto_download_season_unwatched_anime", false))
     val autoDownloadPreferredKeywords = MutableStateFlow(downloadPrefs.getStringListWithMigration("preferred_keywords"))
     val autoDownloadIgnoreKeywords = MutableStateFlow(downloadPrefs.getStringListWithMigration("ignore_keywords"))
 
@@ -249,6 +251,16 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     fun updateAutoDownloadUnwatchedMovie(default: Boolean) {
         autoDownloadUnwatchedMovie.value = default
         downloadPrefs.edit { putBoolean("auto_download_unwatched_movie", default)}
+    }
+
+    fun updateAutoDownloadSeasonUnwatchedTv(default: Boolean) {
+        autoDownloadSeasonUnwatchedTv.value = default
+        downloadPrefs.edit { putBoolean("auto_download_season_unwatched_tv", default)}
+    }
+
+    fun updateAutoDownloadSeasonUnwatchedAnime(default: Boolean) {
+        autoDownloadSeasonUnwatchedAnime.value = default
+        downloadPrefs.edit { putBoolean("auto_download_season_unwatched_anime", default)}
     }
 
     fun addPreferredKeyword(keyword: String) {

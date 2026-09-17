@@ -575,11 +575,18 @@ fun DownloadSettingsCard(
     val globalUnwatchedTv by viewModel.autoDownloadUnwatchedTv.collectAsState()
     val globalUnwatchedAnime by viewModel.autoDownloadUnwatchedAnime.collectAsState()
     val globalUnwatchedMovie by viewModel.autoDownloadUnwatchedMovie.collectAsState()
+    val globalSeasonUnwatchedTv by viewModel.autoDownloadSeasonUnwatchedTv.collectAsState()
+    val globalSeasonUnwatchedAnime by viewModel.autoDownloadSeasonUnwatchedAnime.collectAsState()
 
     val globalUnwatched = when (mediaType) {
         MediaType.TV -> globalUnwatchedTv
         MediaType.ANIME -> globalUnwatchedAnime
         MediaType.MOVIE -> globalUnwatchedMovie
+    }
+    val globalSeasonUnwatched = when (mediaType) {
+        MediaType.TV -> globalSeasonUnwatchedTv
+        MediaType.ANIME -> globalSeasonUnwatchedAnime
+        MediaType.MOVIE -> false
     }
     val globalQuality by viewModel.autoDownloadQuality.collectAsState()
     val globalPreferHevc by viewModel.autoDownloadPreferHevc.collectAsState()
@@ -610,6 +617,25 @@ fun DownloadSettingsCard(
                     },
                     enabled = isDownloaderInstalled
                 )
+            }
+
+            if (mediaType != MediaType.MOVIE) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Season Unwatched Toggle
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Download Season Unwatched", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Auto download all episodes when a season finishes airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = itemSettings?.downloadSeasonUnwatched ?: globalSeasonUnwatched,
+                        onCheckedChange = {
+                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSeasonUnwatched = it))
+                        },
+                        enabled = isDownloaderInstalled
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
