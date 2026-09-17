@@ -7,6 +7,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
+import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
@@ -338,7 +339,8 @@ data class ItemDownloadSettings(
     val preferHevcOverride: Boolean? = null,
     val titleOverride: String? = null,
     val seasonOverrides: Map<Int, Int>? = null, // Map of <Original Season, Search Season Override>
-    val downloadSubdirectoryOverride: String? = null
+    val downloadSubdirectoryOverride: String? = null,
+    val episodeSearchStyle: EpisodeSearchStyle? = null
 )
 
 

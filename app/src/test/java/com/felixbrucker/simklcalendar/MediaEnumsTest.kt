@@ -46,4 +46,15 @@ class MediaEnumsTest {
         assertEquals("Theater Release", MovieReleaseType.THEATER.displayName)
         assertEquals("Digital / DVD Release", MovieReleaseType.DIGITAL.displayName)
     }
+
+    @Test
+    fun testMediaTypeDefaultEpisodeSearchStyle() {
+        val tvDefault = MediaType.TV.defaultEpisodeSearchStyle
+        val animeDefault = MediaType.ANIME.defaultEpisodeSearchStyle
+        val movieDefault = MediaType.MOVIE.defaultEpisodeSearchStyle
+
+        assertEquals(EpisodeSearchStyle.seasonAndEpisode, tvDefault)
+        assertEquals(EpisodeSearchStyle.episode, animeDefault)
+        assertEquals(EpisodeSearchStyle.seasonAndEpisode, movieDefault)
+    }
 }

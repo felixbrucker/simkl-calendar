@@ -6,7 +6,9 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
+import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import io.mockk.coVerify
 import com.felixbrucker.torrent_search_api.NyaaProvider
 import com.felixbrucker.torrent_search_api.PaginatedSearchResult
 import com.felixbrucker.torrent_search_api.TpbProvider
@@ -102,5 +104,43 @@ class TorrentSearchManagerTest {
         val results = manager.search(item)
 
         assertTrue(results.isEmpty())
+    }
+
+    @Test
+    fun testTorrentSearchTVWithEpisodeSearchStyleOverride() = runTest {
+        val customSettings = ItemDownloadSettings(
+            simklId = 100,
+            episodeSearchStyle = EpisodeSearchStyle.episode
+        )
+        coEvery { dao.getSettings(100) } returns customSettings
+        val manager = TorrentSearchManager(dao, prefs)
+        val calendarItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, true, false)
+        val watchlistItem = TrackedWatchlistItem(100, MediaType.TV, "Test Show", null, null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+
+        val results = manager.search(item)
+        val isEmpty = results.isEmpty()
+
+        assertTrue(isEmpty)
+        coVerify { anyConstructed<TpbProvider>().search(term = "Test Show 01 1080p", category = any(), orderBy = any()) }
+    }
+
+    @Test
+    fun testTorrentSearchAnimeWithSeasonAndEpisodeSearchStyleOverride() = runTest {
+        val customSettings = ItemDownloadSettings(
+            simklId = 200,
+            episodeSearchStyle = EpisodeSearchStyle.seasonAndEpisode
+        )
+        coEvery { dao.getSettings(200) } returns customSettings
+        val manager = TorrentSearchManager(dao, prefs)
+        val calendarItem = CalendarItem("v2_200_1_5", 200, "Ep 5", 1, 5, Instant.now(), null, false, false)
+        val watchlistItem = TrackedWatchlistItem(200, MediaType.ANIME, "Anime Show", "Anime Romaji", null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+
+        val results = manager.search(item)
+        val isEmpty = results.isEmpty()
+
+        assertTrue(isEmpty)
+        coVerify { anyConstructed<NyaaProvider>().search(term = "Anime Romaji S01E05 1080p", category = any(), orderBy = any()) }
     }
 }

@@ -3,6 +3,7 @@ package com.felixbrucker.simklcalendar.data.network
 import android.content.SharedPreferences
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.ensureAdded
 import com.felixbrucker.simklcalendar.data.util.getStringListWithMigration
@@ -52,12 +53,16 @@ class TorrentSearchManager(
             Keyword(listOf("DVDScr"), ignoreCase = false),
         )
 
+        val searchStyle = itemSettings?.episodeSearchStyle ?: item.type.defaultEpisodeSearchStyle
+
         val seasonAndEpisodeTerm = String.format(Locale.US, "S%02dE%02d", searchSeason, episode ?: 1)
         val episodeTerm = String.format(Locale.US, "%02d", episode ?: 1)
         val episodeSearchTerm = when(item.type) {
-            MediaType.TV -> seasonAndEpisodeTerm
-            MediaType.ANIME -> episodeTerm
             MediaType.MOVIE -> ""
+            else -> when (searchStyle) {
+                EpisodeSearchStyle.seasonAndEpisode -> seasonAndEpisodeTerm
+                EpisodeSearchStyle.episode -> episodeTerm
+            }
         }
         var term = if (episodeSearchTerm.isNotEmpty()) {
             "$searchTitle $episodeSearchTerm"
