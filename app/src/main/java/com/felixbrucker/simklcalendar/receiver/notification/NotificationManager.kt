@@ -199,7 +199,7 @@ class NotificationManager {
                 if (item.type == MediaType.MOVIE) {
                     val digitalRelease =
                         itemsInSeasonOrRelatedItems.find { it.movieReleaseType == MovieReleaseType.DIGITAL }
-                    if (digitalRelease != null && digitalRelease.mediaStatus == MediaStatus.IGNORED) {
+                    if (digitalRelease != null && (digitalRelease.mediaStatus == MediaStatus.IGNORED || digitalRelease.mediaStatus == MediaStatus.WANTED)) {
                         builder.addAction(
                             R.drawable.ic_download,
                             "Download",
@@ -207,16 +207,16 @@ class NotificationManager {
                         )
                     }
                 } else {
-                    val hasIgnoredEpisodes =
-                        itemsInSeasonOrRelatedItems.any { it.mediaStatus == MediaStatus.IGNORED }
-                    if (hasIgnoredEpisodes) {
+                    val hasDownloadableEpisodes =
+                        itemsInSeasonOrRelatedItems.any { it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED }
+                    if (hasDownloadableEpisodes) {
                         if (item.isSeasonFinale) {
                             builder.addAction(
                                 R.drawable.ic_download,
                                 "Download missing episodes",
                                 item.makeDownloadSeasonMissingEpisodesIntent(context)
                             )
-                        } else if (item.mediaStatus == MediaStatus.IGNORED) {
+                        } else if (item.mediaStatus == MediaStatus.IGNORED || item.mediaStatus == MediaStatus.WANTED) {
                             builder.addAction(
                                 R.drawable.ic_download,
                                 "Download",

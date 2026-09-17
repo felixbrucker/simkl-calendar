@@ -252,4 +252,31 @@ class NotificationManagerFullTest {
         verify { androidNotificationManager.notify(movieItem.notificationId, any()) }
         verify { androidNotificationManager.notify(finaleItem.notificationId, any()) }
     }
+
+    @Test
+    fun testShowNotificationWantedStatusWithTorrentService() = runTest {
+        every { torrentServiceHelper.isInstalled } returns MutableStateFlow(true)
+        val watchMovie = TrackedWatchlistItem(201, MediaType.MOVIE, "Movie 2", null, null)
+        val calMovieDigital = CalendarItem("v2_201_digital", 201, "Movie 2", null, null, Instant.now(), MovieReleaseType.DIGITAL, false, false, false, null)
+        val movieDigitalItem = CalendarItemWithWatchlist(calMovieDigital, watchMovie, LocalItemState("v2_201_digital", MediaStatus.WANTED))
+        val watchEpisode = TrackedWatchlistItem(301, MediaType.TV, "Regular Show", null, null)
+        val calEpisode = CalendarItem("v2_301_1_2", 301, "Ep 2", 1, 2, Instant.now(), null, false, false, false, null)
+        val episodeItem = CalendarItemWithWatchlist(calEpisode, watchEpisode, LocalItemState("v2_301_1_2", MediaStatus.WANTED))
+        val watchFinale = TrackedWatchlistItem(401, MediaType.TV, "Finale Show 2", null, null)
+        val calFinale = CalendarItem("v2_401_1_10", 401, "Finale Ep 2", 1, 10, Instant.now(), null, false, true, false, null)
+        val finaleItem = CalendarItemWithWatchlist(calFinale, watchFinale, LocalItemState("v2_401_1_10", MediaStatus.WANTED))
+        coEvery { calendarDao.getItemsInSeasonOrRelatedItems(201, null) } returns listOf(movieDigitalItem)
+        coEvery { calendarDao.getItemsInSeasonOrRelatedItems(301, 1) } returns listOf(episodeItem)
+        coEvery { calendarDao.getItemsInSeasonOrRelatedItems(401, 1) } returns listOf(finaleItem)
+
+        NotificationManager.showNotification(movieDigitalItem, context)
+        NotificationManager.showNotification(episodeItem, context)
+        NotificationManager.showNotification(finaleItem, context)
+
+        verify { androidNotificationManager.notify(movieDigitalItem.notificationId, any()) }
+        verify { androidNotificationManager.notify(episodeItem.notificationId, any()) }
+        verify { androidNotificationManager.notify(finaleItem.notificationId, any()) }
+        verify { anyConstructed<NotificationCompat.Builder>().addAction(R.drawable.ic_download, "Download", any()) }
+        verify { anyConstructed<NotificationCompat.Builder>().addAction(R.drawable.ic_download, "Download missing episodes", any()) }
+    }
 }
