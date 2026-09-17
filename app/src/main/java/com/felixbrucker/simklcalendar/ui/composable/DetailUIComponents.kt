@@ -780,28 +780,30 @@ fun DownloadSettingsCard(
 
                 // Episode Search Style
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Episode Search Style", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                val currentSearchStyle = itemSettings?.episodeSearchStyle ?: mediaType.defaultEpisodeSearchStyle
-                SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier.padding(top = 8.dp).fillMaxWidth()
-                ) {
-                    EpisodeSearchStyle.entries.forEachIndexed { index, style ->
-                        SegmentedButton(
-                            selected = currentSearchStyle == style,
-                            onClick = {
-                                viewModel.saveItemDownloadSettings(
-                                    (itemSettings ?: ItemDownloadSettings(simklId)).copy(episodeSearchStyle = style)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Episode Search Style", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    val currentSearchStyle = itemSettings?.episodeSearchStyle ?: mediaType.defaultEpisodeSearchStyle
+                    SingleChoiceSegmentedButtonRow {
+                        EpisodeSearchStyle.entries.forEachIndexed { index, style ->
+                            SegmentedButton(
+                                selected = currentSearchStyle == style,
+                                onClick = {
+                                    viewModel.saveItemDownloadSettings(
+                                        (itemSettings ?: ItemDownloadSettings(simklId)).copy(episodeSearchStyle = style)
+                                    )
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = EpisodeSearchStyle.entries.size),
+                                enabled = isDownloaderInstalled
+                            ) {
+                                Text(
+                                    when (style) {
+                                        EpisodeSearchStyle.seasonAndEpisode -> "S01E01"
+                                        EpisodeSearchStyle.episode -> "01"
+                                    }
                                 )
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = EpisodeSearchStyle.entries.size),
-                            enabled = isDownloaderInstalled
-                        ) {
-                            Text(
-                                when (style) {
-                                    EpisodeSearchStyle.seasonAndEpisode -> "S01E01"
-                                    EpisodeSearchStyle.episode -> "01"
-                                }
-                            )
+                            }
                         }
                     }
                 }
