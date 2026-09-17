@@ -108,11 +108,11 @@ fun SettingsScreen(
 
     val autoQuality by viewModel.autoDownloadQuality.collectAsState()
     val autoPreferHevc by viewModel.autoDownloadPreferHevc.collectAsState()
-    val autoUnwatchedTv by viewModel.autoDownloadUnwatchedTv.collectAsState()
-    val autoUnwatchedAnime by viewModel.autoDownloadUnwatchedAnime.collectAsState()
-    val autoUnwatchedMovie by viewModel.autoDownloadUnwatchedMovie.collectAsState()
-    val autoSeasonUnwatchedTv by viewModel.autoDownloadSeasonUnwatchedTv.collectAsState()
-    val autoSeasonUnwatchedAnime by viewModel.autoDownloadSeasonUnwatchedAnime.collectAsState()
+    val autoDownloadUnwatchedTv by viewModel.autoDownloadUnwatchedTv.collectAsState()
+    val autoDownloadUnwatchedAnime by viewModel.autoDownloadUnwatchedAnime.collectAsState()
+    val autoDownloadUnwatchedMovie by viewModel.autoDownloadUnwatchedMovie.collectAsState()
+    val autoDownloadSeasonUnwatchedTv by viewModel.autoDownloadSeasonUnwatchedTv.collectAsState()
+    val autoDownloadSeasonUnwatchedAnime by viewModel.autoDownloadSeasonUnwatchedAnime.collectAsState()
     val autoPreferredKeywords by viewModel.autoDownloadPreferredKeywords.collectAsState()
     val autoIgnoreKeywords by viewModel.autoDownloadIgnoreKeywords.collectAsState()
 
@@ -664,42 +664,6 @@ fun SettingsScreen(
                         )
                     }
 
-                    // Default Download Season Unwatched TV
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Download Season Unwatched TV Shows", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                            Text("Default setting for newly tracked TV Shows.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = autoSeasonUnwatchedTv,
-                            onCheckedChange = { viewModel.updateAutoDownloadSeasonUnwatchedTv(it) },
-                            enabled = isDownloaderInstalled
-                        )
-                    }
-
-                    // Default Download Season Unwatched Anime
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Download Season Unwatched Anime", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                            Text("Default setting for newly tracked Anime.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = autoSeasonUnwatchedAnime,
-                            onCheckedChange = { viewModel.updateAutoDownloadSeasonUnwatchedAnime(it) },
-                            enabled = isDownloaderInstalled
-                        )
-                    }
-
-                    HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
                     // Default Download Unwatched TV
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -711,7 +675,7 @@ fun SettingsScreen(
                             Text("Default setting for newly tracked TV Shows.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
                         }
                         Switch(
-                            checked = autoUnwatchedTv,
+                            checked = autoDownloadUnwatchedTv,
                             onCheckedChange = { viewModel.updateAutoDownloadUnwatchedTv(it) },
                             enabled = isDownloaderInstalled
                         )
@@ -728,7 +692,7 @@ fun SettingsScreen(
                             Text("Default setting for newly tracked Anime.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
                         }
                         Switch(
-                            checked = autoUnwatchedAnime,
+                            checked = autoDownloadUnwatchedAnime,
                             onCheckedChange = { viewModel.updateAutoDownloadUnwatchedAnime(it) },
                             enabled = isDownloaderInstalled
                         )
@@ -745,8 +709,42 @@ fun SettingsScreen(
                             Text("Default setting for newly tracked Movies.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
                         }
                         Switch(
-                            checked = autoUnwatchedMovie,
+                            checked = autoDownloadUnwatchedMovie,
                             onCheckedChange = { viewModel.updateAutoDownloadUnwatchedMovie(it) },
+                            enabled = isDownloaderInstalled
+                        )
+                    }
+
+                    // Default Download Season Unwatched TV
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Download Season Unwatched TV Shows", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                            Text("Default setting for newly tracked TV Shows.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = autoDownloadSeasonUnwatchedTv,
+                            onCheckedChange = { viewModel.updateAutoDownloadSeasonUnwatchedTv(it) },
+                            enabled = isDownloaderInstalled
+                        )
+                    }
+
+                    // Default Download Season Unwatched Anime
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Download Season Unwatched Anime", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                            Text("Default setting for newly tracked Anime.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = autoDownloadSeasonUnwatchedAnime,
+                            onCheckedChange = { viewModel.updateAutoDownloadSeasonUnwatchedAnime(it) },
                             enabled = isDownloaderInstalled
                         )
                     }

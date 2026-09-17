@@ -162,10 +162,10 @@ interface CalendarItemDao {
         WHERE ci.simklId = :simklId
           AND ci.season = :season
           AND ci.watchedAt IS NULL
-          AND (lis.mediaStatus IS NULL OR lis.mediaStatus NOT IN ('DOWNLOADED', 'DOWNLOADING', 'WANTED'))
+          AND (lis.mediaStatus IS NULL OR lis.mediaStatus NOT IN ('DOWNLOADED', 'DOWNLOADING'))
         ORDER BY ci.date ASC
     """)
-    suspend fun getUnwatchedSeasonItemsForDownload(simklId: Int, season: Int): List<CalendarItemWithWatchlist>
+    suspend fun getUnwatchedDownloadableSeasonItems(simklId: Int, season: Int): List<CalendarItemWithWatchlist>
 }
 
 @Dao

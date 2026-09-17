@@ -626,7 +626,7 @@ fun DownloadSettingsCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Download Season Unwatched", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Auto download all episodes when season finishes airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                        Text("Auto download all episodes when a season finishes airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
                     }
                     Switch(
                         checked = itemSettings?.downloadSeasonUnwatched ?: globalSeasonUnwatched,
