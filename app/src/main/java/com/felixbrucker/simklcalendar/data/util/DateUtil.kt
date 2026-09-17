@@ -99,17 +99,15 @@ object DateUtil {
     }
 
     /**
-     * Formats an Instant into a calendar group header in the user's local date/time
+     * Formats a LocalDate into a calendar group header in the user's local date/time
      * (e.g. "TODAY - SUNDAY, AUGUST 23", "TOMORROW - MONDAY, AUGUST 24", or "SUNDAY, AUGUST 23").
      * Accepts optional pre-computed today/zone to avoid repeated system calls in loops.
      */
     fun formatAiringDateHeader(
-        date: Instant,
+        localDate: LocalDate,
         zone: ZoneId = ZoneId.systemDefault(),
         today: LocalDate = LocalDate.now(zone)
     ): String {
-        val localDate = date.atZone(zone).toLocalDate()
-
         val diffDays = ChronoUnit.DAYS.between(today, localDate)
         val displayFormatter = if (localDate.year != today.year) {
             headerDiffYearFormatter
@@ -124,6 +122,18 @@ object DateUtil {
             -1L -> "YESTERDAY - $dateLabel"
             else -> dateLabel
         }
+    }
+
+    /**
+     * Formats an Instant into a calendar group header in the user's local date/time.
+     */
+    fun formatAiringDateHeader(
+        date: Instant,
+        zone: ZoneId = ZoneId.systemDefault(),
+        today: LocalDate = LocalDate.now(zone)
+    ): String {
+        val localDate = date.atZone(zone).toLocalDate()
+        return formatAiringDateHeader(localDate, zone, today)
     }
 
     /**

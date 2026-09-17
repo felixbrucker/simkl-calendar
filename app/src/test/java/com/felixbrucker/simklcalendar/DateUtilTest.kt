@@ -46,6 +46,25 @@ class DateUtilTest {
     }
 
     @Test
+    fun testFormatAiringDateHeaderWithLocalDate() {
+        val zone = ZoneId.of("UTC")
+        val today = LocalDate.of(2026, 8, 23)
+        val tomorrow = today.plusDays(1)
+        val yesterday = today.minusDays(1)
+        val nextYear = LocalDate.of(2027, 1, 1)
+
+        val todayHeader = DateUtil.formatAiringDateHeader(today, zone, today)
+        val tomorrowHeader = DateUtil.formatAiringDateHeader(tomorrow, zone, today)
+        val yesterdayHeader = DateUtil.formatAiringDateHeader(yesterday, zone, today)
+        val nextYearHeader = DateUtil.formatAiringDateHeader(nextYear, zone, today)
+
+        assertTrue(todayHeader.startsWith("TODAY -"))
+        assertTrue(tomorrowHeader.startsWith("TOMORROW -"))
+        assertTrue(yesterdayHeader.startsWith("YESTERDAY -"))
+        assertTrue(nextYearHeader.contains("2027"))
+    }
+
+    @Test
     fun testFormatLocalizedTime() {
         val instant = Instant.parse("2026-08-23T16:30:00Z")
         val formatted = DateUtil.formatLocalizedTime(instant, isDateOnly = false)
