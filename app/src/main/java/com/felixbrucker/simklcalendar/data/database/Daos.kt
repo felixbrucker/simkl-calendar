@@ -154,6 +154,18 @@ interface CalendarItemDao {
     @Transaction
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId AND (season = :season OR season IS NULL) ORDER BY date ASC")
     suspend fun getItemsInSeasonOrRelatedItems(simklId: Int, season: Int?): List<CalendarItemWithWatchlist>
+
+    @Transaction
+    @Query("""
+        SELECT ci.* FROM calendar_items ci
+        LEFT JOIN local_item_state lis ON ci.primaryKey = lis.primaryKey
+        WHERE ci.simklId = :simklId
+          AND ci.season = :season
+          AND ci.watchedAt IS NULL
+          AND (lis.mediaStatus IS NULL OR lis.mediaStatus NOT IN ('DOWNLOADED', 'DOWNLOADING', 'WANTED'))
+        ORDER BY ci.date ASC
+    """)
+    suspend fun getUnwatchedSeasonItemsForDownload(simklId: Int, season: Int): List<CalendarItemWithWatchlist>
 }
 
 @Dao

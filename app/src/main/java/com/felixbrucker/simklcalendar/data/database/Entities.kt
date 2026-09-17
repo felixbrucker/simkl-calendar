@@ -333,6 +333,7 @@ data class CustomSearchLink(
 data class ItemDownloadSettings(
     @PrimaryKey val simklId: Int,
     val downloadUnwatched: Boolean? = null,
+    val downloadSeasonUnwatched: Boolean? = null,
     val qualityOverride: String? = null, // "4K", "1080p", "720p"
     val preferHevcOverride: Boolean? = null,
     val titleOverride: String? = null,
