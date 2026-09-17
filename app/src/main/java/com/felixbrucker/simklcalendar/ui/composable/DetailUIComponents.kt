@@ -781,10 +781,7 @@ fun DownloadSettingsCard(
                 // Episode Search Style
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Episode Search Style", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                val currentSearchStyle = itemSettings?.episodeSearchStyle ?: when (mediaType) {
-                    MediaType.ANIME -> EpisodeSearchStyle.episode
-                    else -> EpisodeSearchStyle.seasonAndEpisode
-                }
+                val currentSearchStyle = itemSettings?.episodeSearchStyle ?: mediaType.defaultEpisodeSearchStyle
                 SingleChoiceSegmentedButtonRow(
                     modifier = Modifier.padding(top = 8.dp).fillMaxWidth()
                 ) {

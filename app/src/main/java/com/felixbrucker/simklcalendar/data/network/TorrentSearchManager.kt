@@ -53,10 +53,7 @@ class TorrentSearchManager(
             Keyword(listOf("DVDScr"), ignoreCase = false),
         )
 
-        val searchStyle = itemSettings?.episodeSearchStyle ?: when (item.type) {
-            MediaType.ANIME -> EpisodeSearchStyle.episode
-            else -> EpisodeSearchStyle.seasonAndEpisode
-        }
+        val searchStyle = itemSettings?.episodeSearchStyle ?: item.type.defaultEpisodeSearchStyle
 
         val seasonAndEpisodeTerm = String.format(Locale.US, "S%02dE%02d", searchSeason, episode ?: 1)
         val episodeTerm = String.format(Locale.US, "%02d", episode ?: 1)

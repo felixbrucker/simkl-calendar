@@ -5,6 +5,12 @@ enum class MediaType(val key: String, val displayName: String) {
     ANIME("anime", "Anime"),
     MOVIE("movie", "Movie");
 
+    val defaultEpisodeSearchStyle: EpisodeSearchStyle
+        get() = when (this) {
+            ANIME -> EpisodeSearchStyle.episode
+            else -> EpisodeSearchStyle.seasonAndEpisode
+        }
+
     companion object {
         fun fromKey(key: String?): MediaType {
             return when (key?.lowercase()) {
