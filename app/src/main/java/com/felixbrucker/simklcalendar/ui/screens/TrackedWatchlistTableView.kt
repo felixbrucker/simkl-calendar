@@ -85,7 +85,7 @@ fun TrackedWatchlistTableView(
                             item = item,
                             isDownloaderInstalled = isDownloaderInstalled,
                             isSmallScreen = isSmallScreen,
-                            onRowClick = { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
+                            onNavigateToSeriesDetail = onNavigateToSeriesDetail
                         )
                     }
                 }
@@ -96,7 +96,7 @@ fun TrackedWatchlistTableView(
                             item = item,
                             isDownloaderInstalled = isDownloaderInstalled,
                             isSmallScreen = isSmallScreen,
-                            onRowClick = { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
+                            onNavigateToSeriesDetail = onNavigateToSeriesDetail
                         )
                     }
                 }
@@ -107,7 +107,7 @@ fun TrackedWatchlistTableView(
                             item = item,
                             isDownloaderInstalled = isDownloaderInstalled,
                             isSmallScreen = isSmallScreen,
-                            onRowClick = { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
+                            onNavigateToSeriesDetail = onNavigateToSeriesDetail
                         )
                     }
                 }
@@ -234,7 +234,7 @@ fun WatchlistTableItemRow(
     item: WatchlistTableItem,
     isDownloaderInstalled: Boolean,
     isSmallScreen: Boolean,
-    onRowClick: () -> Unit,
+    onNavigateToSeriesDetail: (Int) -> Unit,
 ) {
     val categoryColor = when (item.watchlistItem.type) {
         MediaType.ANIME -> Color(0xFFD0BCFF)
@@ -247,7 +247,7 @@ fun WatchlistTableItemRow(
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onRowClick() }
+            .clickable { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
     ) {
         Column {
             Row(

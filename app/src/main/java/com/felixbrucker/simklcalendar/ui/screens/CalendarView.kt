@@ -222,7 +222,7 @@ fun CalendarView(
                             items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
                                 CalendarItemCard(
                                     item = item,
-                                    onClick = { onNavigateToShowDetail(item.primaryKey) },
+                                    onNavigateToShowDetail = onNavigateToShowDetail,
                                     downloadProgress = torrentDownloads[item.downloadTaskId],
                                     modifier = Modifier.animateItem(),
                                 )
@@ -254,7 +254,7 @@ fun CalendarView(
                         items(dayItems, key = { it.primaryKey }) { item ->
                             CalendarItemCard(
                                 item = item,
-                                onClick = { onNavigateToShowDetail(item.primaryKey) },
+                                onNavigateToShowDetail = onNavigateToShowDetail,
                                 downloadProgress = torrentDownloads[item.downloadTaskId],
                                 modifier = Modifier.animateItem(),
                             )
@@ -310,7 +310,7 @@ fun CalendarView(
 @Composable
 fun CalendarItemCard(
     item: CalendarItemWithWatchlist,
-    onClick: () -> Unit,
+    onNavigateToShowDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
     downloadProgress: DownloadProgress? = null
 ) {
@@ -332,7 +332,7 @@ fun CalendarItemCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable(onClick = onClick)
+            .clickable { onNavigateToShowDetail(item.primaryKey) }
     ) {
         Column {
             Row(
