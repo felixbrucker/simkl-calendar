@@ -134,20 +134,21 @@ fun MainScreen(
         items.partition { DateUtil.isEarlierThanToday(it.date, zone, today) }
     }
 
+    // Group items by LocalDate first, then format header per distinct date to avoid repeated formatting per item
     val earlierGrouped = remember(earlierItems) {
         val zone = java.time.ZoneId.systemDefault()
         val today = java.time.LocalDate.now(zone)
-        earlierItems.groupBy { item ->
-            DateUtil.formatAiringDateHeader(item.date, zone, today)
-        }
+        earlierItems
+            .groupBy { it.date.atZone(zone).toLocalDate() }
+            .mapKeys { (localDate, _) -> DateUtil.formatAiringDateHeader(localDate, zone, today) }
     }
 
     val upcomingGrouped = remember(upcomingItems) {
         val zone = java.time.ZoneId.systemDefault()
         val today = java.time.LocalDate.now(zone)
-        upcomingItems.groupBy { item ->
-            DateUtil.formatAiringDateHeader(item.date, zone, today)
-        }
+        upcomingItems
+            .groupBy { it.date.atZone(zone).toLocalDate() }
+            .mapKeys { (localDate, _) -> DateUtil.formatAiringDateHeader(localDate, zone, today) }
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
