@@ -140,7 +140,11 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
 
                 // Trigger search and download
-                repo.searchAndDownloadEpisode(updatedItem)
+                try {
+                    repo.searchAndDownloadEpisode(updatedItem)
+                } finally {
+                    repo.torrentServiceHelper.unbind()
+                }
 
                 // Refetch again to reflect intermediate state change (WANTED -> DOWNLOADING / IGNORED)
                 val finalItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
@@ -176,7 +180,11 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 }
 
                 // Trigger batch search and download for all WANTED items
-                repo.searchAndDownloadWantedItems()
+                try {
+                    repo.searchAndDownloadWantedItems()
+                } finally {
+                    repo.torrentServiceHelper.unbind()
+                }
 
                 // Update the notification that triggered this to reflect new season aggregate status
                 val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch

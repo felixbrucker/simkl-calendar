@@ -22,6 +22,7 @@ import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationActionReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import io.mockk.coEvery
@@ -54,9 +55,14 @@ class NotificationActionReceiverTest {
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var androidNotificationManager: AndroidNotificationManager
+    private lateinit var torrentServiceHelper: TorrentServiceHelper
 
     @Before
     fun setUp() {
+        torrentServiceHelper = mockk(relaxed = true)
+        mockkObject(TorrentServiceHelper.Companion)
+        every { TorrentServiceHelper.getInstance(any()) } returns torrentServiceHelper
+
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
@@ -108,6 +114,7 @@ class NotificationActionReceiverTest {
 
     @After
     fun tearDown() {
+        unmockkObject(TorrentServiceHelper.Companion)
         unmockkConstructor(SimklRepository::class)
         unmockkObject(NotificationManager)
         unmockkStatic(Toast::class)
@@ -220,6 +227,7 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { anyConstructed<SimklRepository>().updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
+        verify(timeout = 3000) { torrentServiceHelper.unbind() }
     }
 
     @Test
@@ -240,5 +248,6 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { anyConstructed<SimklRepository>().updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
+        verify(timeout = 3000) { torrentServiceHelper.unbind() }
     }
 }

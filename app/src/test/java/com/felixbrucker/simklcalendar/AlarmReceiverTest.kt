@@ -21,6 +21,7 @@ import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import io.mockk.coEvery
@@ -48,9 +49,14 @@ class AlarmReceiverTest {
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var androidNotificationManager: AndroidNotificationManager
+    private lateinit var torrentServiceHelper: TorrentServiceHelper
 
     @Before
     fun setUp() {
+        torrentServiceHelper = mockk(relaxed = true)
+        mockkObject(TorrentServiceHelper.Companion)
+        every { TorrentServiceHelper.getInstance(any()) } returns torrentServiceHelper
+
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
@@ -82,6 +88,7 @@ class AlarmReceiverTest {
 
     @After
     fun tearDown() {
+        unmockkObject(TorrentServiceHelper.Companion)
         unmockkObject(NotificationManager.Companion)
         unmockkStatic(Log::class)
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
@@ -267,5 +274,24 @@ class AlarmReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(exactly = 0) { calendarDao.markItemAsNotified(any()) }
+    }
+
+    @Test
+    fun testOnReceiveUnbindsTorrentService() {
+        val receiver = spyk(AlarmReceiver())
+        val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
+        every { receiver.goAsync() } returns pendingResult
+        val intent = mockk<Intent>()
+        every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
+        every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_100_1_1"
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.NOT_AIRED_YET))
+        coEvery { calendarDao.findItem("v2_100_1_1") } returns item
+        coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
+
+        receiver.onReceive(context, intent)
+
+        verify(timeout = 3000) { torrentServiceHelper.unbind() }
     }
 }
