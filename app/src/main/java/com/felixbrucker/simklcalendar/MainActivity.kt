@@ -45,7 +45,10 @@ import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import androidx.core.net.toUri
+import androidx.lifecycle.lifecycleScope
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.net.URLDecoder
 
@@ -94,7 +97,11 @@ class MainActivity : ComponentActivity() {
         }
 
         handleOAuthIntent(intent)
-        handleNotificationNavigation(intent)
+
+        lifecycleScope.launch(Dispatchers.Default) {
+            handleNotificationNavigation(intent)
+            NotificationManager.restoreActiveNotifications(applicationContext)
+        }
 
         setContent {
             MyApplicationTheme {
@@ -112,7 +119,9 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleOAuthIntent(intent)
-        handleNotificationNavigation(intent)
+        lifecycleScope.launch(Dispatchers.Default) {
+            handleNotificationNavigation(intent)
+        }
     }
 
     private fun handleOAuthIntent(intent: Intent?) {
@@ -122,7 +131,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun handleNotificationNavigation(intent: Intent?) {
+    private suspend fun handleNotificationNavigation(intent: Intent?) {
         if (intent == null) return
         val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
             ?: if (intent.data?.scheme == "simklcalendar" && intent.data?.host == "detail") {
@@ -136,6 +145,7 @@ class MainActivity : ComponentActivity() {
             } else null
 
         if (!itemKey.isNullOrEmpty()) {
+            NotificationManager.removeActiveNotification(this@MainActivity, itemKey)
             viewModel.setPendingDetailKey(itemKey)
         }
     }
