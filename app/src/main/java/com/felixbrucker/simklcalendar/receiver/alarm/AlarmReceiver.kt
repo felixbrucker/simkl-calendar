@@ -45,16 +45,20 @@ class AlarmReceiver: BroadcastReceiver() {
         val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return
         val repo = SimklRepository(context)
 
-        // First, ensure the items media status is correctly set after it aired
-        repo.updateItemAiredStatus(item)
+        try {
+            // First, ensure the items media status is correctly set after it aired
+            repo.updateItemAiredStatus(item)
 
-        // Second, we check if we should post a notification for this item
-        val shouldPostNotification = shouldPostNotificationForItem(item, context)
-        if (!shouldPostNotification) {
-            return
+            // Second, we check if we should post a notification for this item
+            val shouldPostNotification = shouldPostNotificationForItem(item, context)
+            if (!shouldPostNotification) {
+                return
+            }
+            NotificationManager.showNotification(item, context)
+            db.calendarItemDao().markItemAsNotified(itemPrimaryKey)
+        } finally {
+            repo.torrentServiceHelper.unbind()
         }
-        NotificationManager.showNotification(item, context)
-        db.calendarItemDao().markItemAsNotified(itemPrimaryKey)
     }
 
     private suspend fun shouldPostNotificationForItem(item: CalendarItemWithWatchlist, context: Context): Boolean {
