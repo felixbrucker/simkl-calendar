@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
+import java.time.LocalDate
+import java.time.ZoneId
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.MainViewMode
@@ -130,12 +132,12 @@ fun MainScreen(
 
     // Separate and group earlier and upcoming releases in a single pass to minimize timezone conversions
     val (earlierItems, earlierGrouped, upcomingGrouped) = remember(items) {
-        val zone = java.time.ZoneId.systemDefault()
-        val today = java.time.LocalDate.now(zone)
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
 
         val earlierList = mutableListOf<CalendarItemWithWatchlist>()
-        val earlierMap = LinkedHashMap<java.time.LocalDate, MutableList<CalendarItemWithWatchlist>>()
-        val upcomingMap = LinkedHashMap<java.time.LocalDate, MutableList<CalendarItemWithWatchlist>>()
+        val earlierMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
+        val upcomingMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
 
         for (i in 0 until items.size) {
             val item = items[i]
