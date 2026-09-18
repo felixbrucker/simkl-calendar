@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
@@ -132,9 +133,9 @@ fun MainScreen(
         val zone = java.time.ZoneId.systemDefault()
         val today = java.time.LocalDate.now(zone)
 
-        val earlierList = mutableListOf<com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist>()
-        val earlierMap = LinkedHashMap<java.time.LocalDate, MutableList<com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist>>()
-        val upcomingMap = LinkedHashMap<java.time.LocalDate, MutableList<com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist>>()
+        val earlierList = mutableListOf<CalendarItemWithWatchlist>()
+        val earlierMap = LinkedHashMap<java.time.LocalDate, MutableList<CalendarItemWithWatchlist>>()
+        val upcomingMap = LinkedHashMap<java.time.LocalDate, MutableList<CalendarItemWithWatchlist>>()
 
         for (i in 0 until items.size) {
             val item = items[i]
