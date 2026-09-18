@@ -298,13 +298,13 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val current = autoDownloadIgnoreKeywords.value.toMutableList()
         if (current.remove(keyword)) {
             autoDownloadIgnoreKeywords.value = current
-            downloadPrefs.edit { putStringList("ignore_keywords_list", current) }
+            downloadPrefs.edit { putStringList("ignore_keywords", current) }
         }
     }
 
     fun updateIgnoreKeywordsOrder(reordered: List<String>) {
         autoDownloadIgnoreKeywords.value = reordered
-        downloadPrefs.edit { putStringList("ignore_keywords_list", reordered) }
+        downloadPrefs.edit { putStringList("ignore_keywords", reordered) }
     }
 
     @Suppress("UNCHECKED_CAST")
