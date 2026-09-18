@@ -44,7 +44,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
+import java.time.LocalDate
+import java.time.ZoneId
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.MainViewMode
@@ -127,28 +130,34 @@ fun MainScreen(
         keyboardController?.hide()
     }
 
-    // Separate earlier releases from today/upcoming releases
-    val (earlierItems, upcomingItems) = remember(items) {
-        val zone = java.time.ZoneId.systemDefault()
-        val today = java.time.LocalDate.now(zone)
-        items.partition { DateUtil.isEarlierThanToday(it.date, zone, today) }
-    }
+    // Separate and group earlier and upcoming releases in a single pass to minimize timezone conversions
+    val (earlierItems, earlierGrouped, upcomingGrouped) = remember(items) {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
 
-    // Group items by LocalDate first, then format header per distinct date to avoid repeated formatting per item
-    val earlierGrouped = remember(earlierItems) {
-        val zone = java.time.ZoneId.systemDefault()
-        val today = java.time.LocalDate.now(zone)
-        earlierItems
-            .groupBy { it.date.atZone(zone).toLocalDate() }
-            .mapKeys { (localDate, _) -> DateUtil.formatAiringDateHeader(localDate, zone, today) }
-    }
+        val earlierList = mutableListOf<CalendarItemWithWatchlist>()
+        val earlierMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
+        val upcomingMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
 
-    val upcomingGrouped = remember(upcomingItems) {
-        val zone = java.time.ZoneId.systemDefault()
-        val today = java.time.LocalDate.now(zone)
-        upcomingItems
-            .groupBy { it.date.atZone(zone).toLocalDate() }
-            .mapKeys { (localDate, _) -> DateUtil.formatAiringDateHeader(localDate, zone, today) }
+        for (i in 0 until items.size) {
+            val item = items[i]
+            val localDate = item.date.atZone(zone).toLocalDate()
+            if (localDate.isBefore(today)) {
+                earlierList.add(item)
+                earlierMap.getOrPut(localDate) { mutableListOf() }.add(item)
+            } else {
+                upcomingMap.getOrPut(localDate) { mutableListOf() }.add(item)
+            }
+        }
+
+        val formattedEarlier = earlierMap.mapKeys { (localDate, _) ->
+            DateUtil.formatAiringDateHeader(localDate, zone, today)
+        }
+        val formattedUpcoming = upcomingMap.mapKeys { (localDate, _) ->
+            DateUtil.formatAiringDateHeader(localDate, zone, today)
+        }
+
+        Triple(earlierList, formattedEarlier, formattedUpcoming)
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
