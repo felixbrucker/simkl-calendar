@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
@@ -45,20 +46,39 @@ class AlarmReceiver: BroadcastReceiver() {
         val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return
         val repo = SimklRepository(context)
 
-        // First, ensure the items media status is correctly set after it aired
         try {
+            // First, ensure the item's media status is correctly set after it aired
             repo.updateItemAiredStatus(item)
+
+            // Second, check if we should post a notification for this item
+            val shouldPostNotification = shouldPostNotificationForItem(item, context)
+            if (shouldPostNotification) {
+                NotificationManager.showNotification(item, context)
+                db.calendarItemDao().markItemAsNotified(itemPrimaryKey)
+            }
+
+            // Lastly, search and download torrents if configured
+            val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return
+            if (updatedItem.mediaStatus == MediaStatus.WANTED) {
+                repo.searchAndDownloadEpisode(updatedItem)
+            }
+
+            val calendarItem = item.calendarItem
+            if (calendarItem.isSeasonFinale && calendarItem.season != null && item.type != MediaType.MOVIE) {
+                val settings = db.itemDownloadSettingsDao().getSettings(item.simklId)
+                val downloadPrefs = context.getSharedPreferences("auto_download_prefs", Context.MODE_PRIVATE)
+                val isDownloadSeasonUnwatchedEnabled = settings?.downloadSeasonUnwatched ?: when (item.type) {
+                    MediaType.TV -> downloadPrefs.getBoolean("auto_download_season_unwatched_tv", false)
+                    MediaType.ANIME -> downloadPrefs.getBoolean("auto_download_season_unwatched_anime", false)
+                    MediaType.MOVIE -> false
+                }
+                if (isDownloadSeasonUnwatchedEnabled) {
+                    repo.searchAndDownloadSeason(item.simklId, calendarItem.season)
+                }
+            }
         } finally {
             repo.torrentServiceHelper.unbind()
         }
-
-        // Second, we check if we should post a notification for this item
-        val shouldPostNotification = shouldPostNotificationForItem(item, context)
-        if (!shouldPostNotification) {
-            return
-        }
-        NotificationManager.showNotification(item, context)
-        db.calendarItemDao().markItemAsNotified(itemPrimaryKey)
     }
 
     private suspend fun shouldPostNotificationForItem(item: CalendarItemWithWatchlist, context: Context): Boolean {

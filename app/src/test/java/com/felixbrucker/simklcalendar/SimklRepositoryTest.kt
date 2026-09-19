@@ -197,20 +197,6 @@ class SimklRepositoryTest {
         coVerify { calendarDao.updateMediaStatus("v2_100_1_2", MediaStatus.WANTED) }
     }
 
-    @Test
-    fun testUpdateItemAiredStatusSeasonFinaleTriggersSeasonUnwatchedDownloads() = runTest {
-        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
-        val pastDate = Instant.now().minusSeconds(7200)
-        val calItemFinale = CalendarItem("v2_100_1_12", 100, "Finale", 1, 12, pastDate, null, false, true, false, null)
-        val itemFinale = CalendarItemWithWatchlist(calItemFinale, watchItem, LocalItemState("v2_100_1_12", MediaStatus.NOT_AIRED_YET))
-        val settings = ItemDownloadSettings(simklId = 100, downloadSeasonUnwatched = true)
-        coEvery { itemDownloadSettingsDao.getSettings(100) } returns settings
-        coEvery { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) } returns emptyList()
-
-        repository.updateItemAiredStatus(itemFinale)
-
-        coVerify { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) }
-    }
 
     @Test
     fun testDetermineStatusWatchedIgnored() {
@@ -416,24 +402,9 @@ class SimklRepositoryTest {
         assertEquals("No torrent results found for this episode.", result.exceptionOrNull()?.message)
     }
 
-    @Test
-    fun testUpdateItemAiredStatusIgnoresSearchAndDownloadException() = runTest {
-        val repoSpy = spyk(repository)
-        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
-        val pastDate = Instant.now().minusSeconds(7200)
-        val calItemAired = CalendarItem("v2_100_1_1", 100, "Ep 1", 1, 1, pastDate, null, true, false, false, null)
-        val itemAired = CalendarItemWithWatchlist(calItemAired, watchItem, LocalItemState("v2_100_1_1", MediaStatus.NOT_AIRED_YET))
-        every { sharedPreferences.getBoolean("auto_download_unwatched_tv", false) } returns true
-        coEvery { calendarDao.findItem("v2_100_1_1") } returns itemAired
-        coEvery { repoSpy.searchAndDownloadEpisode(any()) } throws RuntimeException("Network error")
-
-        repoSpy.updateItemAiredStatus(itemAired)
-
-        coVerify { calendarDao.updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
-    }
 
     @Test
-    fun testSearchAndDownloadSeasonIgnoresSearchAndDownloadException() = runTest {
+    fun testSearchAndDownloadSeasonHandlesSearchAndDownloadFailure() = runTest {
         val repoSpy = spyk(repository)
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val calItem1 = CalendarItem("v2_100_1_1", 100, "Ep 1", 1, 1, Instant.now().minusSeconds(3600), null, false, false, false, null)
@@ -443,7 +414,7 @@ class SimklRepositoryTest {
         coEvery { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) } returns listOf(item1, item2)
         coEvery { calendarDao.findItem("v2_100_1_1") } returns item1
         coEvery { calendarDao.findItem("v2_100_1_2") } returns item2
-        coEvery { repoSpy.searchAndDownloadEpisode(item1) } throws RuntimeException("Network error on ep 1")
+        coEvery { repoSpy.searchAndDownloadEpisode(item1) } returns Result.failure(RuntimeException("Network error on ep 1"))
         coEvery { repoSpy.searchAndDownloadEpisode(item2) } returns Result.success("task_id_2")
 
         repoSpy.searchAndDownloadSeason(100, 1)
