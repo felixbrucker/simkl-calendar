@@ -19,6 +19,7 @@ object DateUtil {
     private val headerSameYearFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault())
     private val headerDiffYearFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.getDefault())
     private val slashDateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
+    private val displayDateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)
 
     /**
      * Parses an HTTP date string (e.g. from Last-Modified header in RFC 1123 format) into an Instant.
@@ -151,7 +152,7 @@ object DateUtil {
      */
     fun formatDisplayDate(date: Instant): String {
         val localDate = date.atZone(ZoneId.systemDefault()).toLocalDate()
-        return localDate.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG))
+        return localDate.format(displayDateFormatter)
     }
 
     /**
@@ -163,7 +164,7 @@ object DateUtil {
             return formatDisplayDate(date)
         }
         val zonedDateTime = date.atZone(ZoneId.systemDefault())
-        val dateStr = zonedDateTime.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG))
+        val dateStr = zonedDateTime.format(displayDateFormatter)
         val timeStr = zonedDateTime.format(timeFormatter)
         return "$dateStr at $timeStr"
     }
