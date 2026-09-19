@@ -298,9 +298,6 @@ interface ActiveNotificationDao {
 
     @Query("DELETE FROM active_notifications WHERE primaryKey = :primaryKey")
     suspend fun deleteActiveNotification(primaryKey: String)
-
-    @Query("DELETE FROM active_notifications")
-    suspend fun clearAll()
 }
 
 @Dao
