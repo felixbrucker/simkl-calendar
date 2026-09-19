@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
@@ -128,6 +129,8 @@ class SimklRepository(private val context: Context) {
         val unwatchedItems = calendarDao.getUnwatchedDownloadableSeasonItems(simklId, season)
         unwatchedItems.forEach { item ->
             updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
+        }
+        unwatchedItems.forEach { item ->
             val updatedItem = calendarDao.findItem(item.primaryKey) ?: item
             searchAndDownloadEpisode(updatedItem)
         }
@@ -147,21 +150,6 @@ class SimklRepository(private val context: Context) {
             isWatched = item.isWatched,
         )
         updateMediaStatus(calendarItem.primaryKey, newStatus)
-        if (newStatus == MediaStatus.WANTED) {
-            val updatedItem = calendarDao.findItem(calendarItem.primaryKey) ?: return@withContext
-            searchAndDownloadEpisode(updatedItem)
-        }
-
-        if (calendarItem.isSeasonFinale && calendarItem.season != null && item.type != MediaType.MOVIE) {
-            val isDownloadSeasonUnwatchedEnabled = settings?.downloadSeasonUnwatched ?: when (item.type) {
-                MediaType.TV -> downloadPrefs.getBoolean("auto_download_season_unwatched_tv", false)
-                MediaType.ANIME -> downloadPrefs.getBoolean("auto_download_season_unwatched_anime", false)
-                MediaType.MOVIE -> false
-            }
-            if (isDownloadSeasonUnwatchedEnabled) {
-                searchAndDownloadSeason(item.simklId, calendarItem.season)
-            }
-        }
     }
 
     fun determineStatus(

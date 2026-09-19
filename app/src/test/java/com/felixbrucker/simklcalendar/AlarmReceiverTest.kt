@@ -13,6 +13,7 @@ import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
@@ -293,5 +294,51 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { torrentServiceHelper.unbind() }
+    }
+
+    @Test
+    fun testOnReceiveSearchesTorrentsWhenStatusIsWanted() {
+        val receiver = spyk(AlarmReceiver())
+        val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
+        every { receiver.goAsync() } returns pendingResult
+        val intent = mockk<Intent>()
+        every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
+        every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_100_1_1"
+        val pastDate = Instant.now().minusSeconds(7200)
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, pastDate, null, false, false, false, null)
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val itemNotAired = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.NOT_AIRED_YET))
+        val itemWanted = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
+        val settings = ItemDownloadSettings(simklId = 100, downloadUnwatched = true)
+        coEvery { itemDownloadSettingsDao.getSettings(100) } returns settings
+        coEvery { calendarDao.findItem("v2_100_1_1") } returns itemNotAired andThen itemWanted
+        coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
+
+        receiver.onReceive(context, intent)
+
+        coVerify(timeout = 3000) { NotificationManager.showNotification(itemNotAired, context) }
+        coVerify(timeout = 3000) { calendarDao.updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
+    }
+
+    @Test
+    fun testOnReceiveSeasonFinaleTriggersSeasonUnwatchedDownloads() {
+        val receiver = spyk(AlarmReceiver())
+        val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
+        every { receiver.goAsync() } returns pendingResult
+        val intent = mockk<Intent>()
+        every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
+        every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_100_1_12"
+        val pastDate = Instant.now().minusSeconds(7200)
+        val calItemFinale = CalendarItem("v2_100_1_12", 100, "Finale", 1, 12, pastDate, null, false, true, false, null)
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val itemFinale = CalendarItemWithWatchlist(calItemFinale, watchItem, LocalItemState("v2_100_1_12", MediaStatus.NOT_AIRED_YET))
+        val settings = ItemDownloadSettings(simklId = 100, downloadSeasonUnwatched = true)
+        coEvery { itemDownloadSettingsDao.getSettings(100) } returns settings
+        coEvery { calendarDao.findItem("v2_100_1_12") } returns itemFinale
+        coEvery { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) } returns emptyList()
+
+        receiver.onReceive(context, intent)
+
+        coVerify(timeout = 3000) { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) }
     }
 }
