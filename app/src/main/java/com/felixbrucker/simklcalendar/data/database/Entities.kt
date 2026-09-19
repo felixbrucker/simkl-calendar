@@ -332,8 +332,7 @@ data class CustomSearchLink(
     ]
 )
 data class ActiveNotification(
-    @PrimaryKey val primaryKey: String,
-    val postedAt: Instant = Instant.now()
+    @PrimaryKey val primaryKey: String
 )
 
 @Entity(

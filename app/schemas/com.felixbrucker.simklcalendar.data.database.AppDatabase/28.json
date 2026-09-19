@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 28,
-    "identityHash": "a7d521438d687ebe3a584dcbdfbd5d20",
+    "identityHash": "b80f4177167cf887d9db9dacadac8954",
     "entities": [
       {
         "tableName": "user_token",
@@ -479,18 +479,12 @@
       },
       {
         "tableName": "active_notifications",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`primaryKey` TEXT NOT NULL, `postedAt` INTEGER NOT NULL, PRIMARY KEY(`primaryKey`), FOREIGN KEY(`primaryKey`) REFERENCES `calendar_items`(`primaryKey`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`primaryKey` TEXT NOT NULL, PRIMARY KEY(`primaryKey`), FOREIGN KEY(`primaryKey`) REFERENCES `calendar_items`(`primaryKey`) ON UPDATE CASCADE ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "primaryKey",
             "columnName": "primaryKey",
             "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "postedAt",
-            "columnName": "postedAt",
-            "affinity": "INTEGER",
             "notNull": true
           }
         ],
@@ -517,7 +511,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a7d521438d687ebe3a584dcbdfbd5d20')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b80f4177167cf887d9db9dacadac8954')"
     ]
   }
 }
