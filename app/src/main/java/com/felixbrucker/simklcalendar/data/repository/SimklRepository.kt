@@ -129,6 +129,8 @@ class SimklRepository(private val context: Context) {
         val unwatchedItems = calendarDao.getUnwatchedDownloadableSeasonItems(simklId, season)
         unwatchedItems.forEach { item ->
             updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
+        }
+        unwatchedItems.forEach { item ->
             val updatedItem = calendarDao.findItem(item.primaryKey) ?: item
             searchAndDownloadEpisode(updatedItem)
         }
