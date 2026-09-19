@@ -43,14 +43,14 @@ class TorrentSearchManager(
             .toMutableList()
         val preferHevc = itemSettings?.preferHevcOverride ?: globalPreferHevc
         if (preferHevc) {
-            preferredKeywords.ensureAdded(Keyword(listOf("hevc", "x265", "H.265")))
+            preferredKeywords.ensureAdded(Keyword(listOf("hevc", "x265", "H.265"), ignoreCase = true))
         }
         // Ignore low quality releases
         ignoreKeywords.ensureAdded(
-            Keyword(listOf("TS", "TELESYNC", "Telesync", "TeleCine", "HDTS", "hdts"), ignoreCase = false),
-            Keyword(listOf("CAM", "CamRip"), ignoreCase = false),
-            Keyword(listOf("DCPRip"), ignoreCase = false),
-            Keyword(listOf("DVDScr"), ignoreCase = false),
+            Keyword(listOf("TS", "TELESYNC", "Telesync", "TeleCine", "HDTS", "hdts")),
+            Keyword(listOf("CAM", "CamRip")),
+            Keyword(listOf("DCPRip")),
+            Keyword(listOf("DVDScr")),
         )
 
         val searchStyle = itemSettings?.episodeSearchStyle ?: item.type.defaultEpisodeSearchStyle
@@ -150,9 +150,9 @@ private fun String.contains(keyword: Keyword): Boolean {
 
 private data class Keyword(
     val variants: List<String>,
-    val ignoreCase: Boolean = true,
+    val ignoreCase: Boolean = false,
 ) {
     companion object {
-        fun single(variant: String, ignoreCase: Boolean = true) = Keyword(listOf(variant), ignoreCase)
+        fun single(variant: String, ignoreCase: Boolean = false) = Keyword(listOf(variant), ignoreCase)
     }
 }
