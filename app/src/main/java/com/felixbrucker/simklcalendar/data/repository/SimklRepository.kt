@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
@@ -129,7 +130,12 @@ class SimklRepository(private val context: Context) {
         unwatchedItems.forEach { item ->
             updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
             val updatedItem = calendarDao.findItem(item.primaryKey) ?: item
-            searchAndDownloadEpisode(updatedItem)
+            try {
+                searchAndDownloadEpisode(updatedItem)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e("SimklRepository", "Failed to search and download episode ${item.primaryKey}", e)
+            }
         }
     }
 
@@ -149,7 +155,12 @@ class SimklRepository(private val context: Context) {
         updateMediaStatus(calendarItem.primaryKey, newStatus)
         if (newStatus == MediaStatus.WANTED) {
             val updatedItem = calendarDao.findItem(calendarItem.primaryKey) ?: return@withContext
-            searchAndDownloadEpisode(updatedItem)
+            try {
+                searchAndDownloadEpisode(updatedItem)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e("SimklRepository", "Failed to search and download episode ${calendarItem.primaryKey}", e)
+            }
         }
 
         if (calendarItem.isSeasonFinale && calendarItem.season != null && item.type != MediaType.MOVIE) {

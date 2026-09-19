@@ -47,6 +47,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.mockkStatic
+import io.mockk.spyk
 import io.mockk.unmockkConstructor
 import io.mockk.unmockkStatic
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -413,5 +414,41 @@ class SimklRepositoryTest {
 
         assertTrue(result.isFailure)
         assertEquals("No torrent results found for this episode.", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun testUpdateItemAiredStatusIgnoresSearchAndDownloadException() = runTest {
+        val repoSpy = spyk(repository)
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val pastDate = Instant.now().minusSeconds(7200)
+        val calItemAired = CalendarItem("v2_100_1_1", 100, "Ep 1", 1, 1, pastDate, null, true, false, false, null)
+        val itemAired = CalendarItemWithWatchlist(calItemAired, watchItem, LocalItemState("v2_100_1_1", MediaStatus.NOT_AIRED_YET))
+        every { sharedPreferences.getBoolean("auto_download_unwatched_tv", false) } returns true
+        coEvery { calendarDao.findItem("v2_100_1_1") } returns itemAired
+        coEvery { repoSpy.searchAndDownloadEpisode(any()) } throws RuntimeException("Network error")
+
+        repoSpy.updateItemAiredStatus(itemAired)
+
+        coVerify { calendarDao.updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
+    }
+
+    @Test
+    fun testSearchAndDownloadSeasonIgnoresSearchAndDownloadException() = runTest {
+        val repoSpy = spyk(repository)
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val calItem1 = CalendarItem("v2_100_1_1", 100, "Ep 1", 1, 1, Instant.now().minusSeconds(3600), null, false, false, false, null)
+        val calItem2 = CalendarItem("v2_100_1_2", 100, "Ep 2", 1, 2, Instant.now().minusSeconds(3600), null, false, false, false, null)
+        val item1 = CalendarItemWithWatchlist(calItem1, watchItem, LocalItemState("v2_100_1_1", MediaStatus.IGNORED))
+        val item2 = CalendarItemWithWatchlist(calItem2, watchItem, LocalItemState("v2_100_1_2", MediaStatus.IGNORED))
+        coEvery { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) } returns listOf(item1, item2)
+        coEvery { calendarDao.findItem("v2_100_1_1") } returns item1
+        coEvery { calendarDao.findItem("v2_100_1_2") } returns item2
+        coEvery { repoSpy.searchAndDownloadEpisode(item1) } throws RuntimeException("Network error on ep 1")
+        coEvery { repoSpy.searchAndDownloadEpisode(item2) } returns Result.success("task_id_2")
+
+        repoSpy.searchAndDownloadSeason(100, 1)
+
+        coVerify { calendarDao.updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
+        coVerify { calendarDao.updateMediaStatus("v2_100_1_2", MediaStatus.WANTED) }
     }
 }
