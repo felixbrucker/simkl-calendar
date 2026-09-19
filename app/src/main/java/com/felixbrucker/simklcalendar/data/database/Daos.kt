@@ -289,6 +289,18 @@ interface CustomSearchLinkDao {
 }
 
 @Dao
+interface ActiveNotificationDao {
+    @Query("SELECT primaryKey FROM active_notifications")
+    suspend fun getAllActiveKeys(): List<String>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertActiveNotification(notification: ActiveNotification)
+
+    @Query("DELETE FROM active_notifications WHERE primaryKey = :primaryKey")
+    suspend fun deleteActiveNotification(primaryKey: String)
+}
+
+@Dao
 interface ItemDownloadSettingsDao {
     @Query("SELECT * FROM item_download_settings WHERE simklId = :simklId LIMIT 1")
     suspend fun getSettings(simklId: Int): ItemDownloadSettings?
