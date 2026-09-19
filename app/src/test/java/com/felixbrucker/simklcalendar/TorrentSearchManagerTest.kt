@@ -11,6 +11,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import io.mockk.coVerify
 import com.felixbrucker.torrent_search_api.NyaaProvider
 import com.felixbrucker.torrent_search_api.PaginatedSearchResult
+import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.felixbrucker.torrent_search_api.TpbProvider
 import io.mockk.coEvery
 import io.mockk.every
@@ -20,6 +21,8 @@ import io.mockk.unmockkConstructor
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -142,5 +145,55 @@ class TorrentSearchManagerTest {
 
         assertTrue(isEmpty)
         coVerify { anyConstructed<NyaaProvider>().search(term = "Anime Romaji S01E05 1080p", category = any(), orderBy = any()) }
+    }
+
+    @Test
+    fun testTorrentSearchKeywordsCaseSensitivityAndHevc() = runTest {
+        every { prefs.getString("preferred_keywords", null) } returns "SubsPlease\nErai-raws"
+        every { prefs.getString("ignore_keywords", null) } returns "BAD_RELEASE"
+        every { prefs.getBoolean("prefer_hevc", true) } returns true
+        val manager = TorrentSearchManager(dao, prefs)
+        val calendarItem = CalendarItem("v2_400_1_1", 400, "Ep 1", 1, 1, Instant.now(), null, false, false)
+        val watchlistItem = TrackedWatchlistItem(400, MediaType.TV, "Test Show", null, null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+        val itemIgnoredExact = mockk<SearchResultItem>()
+        every { itemIgnoredExact.name } returns "Test Show S01E01 BAD_RELEASE"
+        val itemIgnoredCaseMismatch = mockk<SearchResultItem>()
+        every { itemIgnoredCaseMismatch.name } returns "Test Show S01E01 bad_release"
+        val itemPreferredCaseMismatch = mockk<SearchResultItem>()
+        every { itemPreferredCaseMismatch.name } returns "Test Show S01E01 subsplease"
+        val itemPreferredExact = mockk<SearchResultItem>()
+        every { itemPreferredExact.name } returns "Test Show S01E01 SubsPlease"
+        val itemHevcLowerCase = mockk<SearchResultItem>()
+        every { itemHevcLowerCase.name } returns "Test Show S01E01 hevc"
+        val itemHevcUpperCase = mockk<SearchResultItem>()
+        every { itemHevcUpperCase.name } returns "Test Show S01E01 HEVC"
+        coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
+            PaginatedSearchResult(
+                listOf(
+                    itemIgnoredExact,
+                    itemIgnoredCaseMismatch,
+                    itemPreferredCaseMismatch,
+                    itemPreferredExact,
+                    itemHevcLowerCase,
+                    itemHevcUpperCase
+                ),
+                1,
+                false
+            )
+        )
+
+        val results = manager.search(item)
+        val containsIgnoredExact = results.contains(itemIgnoredExact)
+        val containsIgnoredCaseMismatch = results.contains(itemIgnoredCaseMismatch)
+        val firstResultName = results[0].name
+        val secondResultName = results[1].name
+        val thirdResultName = results[2].name
+
+        assertFalse(containsIgnoredExact)
+        assertTrue(containsIgnoredCaseMismatch)
+        assertEquals("Test Show S01E01 SubsPlease", firstResultName)
+        assertEquals("Test Show S01E01 hevc", secondResultName)
+        assertEquals("Test Show S01E01 HEVC", thirdResultName)
     }
 }
