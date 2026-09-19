@@ -320,23 +320,6 @@ data class CustomSearchLink(
 }
 
 @Entity(
-    tableName = "active_notifications",
-    foreignKeys = [
-        ForeignKey(
-            entity = CalendarItem::class,
-            parentColumns = ["primaryKey"],
-            childColumns = ["primaryKey"],
-            onDelete = ForeignKey.CASCADE,
-            onUpdate = ForeignKey.CASCADE,
-        )
-    ]
-)
-data class ActiveNotification(
-    @PrimaryKey val primaryKey: String,
-    val postedAt: Instant = Instant.now()
-)
-
-@Entity(
     tableName = "item_download_settings",
     foreignKeys = [
         ForeignKey(

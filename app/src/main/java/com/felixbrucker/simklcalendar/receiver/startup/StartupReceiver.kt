@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
-import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,7 +22,6 @@ class StartupReceiver: BroadcastReceiver() {
         scope.launch {
             try {
                 AlarmScheduler.scheduleAllItemsAiredAlarms(context)
-                NotificationManager.restoreActiveNotifications(context)
             } finally {
                 pendingResult.finish()
             }

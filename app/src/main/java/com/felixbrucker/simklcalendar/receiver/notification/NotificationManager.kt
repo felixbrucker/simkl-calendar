@@ -20,7 +20,6 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.felixbrucker.simklcalendar.MainActivity
 import com.felixbrucker.simklcalendar.R
-import com.felixbrucker.simklcalendar.data.database.ActiveNotification
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
@@ -51,7 +50,6 @@ class NotificationManager {
             try {
                 val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 notificationManager.notify(notificationId, notification)
-                addActiveNotification(context, item.primaryKey)
                 Log.d(TAG, "Successfully displayed notification id=$notificationId")
             } catch (e: Exception) {
                 Log.e(TAG, "Error posting notification", e)
@@ -85,72 +83,6 @@ class NotificationManager {
                 Log.d(TAG, "Successfully updated notification id=$notificationId")
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating notification", e)
-            }
-        }
-
-        suspend fun addActiveNotification(context: Context, primaryKey: String) {
-            try {
-                val db = AppDatabase.getDatabase(context)
-                db.activeNotificationDao().insertActiveNotification(
-                    ActiveNotification(primaryKey = primaryKey)
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Error inserting active notification primaryKey=$primaryKey", e)
-            }
-        }
-
-        suspend fun removeActiveNotification(context: Context, primaryKey: String) {
-            try {
-                val db = AppDatabase.getDatabase(context)
-                db.activeNotificationDao().deleteActiveNotification(primaryKey)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error removing active notification primaryKey=$primaryKey", e)
-            }
-        }
-
-        suspend fun getActiveNotifications(context: Context): List<String> {
-            return try {
-                val db = AppDatabase.getDatabase(context)
-                db.activeNotificationDao().getAllActiveKeys()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching active notification keys", e)
-                emptyList()
-            }
-        }
-
-        suspend fun restoreActiveNotifications(context: Context) {
-            createNotificationChannel(context)
-            val isNotificationPermissionGranted = validateNotificationPermissionsGranted(context)
-            if (!isNotificationPermissionGranted) {
-                return
-            }
-
-            val activeKeys = getActiveNotifications(context)
-            if (activeKeys.isEmpty()) {
-                return
-            }
-
-            val notificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val currentlyPostedIds = notificationManager.activeNotifications.map { it.id }.toSet()
-
-            val db = AppDatabase.getDatabase(context)
-            for (primaryKey in activeKeys) {
-                val item = db.calendarItemDao().findItem(primaryKey)
-                if (item == null) {
-                    removeActiveNotification(context, primaryKey)
-                    continue
-                }
-
-                if (!currentlyPostedIds.contains(item.notificationId)) {
-                    val notification = buildNotification(item, context)
-                    try {
-                        notificationManager.notify(item.notificationId, notification)
-                        Log.d(TAG, "Restored missing notification primaryKey=$primaryKey id=${item.notificationId}")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error restoring notification primaryKey=$primaryKey", e)
-                    }
-                }
             }
         }
 
@@ -191,7 +123,6 @@ class NotificationManager {
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setContentIntent(openIntent)
-                .setDeleteIntent(item.makeDismissNotificationIntent(context))
                 .setAutoCancel(true)
 
             val isWatched = if (item.type == MediaType.MOVIE) {
@@ -378,20 +309,6 @@ fun CalendarItemWithWatchlist.makeMarkWatchedIntent(context: Context): PendingIn
         context,
         notificationId * 10 + 1,
         markWatchedIntent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
-}
-
-fun CalendarItemWithWatchlist.makeDismissNotificationIntent(context: Context): PendingIntent {
-    val dismissIntent = Intent(context, NotificationActionReceiver::class.java).apply {
-        action = NotificationActionReceiver.ACTION_NOTIFICATION_DISMISSED
-        putExtra(NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
-    }
-
-    return PendingIntent.getBroadcast(
-        context,
-        notificationId * 10 + 5,
-        dismissIntent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 }

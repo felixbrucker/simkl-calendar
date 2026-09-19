@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
-import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import com.felixbrucker.simklcalendar.receiver.startup.StartupReceiver
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -26,15 +25,12 @@ class StartupReceiverTest {
     fun setUp() {
         context = mockk(relaxed = true)
         mockkObject(AlarmScheduler)
-        mockkObject(NotificationManager)
         coEvery { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) } returns Unit
-        coEvery { NotificationManager.restoreActiveNotifications(any()) } returns Unit
     }
 
     @After
     fun tearDown() {
         unmockkObject(AlarmScheduler)
-        unmockkObject(NotificationManager)
     }
 
     @Test
@@ -49,7 +45,6 @@ class StartupReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { AlarmScheduler.scheduleAllItemsAiredAlarms(context) }
-        coVerify(timeout = 3000) { NotificationManager.restoreActiveNotifications(context) }
     }
 
     @Test
@@ -64,7 +59,6 @@ class StartupReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { AlarmScheduler.scheduleAllItemsAiredAlarms(context) }
-        coVerify(timeout = 3000) { NotificationManager.restoreActiveNotifications(context) }
     }
 
     @Test
@@ -75,7 +69,6 @@ class StartupReceiverTest {
         receiver.onReceive(context, null)
 
         coVerify(exactly = 0) { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) }
-        coVerify(exactly = 0) { NotificationManager.restoreActiveNotifications(any()) }
     }
 
     @Test
@@ -87,6 +80,5 @@ class StartupReceiverTest {
         receiver.onReceive(context, intent)
 
         coVerify(exactly = 0) { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) }
-        coVerify(exactly = 0) { NotificationManager.restoreActiveNotifications(any()) }
     }
 }

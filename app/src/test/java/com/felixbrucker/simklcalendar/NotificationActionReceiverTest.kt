@@ -130,14 +130,12 @@ class NotificationActionReceiverTest {
         val actionMarkSeasonWatched = NotificationActionReceiver.ACTION_MARK_SEASON_WATCHED
         val actionDownloadItem = NotificationActionReceiver.ACTION_DOWNLOAD_ITEM
         val actionDownloadSeason = NotificationActionReceiver.ACTION_DOWNLOAD_SEASON_MISSING_EPISODES
-        val actionDismissed = NotificationActionReceiver.ACTION_NOTIFICATION_DISMISSED
         val extraKey = NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY
 
         assertEquals("com.felixbrucker.simklcalendar.ACTION_MARK_ITEM_WATCHED", actionMarkWatched)
         assertEquals("com.felixbrucker.simklcalendar.ACTION_MARK_SEASON_WATCHED", actionMarkSeasonWatched)
         assertEquals("com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_ITEM", actionDownloadItem)
         assertEquals("com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_SEASON_MISSING_EPISODES", actionDownloadSeason)
-        assertEquals("com.felixbrucker.simklcalendar.ACTION_NOTIFICATION_DISMISSED", actionDismissed)
         assertEquals("extra_item_primary_key", extraKey)
     }
 
@@ -230,21 +228,6 @@ class NotificationActionReceiverTest {
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { anyConstructed<SimklRepository>().updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
         verify(timeout = 3000) { torrentServiceHelper.unbind() }
-    }
-
-    @Test
-    fun testOnReceiveNotificationDismissed() {
-        val receiver = spyk(NotificationActionReceiver())
-        val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
-        every { receiver.goAsync() } returns pendingResult
-        val intent = mockk<Intent>()
-        every { intent.action } returns NotificationActionReceiver.ACTION_NOTIFICATION_DISMISSED
-        every { intent.getStringExtra(NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_100_1_1"
-
-        receiver.onReceive(context, intent)
-
-        verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { NotificationManager.removeActiveNotification(context, "v2_100_1_1") }
     }
 
     @Test

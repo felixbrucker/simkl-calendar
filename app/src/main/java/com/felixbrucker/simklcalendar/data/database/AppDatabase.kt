@@ -115,8 +115,8 @@ class Converters {
 }
 
 @Database(
-    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class, ActiveNotification::class],
-    version = 28,
+    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class],
+    version = 27,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -135,7 +135,6 @@ class Converters {
         AutoMigration(from = 24, to = 25),
         AutoMigration(from = 25, to = 26),
         AutoMigration(from = 26, to = 27),
-        AutoMigration(from = 27, to = 28),
     ]
 )
 @TypeConverters(Converters::class)
@@ -165,7 +164,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun watchlistDao(): WatchlistDao
     abstract fun watchedEpisodeDao(): WatchedEpisodeDao
     abstract fun customSearchLinkDao(): CustomSearchLinkDao
-    abstract fun activeNotificationDao(): ActiveNotificationDao
     abstract fun itemDownloadSettingsDao(): ItemDownloadSettingsDao
 
     companion object {

@@ -64,7 +64,6 @@
             <intent-filter>
                 <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_ITEM_WATCHED" />
                 <action android:name="com.felixbrucker.simklcalendar.ACTION_MARK_SEASON_WATCHED" />
-                <action android:name="com.felixbrucker.simklcalendar.ACTION_NOTIFICATION_DISMISSED" />
             </intent-filter>
         </receiver>
         <receiver

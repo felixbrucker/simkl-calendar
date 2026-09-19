@@ -22,8 +22,6 @@ class NotificationActionReceiver: BroadcastReceiver() {
         const val ACTION_DOWNLOAD_ITEM = "com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_ITEM"
         const val ACTION_DOWNLOAD_SEASON_MISSING_EPISODES =
             "com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_SEASON_MISSING_EPISODES"
-        const val ACTION_NOTIFICATION_DISMISSED =
-            "com.felixbrucker.simklcalendar.ACTION_NOTIFICATION_DISMISSED"
         const val EXTRA_ITEM_PRIMARY_KEY = "extra_item_primary_key"
     }
 
@@ -48,11 +46,6 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
             ACTION_DOWNLOAD_SEASON_MISSING_EPISODES -> {
                 handleDownloadSeasonMissingEpisodes(context, intent)
-                return
-            }
-
-            ACTION_NOTIFICATION_DISMISSED -> {
-                handleNotificationDismissed(context, intent)
                 return
             }
         }
@@ -85,7 +78,6 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 }
 
                 val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
-                NotificationManager.removeActiveNotification(context, itemPrimaryKey)
                 NotificationManager.updateNotification(
                     item = updatedItem,
                     context = context
@@ -119,7 +111,6 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 }
 
                 val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
-                NotificationManager.removeActiveNotification(context, itemPrimaryKey)
                 NotificationManager.updateNotification(
                     item = updatedItem,
                     context = context
@@ -163,20 +154,6 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Error starting download from notification action", e)
-            } finally {
-                pendingResult.finish()
-            }
-        }
-    }
-
-    private fun handleNotificationDismissed(context: Context, intent: Intent) {
-        val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
-        val pendingResult = goAsync()
-        scope.launch {
-            try {
-                NotificationManager.removeActiveNotification(context, itemPrimaryKey)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error removing active notification on dismiss", e)
             } finally {
                 pendingResult.finish()
             }
