@@ -414,7 +414,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             matchesCategory && matchesUnwatched && matchesQuery
         }.let { list ->
             val comparator = when (sortField) {
-                TableSortField.NAME -> compareBy { it.watchlistItem.title.lowercase() }
+                TableSortField.NAME -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.watchlistItem.title }
                 TableSortField.LAST_EP -> compareBy { it.lastAiredDate ?: Instant.MIN }
                 TableSortField.NEXT_EP -> compareBy { it.nextEpisodeDate ?: Instant.MAX }
                 TableSortField.WATCHED -> compareBy<WatchlistTableItem> { it.watchedProgress }
