@@ -88,10 +88,13 @@ class TorrentSearchManager(
         // Only anime episode search terms are generic enough to match partially, filter out invalid
         // matches
         if (item.type == MediaType.ANIME) {
-            val keyword = Keyword(listOf(
-                " $episodeTerm ",
-                seasonAndEpisodeTerm
-            ))
+            val keyword = Keyword(
+                variants = listOf(
+                    " $episodeTerm ",
+                    seasonAndEpisodeTerm
+                ),
+                ignoreCase = true
+            )
 
             return results.including(listOf(keyword))
         }
