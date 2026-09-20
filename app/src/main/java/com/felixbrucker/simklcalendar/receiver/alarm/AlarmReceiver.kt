@@ -95,6 +95,11 @@ class AlarmReceiver: BroadcastReceiver() {
         } finally {
             repo.torrentServiceHelper.unbind()
         }
+
+        val finalItem = db.calendarItemDao().findItem(itemPrimaryKey)
+        if (finalItem != null) {
+            NotificationManager.updateNotification(finalItem, context)
+        }
     }
 
     private suspend fun shouldPostNotificationForItem(item: CalendarItemWithWatchlist, context: Context): Boolean {
