@@ -30,8 +30,6 @@ class NotificationActionReceiver: BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         if (context == null || intent == null) return
 
-        Timber.tag(TAG).d("Received action: ${intent.action}")
-
         when (intent.action) {
             ACTION_MARK_ITEM_WATCHED -> {
                 handleMarkItemWatched(context, intent)

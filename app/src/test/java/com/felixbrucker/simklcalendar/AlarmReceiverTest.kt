@@ -362,4 +362,23 @@ class AlarmReceiverTest {
 
         coVerify(timeout = 3000) { NotificationManager.updateNotification(itemFinal, context) }
     }
+
+    @Test
+    fun testOnReceiveDoesNotUpdateNotificationWhenNoSearchOrDownloadOccurred() {
+        val receiver = spyk(AlarmReceiver())
+        val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
+        every { receiver.goAsync() } returns pendingResult
+        val intent = mockk<Intent>()
+        every { intent.action } returns AlarmReceiver.ACTION_ITEM_AIRED_ALARM
+        every { intent.getStringExtra(AlarmReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_100_1_1"
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val itemIgnored = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.IGNORED))
+        coEvery { calendarDao.findItem("v2_100_1_1") } returns itemIgnored
+        coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
+
+        receiver.onReceive(context, intent)
+
+        coVerify(exactly = 0) { NotificationManager.updateNotification(any(), any()) }
+    }
 }

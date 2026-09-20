@@ -70,12 +70,14 @@ class AlarmReceiver: BroadcastReceiver() {
             Timber.tag(TAG).d("Skipping notification for '${item.title}' based on user preferences or notification state")
         }
 
+        var didSearchAndDownload = false
         // Lastly, search and download torrents if configured
         try {
             val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return
             if (updatedItem.mediaStatus == MediaStatus.WANTED) {
                 Timber.tag(TAG).d("Searching and downloading WANTED episode for '${item.title}'")
                 repo.searchAndDownloadEpisode(updatedItem)
+                didSearchAndDownload = true
             }
 
             val calendarItem = item.calendarItem
@@ -90,15 +92,18 @@ class AlarmReceiver: BroadcastReceiver() {
                 if (isDownloadSeasonUnwatchedEnabled) {
                     Timber.tag(TAG).d("Season finale aired for '${item.title}', downloading unwatched season ${calendarItem.season}")
                     repo.searchAndDownloadSeason(item.simklId, calendarItem.season)
+                    didSearchAndDownload = true
                 }
             }
         } finally {
             repo.torrentServiceHelper.unbind()
         }
 
-        val finalItem = db.calendarItemDao().findItem(itemPrimaryKey)
-        if (finalItem != null) {
-            NotificationManager.updateNotification(finalItem, context)
+        if (didSearchAndDownload) {
+            val finalItem = db.calendarItemDao().findItem(itemPrimaryKey)
+            if (finalItem != null) {
+                NotificationManager.updateNotification(finalItem, context)
+            }
         }
     }
 
