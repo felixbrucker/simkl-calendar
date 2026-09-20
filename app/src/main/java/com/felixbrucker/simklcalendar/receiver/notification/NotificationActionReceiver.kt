@@ -60,6 +60,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     private fun handleMarkItemWatched(context: Context, intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
+        Timber.tag(TAG).d("Handling mark item watched action for key=$itemPrimaryKey")
         val repo = SimklRepository(context)
         val db = AppDatabase.getDatabase(context)
 
@@ -99,6 +100,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     private fun handleMarkSeasonWatched(context: Context, intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
+        Timber.tag(TAG).d("Handling mark season watched action for key=$itemPrimaryKey")
         val repo = SimklRepository(context)
         val db = AppDatabase.getDatabase(context)
 
@@ -132,6 +134,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     private fun handleDownloadItem(context: Context, intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
+        Timber.tag(TAG).d("Handling download item action for key=$itemPrimaryKey")
         val repo = SimklRepository(context)
         val db = AppDatabase.getDatabase(context)
 
@@ -169,6 +172,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     private fun handleNotificationDismissed(context: Context, intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
+        Timber.tag(TAG).d("Handling notification dismissed action for key=$itemPrimaryKey")
         val pendingResult = goAsync()
         scope.launch {
             try {
@@ -183,6 +187,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     private fun handleDownloadSeasonMissingEpisodes(context: Context, intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
+        Timber.tag(TAG).d("Handling download season missing episodes action for key=$itemPrimaryKey")
         val repo = SimklRepository(context)
         val db = AppDatabase.getDatabase(context)
 
