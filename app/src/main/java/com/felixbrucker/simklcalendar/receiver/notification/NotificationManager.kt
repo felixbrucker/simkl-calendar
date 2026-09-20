@@ -301,7 +301,6 @@ class NotificationManager {
 
         private suspend fun buildNotificationForUpdate(item: CalendarItemWithWatchlist, context: Context): Notification {
             return makeConfiguredNotificationBuilder(item, context)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setOnlyAlertOnce(true)
                 .build()
         }
