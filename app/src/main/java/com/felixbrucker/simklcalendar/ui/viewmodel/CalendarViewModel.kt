@@ -333,7 +333,21 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val calendarBySimklId = calendar.groupBy { it.simklId }
         val now = Instant.now()
 
-        watchlist.map { item ->
+        // Filter watchlist items by category & search query BEFORE running calendar episode loops and object allocations.
+        watchlist.filter { item ->
+            val matchesCategory = when (item.type) {
+                MediaType.TV -> tv
+                MediaType.ANIME -> anime
+                MediaType.MOVIE -> movies
+            }
+            if (!matchesCategory) return@filter false
+
+            if (query.isBlank()) true
+            else {
+                item.title.contains(query, ignoreCase = true) ||
+                item.titleRomaji?.contains(query, ignoreCase = true) == true
+            }
+        }.mapNotNull { item ->
             val itemCalendar = calendarBySimklId[item.simklId] ?: emptyList()
 
             // Single pass over itemCalendar without intermediate list allocations
@@ -382,6 +396,10 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 }
             }
 
+            if (onlyUnwatchedReleased && !hasUnwatchedReleased) {
+                return@mapNotNull null
+            }
+
             WatchlistTableItem(
                 watchlistItem = item,
                 hasUnwatched = hasUnwatched,
@@ -393,25 +411,6 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 downloadedReleasedCount = downloadedReleasedCount,
                 totalDownloadableReleasedCount = totalDownloadableReleasedCount
             )
-        }.filter {
-            // Category filter
-            val matchesCategory = when (it.watchlistItem.type) {
-                MediaType.TV -> tv
-                MediaType.ANIME -> anime
-                MediaType.MOVIE -> movies
-            }
-
-            // Search query filter
-            val matchesQuery = if (query.isBlank()) true
-            else {
-                it.watchlistItem.title.contains(query, ignoreCase = true) ||
-                it.watchlistItem.titleRomaji?.contains(query, ignoreCase = true) == true
-            }
-
-            // Unwatched released filter
-            val matchesUnwatched = if (onlyUnwatchedReleased) it.hasUnwatchedReleased else true
-
-            matchesCategory && matchesUnwatched && matchesQuery
         }.let { list ->
             val comparator = when (sortField) {
                 TableSortField.NAME -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.watchlistItem.title }
@@ -668,36 +667,35 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val query = (flows[7] as String).trim()
 
         items.filter { item ->
+            // Always exclude watched episodes / releases first (fastest short-circuit)
+            if (item.isWatched) return@filter false
+
             // Category filter
             val matchesCategory = when (item.type) {
                 MediaType.TV -> tv
                 MediaType.ANIME -> anime
                 MediaType.MOVIE -> movies
             }
+            if (!matchesCategory) return@filter false
 
             // Premiere / Finale / Digital-DVD Subtype filter
             val hasSubtypeFilter = premieres || finales || digitalDvd
-            val matchesType = if (!hasSubtypeFilter) {
-                true
-            } else {
-                (premieres && item.isSeasonPremiere) ||
-                (finales && item.isSeasonFinale) ||
-                (digitalDvd && item.type == MediaType.MOVIE && item.movieReleaseType == MovieReleaseType.DIGITAL)
+            if (hasSubtypeFilter) {
+                val matchesType = (premieres && item.isSeasonPremiere) ||
+                        (finales && item.isSeasonFinale) ||
+                        (digitalDvd && item.type == MediaType.MOVIE && item.movieReleaseType == MovieReleaseType.DIGITAL)
+                if (!matchesType) return@filter false
             }
-
-            // Always exclude watched episodes / releases
-            val matchesWatched = !item.isWatched
 
             // Search query filter matching show/movie title, romaji title, or episode title
-            val matchesQuery = if (query.isEmpty()) {
-                true
-            } else {
-                item.title.contains(query, ignoreCase = true) ||
-                (item.titleRomaji?.contains(query, ignoreCase = true) == true) ||
-                (item.episodeTitle?.contains(query, ignoreCase = true) == true)
+            if (query.isNotEmpty()) {
+                val matchesQuery = item.title.contains(query, ignoreCase = true) ||
+                        (item.titleRomaji?.contains(query, ignoreCase = true) == true) ||
+                        (item.episodeTitle?.contains(query, ignoreCase = true) == true)
+                if (!matchesQuery) return@filter false
             }
 
-            matchesCategory && matchesType && matchesWatched && matchesQuery
+            true
         }.sortedWith(compareBy<CalendarItemWithWatchlist> { it.date }.thenBy { it.title })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
