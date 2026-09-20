@@ -6,7 +6,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
-import android.util.Log
+import timber.log.Timber
 import com.felixbrucker.torrenthttpdownloader.AddTorrentParams
 import com.felixbrucker.torrenthttpdownloader.IAddTorrentCallback
 import com.felixbrucker.torrenthttpdownloader.ITorrentDownloadService
@@ -72,14 +72,14 @@ class TorrentServiceHelper(context: Context) {
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            Log.d(TAG, "Service connected")
+            Timber.tag(TAG).d("Service connected")
             val serviceInterface = ITorrentDownloadService.Stub.asInterface(binder)
             _service.value = serviceInterface
             _isBound.value = true
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
-            Log.d(TAG, "Service disconnected")
+            Timber.tag(TAG).d("Service disconnected")
             _service.value = null
             _isBound.value = false
         }
@@ -98,10 +98,10 @@ class TorrentServiceHelper(context: Context) {
             }
             val success = appContext.bindService(intent, connection, Context.BIND_AUTO_CREATE)
             if (!success) {
-                Log.e(TAG, "Failed to bind to Torrent Download Service")
+                Timber.tag(TAG).e("Failed to bind to Torrent Download Service")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error binding to service", e)
+            Timber.tag(TAG).e(e, "Error binding to service")
         }
     }
 

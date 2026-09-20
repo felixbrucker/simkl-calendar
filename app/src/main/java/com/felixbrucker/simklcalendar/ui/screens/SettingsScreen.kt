@@ -58,6 +58,7 @@ import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 fun SettingsScreen(
     viewModel: CalendarViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToLogViewer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -1262,6 +1263,63 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Force Watchlist Re-Sync", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
+                    }
+                }
+            }
+
+            // App Logs & Diagnostics Card
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+                border = BorderStroke(1.dp, Color(0xFF49454F)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Terminal,
+                            contentDescription = null,
+                            tint = Color(0xFFD0BCFF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "App Logs & Diagnostics",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE6E1E5),
+                            fontSize = 16.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "View diagnostic logs generated during app operation across current and earlier app runs.",
+                        color = Color(0xFFCAC4D0),
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = onNavigateToLogViewer,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4A4458),
+                            contentColor = Color(0xFFEADDFF)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp).testTag("view_logs_button")
+                    ) {
+                        Icon(
+                            Icons.Default.Terminal,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("View Logs", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
             }

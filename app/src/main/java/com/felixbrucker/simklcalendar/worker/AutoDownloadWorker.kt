@@ -1,7 +1,7 @@
 package com.felixbrucker.simklcalendar.worker
 
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -18,11 +18,11 @@ class AutoDownloadWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        Log.d(TAG, "Starting periodic background torrent search for WANTED items")
+        Timber.tag(TAG).d("Starting periodic background torrent search for WANTED items")
         val repository = SimklRepository(applicationContext)
 
         if (!repository.torrentServiceHelper.isServiceInstalled()) {
-            Log.d(TAG, "Torrent Downloader service not installed. Skipping periodic search.")
+            Timber.tag(TAG).d("Torrent Downloader service not installed. Skipping periodic search.")
             return Result.success()
         }
 
@@ -30,7 +30,7 @@ class AutoDownloadWorker(
             repository.searchAndDownloadWantedItems()
             return Result.success()
         } catch (e: Exception) {
-            Log.e(TAG, "AutoDownloadWorker encountered an error", e)
+            Timber.tag(TAG).e(e, "AutoDownloadWorker encountered an error")
             return Result.retry()
         }
     }
@@ -54,7 +54,7 @@ class AutoDownloadWorker(
                 ExistingPeriodicWorkPolicy.UPDATE,
                 searchRequest
             )
-            Log.d(TAG, "Enqueued $effectiveInterval-hour periodic background torrent search work")
+            Timber.tag(TAG).d("Enqueued $effectiveInterval-hour periodic background torrent search work")
         }
 
     }

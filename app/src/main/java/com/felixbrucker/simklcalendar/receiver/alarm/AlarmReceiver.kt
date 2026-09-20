@@ -10,6 +10,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
+import timber.log.Timber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +21,7 @@ class AlarmReceiver: BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     companion object {
+        private const val TAG = "AlarmReceiver"
         const val EXTRA_ITEM_PRIMARY_KEY = "extra_item_primary_key"
         const val ACTION_ITEM_AIRED_ALARM = "com.felixbrucker.simklcalendar.ACTION_ITEM_AIRED_ALARM"
     }
@@ -30,11 +32,14 @@ class AlarmReceiver: BroadcastReceiver() {
             return
         }
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
+        Timber.tag(TAG).d("Received item aired alarm for key=$itemPrimaryKey")
 
         val pendingResult = goAsync()
         scope.launch {
             try {
                 onItemAired(itemPrimaryKey, context)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Error processing item aired alarm for key=$itemPrimaryKey")
             } finally {
                 pendingResult.finish()
             }
@@ -43,8 +48,14 @@ class AlarmReceiver: BroadcastReceiver() {
 
     private suspend fun onItemAired(itemPrimaryKey: String, context: Context) {
         val db = AppDatabase.getDatabase(context)
-        val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return
+        val item = db.calendarItemDao().findItem(itemPrimaryKey)
+        if (item == null) {
+            Timber.tag(TAG).w("Item for key=$itemPrimaryKey not found in database")
+            return
+        }
         val repo = SimklRepository(context)
+
+        Timber.tag(TAG).d("Processing item aired for '${item.title}' (key=$itemPrimaryKey)")
 
         // First, ensure the item's media status is correctly set after it aired
         repo.updateItemAiredStatus(item)
@@ -52,14 +63,18 @@ class AlarmReceiver: BroadcastReceiver() {
         // Second, check if we should post a notification for this item
         val shouldPostNotification = shouldPostNotificationForItem(item, context)
         if (shouldPostNotification) {
+            Timber.tag(TAG).d("Posting notification for '${item.title}'")
             NotificationManager.showNotification(item, context)
             db.calendarItemDao().markItemAsNotified(itemPrimaryKey)
+        } else {
+            Timber.tag(TAG).d("Skipping notification for '${item.title}' based on user preferences or notification state")
         }
 
         // Lastly, search and download torrents if configured
         try {
             val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return
             if (updatedItem.mediaStatus == MediaStatus.WANTED) {
+                Timber.tag(TAG).d("Searching and downloading WANTED episode for '${item.title}'")
                 repo.searchAndDownloadEpisode(updatedItem)
             }
 
@@ -73,6 +88,7 @@ class AlarmReceiver: BroadcastReceiver() {
                     MediaType.MOVIE -> false
                 }
                 if (isDownloadSeasonUnwatchedEnabled) {
+                    Timber.tag(TAG).d("Season finale aired for '${item.title}', downloading unwatched season ${calendarItem.season}")
                     repo.searchAndDownloadSeason(item.simklId, calendarItem.season)
                 }
             }

@@ -1,7 +1,7 @@
 package com.felixbrucker.simklcalendar.worker
 
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -18,16 +18,16 @@ class SyncCalendarWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        Log.d(TAG, "Starting periodic background calendar synchronization")
+        Timber.tag(TAG).d("Starting periodic background calendar synchronization")
         return try {
             val repository = SimklRepository(applicationContext)
             // Perform full calendar synchronization
             repository.syncCalendar()
 
-            Log.d(TAG, "Periodic calendar synchronization succeeded")
+            Timber.tag(TAG).d("Periodic calendar synchronization succeeded")
             Result.success()
         } catch (e: Exception) {
-            Log.e(TAG, "Periodic calendar synchronization worker encountered an error", e)
+            Timber.tag(TAG).e(e, "Periodic calendar synchronization worker encountered an error")
             Result.retry()
         }
     }
@@ -55,7 +55,7 @@ class SyncCalendarWorker(
                 ExistingPeriodicWorkPolicy.UPDATE,
                 syncRequest
             )
-            Log.d(TAG, "Enqueued $effectiveInterval-hour periodic background calendar sync work")
+            Timber.tag(TAG).d("Enqueued $effectiveInterval-hour periodic background calendar sync work")
         }
     }
 }

@@ -2,7 +2,7 @@ package com.felixbrucker.simklcalendar.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -972,16 +972,16 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                                         // Fetch current items from repository flow
                                         val currentEntity = repository.calendarItems.first().find { it.primaryKey == item.primaryKey }
                                         if (currentEntity?.mediaStatus == MediaStatus.DOWNLOADING && currentEntity.downloadTaskId == taskId) {
-                                            Log.d("CalendarViewModel", "Task $taskId still not found after 3s and status is still DOWNLOADING with same taskId, reverting for ${item.primaryKey}")
+                                            Timber.tag("CalendarViewModel").d("Task $taskId still not found after 3s and status is still DOWNLOADING with same taskId, reverting for ${item.primaryKey}")
                                             repository.updateDownloadTaskId(item.primaryKey, null, MediaStatus.WANTED)
                                             repository.torrentServiceHelper.clearDownload(taskId)
                                         } else {
-                                            Log.d("CalendarViewModel", "Task $taskId not found, but status is now ${currentEntity?.mediaStatus} or taskId changed, skipping revert")
+                                            Timber.tag("CalendarViewModel").d("Task $taskId not found, but status is now ${currentEntity?.mediaStatus} or taskId changed, skipping revert")
                                             repository.torrentServiceHelper.clearDownload(taskId)
                                         }
                                     }
                                 } catch (e: Exception) {
-                                    Log.e("CalendarViewModel", "Error polling progress for $taskId", e)
+                                    Timber.tag("CalendarViewModel").e(e, "Error polling progress for $taskId")
                                 }
                             }
                         }

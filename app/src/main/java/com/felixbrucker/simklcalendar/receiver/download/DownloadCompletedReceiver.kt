@@ -3,7 +3,7 @@ package com.felixbrucker.simklcalendar.receiver.download
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import timber.log.Timber
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
@@ -33,7 +33,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                 val db = AppDatabase.getDatabase(context)
 
                 repo.updateDownloadTaskId(itemPrimaryKey, null, MediaStatus.DOWNLOADED)
-                Log.d(TAG, "Updated item $itemPrimaryKey to DOWNLOADED status and cleared taskId")
+                Timber.tag(TAG).d("Updated item $itemPrimaryKey to DOWNLOADED status and cleared taskId")
 
                 val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
 
@@ -50,7 +50,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error handling download completion", e)
+                Timber.tag(TAG).e(e, "Error handling download completion")
             } finally {
                 pendingResult.finish()
             }

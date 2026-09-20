@@ -12,16 +12,19 @@ import com.felixbrucker.torrent_search_api.NyaaProvider
 import com.felixbrucker.torrent_search_api.OrderBy
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.felixbrucker.torrent_search_api.TpbProvider
+import timber.log.Timber
 import java.util.Locale
 
 class TorrentSearchManager(
     private val itemSettingsDao: ItemDownloadSettingsDao,
     private val downloadPrefs: SharedPreferences
 ) {
+    private val TAG = "TorrentSearchManager"
     private val nyaaProvider = NyaaProvider()
     private val tpbProvider = TpbProvider()
 
     suspend fun search(item: CalendarItemWithWatchlist): List<SearchResultItem> {
+        Timber.tag(TAG).d("Initiating torrent search for '${item.title}' (simklId=${item.simklId})")
         val simklId = item.simklId
         val season = item.season ?: 1
 
@@ -78,16 +81,20 @@ class TorrentSearchManager(
         val provider = if (item.type == MediaType.ANIME) nyaaProvider else tpbProvider
         val category = if (item.type == MediaType.ANIME) Category.ANIME_ENGLISH_TRANSLATED else Category.VIDEO
 
-        val results = provider
+        Timber.tag(TAG).d("Searching provider ${provider.javaClass.simpleName} with term '$term'")
+
+        val rawResults = provider
             .search(term = term, category = category, orderBy = OrderBy.SeederDescending)
             .getOrThrow()
             .results
+
+        val filteredResults = rawResults
             .excluding(ignoreKeywords)
             .sortedUsing(preferredKeywords)
 
         // Only anime episode search terms are generic enough to match partially, filter out invalid
         // matches
-        if (item.type == MediaType.ANIME) {
+        val finalResults = if (item.type == MediaType.ANIME) {
             val keyword = Keyword(
                 variants = listOf(
                     " $episodeTerm ",
@@ -96,10 +103,13 @@ class TorrentSearchManager(
                 ignoreCase = true
             )
 
-            return results.including(listOf(keyword))
+            filteredResults.including(listOf(keyword))
+        } else {
+            filteredResults
         }
 
-        return results
+        Timber.tag(TAG).d("Torrent search returned ${finalResults.size} results for term '$term' (${rawResults.size} raw results)")
+        return finalResults
     }
 }
 
