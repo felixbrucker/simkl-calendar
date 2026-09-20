@@ -73,7 +73,6 @@ class AlarmScheduler {
                 } else {
                     alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
                 }
-                Timber.tag(TAG).d("Scheduled item aired alarm for '${item.title}' at timestamp $triggerAtMillis (key=${item.primaryKey})")
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Failed scheduling alarm")
             }
