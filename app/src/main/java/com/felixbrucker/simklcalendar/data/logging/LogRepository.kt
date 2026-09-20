@@ -3,6 +3,7 @@ package com.felixbrucker.simklcalendar.data.logging
 import android.content.Context
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,7 @@ object LogRepository {
     val logsFlow: StateFlow<List<LogEntry>> = _logsFlow.asStateFlow()
 
     private var logFile: File? = null
-    var ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
+    var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
     fun init(context: Context) {
         val logDir = File(context.filesDir, "logs")
