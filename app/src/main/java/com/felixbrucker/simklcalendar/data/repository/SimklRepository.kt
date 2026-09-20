@@ -257,28 +257,36 @@ class SimklRepository(private val context: Context) {
         }
         .addInterceptor { chain ->
             val request = chain.request()
-            val startNs = System.nanoTime()
-            val method = request.method
             val url = request.url.toString()
+            val isCalendarJson = url.contains("calendar/v2") || url.contains("data.simkl.in") || url.endsWith(".json")
+
+            val logBuffer = StringBuilder()
+            val loggingInterceptor = HttpLoggingInterceptor { line ->
+                if (logBuffer.isNotEmpty()) {
+                    logBuffer.append("\n")
+                }
+                logBuffer.append(line)
+            }.apply {
+                level = if (isCalendarJson) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.BODY
+            }
 
             val response = try {
-                chain.proceed(request)
+                loggingInterceptor.intercept(chain)
             } catch (e: Exception) {
-                val tookMs = (System.nanoTime() - startNs) / 1e6
-                Timber.tag("OkHttp").e(e, "--> %s %s (FAILED after %.1fms)", method, url, tookMs)
+                if (logBuffer.isNotEmpty()) {
+                    Timber.tag("OkHttp").e(e, logBuffer.toString())
+                } else {
+                    Timber.tag("OkHttp").e(e, "Network request failed: ${request.method} $url")
+                }
                 throw e
             }
 
-            val tookMs = (System.nanoTime() - startNs) / 1e6
-            val code = response.code
-            val message = response.message
-            val contentLength = response.body.contentLength()
-            val sizeStr = if (contentLength >= 0) "${contentLength}B" else "unknown size"
-
-            if (response.isSuccessful) {
-                Timber.tag("OkHttp").d("<-- %d %s %s (%.1fms, %s)", code, method, url, tookMs, sizeStr)
-            } else {
-                Timber.tag("OkHttp").e("<-- %d %s %s %s (%.1fms)", code, message, method, url, tookMs)
+            if (logBuffer.isNotEmpty()) {
+                if (response.isSuccessful) {
+                    Timber.tag("OkHttp").d(logBuffer.toString())
+                } else {
+                    Timber.tag("OkHttp").e(logBuffer.toString())
+                }
             }
 
             response
