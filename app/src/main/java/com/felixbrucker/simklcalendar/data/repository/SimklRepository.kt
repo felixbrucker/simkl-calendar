@@ -257,24 +257,28 @@ class SimklRepository(private val context: Context) {
         }
         .addInterceptor { chain ->
             val request = chain.request()
+            val startNs = System.nanoTime()
+            val method = request.method
             val url = request.url.toString()
-            val isCalendarJson = url.contains("calendar/v2") || url.contains("data.simkl.in") || url.endsWith(".json")
-
-            val loggingInterceptor = HttpLoggingInterceptor { message ->
-                Timber.tag("OkHttp").d(message)
-            }.apply {
-                level = if (isCalendarJson) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.BODY
-            }
 
             val response = try {
-                loggingInterceptor.intercept(chain)
+                chain.proceed(request)
             } catch (e: Exception) {
-                Timber.tag("SimklRepository").e(e, "Network request failed: ${request.method} $url")
+                val tookMs = (System.nanoTime() - startNs) / 1e6
+                Timber.tag("OkHttp").e(e, "--> %s %s (FAILED after %.1fms)", method, url, tookMs)
                 throw e
             }
 
-            if (!response.isSuccessful) {
-                Timber.tag("SimklRepository").e("Network response error: HTTP ${response.code} ${response.message} for ${request.method} $url")
+            val tookMs = (System.nanoTime() - startNs) / 1e6
+            val code = response.code
+            val message = response.message
+            val contentLength = response.body.contentLength()
+            val sizeStr = if (contentLength >= 0) "${contentLength}B" else "unknown size"
+
+            if (response.isSuccessful) {
+                Timber.tag("OkHttp").d("<-- %d %s %s (%.1fms, %s)", code, method, url, tookMs, sizeStr)
+            } else {
+                Timber.tag("OkHttp").e("<-- %d %s %s %s (%.1fms)", code, message, method, url, tookMs)
             }
 
             response
