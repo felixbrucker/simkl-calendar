@@ -9,7 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
-import android.util.Log
+import timber.log.Timber
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -52,9 +52,9 @@ class NotificationManager {
                 val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 notificationManager.notify(notificationId, notification)
                 addActiveNotification(context, item.primaryKey)
-                Log.d(TAG, "Successfully displayed notification id=$notificationId")
+                Timber.tag(TAG).d("Successfully displayed notification id=$notificationId")
             } catch (e: Exception) {
-                Log.e(TAG, "Error posting notification", e)
+                Timber.tag(TAG).e(e, "Error posting notification")
             }
         }
 
@@ -75,16 +75,16 @@ class NotificationManager {
             // Only update if the notification is currently active/visible
             val isActive = notificationManager.activeNotifications.any { it.id == notificationId }
             if (!isActive) {
-                Log.d(TAG, "Notification id=$notificationId is not active, skipping update.")
+                Timber.tag(TAG).d("Notification id=$notificationId is not active, skipping update.")
                 return
             }
 
             val notification = buildNotificationForUpdate(item, context)
             try {
                 notificationManager.notify(notificationId, notification)
-                Log.d(TAG, "Successfully updated notification id=$notificationId")
+                Timber.tag(TAG).d("Successfully updated notification id=$notificationId")
             } catch (e: Exception) {
-                Log.e(TAG, "Error updating notification", e)
+                Timber.tag(TAG).e(e, "Error updating notification")
             }
         }
 
@@ -95,7 +95,7 @@ class NotificationManager {
                     ActiveNotification(primaryKey = primaryKey)
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Error inserting active notification primaryKey=$primaryKey", e)
+                Timber.tag(TAG).e(e, "Error inserting active notification primaryKey=$primaryKey")
             }
         }
 
@@ -104,7 +104,7 @@ class NotificationManager {
                 val db = AppDatabase.getDatabase(context)
                 db.activeNotificationDao().deleteActiveNotification(primaryKey)
             } catch (e: Exception) {
-                Log.e(TAG, "Error removing active notification primaryKey=$primaryKey", e)
+                Timber.tag(TAG).e(e, "Error removing active notification primaryKey=$primaryKey")
             }
         }
 
@@ -113,7 +113,7 @@ class NotificationManager {
                 val db = AppDatabase.getDatabase(context)
                 db.activeNotificationDao().getAllActiveKeys()
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching active notification keys", e)
+                Timber.tag(TAG).e(e, "Error fetching active notification keys")
                 emptyList()
             }
         }
@@ -146,9 +146,9 @@ class NotificationManager {
                     val notification = buildNotification(item, context)
                     try {
                         notificationManager.notify(item.notificationId, notification)
-                        Log.d(TAG, "Restored missing notification primaryKey=$primaryKey id=${item.notificationId}")
+                        Timber.tag(TAG).d("Restored missing notification primaryKey=$primaryKey id=${item.notificationId}")
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error restoring notification primaryKey=$primaryKey", e)
+                        Timber.tag(TAG).e(e, "Error restoring notification primaryKey=$primaryKey")
                     }
                 }
             }
@@ -313,7 +313,7 @@ class NotificationManager {
                         android.Manifest.permission.POST_NOTIFICATIONS
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
-                    Log.w(TAG, "POST_NOTIFICATIONS permission not granted. Cannot display notification.")
+                    Timber.tag(TAG).w("POST_NOTIFICATIONS permission not granted. Cannot display notification.")
                     CoroutineScope(Dispatchers.Main).launch {
                         Toast.makeText(context, "Notification permission required to display notification", Toast.LENGTH_SHORT).show()
                     }
@@ -340,7 +340,7 @@ class NotificationManager {
                     null
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to load poster bitmap for notification", e)
+                Timber.tag(TAG).e(e, "Failed to load poster bitmap for notification")
                 null
             }
         }

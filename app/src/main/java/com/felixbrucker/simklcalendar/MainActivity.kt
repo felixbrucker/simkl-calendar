@@ -42,6 +42,7 @@ import com.felixbrucker.simklcalendar.ui.screens.LoginScreen
 import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
+import com.felixbrucker.simklcalendar.ui.screens.LogViewerScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import androidx.core.net.toUri
@@ -274,6 +275,20 @@ fun SimklCalendarApp(
             composable("settings") {
                 SettingsScreen(
                     viewModel = viewModel,
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    onNavigateToLogViewer = {
+                        navController.navigate("log_viewer") {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+
+            // 3.1. Log Viewer screen
+            composable("log_viewer") {
+                LogViewerScreen(
                     onNavigateBack = {
                         navController.popBackStack()
                     }

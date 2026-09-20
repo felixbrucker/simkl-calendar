@@ -5,7 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.util.Log
+import timber.log.Timber
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
@@ -32,7 +32,7 @@ class AlarmScheduler {
                     scheduleItemAiredAlarmForItem(item, context)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error while scheduling all notifications", e)
+                Timber.tag(TAG).e(e, "Error while scheduling all notifications")
             }
         }
 
@@ -73,9 +73,9 @@ class AlarmScheduler {
                 } else {
                     alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
                 }
-                Log.d(TAG, "Scheduled item aired alarm for '${item.title}' at timestamp $triggerAtMillis (key=${item.primaryKey})")
+                Timber.tag(TAG).d("Scheduled item aired alarm for '${item.title}' at timestamp $triggerAtMillis (key=${item.primaryKey})")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed scheduling alarm", e)
+                Timber.tag(TAG).e(e, "Failed scheduling alarm")
             }
         }
 
@@ -89,7 +89,7 @@ class AlarmScheduler {
                 alarmManager.cancel(pendingIntent)
                 pendingIntent.cancel()
             } catch (e: Exception) {
-                Log.e(TAG, "Error cancelling alarm for item ${item.primaryKey}", e)
+                Timber.tag(TAG).e(e, "Error cancelling alarm for item ${item.primaryKey}")
             }
         }
 

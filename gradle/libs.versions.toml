@@ -28,8 +28,10 @@ androidxBrowser = "1.10.0"
 junit = "4.13.2"
 kover = "0.9.9"
 mockk = "1.14.11"
+timber = "5.0.1"
 
 [libraries]
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesAndroid" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

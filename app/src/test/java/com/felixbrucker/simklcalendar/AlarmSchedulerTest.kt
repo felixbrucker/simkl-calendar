@@ -64,7 +64,7 @@ class AlarmSchedulerTest {
         calendarDao = mockk(relaxed = true)
 
         every { context.getSystemService(Context.ALARM_SERVICE) } returns alarmManager
-        every { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) } returns sharedPreferences
+        every { context.getSharedPreferences(any(), any()) } returns sharedPreferences
         every { appDatabase.calendarItemDao() } returns calendarDao
 
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")

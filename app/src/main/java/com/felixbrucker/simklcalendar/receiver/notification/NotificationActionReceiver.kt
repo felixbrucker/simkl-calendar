@@ -3,7 +3,7 @@ package com.felixbrucker.simklcalendar.receiver.notification
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import timber.log.Timber
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
@@ -81,7 +81,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
                 val err = result.exceptionOrNull()
                 if (err != null) {
-                    Log.e(TAG, "Error marking item as watched from notification action", err)
+                    Timber.tag(TAG).e(err, "Error marking item as watched from notification action")
                 }
 
                 val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
@@ -90,7 +90,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                     context = context
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Error marking episode as watched from notification action", e)
+                Timber.tag(TAG).e(e, "Error marking episode as watched from notification action")
             } finally {
                 pendingResult.finish()
             }
@@ -114,7 +114,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
                 val err = result.exceptionOrNull()
                 if (err != null) {
-                    Log.e(TAG, "Error marking season as watched from notification action", err)
+                    Timber.tag(TAG).e(err, "Error marking season as watched from notification action")
                 }
 
                 val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
@@ -123,7 +123,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                     context = context
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Error marking season as watched from notification action", e)
+                Timber.tag(TAG).e(e, "Error marking season as watched from notification action")
             } finally {
                 pendingResult.finish()
             }
@@ -160,7 +160,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                     context = context
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Error starting download from notification action", e)
+                Timber.tag(TAG).e(e, "Error starting download from notification action")
             } finally {
                 pendingResult.finish()
             }
@@ -174,7 +174,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
             try {
                 NotificationManager.removeActiveNotification(context, itemPrimaryKey)
             } catch (e: Exception) {
-                Log.e(TAG, "Error removing active notification on dismiss", e)
+                Timber.tag(TAG).e(e, "Error removing active notification on dismiss")
             } finally {
                 pendingResult.finish()
             }
@@ -214,7 +214,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                     context = context
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Error starting season download from notification action", e)
+                Timber.tag(TAG).e(e, "Error starting season download from notification action")
             } finally {
                 pendingResult.finish()
             }

@@ -2,7 +2,7 @@ package com.felixbrucker.simklcalendar.data.repository
 
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import timber.log.Timber
 import com.felixbrucker.simklcalendar.BuildConfig
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
@@ -261,7 +261,7 @@ class SimklRepository(private val context: Context) {
             val isCalendarJson = url.contains("calendar/v2") || url.contains("data.simkl.in") || url.endsWith(".json")
 
             val loggingInterceptor = HttpLoggingInterceptor { message ->
-                Log.d("OkHttp", message)
+                Timber.tag("OkHttp").d(message)
             }.apply {
                 level = if (isCalendarJson) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.BODY
             }
@@ -269,12 +269,12 @@ class SimklRepository(private val context: Context) {
             val response = try {
                 loggingInterceptor.intercept(chain)
             } catch (e: Exception) {
-                Log.e("SimklRepository", "Network request failed: ${request.method} $url", e)
+                Timber.tag("SimklRepository").e(e, "Network request failed: ${request.method} $url")
                 throw e
             }
 
             if (!response.isSuccessful) {
-                Log.e("SimklRepository", "Network response error: HTTP ${response.code} ${response.message} for ${request.method} $url")
+                Timber.tag("SimklRepository").e("Network response error: HTTP ${response.code} ${response.message} for ${request.method} $url")
             }
 
             response
@@ -338,14 +338,14 @@ class SimklRepository(private val context: Context) {
         try {
             val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
             if (clientId.isNullOrEmpty()) {
-                Log.e("SimklRepository", "Client ID is missing")
+                Timber.tag("SimklRepository").e("Client ID is missing")
                 return@withContext false
             }
 
             val savedState = authPrefs.getString("pkce_state", null)
             if (!savedState.isNullOrEmpty()) {
                 if (state == null || state != savedState) {
-                    Log.e("SimklRepository", "OAuth state mismatch or missing! CSRF verification failed.")
+                    Timber.tag("SimklRepository").e("OAuth state mismatch or missing! CSRF verification failed.")
                     return@withContext false
                 }
             }
@@ -355,7 +355,7 @@ class SimklRepository(private val context: Context) {
             val effectiveRedirectUri = redirectUri ?: savedRedirectUri
 
             if (codeVerifier.isNullOrEmpty()) {
-                Log.e("SimklRepository", "PKCE code_verifier is missing from local storage")
+                Timber.tag("SimklRepository").e("PKCE code_verifier is missing from local storage")
                 return@withContext false
             }
 
@@ -370,7 +370,7 @@ class SimklRepository(private val context: Context) {
             )
             val accessToken = response.accessToken
             if (accessToken.isEmpty()) {
-                Log.e("SimklRepository", "OAuth returned empty access token")
+                Timber.tag("SimklRepository").e("OAuth returned empty access token")
                 return@withContext false
             }
 
@@ -390,7 +390,7 @@ class SimklRepository(private val context: Context) {
                 // In Simkl POST /users/settings, user profile contains "name" (which holds username)
                 userResponse.user.name
             } catch (e: Exception) {
-                Log.e("SimklRepository", "Could not fetch user profile details, using default name", e)
+                Timber.tag("SimklRepository").e(e, "Could not fetch user profile details, using default name")
                 "SimklUser"
             }
 
@@ -401,7 +401,7 @@ class SimklRepository(private val context: Context) {
             syncCalendar()
             true
         } catch (e: Exception) {
-            Log.e("SimklRepository", "OAuth Code exchange failed", e)
+            Timber.tag("SimklRepository").e(e, "OAuth Code exchange failed")
             false
         }
     }
@@ -461,11 +461,11 @@ class SimklRepository(private val context: Context) {
 
         // Logic: Sync when month changed AND more than 1 day since last sync
         if (sameMonth || !moreThanOneDayAgo) {
-            Log.d("SimklRepository", "Backfill skipped: same month or < 1 day since last sync")
+            Timber.tag("SimklRepository").d("Backfill skipped: same month or < 1 day since last sync")
             return@withContext SyncResult()
         }
 
-        Log.d("SimklRepository", "Starting backfill for past episodes...")
+        Timber.tag("SimklRepository").d("Starting backfill for past episodes...")
 
         val trackedShows = watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME))
         if (trackedShows.isEmpty()) return@withContext SyncResult()
@@ -510,7 +510,7 @@ class SimklRepository(private val context: Context) {
                         }
                         show to episodes
                     } catch (e: Exception) {
-                        Log.e("SimklRepository", "Failed backfill for ${show.simklId}", e)
+                        Timber.tag("SimklRepository").e(e, "Failed backfill for ${show.simklId}")
                         show to null
                     }
                 }
@@ -580,7 +580,7 @@ class SimklRepository(private val context: Context) {
             calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
         }
 
-        Log.d("SimklRepository", "Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
+        Timber.tag("SimklRepository").d("Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         val hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }
 
         SyncResult(
@@ -598,11 +598,11 @@ class SimklRepository(private val context: Context) {
             val cutoff = Instant.now().minus(cutoffDays, ChronoUnit.DAYS)
             val deletedCount = calendarDao.deleteWatchedItemsOlderThan(cutoff)
             if (deletedCount > 0) {
-                Log.d("SimklRepository", "Cleaned up $deletedCount old watched calendar items (watched over $cutoffDays days ago)")
+                Timber.tag("SimklRepository").d("Cleaned up $deletedCount old watched calendar items (watched over $cutoffDays days ago)")
             }
             deletedCount
         } catch (e: Exception) {
-            Log.e("SimklRepository", "Error cleaning up old watched calendar items", e)
+            Timber.tag("SimklRepository").e(e, "Error cleaning up old watched calendar items")
             0
         }
     }
@@ -615,7 +615,7 @@ class SimklRepository(private val context: Context) {
     suspend fun syncWatchlist(forceFullSync: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken()
         if (userToken == null || userToken.accessToken.isEmpty()) {
-            Log.d("SimklRepository", "No authenticated user token found, skipping watchlist sync.")
+            Timber.tag("SimklRepository").d("No authenticated user token found, skipping watchlist sync.")
             return@withContext SyncResult()
         }
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
@@ -635,7 +635,7 @@ class SimklRepository(private val context: Context) {
             val shouldFetchDeltas = savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
 
             if (shouldFetchDeltas) {
-                Log.d("SimklRepository", "Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
+                Timber.tag("SimklRepository").d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
                 val syncResponse = apiService.getSyncAllItems(
                     authorization = bearer,
@@ -732,12 +732,12 @@ class SimklRepository(private val context: Context) {
                     for (simklId in trackedToDelete) {
                         watchlistDao.deleteItem(simklId)
                     }
-                    Log.d("SimklRepository", "Deleted ${trackedToDelete.size} untracked watchlist items from DB")
+                    Timber.tag("SimklRepository").d("Deleted ${trackedToDelete.size} untracked watchlist items from DB")
                 }
 
                 if (trackedToInsert.isNotEmpty()) {
                     watchlistDao.insertItems(trackedToInsert.values.toList())
-                    Log.d("SimklRepository", "Inserted ${trackedToInsert.size} new tracked watchlist items into DB")
+                    Timber.tag("SimklRepository").d("Inserted ${trackedToInsert.size} new tracked watchlist items into DB")
 
                     // Initialize default notification settings for newly inserted shows
                     try {
@@ -757,12 +757,12 @@ class SimklRepository(private val context: Context) {
                         }
                         settingDao.insertSettings(newSettings)
                     } catch (e: Exception) {
-                        Log.e("SimklRepository", "Error initializing default notification settings", e)
+                        Timber.tag("SimklRepository").e(e, "Error initializing default notification settings")
                     }
                 }
                 if (trackedToUpdate.isNotEmpty()) {
                     watchlistDao.updateItems(trackedToUpdate.values.toList())
-                    Log.d("SimklRepository", "Updated ${trackedToUpdate.size} changed tracked watchlist items in DB")
+                    Timber.tag("SimklRepository").d("Updated ${trackedToUpdate.size} changed tracked watchlist items in DB")
                 }
 
                 if (savedTimestamp == null) {
@@ -793,7 +793,7 @@ class SimklRepository(private val context: Context) {
                                 watchedAt = null
                             )
                         }
-                        Log.d("SimklRepository", "Removed ${allWatchedToRemove.size} WatchedEpisode entities not present in API response")
+                        Timber.tag("SimklRepository").d("Removed ${allWatchedToRemove.size} WatchedEpisode entities not present in API response")
                     }
                 }
 
@@ -814,10 +814,10 @@ class SimklRepository(private val context: Context) {
                 }
                 changesDetected = true
             } else {
-                Log.d("SimklRepository", "Watchlist Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
+                Timber.tag("SimklRepository").d("Watchlist Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
             }
         } catch (e: Exception) {
-            Log.e("SimklRepository", "Error during watchlist sync", e)
+            Timber.tag("SimklRepository").e(e, "Error during watchlist sync")
         }
 
         // Automatic cleanup of old watched calendar items (> 30 days)
@@ -836,7 +836,7 @@ class SimklRepository(private val context: Context) {
     suspend fun syncCalendarJsons(forceFullSync: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken()
         if (userToken == null || userToken.accessToken.isEmpty()) {
-            Log.d("SimklRepository", "No authenticated user token found, skipping calendar json sync.")
+            Timber.tag("SimklRepository").d("No authenticated user token found, skipping calendar json sync.")
             return@withContext SyncResult()
         }
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
@@ -845,7 +845,7 @@ class SimklRepository(private val context: Context) {
         // Load local tracked items (IDs only for filtering)
         val allTrackedIds = watchlistDao.getAllTrackedIds().toSet()
         if (allTrackedIds.isEmpty()) {
-            Log.d("SimklRepository", "No tracked items in watchlist, skipping calendar json sync.")
+            Timber.tag("SimklRepository").d("No tracked items in watchlist, skipping calendar json sync.")
             return@withContext SyncResult()
         }
 
@@ -931,13 +931,13 @@ class SimklRepository(private val context: Context) {
                     )
 
                     if (response.code() == 304) {
-                        Log.d("SimklRepository", "Calendar JSON $url not modified (HTTP 304)")
+                        Timber.tag("SimklRepository").d("Calendar JSON $url not modified (HTTP 304)")
                         syncPrefs.edit { putLong(lastModifiedPrefKey, nowMillis) }
                         continue
                     }
 
                     if (!response.isSuccessful) {
-                        Log.w("SimklRepository", "HTTP ${response.code()} for calendar JSON $url")
+                        Timber.tag("SimklRepository").w("HTTP ${response.code()} for calendar JSON $url")
                         continue
                     }
 
@@ -1091,7 +1091,7 @@ class SimklRepository(private val context: Context) {
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("SimklRepository", "Failed fetching CDN v2 calendar from $url", e)
+                    Timber.tag("SimklRepository").e(e, "Failed fetching CDN v2 calendar from $url")
                 }
             }
         }
@@ -1111,7 +1111,7 @@ class SimklRepository(private val context: Context) {
         }
 
         if (moviesNeedingDetails.isNotEmpty()) {
-            Log.d("SimklRepository", "Fetching details for ${moviesNeedingDetails.size} movies missing release dates")
+            Timber.tag("SimklRepository").d("Fetching details for ${moviesNeedingDetails.size} movies missing release dates")
             for (movieId in moviesNeedingDetails) {
                 try {
                     val movieDetail = apiService.getMovieDetails(
@@ -1185,14 +1185,14 @@ class SimklRepository(private val context: Context) {
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("SimklRepository", "Failed fetching movie details for movieId $movieId", e)
+                    Timber.tag("SimklRepository").e(e, "Failed fetching movie details for movieId $movieId")
                 }
             }
         }
 
         if (trackedToUpdate.isNotEmpty()) {
             watchlistDao.updateItems(trackedToUpdate.values.toList())
-            Log.d("SimklRepository", "Updated ${trackedToUpdate.size} changed tracked watchlist items with metadata in DB")
+            Timber.tag("SimklRepository").d("Updated ${trackedToUpdate.size} changed tracked watchlist items with metadata in DB")
         }
 
         if (itemsToInsert.isNotEmpty()) {
@@ -1209,9 +1209,9 @@ class SimklRepository(private val context: Context) {
 
         val totalCalendarItemDbChanges = itemsToInsert.size + itemsToUpdate.size
         if (totalCalendarItemDbChanges == 0) {
-            Log.d("SimklRepository", "Calendar sync complete: no changes detected, skipped DB writes")
+            Timber.tag("SimklRepository").d("Calendar sync complete: no changes detected, skipped DB writes")
         } else {
-            Log.d("SimklRepository", "Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
+            Timber.tag("SimklRepository").d("Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         }
 
         syncPrefs.edit { putLong("last_calendar_json_sync", nowMillis) }
@@ -1302,7 +1302,7 @@ class SimklRepository(private val context: Context) {
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("SimklRepository", "Failed to mark episode S${season}E${episodeNumber} as watched for simklId $simklId", e)
+            Timber.tag("SimklRepository").e(e, "Failed to mark episode S${season}E${episodeNumber} as watched for simklId $simklId")
             Result.failure(e)
         }
     }
@@ -1344,7 +1344,7 @@ class SimklRepository(private val context: Context) {
             val shouldMarkCompleted = isLastSeason && allPrevWatched
 
             val statusValue = if (shouldMarkCompleted) "completed" else null
-            Log.d("SimklRepository", "Marking season $season as watched for simklId $simklId (isCompleted=$shouldMarkCompleted, status=$statusValue)")
+            Timber.tag("SimklRepository").d("Marking season $season as watched for simklId $simklId (isCompleted=$shouldMarkCompleted, status=$statusValue)")
 
             val request = if (mediaType == MediaType.ANIME) {
                 SyncHistoryRequest(
@@ -1413,7 +1413,7 @@ class SimklRepository(private val context: Context) {
 
             Result.success(shouldMarkCompleted)
         } catch (e: Exception) {
-            Log.e("SimklRepository", "Failed to mark season $season as watched for simklId $simklId", e)
+            Timber.tag("SimklRepository").e(e, "Failed to mark season $season as watched for simklId $simklId")
             Result.failure(e)
         }
     }
@@ -1452,7 +1452,7 @@ class SimklRepository(private val context: Context) {
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("SimklRepository", "Failed to mark movie as watched for simklId $simklId", e)
+            Timber.tag("SimklRepository").e(e, "Failed to mark movie as watched for simklId $simklId")
             Result.failure(e)
         }
     }
@@ -1531,7 +1531,7 @@ class SimklRepository(private val context: Context) {
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("SimklRepository", "Failed to mark episode S${season}E${episodeNumber} as unwatched for simklId $simklId", e)
+            Timber.tag("SimklRepository").e(e, "Failed to mark episode S${season}E${episodeNumber} as unwatched for simklId $simklId")
             Result.failure(e)
         }
     }
@@ -1601,7 +1601,7 @@ class SimklRepository(private val context: Context) {
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("SimklRepository", "Failed to mark season $season as unwatched for simklId $simklId", e)
+            Timber.tag("SimklRepository").e(e, "Failed to mark season $season as unwatched for simklId $simklId")
             Result.failure(e)
         }
     }
@@ -1639,7 +1639,7 @@ class SimklRepository(private val context: Context) {
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("SimklRepository", "Failed to mark movie as unwatched for simklId $simklId", e)
+            Timber.tag("SimklRepository").e(e, "Failed to mark movie as unwatched for simklId $simklId")
             Result.failure(e)
         }
     }
