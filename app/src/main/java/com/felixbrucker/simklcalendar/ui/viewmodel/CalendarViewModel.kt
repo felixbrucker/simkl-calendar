@@ -777,9 +777,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
             _isSearchingWantedTorrents.value = true
             _autoDownloadStatus.value = "Starting search..."
-            delay(500.milliseconds)
+            delay(800.milliseconds)
 
-            repository.searchAndDownloadWantedItems(withDelay = 800.milliseconds) { current, total, title, _ ->
+            repository.searchAndDownloadWantedItems(withDelay = 1500.milliseconds) { current, total, title, _ ->
                 _autoDownloadStatus.value = "Searching ($current/$total): $title"
             }
 
