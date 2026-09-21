@@ -658,6 +658,11 @@ class SimklRepository(private val context: Context) {
     }
 
     suspend fun syncCalendar(force: Boolean = false) = withContext(Dispatchers.IO) {
+        val token = tokenDao.getActiveToken()
+        if (token == null || token.accessToken.isEmpty()) {
+            Timber.tag("SimklRepository").d("Skipping syncCalendar: user is not authenticated")
+            return@withContext
+        }
         val watchlistSyncResult = syncWatchlist(forceFullSync = force)
         val lastJsonSyncTimestamp = syncPrefs.getLong("last_calendar_json_sync", 0L)
         // If calendar jsons haven't been synced in >6h, sync calendar jsons
@@ -849,6 +854,11 @@ class SimklRepository(private val context: Context) {
      * Only transfers tiny JSON payloads on delta updates.
      */
     suspend fun syncWatchlist(forceFullSync: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
+        val token = tokenDao.getActiveToken()
+        if (token == null || token.accessToken.isEmpty()) {
+            Timber.tag("SimklRepository").d("Skipping syncWatchlist: user is not authenticated")
+            return@withContext SyncResult()
+        }
         var changesDetected = false
 
         try {

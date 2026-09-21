@@ -21,6 +21,12 @@ class AutoDownloadWorker(
         Timber.tag(TAG).d("Starting periodic background torrent search for WANTED items")
         val repository = SimklRepository(applicationContext)
 
+        val token = repository.getActiveUserToken()
+        if (token == null || token.accessToken.isEmpty()) {
+            Timber.tag(TAG).d("User is not authenticated. Skipping periodic torrent search.")
+            return Result.success()
+        }
+
         if (!repository.torrentServiceHelper.isServiceInstalled()) {
             Timber.tag(TAG).d("Torrent Downloader service not installed. Skipping periodic search.")
             return Result.success()
