@@ -409,6 +409,7 @@ fun MainScreen(
                                             .clip(RoundedCornerShape(22.dp))
                                             .background(Color(0xFF2B2930))
                                             .border(1.dp, Color(0xFF49454F), RoundedCornerShape(20.dp))
+                                            .animateContentSize()
                                             .padding(horizontal = 8.dp, vertical = 6.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
