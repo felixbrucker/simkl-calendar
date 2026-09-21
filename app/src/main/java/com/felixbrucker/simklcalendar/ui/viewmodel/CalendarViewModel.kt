@@ -99,6 +99,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     private val _userToken = MutableStateFlow<UserToken?>(null)
     val userToken: StateFlow<UserToken?> = _userToken.asStateFlow()
 
+    private val _isAuthV2UpgradeHint = MutableStateFlow(false)
+    val isAuthV2UpgradeHint: StateFlow<Boolean> = _isAuthV2UpgradeHint.asStateFlow()
+
     data class AuthState(val isReady: Boolean, val token: UserToken?)
     val authState: StateFlow<AuthState> = combine(_isAuthReady, _userToken) { ready, token ->
         AuthState(ready, token)
@@ -709,11 +712,22 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         refreshDownloadSubdirectories()
         // Automatically sync calendar on launch only if user is logged in
         viewModelScope.launch {
+            val migrated = repository.checkAndMigrateAuthV2()
+            if (migrated) {
+                _isAuthV2UpgradeHint.value = true
+            } else {
+                _isAuthV2UpgradeHint.value = repository.isAuthV2UpgradeHint()
+            }
             repository.activeUserToken.collect { token ->
                 _userToken.value = token
                 _isAuthReady.value = true
                 if (token != null && token.accessToken.isNotEmpty()) {
+                    _isAuthV2UpgradeHint.value = false
+                    repository.clearAuthV2UpgradeHint()
+                    repository.refreshTokenIfNeeded()
                     syncLocalCalendar()
+                } else if (repository.isAuthV2UpgradeHint()) {
+                    _isAuthV2UpgradeHint.value = true
                 }
             }
         }
@@ -797,6 +811,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             val success = repository.exchangeOAuthCode(code = code, state = state, redirectUri = redirectUri)
             _isSyncing.value = false
             if (success) {
+                _isAuthV2UpgradeHint.value = false
+                repository.clearAuthV2UpgradeHint()
                 onSuccess()
             } else {
                 onFailure()

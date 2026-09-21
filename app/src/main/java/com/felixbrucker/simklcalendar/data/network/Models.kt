@@ -5,18 +5,27 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class OAuthTokenRequest(
-    @Json(name = "code") val code: String,
+    @Json(name = "code") val code: String? = null,
     @Json(name = "client_id") val clientId: String,
-    @Json(name = "code_verifier") val codeVerifier: String,
-    @Json(name = "redirect_uri") val redirectUri: String,
-    @Json(name = "grant_type") val grantType: String = "authorization_code"
+    @Json(name = "code_verifier") val codeVerifier: String? = null,
+    @Json(name = "redirect_uri") val redirectUri: String? = null,
+    @Json(name = "grant_type") val grantType: String = "authorization_code",
+    @Json(name = "refresh_token") val refreshToken: String? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class OAuthTokenResponse(
     @Json(name = "access_token") val accessToken: String,
     @Json(name = "token_type") val tokenType: String? = null,
+    @Json(name = "expires_in") val expiresIn: Long? = null,
+    @Json(name = "refresh_token") val refreshToken: String? = null,
     @Json(name = "scope") val scope: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class OAuthRevokeRequest(
+    @Json(name = "client_id") val clientId: String,
+    @Json(name = "token") val token: String
 )
 
 @JsonClass(generateAdapter = true)

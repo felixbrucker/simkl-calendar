@@ -41,6 +41,7 @@ fun LoginScreen(
     val context = LocalContext.current
     val token by viewModel.userToken.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val isAuthV2UpgradeHint by viewModel.isAuthV2UpgradeHint.collectAsState()
 
     var oauthError by remember { mutableStateOf<String?>(null) }
 
@@ -111,8 +112,46 @@ fun LoginScreen(
                     fontSize = 15.sp,
                     color = Color(0xFFCAC4D0),
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 40.dp)
+                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
                 )
+
+                if (isAuthV2UpgradeHint) {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF381E72)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD0BCFF)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Color(0xFFD0BCFF),
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Auth V2 Upgrade Required",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Simkl has upgraded to Auth V2 authentication. Please log in again to reconnect your account. All your saved watchlist items, custom settings, and watched history have been preserved.",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFFE6E1E5)
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // OAuth Options Card
                 Card(

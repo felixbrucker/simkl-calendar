@@ -9,10 +9,15 @@ interface SimklApiService {
         const val APP_VERSION: String = BuildConfig.VERSION_NAME
     }
 
-    @POST("oauth/token")
+    @POST("oauth2/token")
     suspend fun getAccessToken(
         @Body request: OAuthTokenRequest
     ): OAuthTokenResponse
+
+    @POST("oauth2/revoke")
+    suspend fun revokeToken(
+        @Body request: OAuthRevokeRequest
+    ): retrofit2.Response<Unit>
 
     @POST("users/settings")
     suspend fun getUserSettings(

@@ -57,6 +57,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -362,22 +363,93 @@ class SimklRepositoryTest {
     }
 
     @Test
-    fun testOAuthExchangeAndAuthUrl() = runTest {
+    fun testCreateAuthorizationUrlAuthV2() {
+        val authUrl = repository.createAuthorizationUrl("simklcalendar://auth")
+
+        if (repository.isRealApiConfigured()) {
+            assertNotNull(authUrl)
+            assertTrue(authUrl!!.contains("https://simkl.com/oauth2/authorize"))
+            assertTrue(authUrl.contains("scope=media"))
+        } else {
+            assertNull(authUrl)
+        }
+    }
+
+    @Test
+    fun testCheckAndMigrateAuthV2LegacyV1Token() = runTest {
+        val v1Token = UserToken(1, "legacy_64_hex_v1_token_string_value_1234567890abcdef1234567890abcdef", "OldUser")
+        coEvery { tokenDao.getActiveToken() } returns v1Token
+
+        val migrated = repository.checkAndMigrateAuthV2()
+
+        assertTrue(migrated)
+        coVerify { tokenDao.clearUserToken() }
+        coVerify(exactly = 0) { calendarDao.clearCalendarItems() }
+        coVerify(exactly = 0) { watchlistDao.clearAll() }
+        coVerify(exactly = 0) { watchedDao.clearAll() }
+    }
+
+    @Test
+    fun testCheckAndMigrateAuthV2ValidV2Token() = runTest {
+        val v2Token = UserToken(1, "simkl_at_valid_v2_access_token_123456789012345", "NewUser", "simkl_rt_refresh_token_123456789012345")
+        coEvery { tokenDao.getActiveToken() } returns v2Token
+
+        val migrated = repository.checkAndMigrateAuthV2()
+
+        assertFalse(migrated)
+        coVerify(exactly = 0) { tokenDao.clearUserToken() }
+    }
+
+    @Test
+    fun testOAuthExchangeV2Success() = runTest {
         every { sharedPreferences.getString("pkce_state", null) } returns "state123"
         every { sharedPreferences.getString("pkce_code_verifier", null) } returns "verifier123"
+        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
+            accessToken = "simkl_at_v2_access_token_sample_12345678901",
+            tokenType = "Bearer",
+            expiresIn = 604800,
+            refreshToken = "simkl_rt_v2_refresh_token_sample_123456789",
+            scope = "media:read media:write"
+        )
 
-        val authUrl = repository.createAuthorizationUrl()
         val exchanged = repository.exchangeOAuthCode("code123", "state123", "simklcalendar://auth")
-        val exchangedStateMismatch = repository.exchangeOAuthCode("code123", "wrong_state", "simklcalendar://auth")
 
-        if (authUrl != null) {
-            assertTrue(authUrl.contains("simkl.com/oauth/authorize"))
-        }
         if (repository.isRealApiConfigured()) {
             assertTrue(exchanged)
+            coVerify { tokenDao.insertUserToken(match { it.accessToken == "simkl_at_v2_access_token_sample_12345678901" && it.refreshToken == "simkl_rt_v2_refresh_token_sample_123456789" }) }
         } else {
             assertFalse(exchanged)
         }
+    }
+
+    @Test
+    fun testPerformRefreshTokenSuccess() = runTest {
+        val currentToken = UserToken(1, "simkl_at_old_token", "User", "simkl_rt_refresh_token_123")
+        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
+            accessToken = "simkl_at_new_token_456",
+            tokenType = "Bearer",
+            expiresIn = 604800,
+            refreshToken = "simkl_rt_refresh_token_123",
+            scope = "media:read media:write"
+        )
+
+        val success = repository.performRefreshToken(currentToken, "simkl_rt_refresh_token_123")
+
+        if (repository.isRealApiConfigured()) {
+            assertTrue(success)
+            coVerify { tokenDao.insertUserToken(match { it.accessToken == "simkl_at_new_token_456" }) }
+        } else {
+            assertFalse(success)
+        }
+    }
+
+    @Test
+    fun testOAuthExchangeStateMismatchFails() = runTest {
+        every { sharedPreferences.getString("pkce_state", null) } returns "state123"
+        every { sharedPreferences.getString("pkce_code_verifier", null) } returns "verifier123"
+
+        val exchangedStateMismatch = repository.exchangeOAuthCode("code123", "wrong_state", "simklcalendar://auth")
+
         assertFalse(exchangedStateMismatch)
     }
 
