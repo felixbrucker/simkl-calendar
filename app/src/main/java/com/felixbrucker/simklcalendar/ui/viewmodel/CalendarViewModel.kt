@@ -724,7 +724,6 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 if (token != null && token.accessToken.isNotEmpty()) {
                     _isAuthV2UpgradeHint.value = false
                     repository.clearAuthV2UpgradeHint()
-                    repository.refreshTokenIfNeeded()
                     syncLocalCalendar()
                 } else if (repository.isAuthV2UpgradeHint()) {
                     _isAuthV2UpgradeHint.value = true
