@@ -54,7 +54,7 @@ class AlarmScheduler {
             val pendingIntent = item.makeItemAiredAlarmIntent(
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 context
-            )
+            ) ?: return
             val triggerAtMillis = triggerAt.toEpochMilli()
             try {
                 val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
@@ -84,7 +84,7 @@ class AlarmScheduler {
                 val pendingIntent = item.makeItemAiredAlarmIntent(
                     PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
                     context,
-                )
+                ) ?: return
                 alarmManager.cancel(pendingIntent)
                 pendingIntent.cancel()
             } catch (e: Exception) {
@@ -99,7 +99,7 @@ class AlarmScheduler {
 }
 
 
-fun CalendarItemWithWatchlist.makeItemAiredAlarmIntent(flags: Int, context: Context): PendingIntent {
+fun CalendarItemWithWatchlist.makeItemAiredAlarmIntent(flags: Int, context: Context): PendingIntent? {
     val intent = Intent(context, AlarmReceiver::class.java).apply {
         action = AlarmReceiver.ACTION_ITEM_AIRED_ALARM
         data = "simklcalendar://item_aired_alarm/$primaryKey".toUri()
