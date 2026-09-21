@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.DeleteColumn
+import androidx.room.RenameColumn
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
@@ -116,7 +117,7 @@ class Converters {
 
 @Database(
     entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class, ActiveNotification::class],
-    version = 29,
+    version = 30,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -137,6 +138,7 @@ class Converters {
         AutoMigration(from = 26, to = 27),
         AutoMigration(from = 27, to = 28),
         AutoMigration(from = 28, to = 29),
+        AutoMigration(from = 29, to = 30, spec = AppDatabase.Migration29To30::class),
     ]
 )
 @TypeConverters(Converters::class)
@@ -159,6 +161,9 @@ abstract class AppDatabase : RoomDatabase() {
             db.execSQL("UPDATE calendar_items SET mediaStatus = 'DOWNLOADED' WHERE mediaStatus = 'ARCHIVED'")
         }
     }
+
+    @RenameColumn(tableName = "user_token", fromColumnName = "expiresAt", toColumnName = "accessTokenExpiresAt")
+    class Migration29To30 : AutoMigrationSpec
 
     abstract fun userTokenDao(): UserTokenDao
     abstract fun calendarItemDao(): CalendarItemDao

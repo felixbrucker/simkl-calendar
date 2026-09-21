@@ -360,7 +360,8 @@ class AlarmReceiverTest {
 
         receiver.onReceive(context, intent)
 
-        coVerify(timeout = 3000) { NotificationManager.updateNotification(any(), any()) }
+        verify(timeout = 3000) { pendingResult.finish() }
+        coVerify { NotificationManager.updateNotification(itemFinal, context) }
     }
 
     @Test

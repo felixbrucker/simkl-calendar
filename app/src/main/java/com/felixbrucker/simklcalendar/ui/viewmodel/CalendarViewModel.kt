@@ -811,8 +811,6 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             val success = repository.exchangeOAuthCode(code = code, state = state, redirectUri = redirectUri)
             _isSyncing.value = false
             if (success) {
-                _isAuthV2UpgradeHint.value = false
-                repository.clearAuthV2UpgradeHint()
                 onSuccess()
             } else {
                 onFailure()

@@ -22,7 +22,8 @@ data class UserToken(
     val accessToken: String,
     val username: String,
     val refreshToken: String? = null,
-    val expiresAt: Instant? = null
+    val accessTokenExpiresAt: Instant? = null,
+    val refreshTokenExpiresAt: Instant? = null
 )
 
 @Entity(

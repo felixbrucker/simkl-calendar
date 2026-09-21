@@ -326,20 +326,21 @@ class SimklRepository(private val context: Context) {
                 .putString("pkce_state", state)
         }
 
-        val encodedRedirect = try {
-            URLEncoder.encode(redirectUri, "UTF-8")
-        } catch (_: Exception) {
-            redirectUri
+        val params = mapOf(
+            "response_type" to "code",
+            "client_id" to clientId,
+            "redirect_uri" to redirectUri,
+            "scope" to "media:read media:write",
+            "state" to state,
+            "code_challenge" to codeChallenge,
+            "code_challenge_method" to "S256"
+        )
+
+        val queryString = params.entries.joinToString("&") { (key, value) ->
+            "$key=${URLEncoder.encode(value, "UTF-8")}"
         }
 
-        val scope = "media:read media:write"
-        val encodedScope = try {
-            URLEncoder.encode(scope, "UTF-8")
-        } catch (_: Exception) {
-            "media:read%20media:write"
-        }
-
-        return "https://simkl.com/oauth2/authorize?response_type=code&client_id=$clientId&redirect_uri=$encodedRedirect&scope=$encodedScope&state=$state&code_challenge=$codeChallenge&code_challenge_method=S256"
+        return "https://simkl.com/oauth2/authorize?$queryString"
     }
 
     /**
@@ -360,26 +361,39 @@ class SimklRepository(private val context: Context) {
      * 2) General flow (token expiration / refresh failure): If the V2 token is expired (or refresh fails),
      *    clears the user token without deleting any user data.
      */
-    suspend fun checkAndValidateUserSession(): Boolean = withContext(Dispatchers.IO) {
-        val userToken = tokenDao.getActiveToken() ?: return@withContext false
+    suspend fun checkAndValidateUserSession(): SessionValidationResult = withContext(Dispatchers.IO) {
+        val userToken = tokenDao.getActiveToken() ?: return@withContext SessionValidationResult.NO_USER
+
         if (!userToken.accessToken.startsWith("simkl_at_")) {
             Timber.tag("SimklRepository").w("Detected legacy Auth V1 token. Transitioning user to Auth V2 login while retaining data.")
             clearUserTokenOnly(isV1Upgrade = true)
-            return@withContext true
+            return@withContext SessionValidationResult.MIGRATED_FROM_V1
         }
-        val expiresAt = userToken.expiresAt
-        if (expiresAt != null && Instant.now().isAfter(expiresAt.minusSeconds(3600))) {
+
+        val refreshExpiresAt = userToken.refreshTokenExpiresAt
+        if (refreshExpiresAt != null && Instant.now().isAfter(refreshExpiresAt)) {
+            Timber.tag("SimklRepository").w("Refresh token has expired after 180 days. Transitioning user to login while retaining user data.")
+            clearUserTokenOnly(isV1Upgrade = false)
+            return@withContext SessionValidationResult.EXPIRED_OR_INVALID_SESSION
+        }
+
+        val accessExpiresAt = userToken.accessTokenExpiresAt
+        if (accessExpiresAt != null && Instant.now().isAfter(accessExpiresAt.minusSeconds(3600))) {
             val refreshed = performRefreshToken(userToken, userToken.refreshToken ?: "")
-            if (!refreshed) {
-                Timber.tag("SimklRepository").w("Token refresh failed. Transitioning user to login without clearing user data.")
-                clearUserTokenOnly(isV1Upgrade = false)
-                return@withContext true
+            return@withContext if (refreshed) {
+                SessionValidationResult.VALID_AFTER_REFRESH
+            } else {
+                SessionValidationResult.EXPIRED_OR_INVALID_SESSION
             }
         }
-        false
+
+        SessionValidationResult.VALID
     }
 
-    suspend fun checkAndMigrateAuthV2(): Boolean = checkAndValidateUserSession()
+    suspend fun checkAndMigrateAuthV2(): Boolean {
+        val result = checkAndValidateUserSession()
+        return result == SessionValidationResult.MIGRATED_FROM_V1
+    }
 
     fun isAuthV2UpgradeHint(): Boolean {
         return authPrefs.getBoolean("show_auth_v2_upgrade_hint", false)
@@ -450,13 +464,14 @@ class SimklRepository(private val context: Context) {
                 )
             )
             val accessToken = response.accessToken
-            if (accessToken.isEmpty() || !accessToken.startsWith("simkl_at_")) {
-                Timber.tag("SimklRepository").e("OAuth returned empty or invalid V2 access token")
+            if (!accessToken.startsWith("simkl_at_")) {
+                Timber.tag("SimklRepository").e("OAuth returned invalid V2 access token prefix")
                 return@withContext false
             }
 
             val refreshToken = response.refreshToken
-            val expiresAt = Instant.now().plusSeconds(response.expiresIn)
+            val accessTokenExpiresAt = Instant.now().plusSeconds(response.expiresIn)
+            val refreshTokenExpiresAt = Instant.now().plus(180, ChronoUnit.DAYS)
 
             // Successfully received token: clear stored PKCE parameters and upgrade hint
             authPrefs.edit {
@@ -483,7 +498,8 @@ class SimklRepository(private val context: Context) {
                     accessToken = accessToken,
                     username = username,
                     refreshToken = refreshToken,
-                    expiresAt = expiresAt
+                    accessTokenExpiresAt = accessTokenExpiresAt,
+                    refreshTokenExpiresAt = refreshTokenExpiresAt
                 )
             )
             syncCalendar()
@@ -497,8 +513,8 @@ class SimklRepository(private val context: Context) {
     suspend fun refreshTokenIfNeeded(): Boolean = withContext(Dispatchers.IO) {
         val token = tokenDao.getActiveToken() ?: return@withContext false
         val refreshToken = token.refreshToken ?: return@withContext false
-        val expiresAt = token.expiresAt
-        if (expiresAt != null && Instant.now().isAfter(expiresAt.minusSeconds(3600))) {
+        val accessExpiresAt = token.accessTokenExpiresAt
+        if (accessExpiresAt != null && Instant.now().isAfter(accessExpiresAt.minusSeconds(3600))) {
             return@withContext performRefreshToken(token, refreshToken)
         }
         true
@@ -516,23 +532,32 @@ class SimklRepository(private val context: Context) {
                 )
             )
             val newAccessToken = response.accessToken
-            if (newAccessToken.isEmpty()) {
+            if (!newAccessToken.startsWith("simkl_at_")) {
                 clearUserTokenOnly(isV1Upgrade = false)
                 return@withContext false
             }
             val newRefreshToken = response.refreshToken
-            val newExpiresAt = Instant.now().plusSeconds(response.expiresIn)
+            val newAccessTokenExpiresAt = Instant.now().plusSeconds(response.expiresIn)
+            val newRefreshTokenExpiresAt = Instant.now().plus(180, ChronoUnit.DAYS)
             tokenDao.insertUserToken(
                 current.copy(
                     accessToken = newAccessToken,
                     refreshToken = newRefreshToken,
-                    expiresAt = newExpiresAt
+                    accessTokenExpiresAt = newAccessTokenExpiresAt,
+                    refreshTokenExpiresAt = newRefreshTokenExpiresAt
                 )
             )
             true
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() == 400 || e.code() == 401) {
+                Timber.tag("SimklRepository").w(e, "Refresh token is invalid or expired. Resetting user token.")
+                clearUserTokenOnly(isV1Upgrade = false)
+            } else {
+                Timber.tag("SimklRepository").e(e, "HTTP exception during token refresh (non-auth error)")
+            }
+            false
         } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Token refresh failed")
-            clearUserTokenOnly(isV1Upgrade = false)
+            Timber.tag("SimklRepository").e(e, "Network or unexpected exception during token refresh")
             false
         }
     }
@@ -1774,6 +1799,14 @@ class SimklRepository(private val context: Context) {
             Result.failure(e)
         }
     }
+}
+
+enum class SessionValidationResult {
+    VALID,
+    VALID_AFTER_REFRESH,
+    MIGRATED_FROM_V1,
+    EXPIRED_OR_INVALID_SESSION,
+    NO_USER
 }
 
 data class SyncResult(
