@@ -22,6 +22,7 @@ import com.felixbrucker.simklcalendar.data.network.SimklMovieReleaseDateCountry
 import com.felixbrucker.simklcalendar.data.network.SimklMovieReleaseResult
 import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarEntry
 import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarResponse
+import com.felixbrucker.simklcalendar.data.network.SimklV2Episode
 import com.felixbrucker.simklcalendar.data.network.SimklV2Metadata
 import com.felixbrucker.simklcalendar.data.network.SyncActivitiesResponse
 import com.felixbrucker.simklcalendar.data.network.SyncAllItemsResponse
@@ -108,8 +109,14 @@ class SimklRepositoryDeepSyncTest {
         every { sharedPreferences.getString("pkce_state", null) } returns "valid_state"
         every { sharedPreferences.getString("pkce_code_verifier", null) } returns "verifier_123"
 
-        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse("access_token_abc")
-        coEvery { apiService.getUserSettings(any(), any()) } returns UserSettingsResponse(UserProfile("SimklUser123"))
+        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
+            accessToken = "simkl_at_access_token_abc",
+            tokenType = "Bearer",
+            expiresIn = 604800,
+            refreshToken = "simkl_rt_refresh_token_abc",
+            scope = "media:read media:write"
+        )
+        coEvery { apiService.getUserSettings() } returns UserSettingsResponse(UserProfile("SimklUser123"))
 
         val failureState = repository.exchangeOAuthCode("code", "wrong_state", "uri")
         assertFalse(failureState)
@@ -122,7 +129,7 @@ class SimklRepositoryDeepSyncTest {
     @Test
     fun testSyncWatchlistFullBranchExecution() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
-        coEvery { apiService.getSyncActivities(any(), any()) } returns SyncActivitiesResponse("2026-03-30T10:00:00Z")
+        coEvery { apiService.getSyncActivities() } returns SyncActivitiesResponse("2026-03-30T10:00:00Z")
 
         val syncResponse = SyncAllItemsResponse(
             shows = listOf(
@@ -154,7 +161,7 @@ class SimklRepositoryDeepSyncTest {
             )
         )
 
-        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any(), any(), any(), any()) } returns syncResponse
+        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns syncResponse
 
         val existingTracked = listOf(
             TrackedWatchlistItem(simklId = 202, type = MediaType.ANIME, title = "Anime 1", poster = null)
@@ -180,7 +187,7 @@ class SimklRepositoryDeepSyncTest {
                 SimklV2CalendarEntry(
                     simklId = 101,
                     date = "2026-04-10T20:00:00Z",
-                    episode = com.felixbrucker.simklcalendar.data.network.SimklV2Episode(season = 1, episode = 3, title = "Ep 3")
+                    episode = SimklV2Episode(season = 1, episode = 3, title = "Ep 3")
                 )
             ),
             metadata = mapOf(
@@ -188,7 +195,7 @@ class SimklRepositoryDeepSyncTest {
             )
         )
 
-        coEvery { apiService.getV2Calendar(any(), any(), any()) } returns Response.success(v2CalendarResponse)
+        coEvery { apiService.getV2Calendar(any(), any()) } returns Response.success(v2CalendarResponse)
 
         val movieDetail = SimklMovieDetailResponse(
             title = "Movie 1",
@@ -205,7 +212,7 @@ class SimklRepositoryDeepSyncTest {
             ids = SimklIds(simkl = 303)
         )
 
-        coEvery { apiService.getMovieDetails(303, any(), any()) } returns movieDetail
+        coEvery { apiService.getMovieDetails(303) } returns movieDetail
 
         val result = repository.syncCalendarJsons(forceFullSync = true)
 
@@ -225,7 +232,7 @@ class SimklRepositoryDeepSyncTest {
             SimklEpisodeResponse(title = "Ep 1", season = 1, episode = 1, type = "episode", aired = true, date = "2026-02-01T20:00:00Z"),
             SimklEpisodeResponse(title = "Ep 2", season = 1, episode = 2, type = "episode", aired = true, date = "2026-02-08T20:00:00Z")
         )
-        coEvery { apiService.getTvEpisodes(101, any()) } returns episodes
+        coEvery { apiService.getTvEpisodes(101) } returns episodes
 
         val result = repository.backfillPastEpisodes(lastSyncTimestamp = 0L)
 

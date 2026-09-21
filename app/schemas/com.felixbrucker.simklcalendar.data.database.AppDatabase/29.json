@@ -1,0 +1,527 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 29,
+    "identityHash": "77c0023f3ac954961a62bd11869aebd8",
+    "entities": [
+      {
+        "tableName": "user_token",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `accessToken` TEXT NOT NULL, `username` TEXT NOT NULL, `refreshToken` TEXT, `expiresAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accessToken",
+            "columnName": "accessToken",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "refreshToken",
+            "columnName": "refreshToken",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "expiresAt",
+            "columnName": "expiresAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "calendar_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`primaryKey` TEXT NOT NULL, `simklId` INTEGER NOT NULL, `episodeTitle` TEXT, `season` INTEGER, `episodeNumber` INTEGER, `date` INTEGER NOT NULL, `movieReleaseType` TEXT, `isSeasonPremiere` INTEGER NOT NULL, `isSeasonFinale` INTEGER NOT NULL, `isNotified` INTEGER NOT NULL, `watchedAt` INTEGER, PRIMARY KEY(`primaryKey`), FOREIGN KEY(`simklId`) REFERENCES `tracked_watchlist_items`(`simklId`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "primaryKey",
+            "columnName": "primaryKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "simklId",
+            "columnName": "simklId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "episodeTitle",
+            "columnName": "episodeTitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "season",
+            "columnName": "season",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "episodeNumber",
+            "columnName": "episodeNumber",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "movieReleaseType",
+            "columnName": "movieReleaseType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isSeasonPremiere",
+            "columnName": "isSeasonPremiere",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSeasonFinale",
+            "columnName": "isSeasonFinale",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isNotified",
+            "columnName": "isNotified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "watchedAt",
+            "columnName": "watchedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "primaryKey"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_calendar_items_simklId",
+            "unique": false,
+            "columnNames": [
+              "simklId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_calendar_items_simklId` ON `${TABLE_NAME}` (`simklId`)"
+          },
+          {
+            "name": "index_calendar_items_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_calendar_items_date` ON `${TABLE_NAME}` (`date`)"
+          },
+          {
+            "name": "index_calendar_items_watchedAt",
+            "unique": false,
+            "columnNames": [
+              "watchedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_calendar_items_watchedAt` ON `${TABLE_NAME}` (`watchedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "tracked_watchlist_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "simklId"
+            ],
+            "referencedColumns": [
+              "simklId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "notification_settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`simklId` INTEGER NOT NULL, `notifyEveryEpisode` INTEGER NOT NULL, `notifyAiredLastEpisode` INTEGER NOT NULL, PRIMARY KEY(`simklId`), FOREIGN KEY(`simklId`) REFERENCES `tracked_watchlist_items`(`simklId`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "simklId",
+            "columnName": "simklId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notifyEveryEpisode",
+            "columnName": "notifyEveryEpisode",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notifyAiredLastEpisode",
+            "columnName": "notifyAiredLastEpisode",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "simklId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "tracked_watchlist_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "simklId"
+            ],
+            "referencedColumns": [
+              "simklId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "tracked_watchlist_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`simklId` INTEGER NOT NULL, `type` TEXT NOT NULL, `title` TEXT NOT NULL, `titleRomaji` TEXT, `poster` TEXT, PRIMARY KEY(`simklId`))",
+        "fields": [
+          {
+            "fieldPath": "simklId",
+            "columnName": "simklId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleRomaji",
+            "columnName": "titleRomaji",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "poster",
+            "columnName": "poster",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "simklId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_tracked_watchlist_items_type",
+            "unique": false,
+            "columnNames": [
+              "type"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tracked_watchlist_items_type` ON `${TABLE_NAME}` (`type`)"
+          }
+        ]
+      },
+      {
+        "tableName": "watched_episodes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`simklId` INTEGER NOT NULL, `season` INTEGER NOT NULL, `episodeNumber` INTEGER NOT NULL, `watchedAt` INTEGER, PRIMARY KEY(`simklId`, `season`, `episodeNumber`), FOREIGN KEY(`simklId`) REFERENCES `tracked_watchlist_items`(`simklId`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "simklId",
+            "columnName": "simklId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "season",
+            "columnName": "season",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "episodeNumber",
+            "columnName": "episodeNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "watchedAt",
+            "columnName": "watchedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "simklId",
+            "season",
+            "episodeNumber"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_watched_episodes_simklId",
+            "unique": false,
+            "columnNames": [
+              "simklId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_watched_episodes_simklId` ON `${TABLE_NAME}` (`simklId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "tracked_watchlist_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "simklId"
+            ],
+            "referencedColumns": [
+              "simklId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "custom_search_links",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `subtitle` TEXT, `urlTemplate` TEXT NOT NULL, `associatedTypes` TEXT NOT NULL, `position` INTEGER NOT NULL DEFAULT 0)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subtitle",
+            "columnName": "subtitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "urlTemplate",
+            "columnName": "urlTemplate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "associatedTypes",
+            "columnName": "associatedTypes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_custom_search_links_position",
+            "unique": false,
+            "columnNames": [
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_custom_search_links_position` ON `${TABLE_NAME}` (`position`)"
+          }
+        ]
+      },
+      {
+        "tableName": "item_download_settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`simklId` INTEGER NOT NULL, `downloadUnwatched` INTEGER, `downloadSeasonUnwatched` INTEGER, `qualityOverride` TEXT, `preferHevcOverride` INTEGER, `titleOverride` TEXT, `seasonOverrides` TEXT, `downloadSubdirectoryOverride` TEXT, `episodeSearchStyle` TEXT, PRIMARY KEY(`simklId`), FOREIGN KEY(`simklId`) REFERENCES `tracked_watchlist_items`(`simklId`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "simklId",
+            "columnName": "simklId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "downloadUnwatched",
+            "columnName": "downloadUnwatched",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "downloadSeasonUnwatched",
+            "columnName": "downloadSeasonUnwatched",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "qualityOverride",
+            "columnName": "qualityOverride",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "preferHevcOverride",
+            "columnName": "preferHevcOverride",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "titleOverride",
+            "columnName": "titleOverride",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "seasonOverrides",
+            "columnName": "seasonOverrides",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "downloadSubdirectoryOverride",
+            "columnName": "downloadSubdirectoryOverride",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "episodeSearchStyle",
+            "columnName": "episodeSearchStyle",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "simklId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "tracked_watchlist_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "simklId"
+            ],
+            "referencedColumns": [
+              "simklId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "local_item_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`primaryKey` TEXT NOT NULL, `mediaStatus` TEXT NOT NULL DEFAULT 'NOT_AIRED_YET', `downloadTaskId` TEXT, PRIMARY KEY(`primaryKey`), FOREIGN KEY(`primaryKey`) REFERENCES `calendar_items`(`primaryKey`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "primaryKey",
+            "columnName": "primaryKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStatus",
+            "columnName": "mediaStatus",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'NOT_AIRED_YET'"
+          },
+          {
+            "fieldPath": "downloadTaskId",
+            "columnName": "downloadTaskId",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "primaryKey"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "calendar_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "primaryKey"
+            ],
+            "referencedColumns": [
+              "primaryKey"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "active_notifications",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`primaryKey` TEXT NOT NULL, PRIMARY KEY(`primaryKey`), FOREIGN KEY(`primaryKey`) REFERENCES `calendar_items`(`primaryKey`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "primaryKey",
+            "columnName": "primaryKey",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "primaryKey"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "calendar_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "primaryKey"
+            ],
+            "referencedColumns": [
+              "primaryKey"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '77c0023f3ac954961a62bd11869aebd8')"
+    ]
+  }
+}

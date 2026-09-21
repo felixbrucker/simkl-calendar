@@ -214,7 +214,7 @@ fun SettingsScreen(
                                 color = Color(0xFFCAC4D0)
                             )
                             Text(
-                                userToken?.username ?: "Not Authenticated",
+                                userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Not Authenticated",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
                                 color = Color(0xFFD0BCFF)

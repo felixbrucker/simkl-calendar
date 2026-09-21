@@ -29,6 +29,7 @@ import com.felixbrucker.simklcalendar.data.network.SimklIds
 import com.felixbrucker.simklcalendar.data.network.SimklMedia
 import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarEntry
 import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarResponse
+import com.felixbrucker.simklcalendar.data.network.SimklV2Episode
 import com.felixbrucker.simklcalendar.data.network.SimklV2Metadata
 import com.felixbrucker.simklcalendar.data.network.SyncActivitiesResponse
 import com.felixbrucker.simklcalendar.data.network.SyncAllItemsResponse
@@ -57,6 +58,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -137,11 +139,17 @@ class SimklRepositoryTest {
         every { appDatabase.customSearchLinkDao() } returns searchLinkDao
         every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
 
-        coEvery { apiService.getSyncActivities(any(), any()) } returns SyncActivitiesResponse()
-        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any(), any(), any(), any()) } returns SyncAllItemsResponse()
-        coEvery { apiService.getV2Calendar(any(), any(), any()) } returns Response.success(SimklV2CalendarResponse(emptyList(), emptyMap()))
-        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse("access_token_123")
-        coEvery { apiService.getUserSettings(any(), any()) } returns UserSettingsResponse(UserProfile("SimklTestUser"))
+        coEvery { apiService.getSyncActivities() } returns SyncActivitiesResponse()
+        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns SyncAllItemsResponse()
+        coEvery { apiService.getV2Calendar(any(), any()) } returns Response.success(SimklV2CalendarResponse(emptyList(), emptyMap()))
+        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
+            accessToken = "simkl_at_access_token_123",
+            tokenType = "Bearer",
+            expiresIn = 604800,
+            refreshToken = "simkl_rt_refresh_token_123",
+            scope = "media:read media:write"
+        )
+        coEvery { apiService.getUserSettings() } returns UserSettingsResponse(UserProfile("SimklTestUser"))
 
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
@@ -245,8 +253,8 @@ class SimklRepositoryTest {
     @Test
     fun testMarkHistoryWatchedAndUnwatched() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
-        coEvery { apiService.markHistoryWatched(any(), any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(shows = 1))
-        coEvery { apiService.markHistoryUnwatched(any(), any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(shows = 1))
+        coEvery { apiService.markHistoryWatched(any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(shows = 1))
+        coEvery { apiService.markHistoryUnwatched(any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(shows = 1))
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, true, false, false, null)
         val itemWithWatchlist = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.DOWNLOADED))
@@ -270,8 +278,8 @@ class SimklRepositoryTest {
     @Test
     fun testMarkAnimeHistoryWatchedAndUnwatched() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
-        coEvery { apiService.markHistoryWatched(any(), any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(anime = 1))
-        coEvery { apiService.markHistoryUnwatched(any(), any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(anime = 1))
+        coEvery { apiService.markHistoryWatched(any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(anime = 1))
+        coEvery { apiService.markHistoryUnwatched(any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(anime = 1))
 
         val resEpWatch = repository.markEpisodeWatched(300, 1, 1, MediaType.ANIME)
         val resEpUnwatch = repository.markEpisodeUnwatched(300, 1, 1, MediaType.ANIME)
@@ -301,7 +309,7 @@ class SimklRepositoryTest {
     @Test
     fun testSyncWatchlistWithDeltas() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
-        coEvery { apiService.getSyncActivities(any(), any()) } returns SyncActivitiesResponse("2026-03-30T00:00:00Z")
+        coEvery { apiService.getSyncActivities() } returns SyncActivitiesResponse("2026-03-30T00:00:00Z")
         val syncAllResponse = SyncAllItemsResponse(
             shows = listOf(
                 SyncShowItem(
@@ -317,7 +325,7 @@ class SimklRepositoryTest {
                 )
             )
         )
-        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any(), any(), any(), any()) } returns syncAllResponse
+        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns syncAllResponse
 
         val result = repository.syncWatchlist(forceFullSync = true)
 
@@ -334,12 +342,12 @@ class SimklRepositoryTest {
                 SimklV2CalendarEntry(
                     simklId = 100,
                     date = "2026-04-01T20:00:00Z",
-                    episode = com.felixbrucker.simklcalendar.data.network.SimklV2Episode(season = 1, episode = 1, title = "Pilot")
+                    episode = SimklV2Episode(season = 1, episode = 1, title = "Pilot")
                 )
             ),
             metadata = mapOf("100" to SimklV2Metadata(title = "Show Title"))
         )
-        coEvery { apiService.getV2Calendar(any(), any(), any()) } returns Response.success(v2Response)
+        coEvery { apiService.getV2Calendar(any(), any()) } returns Response.success(v2Response)
         val trackedShow = TrackedWatchlistItem(100, MediaType.TV, "Show Title", null, null)
         coEvery { watchlistDao.getTrackedItemsByTypes(any()) } returns listOf(trackedShow)
         val epList = listOf(
@@ -352,7 +360,7 @@ class SimklRepositoryTest {
                 date = "2026-03-01T20:00:00Z"
             )
         )
-        coEvery { apiService.getTvEpisodes(100, any()) } returns epList
+        coEvery { apiService.getTvEpisodes(100) } returns epList
 
         val calendarResult = repository.syncCalendarJsons(forceFullSync = true)
         val backfillResult = repository.backfillPastEpisodes(lastSyncTimestamp = 0L)
@@ -362,22 +370,115 @@ class SimklRepositoryTest {
     }
 
     @Test
-    fun testOAuthExchangeAndAuthUrl() = runTest {
+    fun testCreateAuthorizationUrlAuthV2() {
+        val authUrl = repository.createAuthorizationUrl("simklcalendar://auth")
+
+        if (repository.isRealApiConfigured()) {
+            assertNotNull(authUrl)
+            assertTrue(authUrl!!.contains("https://simkl.com/oauth2/authorize"))
+            assertTrue(authUrl.contains("scope=media"))
+        } else {
+            assertNull(authUrl)
+        }
+    }
+
+    @Test
+    fun testResetAuthIfNeededLegacyV1Token() = runTest {
+        val v1Token = UserToken(1, "legacy_64_hex_v1_token_string_value_1234567890abcdef1234567890abcdef", "OldUser")
+        coEvery { tokenDao.getActiveToken() } returns v1Token
+
+        repository.resetAuthIfNeeded()
+
+        coVerify { tokenDao.clearUserToken() }
+        coVerify(exactly = 0) { calendarDao.clearCalendarItems() }
+        coVerify(exactly = 0) { watchlistDao.clearAll() }
+        coVerify(exactly = 0) { watchedDao.clearAll() }
+    }
+
+    @Test
+    fun testResetAuthIfNeededValidV2Token() = runTest {
+        val v2Token = UserToken(
+            id = 1,
+            accessToken = "simkl_at_valid_v2_access_token_123456789012345",
+            username = "NewUser",
+            refreshToken = "simkl_rt_refresh_token_123456789012345",
+            accessTokenExpiresAt = Instant.now().plusSeconds(604800),
+            refreshTokenExpiresAt = Instant.now().plusSeconds(15000000)
+        )
+        coEvery { tokenDao.getActiveToken() } returns v2Token
+
+        repository.resetAuthIfNeeded()
+
+        coVerify(exactly = 0) { tokenDao.clearUserToken() }
+    }
+
+    @Test
+    fun testResetAuthIfNeededExpiredRefreshToken() = runTest {
+        val expiredRefreshToken = UserToken(
+            id = 1,
+            accessToken = "simkl_at_valid_v2_access_token_123456789012345",
+            username = "User",
+            refreshToken = "simkl_rt_refresh_token_123456789012345",
+            accessTokenExpiresAt = Instant.now().minusSeconds(100),
+            refreshTokenExpiresAt = Instant.now().minusSeconds(10)
+        )
+        coEvery { tokenDao.getActiveToken() } returns expiredRefreshToken
+
+        repository.resetAuthIfNeeded()
+
+        coVerify { tokenDao.clearUserToken() }
+    }
+
+    @Test
+    fun testOAuthExchangeV2Success() = runTest {
         every { sharedPreferences.getString("pkce_state", null) } returns "state123"
         every { sharedPreferences.getString("pkce_code_verifier", null) } returns "verifier123"
+        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
+            accessToken = "simkl_at_v2_access_token_sample_12345678901",
+            tokenType = "Bearer",
+            expiresIn = 604800,
+            refreshToken = "simkl_rt_v2_refresh_token_sample_123456789",
+            scope = "media:read media:write"
+        )
 
-        val authUrl = repository.createAuthorizationUrl()
         val exchanged = repository.exchangeOAuthCode("code123", "state123", "simklcalendar://auth")
-        val exchangedStateMismatch = repository.exchangeOAuthCode("code123", "wrong_state", "simklcalendar://auth")
 
-        if (authUrl != null) {
-            assertTrue(authUrl.contains("simkl.com/oauth/authorize"))
-        }
         if (repository.isRealApiConfigured()) {
             assertTrue(exchanged)
+            coVerify { tokenDao.insertUserToken(match { it.accessToken == "simkl_at_v2_access_token_sample_12345678901" && it.refreshToken == "simkl_rt_v2_refresh_token_sample_123456789" }) }
         } else {
             assertFalse(exchanged)
         }
+    }
+
+    @Test
+    fun testPerformRefreshTokenSuccess() = runTest {
+        val currentToken = UserToken(1, "simkl_at_old_token", "User", "simkl_rt_refresh_token_123")
+        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
+            accessToken = "simkl_at_new_token_456",
+            tokenType = "Bearer",
+            expiresIn = 604800,
+            refreshToken = "simkl_rt_refresh_token_123",
+            scope = "media:read media:write"
+        )
+
+        val success = repository.performRefreshToken(currentToken, "simkl_rt_refresh_token_123")
+
+        if (repository.isRealApiConfigured()) {
+            assertTrue(success)
+            coVerify { tokenDao.insertUserToken(match { it.accessToken == "simkl_at_new_token_456" }) }
+        } else {
+            assertFalse(success)
+        }
+    }
+
+    @Test
+    fun testOAuthExchangeStateMismatchFails() = runTest {
+        every { sharedPreferences.getString("pkce_state", null) } returns "state123"
+        every { sharedPreferences.getString("pkce_code_verifier", null) } returns "verifier123"
+
+        val exchangedStateMismatch = repository.exchangeOAuthCode("code123", "wrong_state", "simklcalendar://auth")
+
         assertFalse(exchangedStateMismatch)
     }
 

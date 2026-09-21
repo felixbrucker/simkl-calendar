@@ -19,8 +19,13 @@ class SyncCalendarWorker(
 
     override suspend fun doWork(): Result {
         Timber.tag(TAG).d("Starting periodic background calendar synchronization")
+        val repository = SimklRepository(applicationContext)
+        val token = repository.getActiveUserToken()
+        if (token == null || token.accessToken.isEmpty()) {
+            Timber.tag(TAG).d("User is not authenticated. Skipping periodic calendar synchronization.")
+            return Result.success()
+        }
         return try {
-            val repository = SimklRepository(applicationContext)
             // Perform full calendar synchronization
             repository.syncCalendar()
 

@@ -20,7 +20,10 @@ import kotlin.math.abs
 data class UserToken(
     @PrimaryKey val id: Int = 1, // Single-row lock for active user
     val accessToken: String,
-    val username: String
+    val username: String,
+    val refreshToken: String? = null,
+    val accessTokenExpiresAt: Instant? = null,
+    val refreshTokenExpiresAt: Instant? = null
 )
 
 @Entity(

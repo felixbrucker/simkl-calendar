@@ -153,6 +153,11 @@ class MainActivity : ComponentActivity() {
 
     private fun handleOAuthUri(uri: Uri) {
         if (uri.scheme == "simklcalendar") {
+            val iss = uri.getQueryParameter("iss")
+            if (iss != null && iss != "https://simkl.com" && iss != "https://simkl.com/") {
+                Toast.makeText(this, "Authorization response did not come from Simkl", Toast.LENGTH_LONG).show()
+                return
+            }
             val code = uri.getQueryParameter("code")
             val state = uri.getQueryParameter("state")
             if (!code.isNullOrEmpty()) {
