@@ -546,7 +546,18 @@ class SimklRepository(private val context: Context) {
                     .remove("show_auth_v2_upgrade_hint")
             }
 
-            // 2. Fetch user profile from POST /users/settings to get the user's name
+            // 2. Insert user token into database so @Authenticated interceptor can retrieve it
+            tokenDao.insertUserToken(
+                UserToken(
+                    accessToken = accessToken,
+                    username = "SimklUser",
+                    refreshToken = refreshToken,
+                    accessTokenExpiresAt = accessTokenExpiresAt,
+                    refreshTokenExpiresAt = refreshTokenExpiresAt
+                )
+            )
+
+            // 3. Fetch user profile from POST /users/settings to update the user's name
             val username = try {
                 val userResponse = apiService.getUserSettings()
                 userResponse.user.name
@@ -555,15 +566,17 @@ class SimklRepository(private val context: Context) {
                 "SimklUser"
             }
 
-            tokenDao.insertUserToken(
-                UserToken(
-                    accessToken = accessToken,
-                    username = username,
-                    refreshToken = refreshToken,
-                    accessTokenExpiresAt = accessTokenExpiresAt,
-                    refreshTokenExpiresAt = refreshTokenExpiresAt
+            if (username != "SimklUser") {
+                tokenDao.insertUserToken(
+                    UserToken(
+                        accessToken = accessToken,
+                        username = username,
+                        refreshToken = refreshToken,
+                        accessTokenExpiresAt = accessTokenExpiresAt,
+                        refreshTokenExpiresAt = refreshTokenExpiresAt
+                    )
                 )
-            )
+            }
             syncCalendar()
             true
         } catch (e: Exception) {
