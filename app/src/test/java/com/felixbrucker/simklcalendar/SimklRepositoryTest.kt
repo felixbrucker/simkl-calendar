@@ -140,9 +140,9 @@ class SimklRepositoryTest {
         every { appDatabase.customSearchLinkDao() } returns searchLinkDao
         every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
 
-        coEvery { apiService.getSyncActivities(any()) } returns SyncActivitiesResponse()
-        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any(), any(), any()) } returns SyncAllItemsResponse()
-        coEvery { apiService.getV2Calendar(any(), any(), any()) } returns Response.success(SimklV2CalendarResponse(emptyList(), emptyMap()))
+        coEvery { apiService.getSyncActivities() } returns SyncActivitiesResponse()
+        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns SyncAllItemsResponse()
+        coEvery { apiService.getV2Calendar(any(), any()) } returns Response.success(SimklV2CalendarResponse(emptyList(), emptyMap()))
         coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
             accessToken = "simkl_at_access_token_123",
             tokenType = "Bearer",
@@ -150,7 +150,7 @@ class SimklRepositoryTest {
             refreshToken = "simkl_rt_refresh_token_123",
             scope = "media:read media:write"
         )
-        coEvery { apiService.getUserSettings(any()) } returns UserSettingsResponse(UserProfile("SimklTestUser"))
+        coEvery { apiService.getUserSettings() } returns UserSettingsResponse(UserProfile("SimklTestUser"))
 
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
@@ -254,8 +254,8 @@ class SimklRepositoryTest {
     @Test
     fun testMarkHistoryWatchedAndUnwatched() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
-        coEvery { apiService.markHistoryWatched(any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(shows = 1))
-        coEvery { apiService.markHistoryUnwatched(any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(shows = 1))
+        coEvery { apiService.markHistoryWatched(any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(shows = 1))
+        coEvery { apiService.markHistoryUnwatched(any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(shows = 1))
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, true, false, false, null)
         val itemWithWatchlist = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.DOWNLOADED))
@@ -279,8 +279,8 @@ class SimklRepositoryTest {
     @Test
     fun testMarkAnimeHistoryWatchedAndUnwatched() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
-        coEvery { apiService.markHistoryWatched(any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(anime = 1))
-        coEvery { apiService.markHistoryUnwatched(any(), any(), any(), any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(anime = 1))
+        coEvery { apiService.markHistoryWatched(any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(anime = 1))
+        coEvery { apiService.markHistoryUnwatched(any()) } returns SyncHistoryResponse(added = SyncHistoryAddedResult(anime = 1))
 
         val resEpWatch = repository.markEpisodeWatched(300, 1, 1, MediaType.ANIME)
         val resEpUnwatch = repository.markEpisodeUnwatched(300, 1, 1, MediaType.ANIME)
@@ -310,7 +310,7 @@ class SimklRepositoryTest {
     @Test
     fun testSyncWatchlistWithDeltas() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
-        coEvery { apiService.getSyncActivities(any()) } returns SyncActivitiesResponse("2026-03-30T00:00:00Z")
+        coEvery { apiService.getSyncActivities() } returns SyncActivitiesResponse("2026-03-30T00:00:00Z")
         val syncAllResponse = SyncAllItemsResponse(
             shows = listOf(
                 SyncShowItem(
@@ -326,7 +326,7 @@ class SimklRepositoryTest {
                 )
             )
         )
-        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any(), any(), any()) } returns syncAllResponse
+        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns syncAllResponse
 
         val result = repository.syncWatchlist(forceFullSync = true)
 
@@ -348,7 +348,7 @@ class SimklRepositoryTest {
             ),
             metadata = mapOf("100" to SimklV2Metadata(title = "Show Title"))
         )
-        coEvery { apiService.getV2Calendar(any(), any(), any()) } returns Response.success(v2Response)
+        coEvery { apiService.getV2Calendar(any(), any()) } returns Response.success(v2Response)
         val trackedShow = TrackedWatchlistItem(100, MediaType.TV, "Show Title", null, null)
         coEvery { watchlistDao.getTrackedItemsByTypes(any()) } returns listOf(trackedShow)
         val epList = listOf(
@@ -361,7 +361,7 @@ class SimklRepositoryTest {
                 date = "2026-03-01T20:00:00Z"
             )
         )
-        coEvery { apiService.getTvEpisodes(100, any()) } returns epList
+        coEvery { apiService.getTvEpisodes(100) } returns epList
 
         val calendarResult = repository.syncCalendarJsons(forceFullSync = true)
         val backfillResult = repository.backfillPastEpisodes(lastSyncTimestamp = 0L)

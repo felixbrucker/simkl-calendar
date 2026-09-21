@@ -257,7 +257,22 @@ class SimklRepository(private val context: Context) {
             val invocation = originalRequest.tag(Invocation::class.java)
             val isAuthenticatedEndpoint = invocation != null && invocation.method().isAnnotationPresent(Authenticated::class.java)
 
+            val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" } ?: ""
+            val originalUrl = originalRequest.url
+            val urlBuilder = originalUrl.newBuilder()
+
+            if (clientId.isNotEmpty() && originalUrl.queryParameter("client_id") == null) {
+                urlBuilder.addQueryParameter("client_id", clientId)
+            }
+            if (originalUrl.queryParameter("app-name") == null) {
+                urlBuilder.addQueryParameter("app-name", appName)
+            }
+            if (originalUrl.queryParameter("app-version") == null) {
+                urlBuilder.addQueryParameter("app-version", appVersion)
+            }
+
             val requestBuilder = originalRequest.newBuilder()
+                .url(urlBuilder.build())
                 .header("User-Agent", userAgent)
                 .header("app-name", appName)
                 .header("app-version", appVersion)
@@ -440,11 +455,17 @@ class SimklRepository(private val context: Context) {
 
         val accessExpiresAt = userToken.accessTokenExpiresAt
         if (accessExpiresAt != null && Instant.now().isAfter(accessExpiresAt.minusSeconds(3600))) {
-            val refreshed = performRefreshToken(userToken, userToken.refreshToken ?: "")
-            return@withContext if (refreshed) {
-                SessionValidationResult.VALID_AFTER_REFRESH
-            } else {
-                SessionValidationResult.EXPIRED_OR_INVALID_SESSION
+            val refreshToken = userToken.refreshToken ?: ""
+            if (refreshToken.isNotEmpty()) {
+                val refreshed = performRefreshToken(userToken, refreshToken)
+                if (refreshed) {
+                    return@withContext SessionValidationResult.VALID_AFTER_REFRESH
+                } else {
+                    val activeTokenAfterRefresh = tokenDao.getActiveToken()
+                    if (activeTokenAfterRefresh == null) {
+                        return@withContext SessionValidationResult.EXPIRED_OR_INVALID_SESSION
+                    }
+                }
             }
         }
 
@@ -544,9 +565,7 @@ class SimklRepository(private val context: Context) {
 
             // 2. Fetch user profile from POST /users/settings to get the user's name
             val username = try {
-                val userResponse = apiService.getUserSettings(
-                    clientId = clientId
-                )
+                val userResponse = apiService.getUserSettings()
                 userResponse.user.name
             } catch (e: Exception) {
                 Timber.tag("SimklRepository").e(e, "Could not fetch user profile details, using default name")
@@ -727,9 +746,9 @@ class SimklRepository(private val context: Context) {
                 async {
                     try {
                         val episodes = if (show.type == MediaType.TV) {
-                            apiService.getTvEpisodes(show.simklId, clientId)
+                            apiService.getTvEpisodes(show.simklId)
                         } else {
-                            apiService.getAnimeEpisodes(show.simklId, clientId)
+                            apiService.getAnimeEpisodes(show.simklId)
                         }
                         show to episodes
                     } catch (e: Exception) {
@@ -846,9 +865,7 @@ class SimklRepository(private val context: Context) {
 
         try {
             // Phase 1: Check /sync/activities to see if any library changes occurred
-            val activities = apiService.getSyncActivities(
-                clientId = clientId
-            )
+            val activities = apiService.getSyncActivities()
 
             val currentActivitiesTimestamp = activities.all
             val savedTimestamp = if (forceFullSync) null else syncPrefs.getString("last_activities_all", null)
@@ -859,7 +876,6 @@ class SimklRepository(private val context: Context) {
                 Timber.tag("SimklRepository").d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
                 val syncResponse = apiService.getSyncAllItems(
-                    clientId = clientId,
                     dateFrom = savedTimestamp,
                 )
 
@@ -1145,8 +1161,7 @@ class SimklRepository(private val context: Context) {
                 try {
                     val response = apiService.getV2Calendar(
                         url = url,
-                        ifModifiedSince = savedHeader,
-                        clientId = clientId
+                        ifModifiedSince = savedHeader
                     )
 
                     if (response.code() == 304) {
@@ -1334,8 +1349,7 @@ class SimklRepository(private val context: Context) {
             for (movieId in moviesNeedingDetails) {
                 try {
                     val movieDetail = apiService.getMovieDetails(
-                        movieId = movieId,
-                        clientId = clientId
+                        movieId = movieId
                     )
                     processTrackedItem(
                         TrackedWatchlistItem(
@@ -1490,7 +1504,6 @@ class SimklRepository(private val context: Context) {
             }
 
             apiService.markHistoryWatched(
-                clientId = clientId,
                 request = request
             )
 
@@ -1592,7 +1605,6 @@ class SimklRepository(private val context: Context) {
             }
 
             apiService.markHistoryWatched(
-                clientId = clientId,
                 request = request
             )
 
@@ -1652,7 +1664,6 @@ class SimklRepository(private val context: Context) {
             )
 
             apiService.markHistoryWatched(
-                clientId = clientId,
                 request = request
             )
 
@@ -1719,7 +1730,6 @@ class SimklRepository(private val context: Context) {
             }
 
             apiService.markHistoryUnwatched(
-                clientId = clientId,
                 request = request
             )
 
@@ -1788,7 +1798,6 @@ class SimklRepository(private val context: Context) {
             }
 
             apiService.markHistoryUnwatched(
-                clientId = clientId,
                 request = request
             )
 
@@ -1834,7 +1843,6 @@ class SimklRepository(private val context: Context) {
             )
 
             apiService.markHistoryUnwatched(
-                clientId = clientId,
                 request = request
             )
 
