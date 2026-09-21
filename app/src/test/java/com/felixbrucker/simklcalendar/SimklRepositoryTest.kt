@@ -141,7 +141,7 @@ class SimklRepositoryTest {
 
         coEvery { apiService.getSyncActivities() } returns SyncActivitiesResponse()
         coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns SyncAllItemsResponse()
-        coEvery { apiService.getV2Calendar(any(), any()) } returns Response.success(SimklV2CalendarResponse(emptyList(), emptyMap()))
+        coEvery { apiService.getV2Calendar(any(), any(), any(), any()) } returns Response.success(SimklV2CalendarResponse(emptyList(), emptyMap()))
         coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
             accessToken = "simkl_at_access_token_123",
             tokenType = "Bearer",
@@ -347,7 +347,7 @@ class SimklRepositoryTest {
             ),
             metadata = mapOf("100" to SimklV2Metadata(title = "Show Title"))
         )
-        coEvery { apiService.getV2Calendar(any(), any()) } returns Response.success(v2Response)
+        coEvery { apiService.getV2Calendar(any(), any(), any(), any()) } returns Response.success(v2Response)
         val trackedShow = TrackedWatchlistItem(100, MediaType.TV, "Show Title", null, null)
         coEvery { watchlistDao.getTrackedItemsByTypes(any()) } returns listOf(trackedShow)
         val epList = listOf(

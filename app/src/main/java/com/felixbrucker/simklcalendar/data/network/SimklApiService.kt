@@ -18,9 +18,11 @@ interface SimklApiService {
     @POST("users/settings")
     suspend fun getUserSettings(): UserSettingsResponse
 
-    @GET
+    @GET("https://data.simkl.in/calendar/v2/{year}/{month}/{type}.json")
     suspend fun getV2Calendar(
-        @Url url: String,
+        @Path("year") year: Int,
+        @Path("month") month: Int,
+        @Path("type") type: String,
         @Header("If-Modified-Since") ifModifiedSince: String? = null
     ): retrofit2.Response<SimklV2CalendarResponse>
 
