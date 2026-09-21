@@ -90,7 +90,7 @@ fun MainScreen(
     val showEarlierReleases by viewModel.showEarlierReleases.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
 
-    val username = userToken?.username ?: "Guest"
+    val username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Guest"
 
     // Search UI State
     var isSearchActive by remember { mutableStateOf(false) }

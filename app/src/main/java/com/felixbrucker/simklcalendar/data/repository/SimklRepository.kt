@@ -550,7 +550,7 @@ class SimklRepository(private val context: Context) {
             tokenDao.insertUserToken(
                 UserToken(
                     accessToken = accessToken,
-                    username = "SimklUser",
+                    username = "",
                     refreshToken = refreshToken,
                     accessTokenExpiresAt = accessTokenExpiresAt,
                     refreshTokenExpiresAt = refreshTokenExpiresAt
@@ -562,11 +562,11 @@ class SimklRepository(private val context: Context) {
                 val userResponse = apiService.getUserSettings()
                 userResponse.user.name
             } catch (e: Exception) {
-                Timber.tag("SimklRepository").e(e, "Could not fetch user profile details, using default name")
-                "SimklUser"
+                Timber.tag("SimklRepository").e(e, "Could not fetch user profile details, using empty string fallback")
+                ""
             }
 
-            if (username != "SimklUser") {
+            if (username.isNotEmpty()) {
                 tokenDao.insertUserToken(
                     UserToken(
                         accessToken = accessToken,
