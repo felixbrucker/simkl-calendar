@@ -20,6 +20,7 @@ import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.network.Authenticated
 import com.felixbrucker.simklcalendar.data.network.OAuthRevokeRequest
+import com.felixbrucker.simklcalendar.data.network.RateLimitInterceptor
 import com.felixbrucker.simklcalendar.data.network.OAuthTokenRequest
 import com.felixbrucker.simklcalendar.data.network.SimklApiService
 import retrofit2.Invocation
@@ -252,6 +253,7 @@ class SimklRepository(private val context: Context) {
     private val userAgent = "$appName/$appVersion"
 
     private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor(RateLimitInterceptor())
         .addInterceptor { chain ->
             val originalRequest = chain.request()
             val invocation = originalRequest.tag(Invocation::class.java)
