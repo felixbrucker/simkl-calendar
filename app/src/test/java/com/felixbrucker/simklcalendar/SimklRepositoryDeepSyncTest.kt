@@ -22,6 +22,7 @@ import com.felixbrucker.simklcalendar.data.network.SimklMovieReleaseDateCountry
 import com.felixbrucker.simklcalendar.data.network.SimklMovieReleaseResult
 import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarEntry
 import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarResponse
+import com.felixbrucker.simklcalendar.data.network.SimklV2Episode
 import com.felixbrucker.simklcalendar.data.network.SimklV2Metadata
 import com.felixbrucker.simklcalendar.data.network.SyncActivitiesResponse
 import com.felixbrucker.simklcalendar.data.network.SyncAllItemsResponse
@@ -108,7 +109,13 @@ class SimklRepositoryDeepSyncTest {
         every { sharedPreferences.getString("pkce_state", null) } returns "valid_state"
         every { sharedPreferences.getString("pkce_code_verifier", null) } returns "verifier_123"
 
-        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse("access_token_abc")
+        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
+            accessToken = "simkl_at_access_token_abc",
+            tokenType = "Bearer",
+            expiresIn = 604800,
+            refreshToken = "simkl_rt_refresh_token_abc",
+            scope = "media:read media:write"
+        )
         coEvery { apiService.getUserSettings(any(), any()) } returns UserSettingsResponse(UserProfile("SimklUser123"))
 
         val failureState = repository.exchangeOAuthCode("code", "wrong_state", "uri")
@@ -180,7 +187,7 @@ class SimklRepositoryDeepSyncTest {
                 SimklV2CalendarEntry(
                     simklId = 101,
                     date = "2026-04-10T20:00:00Z",
-                    episode = com.felixbrucker.simklcalendar.data.network.SimklV2Episode(season = 1, episode = 3, title = "Ep 3")
+                    episode = SimklV2Episode(season = 1, episode = 3, title = "Ep 3")
                 )
             ),
             metadata = mapOf(

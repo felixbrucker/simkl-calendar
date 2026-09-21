@@ -18,6 +18,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.network.OAuthRevokeRequest
 import com.felixbrucker.simklcalendar.data.network.OAuthTokenRequest
 import com.felixbrucker.simklcalendar.data.network.SimklApiService
 import com.felixbrucker.simklcalendar.data.network.SimklIds
@@ -342,20 +343,43 @@ class SimklRepository(private val context: Context) {
     }
 
     /**
-     * Checks if the active user token is an Auth V1 token.
-     * If detected, removes the user token while keeping existing user data (tables & preferences),
-     * and sets an upgrade hint flag.
+     * Clears only the active user token to prompt re-authentication without clearing any user data or preferences.
      */
-    suspend fun checkAndMigrateAuthV2(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun clearUserTokenOnly(isV1Upgrade: Boolean = false) = withContext(Dispatchers.IO) {
+        Timber.tag("SimklRepository").w("Clearing active user token (isV1Upgrade=$isV1Upgrade) while retaining all local user data and preferences.")
+        tokenDao.clearUserToken()
+        if (isV1Upgrade) {
+            authPrefs.edit { putBoolean("show_auth_v2_upgrade_hint", true) }
+        }
+    }
+
+    /**
+     * Validates the active user session.
+     * 1) Special case (V1->V2 migration): If the active token is a legacy Auth V1 token (does not start with "simkl_at_"),
+     *    clears the user token without deleting any user data and sets the V2 upgrade hint flag.
+     * 2) General flow (token expiration / refresh failure): If the V2 token is expired (or refresh fails),
+     *    clears the user token without deleting any user data.
+     */
+    suspend fun checkAndValidateUserSession(): Boolean = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken() ?: return@withContext false
         if (!userToken.accessToken.startsWith("simkl_at_")) {
-            Timber.tag("SimklRepository").w("Detected legacy Auth V1 token. Removing user token and setting Auth V2 upgrade hint while preserving user data.")
-            tokenDao.clearUserToken()
-            authPrefs.edit { putBoolean("show_auth_v2_upgrade_hint", true) }
+            Timber.tag("SimklRepository").w("Detected legacy Auth V1 token. Transitioning user to Auth V2 login while retaining data.")
+            clearUserTokenOnly(isV1Upgrade = true)
             return@withContext true
+        }
+        val expiresAt = userToken.expiresAt
+        if (expiresAt != null && Instant.now().isAfter(expiresAt.minusSeconds(3600))) {
+            val refreshed = performRefreshToken(userToken, userToken.refreshToken ?: "")
+            if (!refreshed) {
+                Timber.tag("SimklRepository").w("Token refresh failed. Transitioning user to login without clearing user data.")
+                clearUserTokenOnly(isV1Upgrade = false)
+                return@withContext true
+            }
         }
         false
     }
+
+    suspend fun checkAndMigrateAuthV2(): Boolean = checkAndValidateUserSession()
 
     fun isAuthV2UpgradeHint(): Boolean {
         return authPrefs.getBoolean("show_auth_v2_upgrade_hint", false)
@@ -372,7 +396,7 @@ class SimklRepository(private val context: Context) {
             val revokeTarget = userToken.refreshToken ?: userToken.accessToken
             if (!clientId.isNullOrEmpty() && revokeTarget.isNotEmpty()) {
                 try {
-                    apiService.revokeToken(com.felixbrucker.simklcalendar.data.network.OAuthRevokeRequest(clientId = clientId, token = revokeTarget))
+                    apiService.revokeToken(OAuthRevokeRequest(clientId = clientId, token = revokeTarget))
                 } catch (e: Exception) {
                     Timber.tag("SimklRepository").w(e, "Failed to revoke token on logout")
                 }
@@ -432,7 +456,7 @@ class SimklRepository(private val context: Context) {
             }
 
             val refreshToken = response.refreshToken
-            val expiresAt = response.expiresIn?.let { Instant.now().plusSeconds(it) } ?: Instant.now().plusSeconds(604800)
+            val expiresAt = Instant.now().plusSeconds(response.expiresIn)
 
             // Successfully received token: clear stored PKCE parameters and upgrade hint
             authPrefs.edit {
@@ -448,7 +472,6 @@ class SimklRepository(private val context: Context) {
                     authorization = "Bearer $accessToken",
                     clientId = clientId
                 )
-                // In Simkl POST /users/settings, user profile contains "name" (which holds username)
                 userResponse.user.name
             } catch (e: Exception) {
                 Timber.tag("SimklRepository").e(e, "Could not fetch user profile details, using default name")
@@ -483,6 +506,7 @@ class SimklRepository(private val context: Context) {
 
     suspend fun performRefreshToken(current: UserToken, refreshToken: String): Boolean = withContext(Dispatchers.IO) {
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" } ?: return@withContext false
+        if (refreshToken.isEmpty()) return@withContext false
         try {
             val response = apiService.getAccessToken(
                 OAuthTokenRequest(
@@ -492,9 +516,12 @@ class SimklRepository(private val context: Context) {
                 )
             )
             val newAccessToken = response.accessToken
-            if (newAccessToken.isEmpty()) return@withContext false
-            val newRefreshToken = response.refreshToken ?: refreshToken
-            val newExpiresAt = response.expiresIn?.let { Instant.now().plusSeconds(it) } ?: Instant.now().plusSeconds(604800)
+            if (newAccessToken.isEmpty()) {
+                clearUserTokenOnly(isV1Upgrade = false)
+                return@withContext false
+            }
+            val newRefreshToken = response.refreshToken
+            val newExpiresAt = Instant.now().plusSeconds(response.expiresIn)
             tokenDao.insertUserToken(
                 current.copy(
                     accessToken = newAccessToken,
@@ -505,6 +532,7 @@ class SimklRepository(private val context: Context) {
             true
         } catch (e: Exception) {
             Timber.tag("SimklRepository").e(e, "Token refresh failed")
+            clearUserTokenOnly(isV1Upgrade = false)
             false
         }
     }

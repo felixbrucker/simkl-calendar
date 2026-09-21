@@ -29,6 +29,7 @@ import com.felixbrucker.simklcalendar.data.network.SimklIds
 import com.felixbrucker.simklcalendar.data.network.SimklMedia
 import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarEntry
 import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarResponse
+import com.felixbrucker.simklcalendar.data.network.SimklV2Episode
 import com.felixbrucker.simklcalendar.data.network.SimklV2Metadata
 import com.felixbrucker.simklcalendar.data.network.SyncActivitiesResponse
 import com.felixbrucker.simklcalendar.data.network.SyncAllItemsResponse
@@ -141,7 +142,13 @@ class SimklRepositoryTest {
         coEvery { apiService.getSyncActivities(any(), any()) } returns SyncActivitiesResponse()
         coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any(), any(), any(), any()) } returns SyncAllItemsResponse()
         coEvery { apiService.getV2Calendar(any(), any(), any()) } returns Response.success(SimklV2CalendarResponse(emptyList(), emptyMap()))
-        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse("access_token_123")
+        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
+            accessToken = "simkl_at_access_token_123",
+            tokenType = "Bearer",
+            expiresIn = 604800,
+            refreshToken = "simkl_rt_refresh_token_123",
+            scope = "media:read media:write"
+        )
         coEvery { apiService.getUserSettings(any(), any()) } returns UserSettingsResponse(UserProfile("SimklTestUser"))
 
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
@@ -335,7 +342,7 @@ class SimklRepositoryTest {
                 SimklV2CalendarEntry(
                     simklId = 100,
                     date = "2026-04-01T20:00:00Z",
-                    episode = com.felixbrucker.simklcalendar.data.network.SimklV2Episode(season = 1, episode = 1, title = "Pilot")
+                    episode = SimklV2Episode(season = 1, episode = 1, title = "Pilot")
                 )
             ),
             metadata = mapOf("100" to SimklV2Metadata(title = "Show Title"))

@@ -1,10 +1,23 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -119,7 +132,7 @@ fun LoginScreen(
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF381E72)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD0BCFF)),
+                        border = BorderStroke(1.dp, Color(0xFFD0BCFF)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 20.dp)
@@ -157,7 +170,7 @@ fun LoginScreen(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F)),
+                    border = BorderStroke(1.dp, Color(0xFF49454F)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 24.dp)
@@ -209,7 +222,7 @@ fun LoginScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(Color(0xFF313033), RoundedCornerShape(8.dp))
-                                    .border(androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49454F)), RoundedCornerShape(8.dp))
+                                    .border(BorderStroke(1.dp, Color(0xFF49454F)), RoundedCornerShape(8.dp))
                                     .padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {

@@ -16,10 +16,10 @@ data class OAuthTokenRequest(
 @JsonClass(generateAdapter = true)
 data class OAuthTokenResponse(
     @Json(name = "access_token") val accessToken: String,
-    @Json(name = "token_type") val tokenType: String? = null,
-    @Json(name = "expires_in") val expiresIn: Long? = null,
-    @Json(name = "refresh_token") val refreshToken: String? = null,
-    @Json(name = "scope") val scope: String? = null
+    @Json(name = "token_type") val tokenType: String,
+    @Json(name = "expires_in") val expiresIn: Long,
+    @Json(name = "refresh_token") val refreshToken: String,
+    @Json(name = "scope") val scope: String
 )
 
 @JsonClass(generateAdapter = true)
