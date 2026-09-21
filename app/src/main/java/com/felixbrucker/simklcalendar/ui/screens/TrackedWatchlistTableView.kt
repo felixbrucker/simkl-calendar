@@ -55,9 +55,21 @@ fun TrackedWatchlistTableView(
     val windowInfo = LocalWindowInfo.current
     val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 800.dp
 
-    val animeItems = remember(items) { items.filter { it.watchlistItem.type == MediaType.ANIME } }
-    val tvItems = remember(items) { items.filter { it.watchlistItem.type == MediaType.TV } }
-    val movieItems = remember(items) { items.filter { it.watchlistItem.type == MediaType.MOVIE } }
+    // Single-pass segregation reduces collection traversals from O(3N) to O(N)
+    val (tvItems, animeItems, movieItems) = remember(items) {
+        val tv = ArrayList<WatchlistTableItem>()
+        val anime = ArrayList<WatchlistTableItem>()
+        val movie = ArrayList<WatchlistTableItem>()
+        for (i in 0 until items.size) {
+            val item = items[i]
+            when (item.watchlistItem.type) {
+                MediaType.TV -> tv.add(item)
+                MediaType.ANIME -> anime.add(item)
+                MediaType.MOVIE -> movie.add(item)
+            }
+        }
+        Triple(tv, anime, movie)
+    }
 
     Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         if (items.isEmpty()) {
