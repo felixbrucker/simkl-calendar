@@ -19,9 +19,9 @@ interface SimklApiService {
         @Body request: OAuthRevokeRequest
     ): retrofit2.Response<Unit>
 
+    @Authenticated
     @POST("users/settings")
     suspend fun getUserSettings(
-        @Header("Authorization") authorization: String? = null,
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = APP_NAME,
         @Query("app-version") appVersion: String = APP_VERSION
@@ -36,17 +36,17 @@ interface SimklApiService {
         @Query("app-version") appVersion: String = APP_VERSION
     ): retrofit2.Response<SimklV2CalendarResponse>
 
+    @Authenticated
     @GET("sync/activities")
     suspend fun getSyncActivities(
-        @Header("Authorization") authorization: String? = null,
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = APP_NAME,
         @Query("app-version") appVersion: String = APP_VERSION
     ): SyncActivitiesResponse
 
+    @Authenticated
     @GET("sync/all-items")
     suspend fun getSyncAllItems(
-        @Header("Authorization") authorization: String? = null,
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = APP_NAME,
         @Query("app-version") appVersion: String = APP_VERSION,
@@ -57,28 +57,28 @@ interface SimklApiService {
         @Query("date_from") dateFrom: String? = null
     ): SyncAllItemsResponse
 
+    @Authenticated
     @GET("movies/{id}")
     suspend fun getMovieDetails(
         @Path("id") movieId: Int,
-        @Header("Authorization") authorization: String? = null,
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = APP_NAME,
         @Query("app-version") appVersion: String = APP_VERSION,
         @Query("extended") extended: String = "full"
     ): SimklMovieDetailResponse
 
+    @Authenticated
     @POST("sync/history")
     suspend fun markHistoryWatched(
-        @Header("Authorization") authorization: String? = null,
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = APP_NAME,
         @Query("app-version") appVersion: String = APP_VERSION,
         @Body request: SyncHistoryRequest
     ): SyncHistoryResponse
 
+    @Authenticated
     @POST("sync/history/remove")
     suspend fun markHistoryUnwatched(
-        @Header("Authorization") authorization: String? = null,
         @Query("client_id") clientId: String? = null,
         @Query("app-name") appName: String = APP_NAME,
         @Query("app-version") appVersion: String = APP_VERSION,

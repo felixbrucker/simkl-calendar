@@ -116,7 +116,7 @@ class SimklRepositoryDeepSyncTest {
             refreshToken = "simkl_rt_refresh_token_abc",
             scope = "media:read media:write"
         )
-        coEvery { apiService.getUserSettings(any(), any()) } returns UserSettingsResponse(UserProfile("SimklUser123"))
+        coEvery { apiService.getUserSettings(any()) } returns UserSettingsResponse(UserProfile("SimklUser123"))
 
         val failureState = repository.exchangeOAuthCode("code", "wrong_state", "uri")
         assertFalse(failureState)
@@ -129,7 +129,7 @@ class SimklRepositoryDeepSyncTest {
     @Test
     fun testSyncWatchlistFullBranchExecution() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
-        coEvery { apiService.getSyncActivities(any(), any()) } returns SyncActivitiesResponse("2026-03-30T10:00:00Z")
+        coEvery { apiService.getSyncActivities(any()) } returns SyncActivitiesResponse("2026-03-30T10:00:00Z")
 
         val syncResponse = SyncAllItemsResponse(
             shows = listOf(
@@ -161,7 +161,7 @@ class SimklRepositoryDeepSyncTest {
             )
         )
 
-        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any(), any(), any(), any()) } returns syncResponse
+        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any(), any(), any()) } returns syncResponse
 
         val existingTracked = listOf(
             TrackedWatchlistItem(simklId = 202, type = MediaType.ANIME, title = "Anime 1", poster = null)
@@ -212,7 +212,7 @@ class SimklRepositoryDeepSyncTest {
             ids = SimklIds(simkl = 303)
         )
 
-        coEvery { apiService.getMovieDetails(303, any(), any()) } returns movieDetail
+        coEvery { apiService.getMovieDetails(303, any()) } returns movieDetail
 
         val result = repository.syncCalendarJsons(forceFullSync = true)
 

@@ -18,9 +18,11 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.network.Authenticated
 import com.felixbrucker.simklcalendar.data.network.OAuthRevokeRequest
 import com.felixbrucker.simklcalendar.data.network.OAuthTokenRequest
 import com.felixbrucker.simklcalendar.data.network.SimklApiService
+import retrofit2.Invocation
 import com.felixbrucker.simklcalendar.data.network.SimklIds
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryEpisodeItem
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryMovieItem
@@ -251,12 +253,26 @@ class SimklRepository(private val context: Context) {
 
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
-            val request = chain.request().newBuilder()
+            val originalRequest = chain.request()
+            val invocation = originalRequest.tag(Invocation::class.java)
+            val isAuthenticatedEndpoint = invocation != null && invocation.method().isAnnotationPresent(Authenticated::class.java)
+
+            val requestBuilder = originalRequest.newBuilder()
                 .header("User-Agent", userAgent)
                 .header("app-name", appName)
                 .header("app-version", appVersion)
-                .build()
-            chain.proceed(request)
+
+            if (isAuthenticatedEndpoint) {
+                runBlocking {
+                    refreshTokenIfNeeded()
+                }
+                val token = runBlocking { tokenDao.getActiveToken() }
+                if (token != null && token.accessToken.isNotEmpty()) {
+                    requestBuilder.header("Authorization", "Bearer ${token.accessToken}")
+                }
+            }
+
+            chain.proceed(requestBuilder.build())
         }
         .addInterceptor { chain ->
             val request = chain.request()
@@ -529,7 +545,6 @@ class SimklRepository(private val context: Context) {
             // 2. Fetch user profile from POST /users/settings to get the user's name
             val username = try {
                 val userResponse = apiService.getUserSettings(
-                    authorization = "Bearer $accessToken",
                     clientId = clientId
                 )
                 userResponse.user.name
@@ -557,10 +572,17 @@ class SimklRepository(private val context: Context) {
 
     suspend fun refreshTokenIfNeeded(): Boolean = withContext(Dispatchers.IO) {
         val token = tokenDao.getActiveToken() ?: return@withContext false
-        val refreshToken = token.refreshToken ?: return@withContext false
         val accessExpiresAt = token.accessTokenExpiresAt
         if (accessExpiresAt != null && Instant.now().isAfter(accessExpiresAt.minusSeconds(3600))) {
-            return@withContext performRefreshToken(token, refreshToken)
+            synchronized(refreshLock) {
+                val currentToken = runBlocking { tokenDao.getActiveToken() } ?: return@synchronized false
+                val currentAccessExpiresAt = currentToken.accessTokenExpiresAt
+                if (currentAccessExpiresAt == null || Instant.now().isBefore(currentAccessExpiresAt.minusSeconds(3600))) {
+                    return@synchronized true
+                }
+                val refreshToken = currentToken.refreshToken ?: return@synchronized false
+                return@synchronized runBlocking { performRefreshToken(currentToken, refreshToken) }
+            }
         }
         true
     }
@@ -820,13 +842,11 @@ class SimklRepository(private val context: Context) {
             return@withContext SyncResult()
         }
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
-        val bearer = "Bearer ${userToken.accessToken}"
         var changesDetected = false
 
         try {
             // Phase 1: Check /sync/activities to see if any library changes occurred
             val activities = apiService.getSyncActivities(
-                authorization = bearer,
                 clientId = clientId
             )
 
@@ -839,7 +859,6 @@ class SimklRepository(private val context: Context) {
                 Timber.tag("SimklRepository").d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
                 val syncResponse = apiService.getSyncAllItems(
-                    authorization = bearer,
                     clientId = clientId,
                     dateFrom = savedTimestamp,
                 )
@@ -1041,7 +1060,6 @@ class SimklRepository(private val context: Context) {
             return@withContext SyncResult()
         }
         val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
-        val bearer = "Bearer ${userToken.accessToken}"
 
         // Load local tracked items (IDs only for filtering)
         val allTrackedIds = watchlistDao.getAllTrackedIds().toSet()
@@ -1317,7 +1335,6 @@ class SimklRepository(private val context: Context) {
                 try {
                     val movieDetail = apiService.getMovieDetails(
                         movieId = movieId,
-                        authorization = bearer,
                         clientId = clientId
                     )
                     processTrackedItem(
@@ -1435,7 +1452,6 @@ class SimklRepository(private val context: Context) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
             }
 
-            val bearer = "Bearer ${userToken.accessToken}"
             val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
             val effectiveSeason = season ?: 1
 
@@ -1474,7 +1490,6 @@ class SimklRepository(private val context: Context) {
             }
 
             apiService.markHistoryWatched(
-                authorization = bearer,
                 clientId = clientId,
                 request = request
             )
@@ -1519,7 +1534,6 @@ class SimklRepository(private val context: Context) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
             }
 
-            val bearer = "Bearer ${userToken.accessToken}"
             val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
 
             // Determine if show should be marked as "completed"
@@ -1578,7 +1592,6 @@ class SimklRepository(private val context: Context) {
             }
 
             apiService.markHistoryWatched(
-                authorization = bearer,
                 clientId = clientId,
                 request = request
             )
@@ -1628,7 +1641,6 @@ class SimklRepository(private val context: Context) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
             }
 
-            val bearer = "Bearer ${userToken.accessToken}"
             val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
 
             val request = SyncHistoryRequest(
@@ -1640,7 +1652,6 @@ class SimklRepository(private val context: Context) {
             )
 
             apiService.markHistoryWatched(
-                authorization = bearer,
                 clientId = clientId,
                 request = request
             )
@@ -1670,7 +1681,6 @@ class SimklRepository(private val context: Context) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
             }
 
-            val bearer = "Bearer ${userToken.accessToken}"
             val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
             val effectiveSeason = season ?: 1
 
@@ -1709,7 +1719,6 @@ class SimklRepository(private val context: Context) {
             }
 
             apiService.markHistoryUnwatched(
-                authorization = bearer,
                 clientId = clientId,
                 request = request
             )
@@ -1748,7 +1757,6 @@ class SimklRepository(private val context: Context) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
             }
 
-            val bearer = "Bearer ${userToken.accessToken}"
             val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
 
             val request = if (mediaType == MediaType.ANIME) {
@@ -1780,7 +1788,6 @@ class SimklRepository(private val context: Context) {
             }
 
             apiService.markHistoryUnwatched(
-                authorization = bearer,
                 clientId = clientId,
                 request = request
             )
@@ -1816,7 +1823,6 @@ class SimklRepository(private val context: Context) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
             }
 
-            val bearer = "Bearer ${userToken.accessToken}"
             val clientId = BuildConfig.SIMKL_CLIENT_ID.takeIf { it.isNotEmpty() && it != "YOUR_SIMKL_CLIENT_ID" }
 
             val request = SyncHistoryRequest(
@@ -1828,7 +1834,6 @@ class SimklRepository(private val context: Context) {
             )
 
             apiService.markHistoryUnwatched(
-                authorization = bearer,
                 clientId = clientId,
                 request = request
             )
