@@ -25,13 +25,17 @@ import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
+import com.felixbrucker.torrent_search_api.PaginatedSearchResult
+import com.felixbrucker.torrent_search_api.TpbProvider
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkConstructor
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.spyk
+import io.mockk.unmockkConstructor
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
@@ -55,6 +59,9 @@ class AlarmReceiverTest {
     @Before
     fun setUp() {
         torrentServiceHelper = mockk(relaxed = true)
+        mockkConstructor(TpbProvider::class)
+        coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(PaginatedSearchResult(results = emptyList(), page = 1, hasNextPage = false))
+
         mockkObject(TorrentServiceHelper.Companion)
         every { TorrentServiceHelper.getInstance(any()) } returns torrentServiceHelper
 
@@ -90,6 +97,7 @@ class AlarmReceiverTest {
 
     @After
     fun tearDown() {
+        unmockkConstructor(TpbProvider::class)
         unmockkObject(TorrentServiceHelper.Companion)
         unmockkObject(NotificationManager.Companion)
         unmockkStatic(Log::class)

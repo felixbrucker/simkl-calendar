@@ -292,6 +292,33 @@ class SimklRepository(private val context: Context) {
 
             response
         }
+        .authenticator { _, response ->
+            if (response.request.url.encodedPath.contains("oauth2/token")) {
+                return@authenticator null
+            }
+            var prior = response.priorResponse
+            var count = 0
+            while (prior != null) {
+                count++
+                prior = prior.priorResponse
+            }
+            if (count >= 2) {
+                return@authenticator null
+            }
+            val newToken = kotlinx.coroutines.runBlocking {
+                val currentToken = tokenDao.getActiveToken() ?: return@runBlocking null
+                val refreshToken = currentToken.refreshToken ?: return@runBlocking null
+                val success = performRefreshToken(currentToken, refreshToken)
+                if (success) tokenDao.getActiveToken() else null
+            }
+            if (newToken != null) {
+                response.request.newBuilder()
+                    .header("Authorization", "Bearer ${newToken.accessToken}")
+                    .build()
+            } else {
+                null
+            }
+        }
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
@@ -769,6 +796,7 @@ class SimklRepository(private val context: Context) {
      * Only transfers tiny JSON payloads on delta updates.
      */
     suspend fun syncWatchlist(forceFullSync: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
+        refreshTokenIfNeeded()
         val userToken = tokenDao.getActiveToken()
         if (userToken == null || userToken.accessToken.isEmpty()) {
             Timber.tag("SimklRepository").d("No authenticated user token found, skipping watchlist sync.")
@@ -1385,6 +1413,7 @@ class SimklRepository(private val context: Context) {
         mediaType: MediaType
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            refreshTokenIfNeeded()
             val userToken = tokenDao.getActiveToken()
             if (userToken == null || userToken.accessToken.isEmpty()) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
@@ -1469,6 +1498,7 @@ class SimklRepository(private val context: Context) {
         mediaType: MediaType
     ): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
+            refreshTokenIfNeeded()
             val userToken = tokenDao.getActiveToken()
             if (userToken == null || userToken.accessToken.isEmpty()) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
@@ -1578,6 +1608,7 @@ class SimklRepository(private val context: Context) {
         simklId: Int
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            refreshTokenIfNeeded()
             val userToken = tokenDao.getActiveToken()
             if (userToken == null || userToken.accessToken.isEmpty()) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
@@ -1620,6 +1651,7 @@ class SimklRepository(private val context: Context) {
         mediaType: MediaType
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            refreshTokenIfNeeded()
             val userToken = tokenDao.getActiveToken()
             if (userToken == null || userToken.accessToken.isEmpty()) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
@@ -1698,6 +1730,7 @@ class SimklRepository(private val context: Context) {
         mediaType: MediaType
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            refreshTokenIfNeeded()
             val userToken = tokenDao.getActiveToken()
             if (userToken == null || userToken.accessToken.isEmpty()) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
@@ -1766,6 +1799,7 @@ class SimklRepository(private val context: Context) {
         simklId: Int
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            refreshTokenIfNeeded()
             val userToken = tokenDao.getActiveToken()
             if (userToken == null || userToken.accessToken.isEmpty()) {
                 return@withContext Result.failure(IllegalStateException("User is not logged in"))
