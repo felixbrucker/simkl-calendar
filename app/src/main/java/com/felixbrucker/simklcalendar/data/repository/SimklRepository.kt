@@ -1486,9 +1486,6 @@ class SimklRepository(private val context: Context) {
                 watchedAt = now
             )
 
-            // Trigger background watchlist sync to refresh metadata/activities
-            syncWatchlist()
-
             Result.success(Unit)
         } catch (e: Exception) {
             Timber.tag("SimklRepository").e(e, "Failed to mark episode S${season}E${episodeNumber} as watched for simklId $simklId")
@@ -1588,9 +1585,6 @@ class SimklRepository(private val context: Context) {
                 watchedAt = now
             )
 
-            // Trigger background watchlist sync
-            syncWatchlist()
-
             Result.success(shouldMarkCompleted)
         } catch (e: Exception) {
             Timber.tag("SimklRepository").e(e, "Failed to mark season $season as watched for simklId $simklId")
@@ -1617,9 +1611,6 @@ class SimklRepository(private val context: Context) {
 
             val now = Instant.now()
             calendarDao.markMovieWatched(simklId = simklId, watchedAt = now)
-
-            // Trigger background watchlist sync
-            syncWatchlist()
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -1688,9 +1679,6 @@ class SimklRepository(private val context: Context) {
                 watchedAt = null
             )
 
-            // Trigger background watchlist sync to refresh metadata/activities
-            syncWatchlist()
-
             Result.success(Unit)
         } catch (e: Exception) {
             Timber.tag("SimklRepository").e(e, "Failed to mark episode S${season}E${episodeNumber} as unwatched for simklId $simklId")
@@ -1749,9 +1737,6 @@ class SimklRepository(private val context: Context) {
                 watchedAt = null
             )
 
-            // Trigger background watchlist sync
-            syncWatchlist()
-
             Result.success(Unit)
         } catch (e: Exception) {
             Timber.tag("SimklRepository").e(e, "Failed to mark season $season as unwatched for simklId $simklId")
@@ -1777,9 +1762,6 @@ class SimklRepository(private val context: Context) {
             )
 
             calendarDao.markMovieWatched(simklId = simklId, watchedAt = null)
-
-            // Trigger background watchlist sync
-            syncWatchlist()
 
             Result.success(Unit)
         } catch (e: Exception) {
