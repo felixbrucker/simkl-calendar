@@ -39,7 +39,6 @@ import com.felixbrucker.simklcalendar.data.network.SyncMovieItem
 import com.felixbrucker.simklcalendar.data.network.SyncShowItem
 import com.felixbrucker.simklcalendar.data.network.UserSettingsResponse
 import com.felixbrucker.simklcalendar.data.network.UserProfile
-import com.felixbrucker.simklcalendar.data.repository.SessionValidationResult
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.torrent_search_api.PaginatedSearchResult
 import com.felixbrucker.torrent_search_api.TpbProvider
@@ -384,13 +383,12 @@ class SimklRepositoryTest {
     }
 
     @Test
-    fun testCheckAndMigrateAuthV2LegacyV1Token() = runTest {
+    fun testResetAuthIfNeededLegacyV1Token() = runTest {
         val v1Token = UserToken(1, "legacy_64_hex_v1_token_string_value_1234567890abcdef1234567890abcdef", "OldUser")
         coEvery { tokenDao.getActiveToken() } returns v1Token
 
-        val result = repository.checkAndValidateUserSession()
+        repository.resetAuthIfNeeded()
 
-        assertEquals(SessionValidationResult.MIGRATED_FROM_V1, result)
         coVerify { tokenDao.clearUserToken() }
         coVerify(exactly = 0) { calendarDao.clearCalendarItems() }
         coVerify(exactly = 0) { watchlistDao.clearAll() }
@@ -398,7 +396,7 @@ class SimklRepositoryTest {
     }
 
     @Test
-    fun testCheckAndMigrateAuthV2ValidV2Token() = runTest {
+    fun testResetAuthIfNeededValidV2Token() = runTest {
         val v2Token = UserToken(
             id = 1,
             accessToken = "simkl_at_valid_v2_access_token_123456789012345",
@@ -409,14 +407,13 @@ class SimklRepositoryTest {
         )
         coEvery { tokenDao.getActiveToken() } returns v2Token
 
-        val result = repository.checkAndValidateUserSession()
+        repository.resetAuthIfNeeded()
 
-        assertEquals(SessionValidationResult.VALID, result)
         coVerify(exactly = 0) { tokenDao.clearUserToken() }
     }
 
     @Test
-    fun testCheckAndValidateUserSessionExpiredRefreshToken() = runTest {
+    fun testResetAuthIfNeededExpiredRefreshToken() = runTest {
         val expiredRefreshToken = UserToken(
             id = 1,
             accessToken = "simkl_at_valid_v2_access_token_123456789012345",
@@ -427,9 +424,8 @@ class SimklRepositoryTest {
         )
         coEvery { tokenDao.getActiveToken() } returns expiredRefreshToken
 
-        val result = repository.checkAndValidateUserSession()
+        repository.resetAuthIfNeeded()
 
-        assertEquals(SessionValidationResult.EXPIRED_OR_INVALID_SESSION, result)
         coVerify { tokenDao.clearUserToken() }
     }
 

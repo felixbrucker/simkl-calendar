@@ -712,12 +712,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         refreshDownloadSubdirectories()
         // Automatically sync calendar on launch only if user is logged in
         viewModelScope.launch {
-            val migrated = repository.checkAndMigrateAuthV2()
-            if (migrated) {
-                _isAuthV2UpgradeHint.value = true
-            } else {
-                _isAuthV2UpgradeHint.value = repository.isAuthV2UpgradeHint()
-            }
+            repository.resetAuthIfNeeded()
+            _isAuthV2UpgradeHint.value = repository.isAuthV2UpgradeHint()
             repository.activeUserToken.collect { token ->
                 _userToken.value = token
                 _isAuthReady.value = true
