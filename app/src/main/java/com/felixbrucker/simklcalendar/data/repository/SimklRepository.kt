@@ -1111,7 +1111,6 @@ class SimklRepository(private val context: Context) {
 
         for ((year, month) in monthsToFetch) {
             for ((endpointType, defaultType) in mediaTypes) {
-                val url = "https://data.simkl.in/calendar/v2/$year/$month/$endpointType.json"
                 val lastModifiedPrefKey = "cal_json_last_mod_${year}_${month}_$endpointType"
                 val lastModifiedHeaderKey = "cal_json_header_${year}_${month}_$endpointType"
 
@@ -1126,18 +1125,20 @@ class SimklRepository(private val context: Context) {
 
                 try {
                     val response = apiService.getV2Calendar(
-                        url = url,
+                        year = year,
+                        month = month,
+                        type = endpointType,
                         ifModifiedSince = savedHeader
                     )
 
                     if (response.code() == 304) {
-                        Timber.tag("SimklRepository").d("Calendar JSON $url not modified (HTTP 304)")
+                        Timber.tag("SimklRepository").d("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
                         syncPrefs.edit { putLong(lastModifiedPrefKey, nowMillis) }
                         continue
                     }
 
                     if (!response.isSuccessful) {
-                        Timber.tag("SimklRepository").w("HTTP ${response.code()} for calendar JSON $url")
+                        Timber.tag("SimklRepository").w("HTTP ${response.code()} for calendar JSON $year/$month/$endpointType")
                         continue
                     }
 
@@ -1291,7 +1292,7 @@ class SimklRepository(private val context: Context) {
                         }
                     }
                 } catch (e: Exception) {
-                    Timber.tag("SimklRepository").e(e, "Failed fetching CDN v2 calendar from $url")
+                    Timber.tag("SimklRepository").e(e, "Failed fetching CDN v2 calendar for $year/$month/$endpointType")
                 }
             }
         }

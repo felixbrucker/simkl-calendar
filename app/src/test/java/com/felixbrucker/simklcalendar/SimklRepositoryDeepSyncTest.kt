@@ -195,7 +195,7 @@ class SimklRepositoryDeepSyncTest {
             )
         )
 
-        coEvery { apiService.getV2Calendar(any(), any()) } returns Response.success(v2CalendarResponse)
+        coEvery { apiService.getV2Calendar(any(), any(), any(), any()) } returns Response.success(v2CalendarResponse)
 
         val movieDetail = SimklMovieDetailResponse(
             title = "Movie 1",
