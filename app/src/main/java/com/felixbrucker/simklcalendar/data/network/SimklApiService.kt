@@ -4,11 +4,6 @@ import com.felixbrucker.simklcalendar.BuildConfig
 import retrofit2.http.*
 
 interface SimklApiService {
-    companion object {
-        const val APP_NAME: String = BuildConfig.APP_NAME
-        const val APP_VERSION: String = BuildConfig.VERSION_NAME
-    }
-
     @POST("oauth2/token")
     suspend fun getAccessToken(
         @Body request: OAuthTokenRequest
