@@ -717,8 +717,6 @@ class CalendarViewModel @JvmOverloads constructor(
         refreshDownloadSubdirectories()
         viewModelScope.launch {
             repository.resetAuthIfNeeded()
-        }
-        viewModelScope.launch {
             // Automatically sync calendar on launch only if user is logged in
             repository.activeUserToken.collect { token ->
                 _userToken.value = token
