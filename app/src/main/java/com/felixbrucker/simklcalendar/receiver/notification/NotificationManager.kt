@@ -88,6 +88,18 @@ class NotificationManager {
             }
         }
 
+        suspend fun dismissNotification(item: CalendarItemWithWatchlist, context: Context) {
+            try {
+                val notificationManager =
+                    context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.cancel(item.notificationId)
+                removeActiveNotification(context, item.primaryKey)
+                Timber.tag(TAG).d("Successfully dismissed notification id=${item.notificationId} primaryKey=${item.primaryKey}")
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Error dismissing notification id=${item.notificationId}")
+            }
+        }
+
         suspend fun addActiveNotification(context: Context, primaryKey: String) {
             try {
                 val db = AppDatabase.getDatabase(context)

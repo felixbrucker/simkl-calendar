@@ -75,6 +75,7 @@ class NotificationActionReceiverTest {
         mockkObject(NotificationManager)
         coEvery { NotificationManager.updateNotification(any(), any()) } returns Unit
         coEvery { NotificationManager.showNotification(any(), any()) } returns Unit
+        coEvery { NotificationManager.dismissNotification(any<CalendarItemWithWatchlist>(), any()) } returns Unit
 
         mockkConstructor(SimklRepository::class)
         coEvery { anyConstructed<SimklRepository>().markEpisodeWatched(any(), any(), any(), any()) } returns Result.success(Unit)
@@ -191,6 +192,28 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { anyConstructed<SimklRepository>().markEpisodeWatched(100, 1, 1, MediaType.TV) }
+        coVerify(timeout = 3000) { NotificationManager.dismissNotification(item, context) }
+    }
+
+    @Test
+    fun testOnReceiveMarkMovieWatched() {
+        val receiver = spyk(NotificationActionReceiver())
+        val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
+        every { receiver.goAsync() } returns pendingResult
+        val intent = mockk<Intent>()
+        every { intent.action } returns NotificationActionReceiver.ACTION_MARK_ITEM_WATCHED
+        every { intent.getStringExtra(NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_200_theater"
+        val calItem = CalendarItem("v2_200_theater", 200, "Movie", null, null, Instant.now(), null, false, false, false, null)
+        val watchItem = TrackedWatchlistItem(200, MediaType.MOVIE, "Movie Title", null, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_200_theater", MediaStatus.DOWNLOADED))
+        coEvery { calendarDao.findItem("v2_200_theater") } returns item
+        coEvery { anyConstructed<SimklRepository>().markMovieWatched(200) } returns Result.success(Unit)
+
+        receiver.onReceive(context, intent)
+
+        verify(timeout = 3000) { pendingResult.finish() }
+        coVerify(timeout = 3000) { anyConstructed<SimklRepository>().markMovieWatched(200) }
+        coVerify(timeout = 3000) { NotificationManager.dismissNotification(item, context) }
     }
 
     @Test
@@ -210,6 +233,7 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { anyConstructed<SimklRepository>().markSeasonWatched(100, 1, MediaType.TV) }
+        coVerify(timeout = 3000) { NotificationManager.dismissNotification(item, context) }
     }
 
     @Test
