@@ -62,7 +62,7 @@ data class WatchlistTableItem(
     val downloadedProgress: Double = if (totalDownloadableReleasedCount > 0) downloadedReleasedCount.toDouble() / totalDownloadableReleasedCount else 0.0
 }
 
-class CalendarViewModel(
+class CalendarViewModel @JvmOverloads constructor(
     application: Application,
     val repository: SimklRepository = SimklRepository(application)
 ) : AndroidViewModel(application) {
