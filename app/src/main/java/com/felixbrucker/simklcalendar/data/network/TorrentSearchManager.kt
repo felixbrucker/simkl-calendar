@@ -5,8 +5,8 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.util.ensureAdded
-import com.felixbrucker.simklcalendar.data.util.getStringListWithMigration
+import com.felixbrucker.simklcalendar.extensions.ensureAdded
+import com.felixbrucker.simklcalendar.extensions.getStringListWithMigration
 import com.felixbrucker.torrent_search_api.Category
 import com.felixbrucker.torrent_search_api.NyaaProvider
 import com.felixbrucker.torrent_search_api.OrderBy

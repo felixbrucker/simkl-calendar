@@ -1,4 +1,4 @@
-package com.felixbrucker.simklcalendar.data.util
+package com.felixbrucker.simklcalendar.extensions
 
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem

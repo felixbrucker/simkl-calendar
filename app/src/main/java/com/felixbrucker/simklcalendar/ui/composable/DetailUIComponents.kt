@@ -30,7 +30,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
-import com.felixbrucker.simklcalendar.data.util.toPosterUrl
+import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 
 @Composable

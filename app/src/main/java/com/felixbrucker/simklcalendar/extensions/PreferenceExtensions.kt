@@ -1,4 +1,4 @@
-package com.felixbrucker.simklcalendar.data.util
+package com.felixbrucker.simklcalendar.extensions
 
 import android.content.SharedPreferences
 import androidx.core.content.edit

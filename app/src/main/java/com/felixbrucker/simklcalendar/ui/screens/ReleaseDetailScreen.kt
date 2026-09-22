@@ -34,7 +34,7 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.data.util.defaultDestinationSubdirectory
+import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel

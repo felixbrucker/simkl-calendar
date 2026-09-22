@@ -5,6 +5,9 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
+import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
+import com.felixbrucker.simklcalendar.extensions.subdirectoryName
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Instant

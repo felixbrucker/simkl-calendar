@@ -1,13 +1,10 @@
-package com.felixbrucker.simklcalendar.data.util
+package com.felixbrucker.simklcalendar.extensions
 
-enum class PosterSize(val suffix: String) {
-    COMPACT("_c"),
-    WIDE("_w"),
-}
+import com.felixbrucker.simklcalendar.data.util.PosterSize
 
 /**
  * Extension method on String to convert a Simkl poster fragment to a full poster URL.
- * The suffix is determined by [PosterSize] and the extension is always .webp.
+ * The suffix is determined by [com.felixbrucker.simklcalendar.data.util.PosterSize] and the extension is always .webp.
  */
 fun String?.toPosterUrl(size: PosterSize = PosterSize.COMPACT): String {
     if (this == null) {
@@ -22,7 +19,7 @@ fun String?.toPosterUrl(size: PosterSize = PosterSize.COMPACT): String {
     return "https://simkl.in/posters/${this}${size.suffix}.webp"
 }
 
-val INVALID_CHARACTERS_FOR_PATH = listOf(
+private val INVALID_CHARACTERS_FOR_PATH = listOf(
     ":",
     "|",
 )

@@ -29,7 +29,7 @@ import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
-import com.felixbrucker.simklcalendar.data.util.toPosterUrl
+import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

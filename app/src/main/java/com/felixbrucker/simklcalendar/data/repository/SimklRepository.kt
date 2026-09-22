@@ -37,7 +37,7 @@ import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.PkceUtil
 import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
-import com.felixbrucker.simklcalendar.data.util.destinationSubdirectory
+import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -59,7 +59,6 @@ import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import java.time.temporal.ChronoUnit
 import java.util.Calendar

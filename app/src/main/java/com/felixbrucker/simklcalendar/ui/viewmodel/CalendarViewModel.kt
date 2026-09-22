@@ -29,8 +29,8 @@ import kotlin.time.Duration.Companion.seconds
 import androidx.compose.runtime.Immutable
 import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.data.util.DirectoryUtils
-import com.felixbrucker.simklcalendar.data.util.getStringListWithMigration
-import com.felixbrucker.simklcalendar.data.util.putStringList
+import com.felixbrucker.simklcalendar.extensions.getStringListWithMigration
+import com.felixbrucker.simklcalendar.extensions.putStringList
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class MainViewMode {

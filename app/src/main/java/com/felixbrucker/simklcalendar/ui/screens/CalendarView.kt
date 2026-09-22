@@ -59,7 +59,7 @@ import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCardBadge
-import com.felixbrucker.simklcalendar.data.util.toPosterUrl
+import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlin.collections.get
 

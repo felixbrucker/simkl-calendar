@@ -1,6 +1,9 @@
 package com.felixbrucker.simklcalendar.data.util
 
 import android.content.SharedPreferences
+import com.felixbrucker.simklcalendar.extensions.getStringList
+import com.felixbrucker.simklcalendar.extensions.getStringListWithMigration
+import com.felixbrucker.simklcalendar.extensions.putStringList
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot

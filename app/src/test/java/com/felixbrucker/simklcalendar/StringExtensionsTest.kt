@@ -1,5 +1,7 @@
 package com.felixbrucker.simklcalendar.data.util
 
+import com.felixbrucker.simklcalendar.extensions.cleanedForUseAsPath
+import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

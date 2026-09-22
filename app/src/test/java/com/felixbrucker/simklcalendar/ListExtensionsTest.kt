@@ -1,5 +1,6 @@
 package com.felixbrucker.simklcalendar.data.util
 
+import com.felixbrucker.simklcalendar.extensions.ensureAdded
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
