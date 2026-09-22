@@ -40,13 +40,10 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
         val pendingResult = goAsync()
         scope.launch {
             try {
-                val effectiveRepo = if (::repo.isInitialized) repo else SimklRepository(context)
-                val effectiveDb = if (::db.isInitialized) db else AppDatabase.getDatabase(context)
-
-                effectiveRepo.updateDownloadTaskId(itemPrimaryKey, null, MediaStatus.DOWNLOADED)
+                repo.updateDownloadTaskId(itemPrimaryKey, null, MediaStatus.DOWNLOADED)
                 Timber.tag(TAG).d("Updated item $itemPrimaryKey to DOWNLOADED status and cleared taskId")
 
-                val item = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
 
                 // Update notification for the item that was just downloaded (if active)
                 NotificationManager.updateNotification(item, context)
@@ -55,7 +52,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                 // notification that needs updating to reflect the new aggregate download status.
                 val season = item.season
                 if (season != null) {
-                    val finaleItem = effectiveDb.calendarItemDao().getSeasonFinaleItem(item.simklId, season)
+                    val finaleItem = db.calendarItemDao().getSeasonFinaleItem(item.simklId, season)
                     if (finaleItem != null && finaleItem.primaryKey != item.primaryKey) {
                         NotificationManager.updateNotification(finaleItem, context)
                     }

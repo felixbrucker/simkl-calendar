@@ -13,19 +13,21 @@ import androidx.hilt.work.HiltWorker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
 class AutoDownloadWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    private val repository: SimklRepository
+    private val repository: SimklRepository,
+    private val torrentServiceHelper: TorrentServiceHelper
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
         Timber.tag(TAG).d("Starting periodic background torrent search for WANTED items")
 
-        if (!repository.torrentServiceHelper.isServiceInstalled()) {
+        if (!torrentServiceHelper.isServiceInstalled()) {
             Timber.tag(TAG).d("Torrent Downloader service not installed. Skipping periodic search.")
             return Result.success()
         }

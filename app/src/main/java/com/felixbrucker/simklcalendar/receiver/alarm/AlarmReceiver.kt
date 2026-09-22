@@ -8,7 +8,9 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
@@ -28,6 +30,12 @@ class AlarmReceiver: BroadcastReceiver() {
 
     @Inject
     lateinit var db: AppDatabase
+
+    @Inject
+    lateinit var autoDownloadRepo: AutoDownloadRepository
+
+    @Inject
+    lateinit var torrentServiceHelper: TorrentServiceHelper
 
     companion object {
         private const val TAG = "AlarmReceiver"
@@ -56,25 +64,23 @@ class AlarmReceiver: BroadcastReceiver() {
     }
 
     private suspend fun onItemAired(itemPrimaryKey: String, context: Context) {
-        val effectiveDb = if (::db.isInitialized) db else AppDatabase.getDatabase(context)
-        val item = effectiveDb.calendarItemDao().findItem(itemPrimaryKey)
+        val item = db.calendarItemDao().findItem(itemPrimaryKey)
         if (item == null) {
             Timber.tag(TAG).w("Item for key=$itemPrimaryKey not found in database")
             return
         }
-        val effectiveRepo = if (::repo.isInitialized) repo else SimklRepository(context)
 
         Timber.tag(TAG).d("Processing item aired for '${item.title}' (key=$itemPrimaryKey)")
 
         // First, ensure the item's media status is correctly set after it aired
-        effectiveRepo.updateItemAiredStatus(item)
+        repo.updateItemAiredStatus(item)
 
         // Second, check if we should post a notification for this item
-        val shouldPostNotification = shouldPostNotificationForItem(item, context, effectiveDb)
+        val shouldPostNotification = shouldPostNotificationForItem(item, context)
         if (shouldPostNotification) {
             Timber.tag(TAG).d("Posting notification for '${item.title}'")
             NotificationManager.showNotification(item, context)
-            effectiveDb.calendarItemDao().markItemAsNotified(itemPrimaryKey)
+            db.calendarItemDao().markItemAsNotified(itemPrimaryKey)
         } else {
             Timber.tag(TAG).d("Skipping notification for '${item.title}' based on user preferences or notification state")
         }
@@ -82,17 +88,17 @@ class AlarmReceiver: BroadcastReceiver() {
         var didSearchAndDownload = false
         // Lastly, search and download torrents if configured
         try {
-            val updatedItem = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return
+            val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return
             if (updatedItem.mediaStatus == MediaStatus.WANTED) {
                 Timber.tag(TAG).d("Searching and downloading WANTED episode for '${item.title}'")
-                effectiveRepo.searchAndDownloadEpisode(updatedItem)
+                repo.searchAndDownloadEpisode(updatedItem)
                 didSearchAndDownload = true
             }
 
             val calendarItem = item.calendarItem
             if (calendarItem.isSeasonFinale && calendarItem.season != null && item.type != MediaType.MOVIE) {
-                val settings = effectiveDb.itemDownloadSettingsDao().getSettings(item.simklId)
-                val autoDownloadPrefs = effectiveRepo.autoDownloadRepo.preferencesFlow.first()
+                val settings = db.itemDownloadSettingsDao().getSettings(item.simklId)
+                val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
                 val isDownloadSeasonUnwatchedEnabled = settings?.downloadSeasonUnwatched ?: when (item.type) {
                     MediaType.TV -> autoDownloadPrefs.autoDownloadSeasonUnwatchedTv
                     MediaType.ANIME -> autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime
@@ -100,28 +106,28 @@ class AlarmReceiver: BroadcastReceiver() {
                 }
                 if (isDownloadSeasonUnwatchedEnabled) {
                     Timber.tag(TAG).d("Season finale aired for '${item.title}', downloading unwatched season ${calendarItem.season}")
-                    effectiveRepo.searchAndDownloadSeason(item.simklId, calendarItem.season)
+                    repo.searchAndDownloadSeason(item.simklId, calendarItem.season)
                     didSearchAndDownload = true
                 }
             }
         } finally {
-            effectiveRepo.torrentServiceHelper.unbind()
+            torrentServiceHelper.unbind()
         }
 
         if (didSearchAndDownload) {
-            val finalItem = effectiveDb.calendarItemDao().findItem(itemPrimaryKey)
+            val finalItem = db.calendarItemDao().findItem(itemPrimaryKey)
             if (finalItem != null) {
                 NotificationManager.updateNotification(finalItem, context)
             }
         }
     }
 
-    private suspend fun shouldPostNotificationForItem(item: CalendarItemWithWatchlist, context: Context, effectiveDb: AppDatabase): Boolean {
+    private suspend fun shouldPostNotificationForItem(item: CalendarItemWithWatchlist, context: Context): Boolean {
         if (item.isNotified) {
             return false
         }
 
-        val setting = effectiveDb.notificationSettingDao().getSettingForShow(item.simklId) ?: DefaultNotificationSettings.fromContext(context).makeNotificationSettings(item)
+        val setting = db.notificationSettingDao().getSettingForShow(item.simklId) ?: DefaultNotificationSettings.fromContext(context).makeNotificationSettings(item)
 
         return when {
             item.type == MediaType.MOVIE -> if (item.movieReleaseType == MovieReleaseType.THEATER) {

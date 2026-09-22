@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Environment
 import com.felixbrucker.simklcalendar.data.database.*
 import com.felixbrucker.simklcalendar.data.model.*
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.data.repository.*
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
@@ -51,6 +52,7 @@ class CalendarViewModelTest {
     private lateinit var appSettingsRepo: AppSettingsRepository
     private lateinit var authRepo: AuthRepository
     private lateinit var autoDownloadRepo: AutoDownloadRepository
+    private lateinit var torrentServiceHelper: TorrentServiceHelper
 
     @Before
     fun setUp() {
@@ -79,12 +81,7 @@ class CalendarViewModelTest {
         appSettingsRepo = mockk(relaxed = true)
         authRepo = mockk(relaxed = true)
         autoDownloadRepo = mockk(relaxed = true)
-
-        every { repositoryMock.uiRepo } returns uiRepo
-        every { repositoryMock.notificationRepo } returns notificationRepo
-        every { repositoryMock.appSettingsRepo } returns appSettingsRepo
-        every { repositoryMock.authRepo } returns authRepo
-        every { repositoryMock.autoDownloadRepo } returns autoDownloadRepo
+        torrentServiceHelper = mockk(relaxed = true)
 
         every { uiRepo.preferencesFlow } returns uiPreferencesFlow
         every { notificationRepo.preferencesFlow } returns notificationPreferencesFlow
@@ -131,15 +128,25 @@ class CalendarViewModelTest {
         every { repositoryMock.customSearchLinks } returns customSearchLinksFlow
         every { repositoryMock.notificationSettings } returns flowOf(emptyList())
         every { repositoryMock.watchedEpisodes } returns flowOf(emptyList())
-        every { repositoryMock.torrentServiceHelper.downloads } returns MutableStateFlow(emptyMap())
-        every { repositoryMock.torrentServiceHelper.isBound } returns MutableStateFlow(false)
-        every { repositoryMock.torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
+        every { torrentServiceHelper.downloads } returns MutableStateFlow(emptyMap())
+        every { torrentServiceHelper.isBound } returns MutableStateFlow(false)
+        every { torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
         coEvery { repositoryMock.searchAndDownloadEpisode(any()) } returns Result.failure(Exception("No torrents"))
     }
 
     private fun createViewModel(): CalendarViewModel {
         userTokenFlow.value = null
-        return CalendarViewModel(application, repositoryMock)
+        return CalendarViewModel(
+            application = application,
+            repository = repositoryMock,
+            appSettingsRepo = appSettingsRepo,
+            autoDownloadRepo = autoDownloadRepo,
+            notificationRepo = notificationRepo,
+            authRepo = authRepo,
+            syncMetadataRepo = mockk(relaxed = true),
+            uiRepo = uiRepo,
+            torrentServiceHelper = torrentServiceHelper
+        )
     }
 
     @After
@@ -713,7 +720,7 @@ class CalendarViewModelTest {
     @Test
     fun testIsTorrentServiceInstalled() = runTest {
         val viewModel = createViewModel()
-        every { repositoryMock.torrentServiceHelper.isServiceInstalled() } returns true
+        every { torrentServiceHelper.isServiceInstalled() } returns true
 
         val installed = viewModel.isTorrentServiceInstalled()
 

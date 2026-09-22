@@ -40,8 +40,6 @@ import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.di.NetworkModule
 import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
 import com.felixbrucker.torrent_search_api.SearchResultItem
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -50,13 +48,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
 import java.net.URLEncoder
 import java.time.Instant
-import java.util.concurrent.TimeUnit
 import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
@@ -74,12 +67,12 @@ import kotlin.time.Duration.Companion.milliseconds
 @Singleton
 class SimklRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    val appSettingsRepo: AppSettingsRepository = AppSettingsRepository(context.appSettingsDataStore),
-    val autoDownloadRepo: AutoDownloadRepository = AutoDownloadRepository(context.autoDownloadDataStore),
-    val notificationRepo: NotificationRepository = NotificationRepository(context.notificationDataStore),
-    val authRepo: AuthRepository = AuthRepository(context.authDataStore),
-    val syncMetadataRepo: SyncMetadataRepository = SyncMetadataRepository(context.syncMetadataDataStore),
-    val uiRepo: UiRepository = UiRepository(context.uiDataStore)
+    private val appSettingsRepo: AppSettingsRepository = AppSettingsRepository(context.appSettingsDataStore),
+    private val autoDownloadRepo: AutoDownloadRepository = AutoDownloadRepository(context.autoDownloadDataStore),
+    private val notificationRepo: NotificationRepository = NotificationRepository(context.notificationDataStore),
+    private val authRepo: AuthRepository = AuthRepository(context.authDataStore),
+    private val syncMetadataRepo: SyncMetadataRepository = SyncMetadataRepository(context.syncMetadataDataStore),
+    private val uiRepo: UiRepository = UiRepository(context.uiDataStore)
 ) {
 
     private val refreshMutex: Mutex = Mutex()
@@ -93,7 +86,9 @@ class SimklRepository @Inject constructor(
     private val itemDownloadSettingsDao = db.itemDownloadSettingsDao()
 
     private val torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo)
-    val torrentServiceHelper = TorrentServiceHelper.getInstance(context)
+    private val torrentServiceHelper = TorrentServiceHelper.getInstance(context)
+
+    fun getTorrentServiceHelper(): TorrentServiceHelper = torrentServiceHelper
 
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
     val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()

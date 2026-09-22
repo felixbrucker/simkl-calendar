@@ -28,6 +28,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import kotlinx.coroutines.CoroutineScope
@@ -273,8 +274,7 @@ class NotificationManager {
                 }
             }
 
-            val repo = SimklRepository(context)
-            val isTorrentServiceInstalled = repo.torrentServiceHelper.isInstalled.value
+            val isTorrentServiceInstalled = TorrentServiceHelper.getInstance(context).isInstalled.value
             if (isTorrentServiceInstalled) {
                 // Download actions
                 if (item.type == MediaType.MOVIE) {

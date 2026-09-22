@@ -8,6 +8,7 @@ import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,9 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     @Inject
     lateinit var db: AppDatabase
+
+    @Inject
+    lateinit var torrentServiceHelper: TorrentServiceHelper
 
     companion object {
         private const val TAG = "NotificationActionReceiver"
@@ -71,18 +75,16 @@ class NotificationActionReceiver: BroadcastReceiver() {
     private fun handleMarkItemWatched(context: Context, intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         Timber.tag(TAG).d("Handling mark item watched action for key=$itemPrimaryKey")
-        val effectiveRepo = if (::repo.isInitialized) repo else SimklRepository(context)
-        val effectiveDb = if (::db.isInitialized) db else AppDatabase.getDatabase(context)
 
         val pendingResult = goAsync()
         scope.launch {
             try {
-                val item = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
 
                 val result = if (item.type == MediaType.MOVIE) {
-                    effectiveRepo.markMovieWatched(simklId = item.simklId)
+                    repo.markMovieWatched(simklId = item.simklId)
                 } else {
-                    effectiveRepo.markEpisodeWatched(
+                    repo.markEpisodeWatched(
                         simklId = item.simklId,
                         season = item.season,
                         episodeNumber = item.episodeNumber ?: 1,
@@ -93,7 +95,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val err = result.exceptionOrNull()
                 if (err != null) {
                     Timber.tag(TAG).e(err, "Error marking item as watched from notification action")
-                    val updatedItem = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                    val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
                     NotificationManager.updateNotification(
                         item = updatedItem,
                         context = context
@@ -115,14 +117,12 @@ class NotificationActionReceiver: BroadcastReceiver() {
     private fun handleMarkSeasonWatched(context: Context, intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         Timber.tag(TAG).d("Handling mark season watched action for key=$itemPrimaryKey")
-        val effectiveRepo = if (::repo.isInitialized) repo else SimklRepository(context)
-        val effectiveDb = if (::db.isInitialized) db else AppDatabase.getDatabase(context)
 
         val pendingResult = goAsync()
         scope.launch {
             try {
-                val item = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
-                val result = effectiveRepo.markSeasonWatched(
+                val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                val result = repo.markSeasonWatched(
                     simklId = item.simklId,
                     season = item.season ?: 1,
                     mediaType = item.type,
@@ -131,7 +131,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val err = result.exceptionOrNull()
                 if (err != null) {
                     Timber.tag(TAG).e(err, "Error marking season as watched from notification action")
-                    val updatedItem = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                    val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
                     NotificationManager.updateNotification(
                         item = updatedItem,
                         context = context
@@ -153,29 +153,27 @@ class NotificationActionReceiver: BroadcastReceiver() {
     private fun handleDownloadItem(context: Context, intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         Timber.tag(TAG).d("Handling download item action for key=$itemPrimaryKey")
-        val effectiveRepo = if (::repo.isInitialized) repo else SimklRepository(context)
-        val effectiveDb = if (::db.isInitialized) db else AppDatabase.getDatabase(context)
 
         val pendingResult = goAsync()
         scope.launch {
             try {
-                val item = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
 
                 // Update status to WANTED first
-                effectiveRepo.updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
+                repo.updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
 
                 // Refresh item from DB
-                val updatedItem = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
 
                 // Trigger search and download
                 try {
-                    effectiveRepo.searchAndDownloadEpisode(updatedItem)
+                    repo.searchAndDownloadEpisode(updatedItem)
                 } finally {
-                    effectiveRepo.torrentServiceHelper.unbind()
+                    torrentServiceHelper.unbind()
                 }
 
                 // Refetch again to reflect intermediate state change (WANTED -> DOWNLOADING / IGNORED)
-                val finalItem = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                val finalItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
                 NotificationManager.updateNotification(
                     item = finalItem,
                     context = context
@@ -206,32 +204,30 @@ class NotificationActionReceiver: BroadcastReceiver() {
     private fun handleDownloadSeasonMissingEpisodes(context: Context, intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         Timber.tag(TAG).d("Handling download season missing episodes action for key=$itemPrimaryKey")
-        val effectiveRepo = if (::repo.isInitialized) repo else SimklRepository(context)
-        val effectiveDb = if (::db.isInitialized) db else AppDatabase.getDatabase(context)
 
         val pendingResult = goAsync()
         scope.launch {
             try {
-                val item = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
                 val season = item.season ?: 1
 
                 val seasonItems =
-                    effectiveDb.calendarItemDao().getItemsInSeasonOrRelatedItems(item.simklId, season)
+                    db.calendarItemDao().getItemsInSeasonOrRelatedItems(item.simklId, season)
                 val ignoredItems = seasonItems.filter { it.mediaStatus == MediaStatus.IGNORED }
 
                 for (ignored in ignoredItems) {
-                    effectiveRepo.updateMediaStatus(ignored.primaryKey, MediaStatus.WANTED)
+                    repo.updateMediaStatus(ignored.primaryKey, MediaStatus.WANTED)
                 }
 
                 // Trigger batch search and download for all WANTED items
                 try {
-                    effectiveRepo.searchAndDownloadWantedItems()
+                    repo.searchAndDownloadWantedItems()
                 } finally {
-                    effectiveRepo.torrentServiceHelper.unbind()
+                    torrentServiceHelper.unbind()
                 }
 
                 // Update the notification that triggered this to reflect new season aggregate status
-                val updatedItem = effectiveDb.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
                 NotificationManager.updateNotification(
                     item = updatedItem,
                     context = context

@@ -14,6 +14,7 @@ import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import io.mockk.coEvery
@@ -36,6 +37,7 @@ class DownloadCompletedReceiverTest {
 
     private lateinit var context: Context
     private lateinit var appDatabase: AppDatabase
+    private lateinit var repositoryMock: SimklRepository
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var tokenDao: UserTokenDao
 
@@ -48,7 +50,13 @@ class DownloadCompletedReceiverTest {
         mockkObject(NotificationManager)
         coEvery { NotificationManager.updateNotification(any(), any()) } returns Unit
 
+        repositoryMock = mockk(relaxed = true)
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver_GeneratedInjector>(relaxed = true)
+        every { mockInjector.injectDownloadCompletedReceiver(any()) } answers {
+            val rec = firstArg<DownloadCompletedReceiver>()
+            rec.repo = repositoryMock
+            rec.db = appDatabase
+        }
         val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
         every { mockComponentManager.generatedComponent() } returns mockInjector
 
@@ -141,6 +149,6 @@ class DownloadCompletedReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { calendarDao.updateDownloadTaskId("v2_100_1_1", null, MediaStatus.DOWNLOADED) }
+        coVerify(timeout = 3000) { repositoryMock.updateDownloadTaskId("v2_100_1_1", null, MediaStatus.DOWNLOADED) }
     }
 }

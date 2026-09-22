@@ -56,6 +56,13 @@ class AlarmReceiverTest {
         coEvery { AppNotificationManager.updateNotification(any(), any()) } returns Unit
 
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.alarm.AlarmReceiver_GeneratedInjector>(relaxed = true)
+        every { mockInjector.injectAlarmReceiver(any()) } answers {
+            val rec = firstArg<AlarmReceiver>()
+            rec.repo = repositoryMock
+            rec.db = appDatabase
+            rec.autoDownloadRepo = autoDownloadRepo
+            rec.torrentServiceHelper = torrentServiceHelper
+        }
         val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
         every { mockComponentManager.generatedComponent() } returns mockInjector
 
@@ -94,9 +101,6 @@ class AlarmReceiverTest {
         autoDownloadRepo = mockk(relaxed = true)
         notificationRepo = mockk(relaxed = true)
 
-        every { anyConstructed<SimklRepository>().autoDownloadRepo } returns autoDownloadRepo
-        every { anyConstructed<SimklRepository>().notificationRepo } returns notificationRepo
-        every { anyConstructed<SimklRepository>().torrentServiceHelper } returns torrentServiceHelper
         coEvery { anyConstructed<SimklRepository>().updateItemAiredStatus(any()) } returns Unit
         coEvery { anyConstructed<SimklRepository>().searchAndDownloadEpisode(any()) } returns Result.success("taskId")
         coEvery { anyConstructed<SimklRepository>().searchAndDownloadSeason(any(), any()) } returns Unit
@@ -338,7 +342,7 @@ class AlarmReceiverTest {
 
         receiver.onReceive(context, intent)
 
-        coVerify(timeout = 3000) { anyConstructed<SimklRepository>().updateItemAiredStatus(any()) }
+        coVerify(timeout = 3000) { repositoryMock.updateItemAiredStatus(any()) }
         coVerify(timeout = 3000) { AppNotificationManager.showNotification(any(), context) }
     }
 
@@ -361,7 +365,7 @@ class AlarmReceiverTest {
 
         receiver.onReceive(context, intent)
 
-        coVerify(timeout = 3000) { anyConstructed<SimklRepository>().searchAndDownloadSeason(100, 1) }
+        coVerify(timeout = 3000) { repositoryMock.searchAndDownloadSeason(100, 1) }
     }
 
     @Test
