@@ -8,6 +8,7 @@
 - **Preferences via DataStore**: Use Jetpack DataStore with Kotlin `Flow` for all preference reads and writes. Do not use legacy synchronous `SharedPreferences`.
 - **Fluent APIs**: Create custom extension functions when they produce cleaner, more natural call sites without cluttering core domain definitions.
 - Prefer idiomatic `for (item in items)` loops over index-based `0 until size` loops; use `.withIndex()` or `.forEachIndexed` when the index is required.
+- Never set disableAndroidSuperclassValidation to true, and never extend generated Hilt_* classes directly. Always extend standard Android framework classes and rely on the Hilt Gradle Plugin for transformation.
 
 ## Database Migrations & Schema Export Rules
 
