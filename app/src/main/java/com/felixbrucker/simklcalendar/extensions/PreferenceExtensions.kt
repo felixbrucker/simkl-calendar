@@ -1,7 +1,20 @@
 package com.felixbrucker.simklcalendar.extensions
 
+import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+
+
+val Context.globalAutoDownloadSettings: SharedPreferences
+    get() = getSharedPreferences("auto_download_prefs", Context.MODE_PRIVATE)
+val Context.globalNotificationSettings: SharedPreferences
+    get() = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+val Context.temporarySimklAuthStore: SharedPreferences
+    get() = getSharedPreferences("simkl_pkce_auth", Context.MODE_PRIVATE)
+val Context.simklSyncStore: SharedPreferences
+    get() = getSharedPreferences("simkl_sync_prefs", Context.MODE_PRIVATE)
+val Context.uiSettings: SharedPreferences
+    get() = getSharedPreferences("ui_prefs", Context.MODE_PRIVATE)
 
 /**
  * Retrieves a list of strings from SharedPreferences.

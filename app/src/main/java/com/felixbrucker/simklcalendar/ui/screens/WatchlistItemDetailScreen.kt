@@ -35,6 +35,7 @@ import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
+import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
@@ -104,7 +105,7 @@ fun WatchlistItemDetailScreen(
     val isMovie = watchlistItem?.type == MediaType.MOVIE
     val isAnimeSeasonOneOnly = watchlistItem?.type == MediaType.ANIME && seasons.size == 1 && seasons.containsKey(1)
 
-    val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
+    val prefs = remember { context.globalNotificationSettings }
     val defaultAiring = prefs.getBoolean("default_notify_airing", false)
     val defaultSeasonFinished = prefs.getBoolean("default_notify_season_finished", true)
     val defaultMovieTheater = prefs.getBoolean("default_notify_movie_theater", false)

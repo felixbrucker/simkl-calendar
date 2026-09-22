@@ -6,6 +6,7 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
@@ -21,7 +22,7 @@ class DefaultNotificationSettingsTest {
         val context = mockk<Context>()
         val prefs = mockk<SharedPreferences>()
 
-        every { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) } returns prefs
+        every { context.globalNotificationSettings } returns prefs
         every { prefs.getBoolean("default_notify_airing", false) } returns true
         every { prefs.getBoolean("default_notify_season_finished", true) } returns true
         every { prefs.getBoolean("default_notify_movie_theater", false) } returns false

@@ -12,6 +12,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
+import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 import java.time.Instant.now
 import java.time.ZoneId
 
@@ -57,7 +58,7 @@ class AlarmScheduler {
             ) ?: return
             val triggerAtMillis = triggerAt.toEpochMilli()
             try {
-                val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+                val prefs = context.globalNotificationSettings
                 val useExactAlarms = prefs.getBoolean("use_exact_alarms", false)
 
                 if (useExactAlarms) {

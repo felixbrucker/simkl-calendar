@@ -22,6 +22,8 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
+import com.felixbrucker.simklcalendar.extensions.globalAutoDownloadSettings
+import com.felixbrucker.simklcalendar.extensions.uiSettings
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -94,8 +96,8 @@ class CalendarViewModelTest {
         coEvery { repositoryMock.getActiveUserToken() } returns null
 
         every { application.applicationContext } returns application
-        every { application.getSharedPreferences("ui_prefs", any()) } returns sharedPreferences
-        every { application.getSharedPreferences("auto_download_prefs", any()) } returns autoDownloadPrefs
+        every { application.uiSettings } returns sharedPreferences
+        every { application.globalAutoDownloadSettings } returns autoDownloadPrefs
         every { application.getSharedPreferences(any(), any()) } returns sharedPreferences
 
         every { sharedPreferences.getString("view_mode", any()) } returns MainViewMode.CALENDAR.name

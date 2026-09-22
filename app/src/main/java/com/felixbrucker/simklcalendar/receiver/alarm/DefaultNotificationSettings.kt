@@ -4,6 +4,7 @@ import android.content.Context
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 
 data class DefaultNotificationSettings(
     val itemAired: Boolean,
@@ -13,7 +14,7 @@ data class DefaultNotificationSettings(
 ) {
     companion object {
         fun fromContext(context: Context): DefaultNotificationSettings {
-            val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+            val prefs = context.globalNotificationSettings
 
             return DefaultNotificationSettings(
                 itemAired = prefs.getBoolean("default_notify_airing", false),

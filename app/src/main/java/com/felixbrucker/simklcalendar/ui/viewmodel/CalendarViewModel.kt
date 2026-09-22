@@ -30,7 +30,9 @@ import androidx.compose.runtime.Immutable
 import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.data.util.DirectoryUtils
 import com.felixbrucker.simklcalendar.extensions.getStringListWithMigration
+import com.felixbrucker.simklcalendar.extensions.globalAutoDownloadSettings
 import com.felixbrucker.simklcalendar.extensions.putStringList
+import com.felixbrucker.simklcalendar.extensions.uiSettings
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class MainViewMode {
@@ -107,7 +109,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         AuthState(ready, token)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AuthState(false, null))
 
-    private val uiPrefs = application.getSharedPreferences("ui_prefs", Context.MODE_PRIVATE)
+    private val uiPrefs = application.uiSettings
 
     private val _viewMode = MutableStateFlow(MainViewMode.valueOf(uiPrefs.getString("view_mode", MainViewMode.CALENDAR.name) ?: MainViewMode.CALENDAR.name))
     val viewMode: StateFlow<MainViewMode> = _viewMode.asStateFlow()
@@ -219,7 +221,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         searchQuery.value = ""
     }
 
-    private val downloadPrefs = application.getSharedPreferences("auto_download_prefs", Context.MODE_PRIVATE)
+    private val downloadPrefs = application.globalAutoDownloadSettings
 
     val autoDownloadQuality = MutableStateFlow(downloadPrefs.getString("quality", "1080p") ?: "1080p")
     val autoDownloadPreferHevc = MutableStateFlow(downloadPrefs.getBoolean("prefer_hevc", true))

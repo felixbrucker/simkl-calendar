@@ -57,6 +57,11 @@ import java.net.URLEncoder
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
+import com.felixbrucker.simklcalendar.extensions.globalAutoDownloadSettings
+import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
+import com.felixbrucker.simklcalendar.extensions.simklSyncStore
+import com.felixbrucker.simklcalendar.extensions.temporarySimklAuthStore
+import com.felixbrucker.simklcalendar.extensions.uiSettings
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import kotlinx.coroutines.delay
@@ -78,9 +83,9 @@ class SimklRepository(private val context: Context) {
     private val watchedDao = db.watchedEpisodeDao()
     private val searchLinkDao = db.customSearchLinkDao()
     private val itemDownloadSettingsDao = db.itemDownloadSettingsDao()
-    private val authPrefs = context.getSharedPreferences("simkl_pkce_auth", Context.MODE_PRIVATE)
-    private val syncPrefs = context.getSharedPreferences("simkl_sync_prefs", Context.MODE_PRIVATE)
-    private val downloadPrefs = context.getSharedPreferences("auto_download_prefs", Context.MODE_PRIVATE)
+    private val authPrefs = context.temporarySimklAuthStore
+    private val syncPrefs = context.simklSyncStore
+    private val downloadPrefs = context.globalAutoDownloadSettings
 
     private val torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, downloadPrefs)
     val torrentServiceHelper = TorrentServiceHelper.getInstance(context)
@@ -471,8 +476,11 @@ class SimklRepository(private val context: Context) {
         calendarDao.clearCalendarItems()
         watchlistDao.clearAll()
         watchedDao.clearAll()
-        syncPrefs.edit { clear() }
-        authPrefs.edit { clear() }
+        context.globalNotificationSettings.edit { clear() }
+        context.globalAutoDownloadSettings.edit { clear() }
+        context.temporarySimklAuthStore.edit { clear() }
+        context.simklSyncStore.edit { clear() }
+        context.uiSettings.edit { clear() }
     }
 
     suspend fun exchangeOAuthCode(
@@ -955,7 +963,7 @@ class SimklRepository(private val context: Context) {
 
                     // Initialize default notification settings for newly inserted shows
                     try {
-                        val notifPrefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+                        val notifPrefs = context.globalNotificationSettings
                         val defaultAiring = notifPrefs.getBoolean("default_notify_airing", false)
                         val defaultSeasonFinished = notifPrefs.getBoolean("default_notify_season_finished", true)
                         val defaultMovieTheater = notifPrefs.getBoolean("default_notify_movie_theater", false)

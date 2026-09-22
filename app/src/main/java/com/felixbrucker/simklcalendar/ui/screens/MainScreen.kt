@@ -49,6 +49,7 @@ import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import java.time.LocalDate
 import java.time.ZoneId
 import com.felixbrucker.simklcalendar.data.util.DateUtil
+import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.MainViewMode
 import kotlinx.coroutines.delay
@@ -169,7 +170,7 @@ fun MainScreen(
     }
 
     LaunchedEffect(Unit) {
-        val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+        val prefs = context.globalNotificationSettings
         val useExact = prefs.getBoolean("use_exact_alarms", false)
 
         if (useExact && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

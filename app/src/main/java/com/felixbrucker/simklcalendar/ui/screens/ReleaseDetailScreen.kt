@@ -38,6 +38,7 @@ import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
+import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.launch
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
@@ -149,7 +150,7 @@ fun ReleaseDetailScreen(
         if (activeItem != null) settingsList.firstOrNull { it.simklId == activeItem.simklId } else null
     }
 
-    val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
+    val prefs = remember { context.globalNotificationSettings }
     val defaultAiring = prefs.getBoolean("default_notify_airing", false)
     val defaultSeasonFinished = prefs.getBoolean("default_notify_season_finished", true)
     val defaultMovieTheater = prefs.getBoolean("default_notify_movie_theater", false)

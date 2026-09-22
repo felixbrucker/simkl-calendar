@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
+import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +65,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val userToken by viewModel.userToken.collectAsState()
 
-    val prefs = remember { context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE) }
+    val prefs = remember { context.globalNotificationSettings }
     var useExactAlarms by remember {
         mutableStateOf(prefs.getBoolean("use_exact_alarms", false))
     }

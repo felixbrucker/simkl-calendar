@@ -47,6 +47,7 @@ import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
+import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -88,7 +89,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         NotificationManager.createNotificationChannel(this)
-        val syncPrefs = getSharedPreferences("notification_prefs", MODE_PRIVATE)
+        val syncPrefs = globalNotificationSettings
         val syncIntervalHours = syncPrefs.getInt("sync_interval_hours", 12).toLong()
         SyncCalendarWorker.enqueuePeriodicSync(this, syncIntervalHours)
 
