@@ -3,8 +3,11 @@ package com.felixbrucker.simklcalendar.receiver.alarm
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
+import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
@@ -29,19 +32,19 @@ class AlarmReceiver: BroadcastReceiver() {
     lateinit var repo: SimklRepository
 
     @Inject
-    lateinit var calendarItemDao: com.felixbrucker.simklcalendar.data.database.CalendarItemDao
+    lateinit var calendarItemDao: CalendarItemDao
 
     @Inject
-    lateinit var notificationSettingDao: com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
+    lateinit var notificationSettingDao: NotificationSettingDao
 
     @Inject
-    lateinit var itemDownloadSettingsDao: com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+    lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
 
     @Inject
     lateinit var autoDownloadRepo: AutoDownloadRepository
 
     @Inject
-    lateinit var notificationRepo: com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
+    lateinit var notificationRepo: NotificationRepository
 
     @Inject
     lateinit var torrentServiceHelper: TorrentServiceHelper
@@ -91,7 +94,7 @@ class AlarmReceiver: BroadcastReceiver() {
         val shouldPostNotification = shouldPostNotificationForItem(item, context)
         if (shouldPostNotification) {
             Timber.tag(TAG).d("Posting notification for '${item.title}'")
-            notificationManager.showNotification(item, context)
+            notificationManager.showNotification(item)
             calendarItemDao.markItemAsNotified(itemPrimaryKey)
         } else {
             Timber.tag(TAG).d("Skipping notification for '${item.title}' based on user preferences or notification state")
@@ -129,7 +132,7 @@ class AlarmReceiver: BroadcastReceiver() {
         if (didSearchAndDownload) {
             val finalItem = calendarItemDao.findItem(itemPrimaryKey)
             if (finalItem != null) {
-                notificationManager.updateNotification(finalItem, context)
+                notificationManager.updateNotification(finalItem)
             }
         }
     }

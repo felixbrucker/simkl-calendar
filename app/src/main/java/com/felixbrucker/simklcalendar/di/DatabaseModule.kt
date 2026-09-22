@@ -28,26 +28,34 @@ object DatabaseModule {
     }
 
     @Provides
+    @Singleton
     fun provideUserTokenDao(db: AppDatabase): UserTokenDao = db.userTokenDao()
 
     @Provides
+    @Singleton
     fun provideCalendarItemDao(db: AppDatabase): CalendarItemDao = db.calendarItemDao()
 
     @Provides
+    @Singleton
     fun provideNotificationSettingDao(db: AppDatabase): NotificationSettingDao = db.notificationSettingDao()
 
     @Provides
+    @Singleton
     fun provideWatchlistDao(db: AppDatabase): WatchlistDao = db.watchlistDao()
 
     @Provides
+    @Singleton
     fun provideWatchedEpisodeDao(db: AppDatabase): WatchedEpisodeDao = db.watchedEpisodeDao()
 
     @Provides
+    @Singleton
     fun provideCustomSearchLinkDao(db: AppDatabase): CustomSearchLinkDao = db.customSearchLinkDao()
 
     @Provides
+    @Singleton
     fun provideItemDownloadSettingsDao(db: AppDatabase): ItemDownloadSettingsDao = db.itemDownloadSettingsDao()
 
     @Provides
+    @Singleton
     fun provideActiveNotificationDao(db: AppDatabase): ActiveNotificationDao = db.activeNotificationDao()
 }

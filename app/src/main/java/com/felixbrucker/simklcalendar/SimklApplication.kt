@@ -26,4 +26,9 @@ class SimklApplication : Application(), Configuration.Provider {
         Timber.plant(AppLogTree())
         Timber.i("SimklApplication initialized")
     }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        Timber.i("SimklApplication destroyed")
+    }
 }

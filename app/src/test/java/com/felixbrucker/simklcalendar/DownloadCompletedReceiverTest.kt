@@ -49,7 +49,7 @@ class DownloadCompletedReceiverTest {
         every { Log.e(any(), any(), any()) } returns 0
 
         notificationManagerMock = mockk(relaxed = true)
-        coEvery { notificationManagerMock.updateNotification(any(), any()) } returns Unit
+        coEvery { notificationManagerMock.updateNotification(any()) } returns Unit
 
         repositoryMock = mockk(relaxed = true)
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver_GeneratedInjector>(relaxed = true)

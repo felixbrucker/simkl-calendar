@@ -67,7 +67,8 @@ class SimklRepositoryMarkTest {
             syncMetadataRepo = mockk(relaxed = true),
             uiRepo = mockk(relaxed = true),
             torrentServiceHelper = mockk(relaxed = true),
-            torrentSearchManager = mockk(relaxed = true)
+            torrentSearchManager = mockk(relaxed = true),
+            alarmScheduler = mockk(relaxed = true)
         )
 
         val apiField = SimklRepository::class.java.getDeclaredField("apiService")

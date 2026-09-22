@@ -89,7 +89,8 @@ class SimklRepository @Inject constructor(
     private val syncMetadataRepo: SyncMetadataRepository,
     private val uiRepo: UiRepository,
     private val torrentServiceHelper: TorrentServiceHelper,
-    private val torrentSearchManager: TorrentSearchManager
+    private val torrentSearchManager: TorrentSearchManager,
+    private val alarmScheduler: AlarmScheduler
 ) {
 
     private val refreshMutex: Mutex = Mutex()
@@ -524,7 +525,7 @@ class SimklRepository @Inject constructor(
             searchAndDownloadWantedItems()
         }
         if (watchlistSyncResult.hasCalendarItemChanges || calendarJsonSyncResult.hasCalendarItemChanges || backfillSyncResult.hasCalendarItemChanges) {
-            AlarmScheduler.scheduleAllItemsAiredAlarms(context)
+            alarmScheduler.scheduleAllItemsAiredAlarms()
         }
     }
 

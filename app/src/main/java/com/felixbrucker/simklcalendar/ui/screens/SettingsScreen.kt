@@ -475,9 +475,7 @@ fun SettingsScreen(
                                         alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
                                     }
                                 }
-                                scope.launch {
-                                    AlarmScheduler.scheduleAllItemsAiredAlarms(context)
-                                }
+                                viewModel.scheduleAllItemsAiredAlarms()
                             }
                         )
                     }

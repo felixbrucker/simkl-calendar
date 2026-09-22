@@ -80,7 +80,8 @@ class RepositoryAdditionalCoverageTest {
             syncMetadataRepo = syncMetadataRepo,
             uiRepo = uiRepo,
             torrentServiceHelper = mockk(relaxed = true),
-            torrentSearchManager = mockk(relaxed = true)
+            torrentSearchManager = mockk(relaxed = true),
+            alarmScheduler = mockk(relaxed = true)
         )
         
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())

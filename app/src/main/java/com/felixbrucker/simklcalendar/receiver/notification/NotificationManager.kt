@@ -56,18 +56,18 @@ class NotificationManager @Inject constructor(
         private const val TAG = "NotificationManager"
     }
 
-    suspend fun showNotification(item: CalendarItemWithWatchlist, customContext: Context = context) {
-        createNotificationChannel(customContext)
-        val isNotificationPermissionGranted = validateNotificationPermissionsGranted(customContext)
+    suspend fun showNotification(item: CalendarItemWithWatchlist) {
+        createNotificationChannel()
+        val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
         if (!isNotificationPermissionGranted) {
             return
         }
-        val notification = buildNotification(item, customContext)
+        val notification = buildNotification(item)
         val notificationId = item.notificationId
         try {
-            val systemNotificationManager = customContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val systemNotificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             systemNotificationManager.notify(notificationId, notification)
-            addActiveNotification(customContext, item.primaryKey)
+            addActiveNotification(item.primaryKey)
             Timber.tag(TAG).d("Successfully displayed notification id=$notificationId")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error posting notification")
@@ -76,17 +76,16 @@ class NotificationManager @Inject constructor(
 
     suspend fun updateNotification(
         item: CalendarItemWithWatchlist,
-        customContext: Context = context,
     ) {
-        createNotificationChannel(customContext)
-        val isNotificationPermissionGranted = validateNotificationPermissionsGranted(customContext)
+        createNotificationChannel()
+        val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
         if (!isNotificationPermissionGranted) {
             return
         }
 
         val notificationId = item.notificationId
         val systemNotificationManager =
-            customContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
 
         // Only update if the notification is currently active/visible
         val isActive = systemNotificationManager.activeNotifications.any { it.id == notificationId }
@@ -95,7 +94,7 @@ class NotificationManager @Inject constructor(
             return
         }
 
-        val notification = buildNotificationForUpdate(item, customContext)
+        val notification = buildNotificationForUpdate(item)
         try {
             systemNotificationManager.notify(notificationId, notification)
             Timber.tag(TAG).d("Successfully updated notification id=$notificationId")
@@ -104,19 +103,19 @@ class NotificationManager @Inject constructor(
         }
     }
 
-    suspend fun dismissNotification(item: CalendarItemWithWatchlist, customContext: Context = context) {
+    suspend fun dismissNotification(item: CalendarItemWithWatchlist) {
         try {
             val systemNotificationManager =
-                customContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             systemNotificationManager.cancel(item.notificationId)
-            removeActiveNotification(customContext, item.primaryKey)
+            removeActiveNotification(item.primaryKey)
             Timber.tag(TAG).d("Successfully dismissed notification id=${item.notificationId} primaryKey=${item.primaryKey}")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error dismissing notification id=${item.notificationId}")
         }
     }
 
-    suspend fun addActiveNotification(customContext: Context = context, primaryKey: String) {
+    suspend fun addActiveNotification(primaryKey: String) {
         try {
             activeNotificationDao.insertActiveNotification(
                 ActiveNotification(primaryKey = primaryKey)
@@ -126,7 +125,7 @@ class NotificationManager @Inject constructor(
         }
     }
 
-    suspend fun removeActiveNotification(customContext: Context = context, primaryKey: String) {
+    suspend fun removeActiveNotification(primaryKey: String) {
         try {
             activeNotificationDao.deleteActiveNotification(primaryKey)
         } catch (e: Exception) {
@@ -134,7 +133,7 @@ class NotificationManager @Inject constructor(
         }
     }
 
-    suspend fun getActiveNotifications(customContext: Context = context): List<String> {
+    suspend fun getActiveNotifications(): List<String> {
         return try {
             activeNotificationDao.getAllActiveKeys()
         } catch (e: Exception) {
@@ -143,31 +142,31 @@ class NotificationManager @Inject constructor(
         }
     }
 
-    suspend fun restoreActiveNotifications(customContext: Context = context) {
-        createNotificationChannel(customContext)
-        val isNotificationPermissionGranted = validateNotificationPermissionsGranted(customContext)
+    suspend fun restoreActiveNotifications() {
+        createNotificationChannel()
+        val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
         if (!isNotificationPermissionGranted) {
             return
         }
 
-        val activeKeys = getActiveNotifications(customContext)
+        val activeKeys = getActiveNotifications()
         if (activeKeys.isEmpty()) {
             return
         }
 
         val systemNotificationManager =
-            customContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         val currentlyPostedIds = systemNotificationManager.activeNotifications.map { it.id }.toSet()
 
         for (primaryKey in activeKeys) {
             val item = calendarItemDao.findItem(primaryKey)
             if (item == null) {
-                removeActiveNotification(customContext, primaryKey)
+                removeActiveNotification(primaryKey)
                 continue
             }
 
             if (!currentlyPostedIds.contains(item.notificationId)) {
-                val notification = buildNotification(item, customContext)
+                val notification = buildNotification(item)
                 try {
                     systemNotificationManager.notify(item.notificationId, notification)
                     Timber.tag(TAG).d("Restored missing notification primaryKey=$primaryKey id=${item.notificationId}")
@@ -178,7 +177,7 @@ class NotificationManager @Inject constructor(
         }
     }
 
-    fun createNotificationChannel(customContext: Context = context) {
+    fun createNotificationChannel() {
         val name = "Simkl Calendar Notifications"
         val descriptionText = "Notifications for airing episodes and movies as well as and seasons that finished airing."
         val importance = android.app.NotificationManager.IMPORTANCE_HIGH
@@ -189,22 +188,22 @@ class NotificationManager @Inject constructor(
             setShowBadge(true)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-        val systemNotificationManager = customContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val systemNotificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         systemNotificationManager.createNotificationChannel(channel)
     }
 
-    private suspend fun buildNotification(item: CalendarItemWithWatchlist, customContext: Context): Notification {
-        return makeConfiguredNotificationBuilder(item, customContext).build()
+    private suspend fun buildNotification(item: CalendarItemWithWatchlist): Notification {
+        return makeConfiguredNotificationBuilder(item).build()
     }
 
-    private suspend fun makeConfiguredNotificationBuilder(item: CalendarItemWithWatchlist, customContext: Context): NotificationCompat.Builder {
+    private suspend fun makeConfiguredNotificationBuilder(item: CalendarItemWithWatchlist): NotificationCompat.Builder {
         val itemsInSeasonOrRelatedItems = calendarItemDao
             .getItemsInSeasonOrRelatedItems(item.simklId, item.season)
         val totalEpisodesInSeason = itemsInSeasonOrRelatedItems.maxOfOrNull { it.episodeNumber ?: 1 } ?: 1
         val (title, message) = item.formatNotificationContent(totalEpisodesInSeason)
-        val openIntent = item.makeOpenReleaseDetailViewIntent(customContext)
+        val openIntent = item.makeOpenReleaseDetailViewIntent(context)
 
-        val builder = NotificationCompat.Builder(customContext, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(message)
@@ -213,7 +212,7 @@ class NotificationManager @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(openIntent)
-            .setDeleteIntent(item.makeDismissNotificationIntent(customContext))
+            .setDeleteIntent(item.makeDismissNotificationIntent(context))
             .setAutoCancel(true)
 
         val isWatched = if (item.type == MediaType.MOVIE) {
@@ -261,7 +260,7 @@ class NotificationManager @Inject constructor(
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(message))
         }
 
-        val posterBitmap = loadPosterBitmap(customContext, item.poster)
+        val posterBitmap = loadPosterBitmap(item.poster)
         if (posterBitmap != null) {
             builder.setLargeIcon(posterBitmap)
         }
@@ -272,13 +271,13 @@ class NotificationManager @Inject constructor(
                 builder.addAction(
                     R.drawable.ic_done_all,
                     "Mark Season as Watched",
-                    item.makeMarkSeasonWatchedIntent(customContext)
+                    item.makeMarkSeasonWatchedIntent(context)
                 )
             } else {
                 builder.addAction(
                     R.drawable.ic_check,
                     "Mark as Watched",
-                    item.makeMarkWatchedIntent(customContext)
+                    item.makeMarkWatchedIntent(context)
                 )
             }
         }
@@ -293,7 +292,7 @@ class NotificationManager @Inject constructor(
                     builder.addAction(
                         R.drawable.ic_download,
                         "Download",
-                        digitalRelease.makeDownloadItemIntent(customContext)
+                        digitalRelease.makeDownloadItemIntent(context)
                     )
                 }
             } else {
@@ -304,13 +303,13 @@ class NotificationManager @Inject constructor(
                         builder.addAction(
                             R.drawable.ic_download,
                             "Download missing episodes",
-                            item.makeDownloadSeasonMissingEpisodesIntent(customContext)
+                            item.makeDownloadSeasonMissingEpisodesIntent(context)
                         )
                     } else if (item.mediaStatus == MediaStatus.IGNORED || item.mediaStatus == MediaStatus.WANTED) {
                         builder.addAction(
                             R.drawable.ic_download,
                             "Download",
-                            item.makeDownloadItemIntent(customContext)
+                            item.makeDownloadItemIntent(context)
                         )
                     }
                 }
@@ -320,22 +319,22 @@ class NotificationManager @Inject constructor(
         return builder
     }
 
-    private suspend fun buildNotificationForUpdate(item: CalendarItemWithWatchlist, customContext: Context): Notification {
-        return makeConfiguredNotificationBuilder(item, customContext)
+    private suspend fun buildNotificationForUpdate(item: CalendarItemWithWatchlist): Notification {
+        return makeConfiguredNotificationBuilder(item)
             .setOnlyAlertOnce(true)
             .build()
     }
 
-    private fun validateNotificationPermissionsGranted(customContext: Context): Boolean {
+    private fun validateNotificationPermissionsGranted(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
-                    customContext,
+                    context,
                     android.Manifest.permission.POST_NOTIFICATIONS
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 Timber.tag(TAG).w("POST_NOTIFICATIONS permission not granted. Cannot display notification.")
                 CoroutineScope(Dispatchers.Main).launch {
-                    Toast.makeText(customContext, "Notification permission required to display notification", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Notification permission required to display notification", Toast.LENGTH_SHORT).show()
                 }
                 return false
             }
@@ -344,12 +343,12 @@ class NotificationManager @Inject constructor(
         return true
     }
 
-    private suspend fun loadPosterBitmap(customContext: Context, poster: String?): Bitmap? = withContext(Dispatchers.IO) {
+    private suspend fun loadPosterBitmap(poster: String?): Bitmap? = withContext(Dispatchers.IO) {
         if (poster.isNullOrBlank()) return@withContext null
         try {
             val posterUrl = poster.toPosterUrl(PosterSize.COMPACT)
-            val imageLoader = ImageLoader.Builder(customContext).build()
-            val request = ImageRequest.Builder(customContext)
+            val imageLoader = ImageLoader.Builder(context).build()
+            val request = ImageRequest.Builder(context)
                 .data(posterUrl)
                 .allowHardware(false)
                 .build()

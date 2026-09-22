@@ -21,8 +21,6 @@ import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.di.DatabaseModule
 import com.felixbrucker.simklcalendar.di.NetworkModule
-import com.felixbrucker.simklcalendar.di.PreferencesModule
-import com.felixbrucker.simklcalendar.di.TorrentModule
 import com.squareup.moshi.Moshi
 import io.mockk.every
 import io.mockk.mockk
@@ -123,7 +121,8 @@ class DiModulesTest {
             syncMetadataRepo = mockk(relaxed = true),
             uiRepo = mockk(relaxed = true),
             torrentServiceHelper = mockk(relaxed = true),
-            torrentSearchManager = mockk(relaxed = true)
+            torrentSearchManager = mockk(relaxed = true),
+            alarmScheduler = mockk(relaxed = true)
         )
 
         assertNotNull(repository)

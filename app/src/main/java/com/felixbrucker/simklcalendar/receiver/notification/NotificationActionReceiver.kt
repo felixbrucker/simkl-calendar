@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import timber.log.Timber
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
@@ -24,7 +24,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
     lateinit var repo: SimklRepository
 
     @Inject
-    lateinit var calendarItemDao: com.felixbrucker.simklcalendar.data.database.CalendarItemDao
+    lateinit var calendarItemDao: CalendarItemDao
 
     @Inject
     lateinit var torrentServiceHelper: TorrentServiceHelper
@@ -100,13 +100,11 @@ class NotificationActionReceiver: BroadcastReceiver() {
                     Timber.tag(TAG).e(err, "Error marking item as watched from notification action")
                     val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
                     notificationManager.updateNotification(
-                        item = updatedItem,
-                        customContext = context
+                        item = updatedItem
                     )
                 } else {
                     notificationManager.dismissNotification(
-                        item = item,
-                        customContext = context
+                        item = item
                     )
                 }
             } catch (e: Exception) {
@@ -136,13 +134,11 @@ class NotificationActionReceiver: BroadcastReceiver() {
                     Timber.tag(TAG).e(err, "Error marking season as watched from notification action")
                     val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
                     notificationManager.updateNotification(
-                        item = updatedItem,
-                        customContext = context
+                        item = updatedItem
                     )
                 } else {
                     notificationManager.dismissNotification(
-                        item = item,
-                        customContext = context
+                        item = item
                     )
                 }
             } catch (e: Exception) {
@@ -178,8 +174,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 // Refetch again to reflect intermediate state change (WANTED -> DOWNLOADING / IGNORED)
                 val finalItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
                 notificationManager.updateNotification(
-                    item = finalItem,
-                    customContext = context
+                    item = finalItem
                 )
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error starting download from notification action")
@@ -195,7 +190,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
         val pendingResult = goAsync()
         scope.launch {
             try {
-                notificationManager.removeActiveNotification(context, itemPrimaryKey)
+                notificationManager.removeActiveNotification(itemPrimaryKey)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error removing active notification on dismiss")
             } finally {
@@ -232,8 +227,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 // Update the notification that triggered this to reflect new season aggregate status
                 val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
                 notificationManager.updateNotification(
-                    item = updatedItem,
-                    customContext = context
+                    item = updatedItem
                 )
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error starting season download from notification action")

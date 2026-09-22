@@ -72,9 +72,9 @@ class NotificationActionReceiverTest {
         every { Toast.makeText(any(), any<CharSequence>(), any()) } returns toastMock
 
         notificationManagerMock = mockk(relaxed = true)
-        coEvery { notificationManagerMock.updateNotification(any(), any()) } returns Unit
-        coEvery { notificationManagerMock.showNotification(any(), any()) } returns Unit
-        coEvery { notificationManagerMock.dismissNotification(any<CalendarItemWithWatchlist>(), any()) } returns Unit
+        coEvery { notificationManagerMock.updateNotification(any()) } returns Unit
+        coEvery { notificationManagerMock.showNotification(any()) } returns Unit
+        coEvery { notificationManagerMock.dismissNotification(any<CalendarItemWithWatchlist>()) } returns Unit
 
         mockkConstructor(SimklRepository::class)
         repositoryMock = mockk(relaxed = true)
@@ -214,7 +214,7 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { repositoryMock.markEpisodeWatched(100, 1, 1, MediaType.TV) }
-        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item) }
     }
 
     @Test
@@ -235,7 +235,7 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { repositoryMock.markMovieWatched(200) }
-        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item) }
     }
 
     @Test
@@ -255,7 +255,7 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { repositoryMock.markSeasonWatched(100, 1, MediaType.TV) }
-        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item) }
     }
 
     @Test
@@ -290,7 +290,7 @@ class NotificationActionReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { notificationManagerMock.removeActiveNotification(context, "v2_100_1_1") }
+        coVerify(timeout = 3000) { notificationManagerMock.removeActiveNotification("v2_100_1_1") }
     }
 
     @Test

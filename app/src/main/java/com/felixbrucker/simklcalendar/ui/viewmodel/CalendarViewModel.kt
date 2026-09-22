@@ -32,6 +32,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -75,8 +76,15 @@ class CalendarViewModel @Inject constructor(
     val authRepo: AuthRepository,
     val syncMetadataRepo: SyncMetadataRepository,
     val uiRepo: UiRepository,
-    val torrentServiceHelper: TorrentServiceHelper
+    val torrentServiceHelper: TorrentServiceHelper,
+    val alarmScheduler: AlarmScheduler
 ) : AndroidViewModel(application) {
+
+    fun scheduleAllItemsAiredAlarms() {
+        viewModelScope.launch {
+            alarmScheduler.scheduleAllItemsAiredAlarms()
+        }
+    }
 
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = repository.watchlistItems
 

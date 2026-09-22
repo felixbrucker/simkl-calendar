@@ -51,8 +51,8 @@ class AlarmReceiverTest {
         every { Log.e(any(), any(), any()) } returns 0
 
         notificationManager = mockk(relaxed = true)
-        coEvery { notificationManager.showNotification(any(), any()) } returns Unit
-        coEvery { notificationManager.updateNotification(any(), any()) } returns Unit
+        coEvery { notificationManager.showNotification(any()) } returns Unit
+        coEvery { notificationManager.updateNotification(any()) } returns Unit
 
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.alarm.AlarmReceiver_GeneratedInjector>(relaxed = true)
         every { mockInjector.injectAlarmReceiver(any()) } answers {
@@ -218,7 +218,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { notificationManager.showNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManager.showNotification(item) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_200_theater") }
     }
 
@@ -259,7 +259,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { notificationManager.showNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManager.showNotification(item) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_200_digital") }
     }
 
@@ -280,7 +280,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { notificationManager.showNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManager.showNotification(item) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_100_1_10") }
     }
 
@@ -344,7 +344,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         coVerify(timeout = 3000) { repositoryMock.updateItemAiredStatus(any()) }
-        coVerify(timeout = 3000) { notificationManager.showNotification(any(), context) }
+        coVerify(timeout = 3000) { notificationManager.showNotification(any()) }
     }
 
     @Test
@@ -387,7 +387,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify { notificationManager.updateNotification(itemFinal, context) }
+        coVerify { notificationManager.updateNotification(itemFinal) }
     }
 
     @Test
@@ -406,6 +406,6 @@ class AlarmReceiverTest {
 
         receiver.onReceive(context, intent)
 
-        coVerify(exactly = 0) { notificationManager.updateNotification(any(), any()) }
+        coVerify(exactly = 0) { notificationManager.updateNotification(any()) }
     }
 }

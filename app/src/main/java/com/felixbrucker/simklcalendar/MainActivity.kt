@@ -104,7 +104,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        notificationManager.createNotificationChannel(this)
+        notificationManager.createNotificationChannel()
 
         // Reactively handle sync interval changes
         lifecycleScope.launch {
@@ -138,7 +138,7 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch(Dispatchers.Default) {
             handleNotificationNavigation(intent)
-            notificationManager.restoreActiveNotifications(applicationContext)
+            notificationManager.restoreActiveNotifications()
         }
 
         setContent {
@@ -183,7 +183,7 @@ class MainActivity : ComponentActivity() {
             } else null
 
         if (!itemKey.isNullOrEmpty()) {
-            notificationManager.removeActiveNotification(this@MainActivity, itemKey)
+            notificationManager.removeActiveNotification(itemKey)
             viewModel.setPendingDetailKey(itemKey)
         }
     }

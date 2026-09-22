@@ -145,7 +145,8 @@ class CalendarViewModelTest {
             authRepo = authRepo,
             syncMetadataRepo = mockk(relaxed = true),
             uiRepo = uiRepo,
-            torrentServiceHelper = torrentServiceHelper
+            torrentServiceHelper = torrentServiceHelper,
+            alarmScheduler = mockk(relaxed = true)
         )
     }
 

@@ -90,7 +90,8 @@ class SimklRepositoryDeepSyncTest {
             syncMetadataRepo = syncMetadataRepo,
             uiRepo = uiRepo,
             torrentServiceHelper = mockk(relaxed = true),
-            torrentSearchManager = mockk(relaxed = true)
+            torrentSearchManager = mockk(relaxed = true),
+            alarmScheduler = mockk(relaxed = true)
         )
 
         val apiField = SimklRepository::class.java.getDeclaredField("apiService")

@@ -3,8 +3,7 @@ package com.felixbrucker.simklcalendar.receiver.download
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import timber.log.Timber
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
@@ -13,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -23,7 +23,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
     lateinit var repo: SimklRepository
 
     @Inject
-    lateinit var calendarItemDao: com.felixbrucker.simklcalendar.data.database.CalendarItemDao
+    lateinit var calendarItemDao: CalendarItemDao
 
     @Inject
     lateinit var notificationManager: NotificationManager
@@ -49,7 +49,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 
                 // Update notification for the item that was just downloaded (if active)
-                notificationManager.updateNotification(item, context)
+                notificationManager.updateNotification(item)
 
                 // If it's a TV show/anime episode, also check if there's an active season finale
                 // notification that needs updating to reflect the new aggregate download status.
@@ -57,7 +57,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                 if (season != null) {
                     val finaleItem = calendarItemDao.getSeasonFinaleItem(item.simklId, season)
                     if (finaleItem != null && finaleItem.primaryKey != item.primaryKey) {
-                        notificationManager.updateNotification(finaleItem, context)
+                        notificationManager.updateNotification(finaleItem)
                     }
                 }
             } catch (e: Exception) {

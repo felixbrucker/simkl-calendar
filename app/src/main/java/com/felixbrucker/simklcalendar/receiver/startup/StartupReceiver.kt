@@ -21,6 +21,9 @@ class StartupReceiver: BroadcastReceiver() {
     @Inject
     lateinit var notificationManager: NotificationManager
 
+    @Inject
+    lateinit var alarmScheduler: AlarmScheduler
+
     companion object {
         private const val TAG = "StartupReceiver"
     }
@@ -36,8 +39,8 @@ class StartupReceiver: BroadcastReceiver() {
         val pendingResult = goAsync()
         scope.launch {
             try {
-                AlarmScheduler.scheduleAllItemsAiredAlarms(context)
-                notificationManager.restoreActiveNotifications(context)
+                alarmScheduler.scheduleAllItemsAiredAlarms()
+                notificationManager.restoreActiveNotifications()
                 Timber.tag(TAG).d("Rescheduled all item aired alarms and restored active notifications after startup/update")
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error rescheduling alarms and notifications on startup")

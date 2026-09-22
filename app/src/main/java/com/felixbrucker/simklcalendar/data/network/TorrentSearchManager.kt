@@ -22,7 +22,7 @@ import javax.inject.Singleton
 @Singleton
 class TorrentSearchManager @Inject constructor(
     private val itemSettingsDao: ItemDownloadSettingsDao,
-    private val autoDownloadDataSource: AutoDownloadDataSource
+    private val autoDownloadDataSource: AutoDownloadRepository
 ) {
     companion object {
         private const val TAG = "TorrentSearchManager"

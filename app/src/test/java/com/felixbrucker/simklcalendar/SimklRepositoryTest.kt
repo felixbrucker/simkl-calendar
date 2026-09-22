@@ -110,7 +110,8 @@ class SimklRepositoryTest {
             syncMetadataRepo = syncMetadataRepo,
             uiRepo = uiRepo,
             torrentServiceHelper = torrentServiceHelper,
-            torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo)
+            torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo),
+            alarmScheduler = mockk(relaxed = true)
         )
 
         coEvery { torrentServiceHelper.addTorrent(any(), any(), any(), any(), any(), any(), any()) } returns Result.success("taskId")
