@@ -49,6 +49,8 @@ import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.net.URLDecoder
@@ -91,18 +93,30 @@ class MainActivity : ComponentActivity() {
 
         // Reactively handle sync interval changes
         lifecycleScope.launch {
-            viewModel.repository.appSettingsRepo.preferencesFlow.collect { settings ->
-                SyncCalendarWorker.enqueuePeriodicSync(this@MainActivity, settings.syncIntervalHours.toLong())
-            }
+            viewModel.repository.appSettingsRepo.preferencesFlow
+                .map { it.syncIntervalHours }
+                .distinctUntilChanged()
+                .collect { syncIntervalHours ->
+                    SyncCalendarWorker.enqueuePeriodicSync(
+                        this@MainActivity,
+                        syncIntervalHours.toLong()
+                    )
+                }
         }
 
         // Reactively handle search interval changes
         lifecycleScope.launch {
-            viewModel.repository.autoDownloadRepo.preferencesFlow.collect { settings ->
-                if (viewModel.isTorrentServiceInstalled()) {
-                    AutoDownloadWorker.enqueuePeriodicSearch(this@MainActivity, settings.searchIntervalHours.toLong())
+            viewModel.repository.autoDownloadRepo.preferencesFlow
+                .map { it.searchIntervalHours }
+                .distinctUntilChanged()
+                .collect { searchIntervalHours ->
+                    if (viewModel.isTorrentServiceInstalled()) {
+                        AutoDownloadWorker.enqueuePeriodicSearch(
+                            this@MainActivity,
+                            searchIntervalHours.toLong()
+                        )
+                    }
                 }
-            }
         }
 
         handleOAuthIntent(intent)
