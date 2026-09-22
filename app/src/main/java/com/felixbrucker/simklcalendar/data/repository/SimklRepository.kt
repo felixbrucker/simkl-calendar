@@ -60,6 +60,8 @@ import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
 import kotlin.time.Duration
@@ -67,7 +69,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class SimklRepository(private val context: Context) {
 
-    private val refreshLock = Any()
+    private val refreshMutex: Mutex = Mutex()
     private val db = AppDatabase.getDatabase(context)
     private val tokenDao = db.userTokenDao()
     private val calendarDao = db.calendarItemDao()
@@ -333,31 +335,33 @@ class SimklRepository(private val context: Context) {
 
             val failedAuthHeader = response.request.header("Authorization")
 
-            synchronized(refreshLock) {
-                val currentToken = runBlocking { tokenDao.getActiveToken() } ?: return@synchronized null
-                val currentBearer = "Bearer ${currentToken.accessToken}"
+            runBlocking {
+                refreshMutex.withLock {
+                    val currentToken = tokenDao.getActiveToken() ?: return@runBlocking null
+                    val currentBearer = "Bearer ${currentToken.accessToken}"
 
-                if (failedAuthHeader != null && failedAuthHeader != currentBearer && currentToken.accessToken.isNotEmpty()) {
-                    return@authenticator response.request.newBuilder()
-                        .header("Authorization", currentBearer)
-                        .build()
-                }
-
-                val refreshToken = currentToken.refreshToken
-                if (refreshToken.isNullOrEmpty()) {
-                    return@synchronized null
-                }
-
-                val success = runBlocking { performRefreshToken(currentToken, refreshToken) }
-                if (success) {
-                    val updatedToken = runBlocking { tokenDao.getActiveToken() }
-                    if (updatedToken != null) {
-                        return@authenticator response.request.newBuilder()
-                            .header("Authorization", "Bearer ${updatedToken.accessToken}")
+                    if (failedAuthHeader != null && failedAuthHeader != currentBearer && currentToken.accessToken.isNotEmpty()) {
+                        return@runBlocking response.request.newBuilder()
+                            .header("Authorization", currentBearer)
                             .build()
                     }
+
+                    val refreshToken = currentToken.refreshToken
+                    if (refreshToken.isNullOrEmpty()) {
+                        return@runBlocking null
+                    }
+
+                    val success = performRefreshToken(currentToken, refreshToken)
+                    if (success) {
+                        val updatedToken = tokenDao.getActiveToken()
+                        if (updatedToken != null) {
+                            return@runBlocking response.request.newBuilder()
+                                .header("Authorization", "Bearer ${updatedToken.accessToken}")
+                                .build()
+                        }
+                    }
+                    null
                 }
-                null
             }
         }
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -565,14 +569,14 @@ class SimklRepository(private val context: Context) {
         val token = tokenDao.getActiveToken() ?: return@withContext false
         val accessExpiresAt = token.accessTokenExpiresAt
         if (accessExpiresAt != null && Instant.now().isAfter(accessExpiresAt.minusSeconds(3600))) {
-            synchronized(refreshLock) {
-                val currentToken = runBlocking { tokenDao.getActiveToken() } ?: return@synchronized false
+            refreshMutex.withLock {
+                val currentToken = tokenDao.getActiveToken() ?: return@withLock false
                 val currentAccessExpiresAt = currentToken.accessTokenExpiresAt
                 if (currentAccessExpiresAt == null || Instant.now().isBefore(currentAccessExpiresAt.minusSeconds(3600))) {
-                    return@synchronized true
+                    return@withLock true
                 }
-                val refreshToken = currentToken.refreshToken ?: return@synchronized false
-                return@synchronized runBlocking { performRefreshToken(currentToken, refreshToken) }
+                val refreshToken = currentToken.refreshToken ?: return@withLock false
+                return@withLock performRefreshToken(currentToken, refreshToken)
             }
         }
         true
