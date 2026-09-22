@@ -26,10 +26,12 @@ class AlarmScheduler {
          * Schedules item aired alarms for all eligible upcoming items. Intended to be called after each
          * sync to schedule any new items and reschedule changed items.
          */
-        suspend fun scheduleAllItemsAiredAlarms(context: Context) = withContext(Dispatchers.IO) {
+        suspend fun scheduleAllItemsAiredAlarms(
+            context: Context,
+            calendarItemDao: com.felixbrucker.simklcalendar.data.database.CalendarItemDao = AppDatabase.getDatabase(context).calendarItemDao()
+        ) = withContext(Dispatchers.IO) {
             try {
-                val db = AppDatabase.getDatabase(context)
-                val calendarItems = db.calendarItemDao().getCalendarItemsForAiredAlarm(now())
+                val calendarItems = calendarItemDao.getCalendarItemsForAiredAlarm(now())
                 for (item in calendarItems) {
                     scheduleItemAiredAlarmForItem(item, context)
                 }
@@ -59,7 +61,7 @@ class AlarmScheduler {
             ) ?: return
             val triggerAtMillis = triggerAt.toEpochMilli()
             try {
-                val notificationRepo = NotificationRepository(context.notificationDataStore)
+                val notificationRepo = NotificationRepository(context)
                 val useExactAlarms = notificationRepo.preferencesFlow.first().useExactAlarms
 
                 if (useExactAlarms) {

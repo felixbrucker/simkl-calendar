@@ -23,7 +23,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
     lateinit var repo: SimklRepository
 
     @Inject
-    lateinit var db: AppDatabase
+    lateinit var calendarItemDao: com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 
     @Inject
     lateinit var notificationManager: NotificationManager
@@ -46,7 +46,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                 repo.updateDownloadTaskId(itemPrimaryKey, null, MediaStatus.DOWNLOADED)
                 Timber.tag(TAG).d("Updated item $itemPrimaryKey to DOWNLOADED status and cleared taskId")
 
-                val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 
                 // Update notification for the item that was just downloaded (if active)
                 notificationManager.updateNotification(item, context)
@@ -55,7 +55,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                 // notification that needs updating to reflect the new aggregate download status.
                 val season = item.season
                 if (season != null) {
-                    val finaleItem = db.calendarItemDao().getSeasonFinaleItem(item.simklId, season)
+                    val finaleItem = calendarItemDao.getSeasonFinaleItem(item.simklId, season)
                     if (finaleItem != null && finaleItem.primaryKey != item.primaryKey) {
                         notificationManager.updateNotification(finaleItem, context)
                     }

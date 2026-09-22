@@ -49,13 +49,13 @@ class StartupReceiverTest {
         context = mockk(relaxed = true)
         every { context.applicationContext } returns mockApp
 
-        mockkObject(AlarmScheduler)
-        coEvery { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) } returns Unit
+        mockkObject(AlarmScheduler.Companion)
+        coEvery { AlarmScheduler.scheduleAllItemsAiredAlarms(any(), any()) } returns Unit
     }
 
     @After
     fun tearDown() {
-        unmockkObject(AlarmScheduler)
+        unmockkObject(AlarmScheduler.Companion)
     }
 
     @Test
@@ -69,7 +69,7 @@ class StartupReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { AlarmScheduler.scheduleAllItemsAiredAlarms(context) }
+        coVerify(timeout = 3000) { AlarmScheduler.scheduleAllItemsAiredAlarms(context, any()) }
         coVerify(timeout = 3000) { notificationManagerMock.restoreActiveNotifications(context) }
     }
 
@@ -97,7 +97,7 @@ class StartupReceiverTest {
         } catch (_: Exception) {}
         receiver.onReceive(context, null)
 
-        coVerify(exactly = 0) { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) }
+        coVerify(exactly = 0) { AlarmScheduler.scheduleAllItemsAiredAlarms(any(), any()) }
         coVerify(exactly = 0) { notificationManagerMock.restoreActiveNotifications(any()) }
     }
 

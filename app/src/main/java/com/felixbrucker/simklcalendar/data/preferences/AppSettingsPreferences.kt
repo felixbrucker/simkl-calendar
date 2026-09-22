@@ -7,8 +7,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
 val Context.appSettingsDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "app_settings",
@@ -33,9 +36,11 @@ interface AppSettingsDataSource {
     suspend fun clear()
 }
 
-class AppSettingsRepository(
-    private val dataStore: DataStore<Preferences>
+@Singleton
+class AppSettingsRepository @Inject constructor(
+    @ApplicationContext context: Context
 ) : AppSettingsDataSource {
+    private val dataStore = context.appSettingsDataStore
 
     companion object {
         private val KEY_SYNC_INTERVAL_HOURS = intPreferencesKey("sync_interval_hours")

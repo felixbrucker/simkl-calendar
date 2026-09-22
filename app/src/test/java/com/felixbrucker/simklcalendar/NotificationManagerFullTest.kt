@@ -156,7 +156,7 @@ class NotificationManagerFullTest {
         field.isAccessible = true
         field.set(null, appDatabase)
 
-        notificationManager = NotificationManager(context, appDatabase, torrentServiceHelper)
+        notificationManager = NotificationManager(context, calendarDao, activeNotificationDao, torrentServiceHelper)
     }
 
     @After

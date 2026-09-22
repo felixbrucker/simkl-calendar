@@ -18,15 +18,6 @@ object TorrentModule {
 
     @Provides
     @Singleton
-    fun provideTorrentSearchManager(
-        itemDownloadSettingsDao: ItemDownloadSettingsDao,
-        autoDownloadRepo: AutoDownloadRepository
-    ): TorrentSearchManager {
-        return TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo)
-    }
-
-    @Provides
-    @Singleton
     fun provideTorrentServiceHelper(
         @ApplicationContext context: Context
     ): TorrentServiceHelper {

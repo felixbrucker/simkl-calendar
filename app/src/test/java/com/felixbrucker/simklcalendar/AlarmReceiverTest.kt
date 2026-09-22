@@ -58,7 +58,9 @@ class AlarmReceiverTest {
         every { mockInjector.injectAlarmReceiver(any()) } answers {
             val rec = firstArg<AlarmReceiver>()
             rec.repo = repositoryMock
-            rec.db = appDatabase
+            rec.calendarItemDao = calendarDao
+            rec.notificationSettingDao = settingDao
+            rec.itemDownloadSettingsDao = itemDownloadSettingsDao
             rec.autoDownloadRepo = autoDownloadRepo
             rec.notificationRepo = notificationRepo
             rec.torrentServiceHelper = torrentServiceHelper

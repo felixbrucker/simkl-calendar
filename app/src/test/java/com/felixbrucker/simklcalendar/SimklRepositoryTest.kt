@@ -95,13 +95,22 @@ class SimklRepositoryTest {
 
         repository = SimklRepository(
             context = context,
+            tokenDao = tokenDao,
+            calendarDao = calendarDao,
+            settingDao = settingDao,
+            watchlistDao = watchlistDao,
+            watchedDao = watchedDao,
+            searchLinkDao = mockk(relaxed = true),
+            itemDownloadSettingsDao = itemDownloadSettingsDao,
+            apiService = apiService,
             appSettingsRepo = appSettingsRepo,
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
             authRepo = authRepo,
             syncMetadataRepo = syncMetadataRepo,
             uiRepo = uiRepo,
-            torrentServiceHelper = torrentServiceHelper
+            torrentServiceHelper = torrentServiceHelper,
+            torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo)
         )
 
         coEvery { torrentServiceHelper.addTorrent(any(), any(), any(), any(), any(), any(), any()) } returns Result.success("taskId")

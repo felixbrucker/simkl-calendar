@@ -50,7 +50,25 @@ class SimklRepositoryMarkTest {
         coEvery { apiService.markHistoryWatched(any()) } returns mockk(relaxed = true)
         coEvery { apiService.markHistoryUnwatched(any()) } returns mockk(relaxed = true)
 
-        repository = SimklRepository(context)
+        repository = SimklRepository(
+            context = context,
+            tokenDao = tokenDao,
+            calendarDao = calendarDao,
+            settingDao = mockk(relaxed = true),
+            watchlistDao = mockk(relaxed = true),
+            watchedDao = watchedDao,
+            searchLinkDao = mockk(relaxed = true),
+            itemDownloadSettingsDao = mockk(relaxed = true),
+            apiService = apiService,
+            appSettingsRepo = mockk(relaxed = true),
+            autoDownloadRepo = mockk(relaxed = true),
+            notificationRepo = mockk(relaxed = true),
+            authRepo = mockk(relaxed = true),
+            syncMetadataRepo = mockk(relaxed = true),
+            uiRepo = mockk(relaxed = true),
+            torrentServiceHelper = mockk(relaxed = true),
+            torrentSearchManager = mockk(relaxed = true)
+        )
 
         val apiField = SimklRepository::class.java.getDeclaredField("apiService")
         apiField.isAccessible = true

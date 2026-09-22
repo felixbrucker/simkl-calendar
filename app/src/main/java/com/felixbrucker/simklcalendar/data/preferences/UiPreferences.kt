@@ -8,8 +8,11 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
 val Context.uiDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "ui_settings",
@@ -40,9 +43,11 @@ interface UiDataSource {
     suspend fun clear()
 }
 
-class UiRepository(
-    private val dataStore: DataStore<Preferences>
+@Singleton
+class UiRepository @Inject constructor(
+    @ApplicationContext context: Context
 ) : UiDataSource {
+    private val dataStore = context.uiDataStore
 
     companion object {
         private val KEY_VIEW_MODE = stringPreferencesKey("view_mode")

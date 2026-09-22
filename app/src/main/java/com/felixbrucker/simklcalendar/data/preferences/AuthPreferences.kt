@@ -8,8 +8,11 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
 val Context.authDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "simkl_auth_settings",
@@ -31,9 +34,11 @@ interface AuthDataSource {
     suspend fun clear()
 }
 
-class AuthRepository(
-    private val dataStore: DataStore<Preferences>
+@Singleton
+class AuthRepository @Inject constructor(
+    @ApplicationContext context: Context
 ) : AuthDataSource {
+    private val dataStore = context.authDataStore
 
     companion object {
         private val KEY_PKCE_CODE_VERIFIER = stringPreferencesKey("pkce_code_verifier")

@@ -5,6 +5,7 @@ import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadDataSource
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.extensions.ensureAdded
 import com.felixbrucker.torrent_search_api.Category
 import com.felixbrucker.torrent_search_api.NyaaProvider
@@ -15,7 +16,11 @@ import kotlinx.coroutines.flow.first
 import timber.log.Timber
 import java.util.Locale
 
-class TorrentSearchManager(
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class TorrentSearchManager @Inject constructor(
     private val itemSettingsDao: ItemDownloadSettingsDao,
     private val autoDownloadDataSource: AutoDownloadDataSource
 ) {

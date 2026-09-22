@@ -96,30 +96,6 @@ class DiModulesTest {
     }
 
     @Test
-    fun testPreferencesModuleProviders() {
-        val appSettings = PreferencesModule.provideAppSettingsRepository(context)
-        val autoDownload = PreferencesModule.provideAutoDownloadRepository(context)
-        val notification = PreferencesModule.provideNotificationRepository(context)
-        val auth = PreferencesModule.provideAuthRepository(context)
-        val syncMetadata = PreferencesModule.provideSyncMetadataRepository(context)
-        val ui = PreferencesModule.provideUiRepository(context)
-
-        assertNotNull(appSettings)
-        assertNotNull(autoDownload)
-        assertNotNull(notification)
-        assertNotNull(auth)
-        assertNotNull(syncMetadata)
-        assertNotNull(ui)
-    }
-
-    @Test
-    fun testTorrentModuleProviders() {
-        val torrentManager = TorrentModule.provideTorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo)
-
-        assertNotNull(torrentManager)
-    }
-
-    @Test
     fun testNetworkModuleProviders() {
         val moshi = NetworkModule.provideMoshi()
         val apiService = NetworkModule.provideSimklApiService(moshi, tokenDao)
@@ -129,8 +105,26 @@ class DiModulesTest {
     }
 
     @Test
-    fun testSimklRepositorySecondaryConstructor() {
-        val repository = SimklRepository(context)
+    fun testSimklRepositoryInstantiation() {
+        val repository = SimklRepository(
+            context = context,
+            tokenDao = tokenDao,
+            calendarDao = calendarDao,
+            settingDao = settingDao,
+            watchlistDao = watchlistDao,
+            watchedDao = watchedDao,
+            searchLinkDao = searchLinkDao,
+            itemDownloadSettingsDao = itemDownloadSettingsDao,
+            apiService = mockk(relaxed = true),
+            appSettingsRepo = mockk(relaxed = true),
+            autoDownloadRepo = autoDownloadRepo,
+            notificationRepo = mockk(relaxed = true),
+            authRepo = mockk(relaxed = true),
+            syncMetadataRepo = mockk(relaxed = true),
+            uiRepo = mockk(relaxed = true),
+            torrentServiceHelper = mockk(relaxed = true),
+            torrentSearchManager = mockk(relaxed = true)
+        )
 
         assertNotNull(repository)
     }

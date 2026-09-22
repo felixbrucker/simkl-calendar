@@ -7,13 +7,20 @@ import com.felixbrucker.simklcalendar.BuildConfig
 import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
+import com.felixbrucker.simklcalendar.data.database.CustomSearchLinkDao
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
+import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
+import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.UserToken
+import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisode
+import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
+import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
@@ -67,29 +74,25 @@ import kotlin.time.Duration.Companion.milliseconds
 @Singleton
 class SimklRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val db: AppDatabase = AppDatabase.getDatabase(context),
-    private val apiService: SimklApiService = NetworkModule.provideSimklApiService(NetworkModule.provideMoshi(), db.userTokenDao()),
-    private val appSettingsRepo: AppSettingsRepository = AppSettingsRepository(context.appSettingsDataStore),
-    private val autoDownloadRepo: AutoDownloadRepository = AutoDownloadRepository(context.autoDownloadDataStore),
-    private val notificationRepo: NotificationRepository = NotificationRepository(context.notificationDataStore),
-    private val authRepo: AuthRepository = AuthRepository(context.authDataStore),
-    private val syncMetadataRepo: SyncMetadataRepository = SyncMetadataRepository(context.syncMetadataDataStore),
-    private val uiRepo: UiRepository = UiRepository(context.uiDataStore),
-    private val torrentServiceHelper: TorrentServiceHelper = TorrentServiceHelper(context)
+    private val tokenDao: UserTokenDao,
+    private val calendarDao: CalendarItemDao,
+    private val settingDao: NotificationSettingDao,
+    private val watchlistDao: WatchlistDao,
+    private val watchedDao: WatchedEpisodeDao,
+    private val searchLinkDao: CustomSearchLinkDao,
+    private val itemDownloadSettingsDao: ItemDownloadSettingsDao,
+    private val apiService: SimklApiService,
+    private val appSettingsRepo: AppSettingsRepository,
+    private val autoDownloadRepo: AutoDownloadRepository,
+    private val notificationRepo: NotificationRepository,
+    private val authRepo: AuthRepository,
+    private val syncMetadataRepo: SyncMetadataRepository,
+    private val uiRepo: UiRepository,
+    private val torrentServiceHelper: TorrentServiceHelper,
+    private val torrentSearchManager: TorrentSearchManager
 ) {
 
     private val refreshMutex: Mutex = Mutex()
-    private val tokenDao = db.userTokenDao()
-    private val calendarDao = db.calendarItemDao()
-    private val settingDao = db.notificationSettingDao()
-    private val watchlistDao = db.watchlistDao()
-    private val watchedDao = db.watchedEpisodeDao()
-    private val searchLinkDao = db.customSearchLinkDao()
-    private val itemDownloadSettingsDao = db.itemDownloadSettingsDao()
-
-    private val torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo)
-
-    fun getTorrentServiceHelper(): TorrentServiceHelper = torrentServiceHelper
 
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
     val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()

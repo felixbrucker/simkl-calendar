@@ -8,8 +8,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
 val Context.syncMetadataDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "simkl_sync_settings",
@@ -32,9 +35,11 @@ interface SyncMetadataDataSource {
     suspend fun clear()
 }
 
-class SyncMetadataRepository(
-    private val dataStore: DataStore<Preferences>
+@Singleton
+class SyncMetadataRepository @Inject constructor(
+    @ApplicationContext context: Context
 ) : SyncMetadataDataSource {
+    private val dataStore = context.syncMetadataDataStore
 
     companion object {
         private val KEY_LAST_CALENDAR_JSON_SYNC = longPreferencesKey("last_calendar_json_sync")

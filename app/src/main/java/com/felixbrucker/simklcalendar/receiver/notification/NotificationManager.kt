@@ -41,10 +41,14 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
+
 @Singleton
 class NotificationManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val db: AppDatabase,
+    private val calendarItemDao: CalendarItemDao,
+    private val activeNotificationDao: ActiveNotificationDao,
     private val torrentServiceHelper: TorrentServiceHelper
 ) {
     companion object {
@@ -114,7 +118,7 @@ class NotificationManager @Inject constructor(
 
     suspend fun addActiveNotification(customContext: Context = context, primaryKey: String) {
         try {
-            db.activeNotificationDao().insertActiveNotification(
+            activeNotificationDao.insertActiveNotification(
                 ActiveNotification(primaryKey = primaryKey)
             )
         } catch (e: Exception) {
@@ -124,7 +128,7 @@ class NotificationManager @Inject constructor(
 
     suspend fun removeActiveNotification(customContext: Context = context, primaryKey: String) {
         try {
-            db.activeNotificationDao().deleteActiveNotification(primaryKey)
+            activeNotificationDao.deleteActiveNotification(primaryKey)
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error removing active notification primaryKey=$primaryKey")
         }
@@ -132,7 +136,7 @@ class NotificationManager @Inject constructor(
 
     suspend fun getActiveNotifications(customContext: Context = context): List<String> {
         return try {
-            db.activeNotificationDao().getAllActiveKeys()
+            activeNotificationDao.getAllActiveKeys()
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error fetching active notification keys")
             emptyList()
@@ -156,7 +160,7 @@ class NotificationManager @Inject constructor(
         val currentlyPostedIds = systemNotificationManager.activeNotifications.map { it.id }.toSet()
 
         for (primaryKey in activeKeys) {
-            val item = db.calendarItemDao().findItem(primaryKey)
+            val item = calendarItemDao.findItem(primaryKey)
             if (item == null) {
                 removeActiveNotification(customContext, primaryKey)
                 continue
@@ -194,8 +198,7 @@ class NotificationManager @Inject constructor(
     }
 
     private suspend fun makeConfiguredNotificationBuilder(item: CalendarItemWithWatchlist, customContext: Context): NotificationCompat.Builder {
-        val itemsInSeasonOrRelatedItems = db
-            .calendarItemDao()
+        val itemsInSeasonOrRelatedItems = calendarItemDao
             .getItemsInSeasonOrRelatedItems(item.simklId, item.season)
         val totalEpisodesInSeason = itemsInSeasonOrRelatedItems.maxOfOrNull { it.episodeNumber ?: 1 } ?: 1
         val (title, message) = item.formatNotificationContent(totalEpisodesInSeason)

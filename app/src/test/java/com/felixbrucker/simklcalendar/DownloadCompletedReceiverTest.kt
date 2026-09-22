@@ -56,7 +56,7 @@ class DownloadCompletedReceiverTest {
         every { mockInjector.injectDownloadCompletedReceiver(any()) } answers {
             val rec = firstArg<DownloadCompletedReceiver>()
             rec.repo = repositoryMock
-            rec.db = appDatabase
+            rec.calendarItemDao = calendarDao
             rec.notificationManager = notificationManagerMock
         }
         val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)

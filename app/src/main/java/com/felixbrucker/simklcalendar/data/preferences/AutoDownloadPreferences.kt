@@ -9,8 +9,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
 val Context.autoDownloadDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "auto_download_settings",
@@ -54,9 +57,11 @@ interface AutoDownloadDataSource {
     suspend fun clear()
 }
 
-class AutoDownloadRepository(
-    private val dataStore: DataStore<Preferences>
+@Singleton
+class AutoDownloadRepository @Inject constructor(
+    @ApplicationContext context: Context
 ) : AutoDownloadDataSource {
+    private val dataStore = context.autoDownloadDataStore
 
     companion object {
         private val KEY_QUALITY = stringPreferencesKey("quality")

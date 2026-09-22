@@ -88,7 +88,7 @@ class NotificationActionReceiverTest {
         every { mockInjector.injectNotificationActionReceiver(any()) } answers {
             val rec = firstArg<NotificationActionReceiver>()
             rec.repo = repositoryMock
-            rec.db = appDatabase
+            rec.calendarItemDao = calendarDao
             rec.torrentServiceHelper = torrentServiceHelper
             rec.notificationManager = notificationManagerMock
         }

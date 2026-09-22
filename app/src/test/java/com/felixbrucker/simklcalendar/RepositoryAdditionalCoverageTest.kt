@@ -65,12 +65,22 @@ class RepositoryAdditionalCoverageTest {
 
         repository = SimklRepository(
             context = context,
+            tokenDao = tokenDao,
+            calendarDao = calendarDao,
+            settingDao = settingDao,
+            watchlistDao = watchlistDao,
+            watchedDao = watchedDao,
+            searchLinkDao = searchLinkDao,
+            itemDownloadSettingsDao = itemDownloadSettingsDao,
+            apiService = mockk(relaxed = true),
             appSettingsRepo = appSettingsRepo,
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
             authRepo = authRepo,
             syncMetadataRepo = syncMetadataRepo,
-            uiRepo = uiRepo
+            uiRepo = uiRepo,
+            torrentServiceHelper = mockk(relaxed = true),
+            torrentSearchManager = mockk(relaxed = true)
         )
         
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
