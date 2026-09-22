@@ -252,17 +252,6 @@ class NotificationManagerFullTest {
     }
 
     @Test
-    fun testDismissNotificationWithIdAndKey() = runTest {
-        val notificationId = 12345
-        val primaryKey = "v2_200_1_1"
-
-        NotificationManager.dismissNotification(notificationId, primaryKey, context)
-
-        verify { androidNotificationManager.cancel(notificationId) }
-        coVerify { activeNotificationDao.deleteActiveNotification(primaryKey) }
-    }
-
-    @Test
     fun testAddAndRemoveAndGetActiveNotifications() = runTest {
         coEvery { activeNotificationDao.getAllActiveKeys() } returns listOf("v2_100_1_1")
 

@@ -89,18 +89,14 @@ class NotificationManager {
         }
 
         suspend fun dismissNotification(item: CalendarItemWithWatchlist, context: Context) {
-            dismissNotification(item.notificationId, item.primaryKey, context)
-        }
-
-        suspend fun dismissNotification(notificationId: Int, primaryKey: String, context: Context) {
             try {
                 val notificationManager =
                     context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.cancel(notificationId)
-                removeActiveNotification(context, primaryKey)
-                Timber.tag(TAG).d("Successfully dismissed notification id=$notificationId primaryKey=$primaryKey")
+                notificationManager.cancel(item.notificationId)
+                removeActiveNotification(context, item.primaryKey)
+                Timber.tag(TAG).d("Successfully dismissed notification id=${item.notificationId} primaryKey=${item.primaryKey}")
             } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Error dismissing notification id=$notificationId")
+                Timber.tag(TAG).e(e, "Error dismissing notification id=${item.notificationId}")
             }
         }
 
