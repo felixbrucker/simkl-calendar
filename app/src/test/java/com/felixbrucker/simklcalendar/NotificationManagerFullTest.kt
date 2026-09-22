@@ -240,6 +240,29 @@ class NotificationManagerFullTest {
     }
 
     @Test
+    fun testDismissNotificationWithItem() = runTest {
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
+
+        NotificationManager.dismissNotification(item, context)
+
+        verify { androidNotificationManager.cancel(item.notificationId) }
+        coVerify { activeNotificationDao.deleteActiveNotification("v2_100_1_1") }
+    }
+
+    @Test
+    fun testDismissNotificationWithIdAndKey() = runTest {
+        val notificationId = 12345
+        val primaryKey = "v2_200_1_1"
+
+        NotificationManager.dismissNotification(notificationId, primaryKey, context)
+
+        verify { androidNotificationManager.cancel(notificationId) }
+        coVerify { activeNotificationDao.deleteActiveNotification(primaryKey) }
+    }
+
+    @Test
     fun testAddAndRemoveAndGetActiveNotifications() = runTest {
         coEvery { activeNotificationDao.getAllActiveKeys() } returns listOf("v2_100_1_1")
 

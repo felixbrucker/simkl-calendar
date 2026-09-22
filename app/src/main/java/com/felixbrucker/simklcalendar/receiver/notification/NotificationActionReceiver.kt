@@ -83,13 +83,17 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val err = result.exceptionOrNull()
                 if (err != null) {
                     Timber.tag(TAG).e(err, "Error marking item as watched from notification action")
+                    val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                    NotificationManager.updateNotification(
+                        item = updatedItem,
+                        context = context
+                    )
+                } else {
+                    NotificationManager.dismissNotification(
+                        item = item,
+                        context = context
+                    )
                 }
-
-                val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
-                NotificationManager.updateNotification(
-                    item = updatedItem,
-                    context = context
-                )
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error marking episode as watched from notification action")
             } finally {
@@ -117,13 +121,17 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val err = result.exceptionOrNull()
                 if (err != null) {
                     Timber.tag(TAG).e(err, "Error marking season as watched from notification action")
+                    val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
+                    NotificationManager.updateNotification(
+                        item = updatedItem,
+                        context = context
+                    )
+                } else {
+                    NotificationManager.dismissNotification(
+                        item = item,
+                        context = context
+                    )
                 }
-
-                val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
-                NotificationManager.updateNotification(
-                    item = updatedItem,
-                    context = context
-                )
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error marking season as watched from notification action")
             } finally {
