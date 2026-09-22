@@ -30,35 +30,29 @@ data class AppSettingsPreferences(
     val syncIntervalHours: Int = 12
 )
 
-interface AppSettingsDataSource {
-    val preferencesFlow: Flow<AppSettingsPreferences>
-    suspend fun setSyncIntervalHours(hours: Int)
-    suspend fun clear()
-}
-
 @Singleton
 class AppSettingsRepository @Inject constructor(
     @ApplicationContext context: Context
-) : AppSettingsDataSource {
+) {
     private val dataStore = context.appSettingsDataStore
 
     companion object {
         private val KEY_SYNC_INTERVAL_HOURS = intPreferencesKey("sync_interval_hours")
     }
 
-    override val preferencesFlow: Flow<AppSettingsPreferences> = dataStore.data.map { preferences ->
+    val preferencesFlow: Flow<AppSettingsPreferences> = dataStore.data.map { preferences ->
         AppSettingsPreferences(
             syncIntervalHours = preferences[KEY_SYNC_INTERVAL_HOURS] ?: 12
         )
     }
 
-    override suspend fun setSyncIntervalHours(hours: Int) {
+    suspend fun setSyncIntervalHours(hours: Int) {
         dataStore.edit { preferences ->
             preferences[KEY_SYNC_INTERVAL_HOURS] = hours
         }
     }
 
-    override suspend fun clear() {
+    suspend fun clear() {
         dataStore.edit { it.clear() }
     }
 }

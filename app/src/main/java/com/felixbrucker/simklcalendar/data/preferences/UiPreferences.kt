@@ -36,17 +36,10 @@ data class UiPreferences(
     val filterShowEarlier: Boolean = false
 )
 
-interface UiDataSource {
-    val preferencesFlow: Flow<UiPreferences>
-    suspend fun setViewMode(viewMode: ViewMode)
-    suspend fun updateFilters(transform: (UiPreferences) -> UiPreferences)
-    suspend fun clear()
-}
-
 @Singleton
 class UiRepository @Inject constructor(
     @ApplicationContext context: Context
-) : UiDataSource {
+) {
     private val dataStore = context.uiDataStore
 
     companion object {
@@ -61,7 +54,7 @@ class UiRepository @Inject constructor(
         private val KEY_FILTER_SHOW_EARLIER = booleanPreferencesKey("filter_show_earlier")
     }
 
-    override val preferencesFlow: Flow<UiPreferences> = dataStore.data.map { preferences ->
+    val preferencesFlow: Flow<UiPreferences> = dataStore.data.map { preferences ->
         UiPreferences(
             viewMode = preferences[KEY_VIEW_MODE]?.let {
                 try { ViewMode.valueOf(it) } catch (_: Exception) { ViewMode.CALENDAR }
@@ -77,11 +70,11 @@ class UiRepository @Inject constructor(
         )
     }
 
-    override suspend fun setViewMode(viewMode: ViewMode) {
+    suspend fun setViewMode(viewMode: ViewMode) {
         dataStore.edit { it[KEY_VIEW_MODE] = viewMode.name }
     }
 
-    override suspend fun updateFilters(transform: (UiPreferences) -> UiPreferences) {
+    suspend fun updateFilters(transform: (UiPreferences) -> UiPreferences) {
         dataStore.edit { preferences ->
             val current = UiPreferences(
                 viewMode = preferences[KEY_VIEW_MODE]?.let {
@@ -108,7 +101,7 @@ class UiRepository @Inject constructor(
         }
     }
 
-    override suspend fun clear() {
+    suspend fun clear() {
         dataStore.edit { it.clear() }
     }
 }
