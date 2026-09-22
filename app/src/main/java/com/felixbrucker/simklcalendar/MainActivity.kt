@@ -70,6 +70,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var autoDownloadRepo: AutoDownloadRepository
 
+    @Inject
+    lateinit var notificationManager: NotificationManager
+
     // Modern AuthTab ActivityResultLauncher
     private val authTabLauncher = AuthTabIntent.registerActivityResultLauncher(this) { result ->
         handleAuthTabResult(result)
@@ -101,7 +104,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        NotificationManager.createNotificationChannel(this)
+        notificationManager.createNotificationChannel(this)
 
         // Reactively handle sync interval changes
         lifecycleScope.launch {
@@ -135,7 +138,7 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch(Dispatchers.Default) {
             handleNotificationNavigation(intent)
-            NotificationManager.restoreActiveNotifications(applicationContext)
+            notificationManager.restoreActiveNotifications(applicationContext)
         }
 
         setContent {
@@ -180,7 +183,7 @@ class MainActivity : ComponentActivity() {
             } else null
 
         if (!itemKey.isNullOrEmpty()) {
-            NotificationManager.removeActiveNotification(this@MainActivity, itemKey)
+            notificationManager.removeActiveNotification(this@MainActivity, itemKey)
             viewModel.setPendingDetailKey(itemKey)
         }
     }

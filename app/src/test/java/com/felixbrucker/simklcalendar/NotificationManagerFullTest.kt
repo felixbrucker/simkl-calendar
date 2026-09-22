@@ -77,6 +77,7 @@ class NotificationManagerFullTest {
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var activeNotificationDao: ActiveNotificationDao
     private lateinit var torrentServiceHelper: TorrentServiceHelper
+    private lateinit var notificationManager: NotificationManager
 
     @Before
     fun setUp() {
@@ -154,6 +155,8 @@ class NotificationManagerFullTest {
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
         field.set(null, appDatabase)
+
+        notificationManager = NotificationManager(context, appDatabase, torrentServiceHelper)
     }
 
     @After
@@ -193,7 +196,7 @@ class NotificationManagerFullTest {
 
     @Test
     fun testCreateNotificationChannel() {
-        NotificationManager.createNotificationChannel(context)
+        notificationManager.createNotificationChannel(context)
 
         verify { androidNotificationManager.createNotificationChannel(any()) }
     }
@@ -204,7 +207,7 @@ class NotificationManagerFullTest {
         val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
 
-        NotificationManager.showNotification(item, context)
+        notificationManager.showNotification(item, context)
 
         verify { androidNotificationManager.notify(item.notificationId, any()) }
     }
@@ -218,7 +221,7 @@ class NotificationManagerFullTest {
         every { activeNotif.id } returns item.notificationId
         every { androidNotificationManager.activeNotifications } returns arrayOf(activeNotif)
 
-        NotificationManager.updateNotification(item, context)
+        notificationManager.updateNotification(item, context)
 
         verify { androidNotificationManager.notify(item.notificationId, any()) }
     }
@@ -230,7 +233,7 @@ class NotificationManagerFullTest {
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
         every { androidNotificationManager.activeNotifications } returns arrayOf()
 
-        NotificationManager.updateNotification(item, context)
+        notificationManager.updateNotification(item, context)
 
         verify(exactly = 0) { androidNotificationManager.notify(any(), any<Notification>()) }
     }
@@ -241,7 +244,7 @@ class NotificationManagerFullTest {
         val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
 
-        NotificationManager.dismissNotification(item, context)
+        notificationManager.dismissNotification(item, context)
 
         verify { androidNotificationManager.cancel(item.notificationId) }
         coVerify { activeNotificationDao.deleteActiveNotification("v2_100_1_1") }
@@ -251,9 +254,9 @@ class NotificationManagerFullTest {
     fun testAddAndRemoveAndGetActiveNotifications() = runTest {
         coEvery { activeNotificationDao.getAllActiveKeys() } returns listOf("v2_100_1_1")
 
-        NotificationManager.addActiveNotification(context, "v2_100_1_1")
-        NotificationManager.removeActiveNotification(context, "v2_100_1_1")
-        val activeKeys = NotificationManager.getActiveNotifications(context)
+        notificationManager.addActiveNotification(context, "v2_100_1_1")
+        notificationManager.removeActiveNotification(context, "v2_100_1_1")
+        val activeKeys = notificationManager.getActiveNotifications(context)
 
         coVerify { activeNotificationDao.insertActiveNotification(match { it.primaryKey == "v2_100_1_1" }) }
         coVerify { activeNotificationDao.deleteActiveNotification("v2_100_1_1") }
@@ -270,7 +273,7 @@ class NotificationManagerFullTest {
         coEvery { calendarDao.findItem("v2_100_1_1") } returns item
         every { androidNotificationManager.activeNotifications } returns arrayOf()
 
-        NotificationManager.restoreActiveNotifications(context)
+        notificationManager.restoreActiveNotifications(context)
 
         verify { androidNotificationManager.notify(item.notificationId, any()) }
     }
@@ -286,7 +289,7 @@ class NotificationManagerFullTest {
         every { activeNotif.id } returns item.notificationId
         every { androidNotificationManager.activeNotifications } returns arrayOf(activeNotif)
 
-        NotificationManager.restoreActiveNotifications(context)
+        notificationManager.restoreActiveNotifications(context)
 
         verify(exactly = 0) { androidNotificationManager.notify(any(), any()) }
     }
@@ -296,7 +299,7 @@ class NotificationManagerFullTest {
         coEvery { activeNotificationDao.getAllActiveKeys() } returns listOf("v2_999_1_1")
         coEvery { calendarDao.findItem("v2_999_1_1") } returns null
 
-        NotificationManager.restoreActiveNotifications(context)
+        notificationManager.restoreActiveNotifications(context)
 
         coVerify { activeNotificationDao.deleteActiveNotification("v2_999_1_1") }
     }
@@ -315,8 +318,8 @@ class NotificationManagerFullTest {
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(200, null) } returns listOf(movieItem)
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(300, 1) } returns listOf(finaleItem)
 
-        NotificationManager.showNotification(movieItem, context)
-        NotificationManager.showNotification(finaleItem, context)
+        notificationManager.showNotification(movieItem, context)
+        notificationManager.showNotification(finaleItem, context)
 
         verify { androidNotificationManager.notify(movieItem.notificationId, any()) }
         verify { androidNotificationManager.notify(finaleItem.notificationId, any()) }
@@ -338,9 +341,9 @@ class NotificationManagerFullTest {
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(301, 1) } returns listOf(episodeItem)
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(401, 1) } returns listOf(finaleItem)
 
-        NotificationManager.showNotification(movieDigitalItem, context)
-        NotificationManager.showNotification(episodeItem, context)
-        NotificationManager.showNotification(finaleItem, context)
+        notificationManager.showNotification(movieDigitalItem, context)
+        notificationManager.showNotification(episodeItem, context)
+        notificationManager.showNotification(finaleItem, context)
 
         verify { androidNotificationManager.notify(movieDigitalItem.notificationId, any()) }
         verify { androidNotificationManager.notify(episodeItem.notificationId, any()) }

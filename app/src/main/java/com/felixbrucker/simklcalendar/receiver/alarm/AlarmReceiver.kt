@@ -40,6 +40,9 @@ class AlarmReceiver: BroadcastReceiver() {
     @Inject
     lateinit var torrentServiceHelper: TorrentServiceHelper
 
+    @Inject
+    lateinit var notificationManager: NotificationManager
+
     companion object {
         private const val TAG = "AlarmReceiver"
         const val EXTRA_ITEM_PRIMARY_KEY = "extra_item_primary_key"
@@ -82,7 +85,7 @@ class AlarmReceiver: BroadcastReceiver() {
         val shouldPostNotification = shouldPostNotificationForItem(item, context)
         if (shouldPostNotification) {
             Timber.tag(TAG).d("Posting notification for '${item.title}'")
-            NotificationManager.showNotification(item, context)
+            notificationManager.showNotification(item, context)
             db.calendarItemDao().markItemAsNotified(itemPrimaryKey)
         } else {
             Timber.tag(TAG).d("Skipping notification for '${item.title}' based on user preferences or notification state")
@@ -120,7 +123,7 @@ class AlarmReceiver: BroadcastReceiver() {
         if (didSearchAndDownload) {
             val finalItem = db.calendarItemDao().findItem(itemPrimaryKey)
             if (finalItem != null) {
-                NotificationManager.updateNotification(finalItem, context)
+                notificationManager.updateNotification(finalItem, context)
             }
         }
     }

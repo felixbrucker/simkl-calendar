@@ -32,10 +32,7 @@ data class DownloadProgress(
     val error: String? = null
 )
 
-@Singleton
-class TorrentServiceHelper @Inject constructor(
-    @ApplicationContext context: Context
-) {
+class TorrentServiceHelper(context: Context) {
     private val appContext = context.applicationContext
 
     private val _service = MutableStateFlow<ITorrentDownloadService?>(null)

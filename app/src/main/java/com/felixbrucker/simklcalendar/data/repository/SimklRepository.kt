@@ -68,6 +68,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class SimklRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val db: AppDatabase = AppDatabase.getDatabase(context),
+    private val apiService: SimklApiService = NetworkModule.provideSimklApiService(NetworkModule.provideMoshi(), db.userTokenDao()),
     private val appSettingsRepo: AppSettingsRepository = AppSettingsRepository(context.appSettingsDataStore),
     private val autoDownloadRepo: AutoDownloadRepository = AutoDownloadRepository(context.autoDownloadDataStore),
     private val notificationRepo: NotificationRepository = NotificationRepository(context.notificationDataStore),
@@ -250,10 +251,6 @@ class SimklRepository @Inject constructor(
         }
     }
 
-    private val apiService: SimklApiService = NetworkModule.provideSimklApiService(
-        NetworkModule.provideMoshi(),
-        tokenDao
-    )
 
     // Check if client ID is configured in BuildConfig
     fun isRealApiConfigured(): Boolean {

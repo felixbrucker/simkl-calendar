@@ -32,6 +32,7 @@ class AlarmReceiverTest {
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var androidNotificationManager: AndroidNotificationManager
     private lateinit var torrentServiceHelper: TorrentServiceHelper
+    private lateinit var notificationManager: AppNotificationManager
     private lateinit var repositoryMock: SimklRepository
 
     private lateinit var autoDownloadRepo: AutoDownloadRepository
@@ -49,9 +50,9 @@ class AlarmReceiverTest {
         every { Log.e(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
 
-        mockkObject(AppNotificationManager.Companion)
-        coEvery { AppNotificationManager.showNotification(any(), any()) } returns Unit
-        coEvery { AppNotificationManager.updateNotification(any(), any()) } returns Unit
+        notificationManager = mockk(relaxed = true)
+        coEvery { notificationManager.showNotification(any(), any()) } returns Unit
+        coEvery { notificationManager.updateNotification(any(), any()) } returns Unit
 
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.alarm.AlarmReceiver_GeneratedInjector>(relaxed = true)
         every { mockInjector.injectAlarmReceiver(any()) } answers {
@@ -59,7 +60,9 @@ class AlarmReceiverTest {
             rec.repo = repositoryMock
             rec.db = appDatabase
             rec.autoDownloadRepo = autoDownloadRepo
+            rec.notificationRepo = notificationRepo
             rec.torrentServiceHelper = torrentServiceHelper
+            rec.notificationManager = notificationManager
         }
         val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
         every { mockComponentManager.generatedComponent() } returns mockInjector
@@ -110,7 +113,6 @@ class AlarmReceiverTest {
     @After
     fun tearDown() {
         unmockkConstructor(TpbProvider::class)
-        unmockkObject(AppNotificationManager.Companion)
         unmockkStatic(Log::class)
         unmockkConstructor(SimklRepository::class)
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
@@ -214,7 +216,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { AppNotificationManager.showNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManager.showNotification(item, context) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_200_theater") }
     }
 
@@ -255,7 +257,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { AppNotificationManager.showNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManager.showNotification(item, context) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_200_digital") }
     }
 
@@ -276,7 +278,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { AppNotificationManager.showNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManager.showNotification(item, context) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_100_1_10") }
     }
 
@@ -340,7 +342,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         coVerify(timeout = 3000) { repositoryMock.updateItemAiredStatus(any()) }
-        coVerify(timeout = 3000) { AppNotificationManager.showNotification(any(), context) }
+        coVerify(timeout = 3000) { notificationManager.showNotification(any(), context) }
     }
 
     @Test
@@ -383,7 +385,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify { AppNotificationManager.updateNotification(itemFinal, context) }
+        coVerify { notificationManager.updateNotification(itemFinal, context) }
     }
 
     @Test
@@ -402,6 +404,6 @@ class AlarmReceiverTest {
 
         receiver.onReceive(context, intent)
 
-        coVerify(exactly = 0) { AppNotificationManager.updateNotification(any(), any()) }
+        coVerify(exactly = 0) { notificationManager.updateNotification(any(), any()) }
     }
 }

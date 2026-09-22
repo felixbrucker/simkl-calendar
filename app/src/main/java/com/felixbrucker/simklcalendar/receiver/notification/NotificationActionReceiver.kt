@@ -29,6 +29,9 @@ class NotificationActionReceiver: BroadcastReceiver() {
     @Inject
     lateinit var torrentServiceHelper: TorrentServiceHelper
 
+    @Inject
+    lateinit var notificationManager: NotificationManager
+
     companion object {
         private const val TAG = "NotificationActionReceiver"
         const val ACTION_MARK_ITEM_WATCHED = "com.felixbrucker.simklcalendar.ACTION_MARK_ITEM_WATCHED"
@@ -96,14 +99,14 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 if (err != null) {
                     Timber.tag(TAG).e(err, "Error marking item as watched from notification action")
                     val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
-                    NotificationManager.updateNotification(
+                    notificationManager.updateNotification(
                         item = updatedItem,
-                        context = context
+                        customContext = context
                     )
                 } else {
-                    NotificationManager.dismissNotification(
+                    notificationManager.dismissNotification(
                         item = item,
-                        context = context
+                        customContext = context
                     )
                 }
             } catch (e: Exception) {
@@ -132,14 +135,14 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 if (err != null) {
                     Timber.tag(TAG).e(err, "Error marking season as watched from notification action")
                     val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
-                    NotificationManager.updateNotification(
+                    notificationManager.updateNotification(
                         item = updatedItem,
-                        context = context
+                        customContext = context
                     )
                 } else {
-                    NotificationManager.dismissNotification(
+                    notificationManager.dismissNotification(
                         item = item,
-                        context = context
+                        customContext = context
                     )
                 }
             } catch (e: Exception) {
@@ -174,9 +177,9 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
                 // Refetch again to reflect intermediate state change (WANTED -> DOWNLOADING / IGNORED)
                 val finalItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
-                NotificationManager.updateNotification(
+                notificationManager.updateNotification(
                     item = finalItem,
-                    context = context
+                    customContext = context
                 )
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error starting download from notification action")
@@ -192,7 +195,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
         val pendingResult = goAsync()
         scope.launch {
             try {
-                NotificationManager.removeActiveNotification(context, itemPrimaryKey)
+                notificationManager.removeActiveNotification(context, itemPrimaryKey)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error removing active notification on dismiss")
             } finally {
@@ -228,9 +231,9 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
                 // Update the notification that triggered this to reflect new season aggregate status
                 val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
-                NotificationManager.updateNotification(
+                notificationManager.updateNotification(
                     item = updatedItem,
-                    context = context
+                    customContext = context
                 )
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error starting season download from notification action")

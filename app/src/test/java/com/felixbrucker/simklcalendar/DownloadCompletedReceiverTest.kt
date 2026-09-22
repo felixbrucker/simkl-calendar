@@ -38,6 +38,7 @@ class DownloadCompletedReceiverTest {
     private lateinit var context: Context
     private lateinit var appDatabase: AppDatabase
     private lateinit var repositoryMock: SimklRepository
+    private lateinit var notificationManagerMock: NotificationManager
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var tokenDao: UserTokenDao
 
@@ -47,8 +48,8 @@ class DownloadCompletedReceiverTest {
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
 
-        mockkObject(NotificationManager)
-        coEvery { NotificationManager.updateNotification(any(), any()) } returns Unit
+        notificationManagerMock = mockk(relaxed = true)
+        coEvery { notificationManagerMock.updateNotification(any(), any()) } returns Unit
 
         repositoryMock = mockk(relaxed = true)
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver_GeneratedInjector>(relaxed = true)
@@ -56,6 +57,7 @@ class DownloadCompletedReceiverTest {
             val rec = firstArg<DownloadCompletedReceiver>()
             rec.repo = repositoryMock
             rec.db = appDatabase
+            rec.notificationManager = notificationManagerMock
         }
         val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
         every { mockComponentManager.generatedComponent() } returns mockInjector
@@ -87,7 +89,6 @@ class DownloadCompletedReceiverTest {
 
     @After
     fun tearDown() {
-        unmockkObject(NotificationManager)
         unmockkStatic(Log::class)
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true

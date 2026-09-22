@@ -12,9 +12,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
+import javax.inject.Inject
+
 @AndroidEntryPoint
 class StartupReceiver: BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @Inject
+    lateinit var notificationManager: NotificationManager
 
     companion object {
         private const val TAG = "StartupReceiver"
@@ -32,7 +37,7 @@ class StartupReceiver: BroadcastReceiver() {
         scope.launch {
             try {
                 AlarmScheduler.scheduleAllItemsAiredAlarms(context)
-                NotificationManager.restoreActiveNotifications(context)
+                notificationManager.restoreActiveNotifications(context)
                 Timber.tag(TAG).d("Rescheduled all item aired alarms and restored active notifications after startup/update")
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error rescheduling alarms and notifications on startup")

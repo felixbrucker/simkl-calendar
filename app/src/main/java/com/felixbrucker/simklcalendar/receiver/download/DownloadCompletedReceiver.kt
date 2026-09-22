@@ -25,6 +25,9 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
     @Inject
     lateinit var db: AppDatabase
 
+    @Inject
+    lateinit var notificationManager: NotificationManager
+
     companion object {
         private const val TAG = "DownloadCompletedReceiver"
         const val ACTION_DOWNLOAD_COMPLETED = "com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_COMPLETED"
@@ -46,7 +49,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                 val item = db.calendarItemDao().findItem(itemPrimaryKey) ?: return@launch
 
                 // Update notification for the item that was just downloaded (if active)
-                NotificationManager.updateNotification(item, context)
+                notificationManager.updateNotification(item, context)
 
                 // If it's a TV show/anime episode, also check if there's an active season finale
                 // notification that needs updating to reflect the new aggregate download status.
@@ -54,7 +57,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                 if (season != null) {
                     val finaleItem = db.calendarItemDao().getSeasonFinaleItem(item.simklId, season)
                     if (finaleItem != null && finaleItem.primaryKey != item.primaryKey) {
-                        NotificationManager.updateNotification(finaleItem, context)
+                        notificationManager.updateNotification(finaleItem, context)
                     }
                 }
             } catch (e: Exception) {

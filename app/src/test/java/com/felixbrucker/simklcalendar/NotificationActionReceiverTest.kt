@@ -55,6 +55,7 @@ class NotificationActionReceiverTest {
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var androidNotificationManager: android.app.NotificationManager
     private lateinit var torrentServiceHelper: TorrentServiceHelper
+    private lateinit var notificationManagerMock: NotificationManager
     private lateinit var repositoryMock: SimklRepository
 
     @Before
@@ -70,10 +71,10 @@ class NotificationActionReceiverTest {
         val toastMock = mockk<Toast>(relaxed = true)
         every { Toast.makeText(any(), any<CharSequence>(), any()) } returns toastMock
 
-        mockkObject(NotificationManager)
-        coEvery { NotificationManager.updateNotification(any(), any()) } returns Unit
-        coEvery { NotificationManager.showNotification(any(), any()) } returns Unit
-        coEvery { NotificationManager.dismissNotification(any<CalendarItemWithWatchlist>(), any()) } returns Unit
+        notificationManagerMock = mockk(relaxed = true)
+        coEvery { notificationManagerMock.updateNotification(any(), any()) } returns Unit
+        coEvery { notificationManagerMock.showNotification(any(), any()) } returns Unit
+        coEvery { notificationManagerMock.dismissNotification(any<CalendarItemWithWatchlist>(), any()) } returns Unit
 
         mockkConstructor(SimklRepository::class)
         repositoryMock = mockk(relaxed = true)
@@ -89,6 +90,7 @@ class NotificationActionReceiverTest {
             rec.repo = repositoryMock
             rec.db = appDatabase
             rec.torrentServiceHelper = torrentServiceHelper
+            rec.notificationManager = notificationManagerMock
         }
         val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
         every { mockComponentManager.generatedComponent() } returns mockInjector
@@ -136,7 +138,6 @@ class NotificationActionReceiverTest {
     @After
     fun tearDown() {
         unmockkConstructor(SimklRepository::class)
-        unmockkObject(NotificationManager)
         unmockkStatic(Toast::class)
         unmockkStatic(Log::class)
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
@@ -213,7 +214,7 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { repositoryMock.markEpisodeWatched(100, 1, 1, MediaType.TV) }
-        coVerify(timeout = 3000) { NotificationManager.dismissNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item, context) }
     }
 
     @Test
@@ -234,7 +235,7 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { repositoryMock.markMovieWatched(200) }
-        coVerify(timeout = 3000) { NotificationManager.dismissNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item, context) }
     }
 
     @Test
@@ -254,7 +255,7 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { repositoryMock.markSeasonWatched(100, 1, MediaType.TV) }
-        coVerify(timeout = 3000) { NotificationManager.dismissNotification(item, context) }
+        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item, context) }
     }
 
     @Test
@@ -289,7 +290,7 @@ class NotificationActionReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { NotificationManager.removeActiveNotification(context, "v2_100_1_1") }
+        coVerify(timeout = 3000) { notificationManagerMock.removeActiveNotification(context, "v2_100_1_1") }
     }
 
     @Test
