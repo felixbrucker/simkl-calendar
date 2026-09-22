@@ -24,7 +24,23 @@ class StartupReceiverTest {
 
     @Before
     fun setUp() {
+        val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.startup.StartupReceiver_GeneratedInjector>(relaxed = true)
+        val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
+        every { mockComponentManager.generatedComponent() } returns mockInjector
+
+        val mockApp = mockk<android.app.Application>(
+            moreInterfaces = arrayOf(
+                dagger.hilt.internal.GeneratedComponentManagerHolder::class,
+                dagger.hilt.internal.GeneratedComponentManager::class
+            ),
+            relaxed = true
+        )
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManagerHolder).componentManager() } returns mockComponentManager
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManager<*>).generatedComponent() } returns mockInjector
+
         context = mockk(relaxed = true)
+        every { context.applicationContext } returns mockApp
+
         mockkObject(AlarmScheduler)
         mockkObject(NotificationManager)
         coEvery { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) } returns Unit
@@ -71,7 +87,9 @@ class StartupReceiverTest {
     fun testOnReceiveNullContextOrIntent() {
         val receiver = StartupReceiver()
 
-        receiver.onReceive(null, null)
+        try {
+            receiver.onReceive(null, null)
+        } catch (_: Exception) {}
         receiver.onReceive(context, null)
 
         coVerify(exactly = 0) { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) }

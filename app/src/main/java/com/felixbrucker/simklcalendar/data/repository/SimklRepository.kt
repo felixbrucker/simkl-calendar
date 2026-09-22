@@ -37,6 +37,7 @@ import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.PkceUtil
 import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.di.NetworkModule
 import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.squareup.moshi.Moshi
@@ -59,16 +60,20 @@ import java.util.concurrent.TimeUnit
 import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
-class SimklRepository(
-    private val context: Context,
+@Singleton
+class SimklRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     val appSettingsRepo: AppSettingsRepository = AppSettingsRepository(context.appSettingsDataStore),
     val autoDownloadRepo: AutoDownloadRepository = AutoDownloadRepository(context.autoDownloadDataStore),
     val notificationRepo: NotificationRepository = NotificationRepository(context.notificationDataStore),
@@ -250,136 +255,10 @@ class SimklRepository(
         }
     }
 
-    private val moshi = Moshi.Builder()
-        .addLast(KotlinJsonAdapterFactory())
-        .build()
-
-    private val appName = BuildConfig.APP_NAME
-    private val appVersion = BuildConfig.VERSION_NAME
-    private val userAgent = "$appName/$appVersion"
-
-    private val okHttpClient = OkHttpClient.Builder()
-        .addInterceptor(RateLimitInterceptor())
-        .addInterceptor { chain ->
-            val originalRequest = chain.request()
-            val invocation = originalRequest.tag(Invocation::class.java)
-            val isAuthenticatedEndpoint = invocation != null && invocation.method().isAnnotationPresent(Authenticated::class.java)
-
-            val urlBuilder = originalRequest.url.newBuilder()
-                .addQueryParameter("client_id", BuildConfig.SIMKL_CLIENT_ID)
-                .addQueryParameter("app-name", appName)
-                .addQueryParameter("app-version", appVersion)
-
-            val requestBuilder = originalRequest.newBuilder()
-                .url(urlBuilder.build())
-                .header("User-Agent", userAgent)
-                .header("app-name", appName)
-                .header("app-version", appVersion)
-
-            if (isAuthenticatedEndpoint) {
-                runBlocking {
-                    refreshTokenIfNeeded()
-                }
-                val token = runBlocking { tokenDao.getActiveToken() }
-                if (token != null && token.accessToken.isNotEmpty()) {
-                    requestBuilder.header("Authorization", "Bearer ${token.accessToken}")
-                }
-            }
-
-            chain.proceed(requestBuilder.build())
-        }
-        .addInterceptor { chain ->
-            val request = chain.request()
-            val url = request.url.toString()
-            val isCalendarJson = url.contains("calendar/v2") || url.contains("data.simkl.in") || url.endsWith(".json")
-
-            val logBuffer = StringBuilder()
-            val loggingInterceptor = HttpLoggingInterceptor { line ->
-                if (logBuffer.isNotEmpty()) {
-                    logBuffer.append("\n")
-                }
-                logBuffer.append(line)
-            }.apply {
-                level = if (isCalendarJson) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.BODY
-            }
-
-            val response = try {
-                loggingInterceptor.intercept(chain)
-            } catch (e: Exception) {
-                if (logBuffer.isNotEmpty()) {
-                    Timber.tag("OkHttp").e(e, logBuffer.toString())
-                } else {
-                    Timber.tag("OkHttp").e(e, "Network request failed: ${request.method} $url")
-                }
-                throw e
-            }
-
-            if (logBuffer.isNotEmpty()) {
-                if (response.isSuccessful) {
-                    Timber.tag("OkHttp").d(logBuffer.toString())
-                } else {
-                    Timber.tag("OkHttp").e(logBuffer.toString())
-                }
-            }
-
-            response
-        }
-        .authenticator { _, response ->
-            if (response.request.url.encodedPath.contains("oauth2/token")) {
-                return@authenticator null
-            }
-            var prior = response.priorResponse
-            var count = 0
-            while (prior != null) {
-                count++
-                prior = prior.priorResponse
-            }
-            if (count >= 2) {
-                return@authenticator null
-            }
-
-            val failedAuthHeader = response.request.header("Authorization")
-
-            runBlocking {
-                refreshMutex.withLock {
-                    val currentToken = tokenDao.getActiveToken() ?: return@runBlocking null
-                    val currentBearer = "Bearer ${currentToken.accessToken}"
-
-                    if (failedAuthHeader != null && failedAuthHeader != currentBearer && currentToken.accessToken.isNotEmpty()) {
-                        return@runBlocking response.request.newBuilder()
-                            .header("Authorization", currentBearer)
-                            .build()
-                    }
-
-                    val refreshToken = currentToken.refreshToken
-                    if (refreshToken.isNullOrEmpty()) {
-                        return@runBlocking null
-                    }
-
-                    val success = performRefreshToken(currentToken, refreshToken)
-                    if (success) {
-                        val updatedToken = tokenDao.getActiveToken()
-                        if (updatedToken != null) {
-                            return@runBlocking response.request.newBuilder()
-                                .header("Authorization", "Bearer ${updatedToken.accessToken}")
-                                .build()
-                        }
-                    }
-                    null
-                }
-            }
-        }
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
-
-    private val retrofit = Retrofit.Builder()
-        .baseUrl("https://api.simkl.com/")
-        .client(okHttpClient)
-        .addConverterFactory(MoshiConverterFactory.create(moshi))
-        .build()
-
-    private val apiService = retrofit.create(SimklApiService::class.java)
+    private val apiService: SimklApiService = NetworkModule.provideSimklApiService(
+        NetworkModule.provideMoshi(),
+        tokenDao
+    )
 
     // Check if client ID is configured in BuildConfig
     fun isRealApiConfigured(): Boolean {

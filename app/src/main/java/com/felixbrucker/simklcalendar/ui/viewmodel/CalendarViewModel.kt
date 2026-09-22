@@ -31,6 +31,8 @@ import com.felixbrucker.simklcalendar.data.preferences.*
 import kotlin.time.Duration.Companion.milliseconds
 
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 enum class TableSortField {
     NAME,
@@ -62,9 +64,10 @@ data class WatchlistTableItem(
     val downloadedProgress: Double = if (totalDownloadableReleasedCount > 0) downloadedReleasedCount.toDouble() / totalDownloadableReleasedCount else 0.0
 }
 
-class CalendarViewModel @JvmOverloads constructor(
+@HiltViewModel
+class CalendarViewModel @Inject constructor(
     application: Application,
-    val repository: SimklRepository = SimklRepository(application)
+    val repository: SimklRepository
 ) : AndroidViewModel(application) {
 
     val notificationSettings: StateFlow<List<NotificationSetting>> = repository.notificationSettings

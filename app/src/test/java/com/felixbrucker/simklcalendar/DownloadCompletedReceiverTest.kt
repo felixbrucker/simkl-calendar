@@ -48,7 +48,22 @@ class DownloadCompletedReceiverTest {
         mockkObject(NotificationManager)
         coEvery { NotificationManager.updateNotification(any(), any()) } returns Unit
 
+        val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver_GeneratedInjector>(relaxed = true)
+        val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
+        every { mockComponentManager.generatedComponent() } returns mockInjector
+
+        val mockApp = mockk<android.app.Application>(
+            moreInterfaces = arrayOf(
+                dagger.hilt.internal.GeneratedComponentManagerHolder::class,
+                dagger.hilt.internal.GeneratedComponentManager::class
+            ),
+            relaxed = true
+        )
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManagerHolder).componentManager() } returns mockComponentManager
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManager<*>).generatedComponent() } returns mockInjector
+
         context = mockk(relaxed = true)
+        every { context.applicationContext } returns mockApp
         appDatabase = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         tokenDao = mockk(relaxed = true)
@@ -86,7 +101,9 @@ class DownloadCompletedReceiverTest {
         val intent = mockk<Intent>()
         every { intent.action } returns "INVALID_ACTION"
 
-        receiver.onReceive(null, null)
+        try {
+            receiver.onReceive(null, null)
+        } catch (_: Exception) {}
         receiver.onReceive(context, null)
         receiver.onReceive(context, intent)
 

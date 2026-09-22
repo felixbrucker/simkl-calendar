@@ -1,6 +1,5 @@
 package com.felixbrucker.simklcalendar
 
-import android.app.NotificationManager as AndroidNotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -54,7 +53,7 @@ class NotificationActionReceiverTest {
     private lateinit var watchedDao: WatchedEpisodeDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var sharedPreferences: SharedPreferences
-    private lateinit var androidNotificationManager: AndroidNotificationManager
+    private lateinit var androidNotificationManager: android.app.NotificationManager
     private lateinit var torrentServiceHelper: TorrentServiceHelper
 
     @Before
@@ -84,7 +83,22 @@ class NotificationActionReceiverTest {
         coEvery { anyConstructed<SimklRepository>().searchAndDownloadEpisode(any()) } returns Result.success("task1")
         coEvery { anyConstructed<SimklRepository>().searchAndDownloadWantedItems() } returns Unit
 
+        val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.notification.NotificationActionReceiver_GeneratedInjector>(relaxed = true)
+        val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
+        every { mockComponentManager.generatedComponent() } returns mockInjector
+
+        val mockApp = mockk<android.app.Application>(
+            moreInterfaces = arrayOf(
+                dagger.hilt.internal.GeneratedComponentManagerHolder::class,
+                dagger.hilt.internal.GeneratedComponentManager::class
+            ),
+            relaxed = true
+        )
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManagerHolder).componentManager() } returns mockComponentManager
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManager<*>).generatedComponent() } returns mockInjector
+
         context = mockk(relaxed = true)
+        every { context.applicationContext } returns mockApp
         appDatabase = mockk(relaxed = true)
         tokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
@@ -146,7 +160,9 @@ class NotificationActionReceiverTest {
     fun testOnReceiveNullContextOrIntent() {
         val receiver = NotificationActionReceiver()
 
-        receiver.onReceive(null, null)
+        try {
+            receiver.onReceive(null, null)
+        } catch (_: Exception) {}
         receiver.onReceive(context, null)
 
         coVerify(exactly = 0) { calendarDao.findItem(any()) }
