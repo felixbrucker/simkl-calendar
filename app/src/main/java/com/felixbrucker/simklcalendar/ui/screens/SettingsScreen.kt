@@ -1,7 +1,6 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -45,30 +44,25 @@ import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
-import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker
-import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
-import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: CalendarViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToLogViewer: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToLogViewer: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val userToken by viewModel.userToken.collectAsState()
 
-    val prefs = remember { context.globalNotificationSettings }
-    var useExactAlarms by remember {
-        mutableStateOf(prefs.getBoolean("use_exact_alarms", false))
-    }
+    val notificationPrefs by viewModel.notificationPreferences.collectAsState()
+    val appSettings by viewModel.appSettingsPreferences.collectAsState()
+    val autoDownloadPrefs by viewModel.autoDownloadPreferences.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -91,39 +85,31 @@ fun SettingsScreen(
             }
         }
 
-        if (useExactAlarms && !hasExactAlarmPermission) {
+        if (notificationPrefs.useExactAlarms && !hasExactAlarmPermission) {
             alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
         }
     }
-    var enableDefaultAiring by remember {
-        mutableStateOf(prefs.getBoolean("default_notify_airing", false))
-    }
-    var enableDefaultSeasonFinished by remember {
-        mutableStateOf(prefs.getBoolean("default_notify_season_finished", true))
-    }
-    var enableDefaultMovieTheater by remember {
-        mutableStateOf(prefs.getBoolean("default_notify_movie_theater", false))
-    }
-    var enableDefaultMovieDigital by remember {
-        mutableStateOf(prefs.getBoolean("default_notify_movie_digital", true))
+    val enableDefaultAiring = notificationPrefs.defaultNotifyAiring
+    val enableDefaultSeasonFinished = notificationPrefs.defaultNotifySeasonFinished
+    val enableDefaultMovieTheater = notificationPrefs.defaultNotifyMovieTheater
+    val enableDefaultMovieDigital = notificationPrefs.defaultNotifyMovieDigital
+
+    val autoQuality = autoDownloadPrefs.quality
+    val autoPreferHevc = autoDownloadPrefs.preferHevc
+    val autoDownloadUnwatchedTv = autoDownloadPrefs.autoDownloadUnwatchedTv
+    val autoDownloadUnwatchedAnime = autoDownloadPrefs.autoDownloadUnwatchedAnime
+    val autoDownloadUnwatchedMovie = autoDownloadPrefs.autoDownloadUnwatchedMovie
+    val autoDownloadSeasonUnwatchedTv = autoDownloadPrefs.autoDownloadSeasonUnwatchedTv
+    val autoDownloadSeasonUnwatchedAnime = autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime
+    val autoPreferredKeywords = autoDownloadPrefs.preferredKeywords
+    val autoIgnoreKeywords = autoDownloadPrefs.ignoreKeywords
+
+    var syncIntervalHours by remember(appSettings.syncIntervalHours) {
+        mutableFloatStateOf(appSettings.syncIntervalHours.toFloat())
     }
 
-    val autoQuality by viewModel.autoDownloadQuality.collectAsState()
-    val autoPreferHevc by viewModel.autoDownloadPreferHevc.collectAsState()
-    val autoDownloadUnwatchedTv by viewModel.autoDownloadUnwatchedTv.collectAsState()
-    val autoDownloadUnwatchedAnime by viewModel.autoDownloadUnwatchedAnime.collectAsState()
-    val autoDownloadUnwatchedMovie by viewModel.autoDownloadUnwatchedMovie.collectAsState()
-    val autoDownloadSeasonUnwatchedTv by viewModel.autoDownloadSeasonUnwatchedTv.collectAsState()
-    val autoDownloadSeasonUnwatchedAnime by viewModel.autoDownloadSeasonUnwatchedAnime.collectAsState()
-    val autoPreferredKeywords by viewModel.autoDownloadPreferredKeywords.collectAsState()
-    val autoIgnoreKeywords by viewModel.autoDownloadIgnoreKeywords.collectAsState()
-
-    var syncIntervalHours by remember {
-        mutableFloatStateOf(prefs.getInt("sync_interval_hours", 12).toFloat())
-    }
-
-    var searchIntervalHours by remember {
-        mutableFloatStateOf(prefs.getInt("search_interval_hours", 12).toFloat())
+    var searchIntervalHours by remember(autoDownloadPrefs.searchIntervalHours) {
+        mutableFloatStateOf(autoDownloadPrefs.searchIntervalHours.toFloat())
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -300,8 +286,7 @@ fun SettingsScreen(
                         },
                         onValueChangeFinished = {
                             val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
-                            prefs.edit { putInt("sync_interval_hours", roundedHours)}
-                            SyncCalendarWorker.enqueuePeriodicSync(context, roundedHours.toLong())
+                            viewModel.updateSyncInterval(roundedHours)
                         },
                         valueRange = 1f..24f,
                         steps = 22, // 1 to 24 with 1-hour increments -> 22 discrete intermediate steps
@@ -367,10 +352,7 @@ fun SettingsScreen(
                         Switch(
                             checked = enableDefaultAiring,
                             onCheckedChange = {
-                                enableDefaultAiring = it
-                                prefs.edit {
-                                    putBoolean("default_notify_airing", it)
-                                }
+                                viewModel.updateDefaultNotifyAiring(it)
                                 if (it) checkAndRequestPermission()
                             }
                         )
@@ -391,10 +373,7 @@ fun SettingsScreen(
                         Switch(
                             checked = enableDefaultSeasonFinished,
                             onCheckedChange = {
-                                enableDefaultSeasonFinished = it
-                                prefs.edit {
-                                    putBoolean("default_notify_season_finished", it)
-                                }
+                                viewModel.updateDefaultNotifySeasonFinished(it)
                                 if (it) checkAndRequestPermission()
                             }
                         )
@@ -426,10 +405,7 @@ fun SettingsScreen(
                         Switch(
                             checked = enableDefaultMovieTheater,
                             onCheckedChange = {
-                                enableDefaultMovieTheater = it
-                                prefs.edit {
-                                    putBoolean("default_notify_movie_theater", it)
-                                }
+                                viewModel.updateDefaultNotifyMovieTheater(it)
                                 if (it) checkAndRequestPermission()
                             }
                         )
@@ -450,10 +426,7 @@ fun SettingsScreen(
                         Switch(
                             checked = enableDefaultMovieDigital,
                             onCheckedChange = {
-                                enableDefaultMovieDigital = it
-                                prefs.edit {
-                                    putBoolean("default_notify_movie_digital", it)
-                                }
+                                viewModel.updateDefaultNotifyMovieDigital(it)
                                 if (it) checkAndRequestPermission()
                             }
                         )
@@ -494,12 +467,9 @@ fun SettingsScreen(
                             )
                         }
                         Switch(
-                            checked = useExactAlarms,
+                            checked = notificationPrefs.useExactAlarms,
                             onCheckedChange = {
-                                useExactAlarms = it
-                                prefs.edit {
-                                    putBoolean("use_exact_alarms", it)
-                                }
+                                viewModel.updateUseExactAlarms(it)
                                 if (it) {
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
                                         alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
@@ -512,7 +482,7 @@ fun SettingsScreen(
                         )
                     }
 
-                    if (useExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
+                    if (notificationPrefs.useExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Card(
                             shape = RoundedCornerShape(8.dp),
@@ -799,10 +769,7 @@ fun SettingsScreen(
                             },
                             onValueChangeFinished = {
                                 val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
-                                prefs.edit { putInt("search_interval_hours", roundedHours)}
-                                if (isDownloaderInstalled) {
-                                    AutoDownloadWorker.enqueuePeriodicSearch(context, roundedHours.toLong())
-                                }
+                                viewModel.updateSearchInterval(roundedHours)
                             },
                             enabled = isDownloaderInstalled,
                             valueRange = 1f..24f,

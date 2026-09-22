@@ -1,6 +1,5 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
-import android.content.Context
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -49,9 +48,8 @@ import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import java.time.LocalDate
 import java.time.ZoneId
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
-import com.felixbrucker.simklcalendar.ui.viewmodel.MainViewMode
+import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
@@ -88,7 +86,8 @@ fun MainScreen(
     val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 600.dp
 
     // Filters states are now handled inside CalendarView
-    val showEarlierReleases by viewModel.showEarlierReleases.collectAsState()
+    val uiPreferences by viewModel.uiPreferences.collectAsState()
+    val showEarlierReleases = uiPreferences.filterShowEarlier
     val viewMode by viewModel.viewMode.collectAsState()
 
     val username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Guest"
@@ -140,8 +139,7 @@ fun MainScreen(
         val earlierMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
         val upcomingMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
 
-        for (i in 0 until items.size) {
-            val item = items[i]
+        for (item in items) {
             val localDate = item.date.atZone(zone).toLocalDate()
             if (localDate.isBefore(today)) {
                 earlierList.add(item)
@@ -169,9 +167,10 @@ fun MainScreen(
         // Re-check permission if needed, but the snackbar is a one-time thing here
     }
 
-    LaunchedEffect(Unit) {
-        val prefs = context.globalNotificationSettings
-        val useExact = prefs.getBoolean("use_exact_alarms", false)
+    val notificationPrefs by viewModel.notificationPreferences.collectAsState()
+
+    LaunchedEffect(notificationPrefs.useExactAlarms) {
+        val useExact = notificationPrefs.useExactAlarms
 
         if (useExact && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (!PermissionUtil.hasExactAlarmPermission(context)) {
@@ -459,7 +458,7 @@ fun MainScreen(
                         if (isSmallScreen) {
                             IconButton(
                                 onClick = {
-                                    val nextMode = if (viewMode == MainViewMode.CALENDAR) MainViewMode.TABLE else MainViewMode.CALENDAR
+                                    val nextMode = if (viewMode == ViewMode.CALENDAR) ViewMode.TABLE else ViewMode.CALENDAR
                                     viewModel.setViewMode(nextMode)
                                 },
                                 modifier = Modifier.testTag("view_mode_toggle_mobile")
@@ -472,7 +471,7 @@ fun MainScreen(
                                     },
                                     label = "view_mode_icon_transition"
                                 ) { currentMode ->
-                                    val icon = if (currentMode == MainViewMode.CALENDAR) Icons.Default.TableChart else Icons.Default.CalendarToday
+                                    val icon = if (currentMode == ViewMode.CALENDAR) Icons.Default.TableChart else Icons.Default.CalendarToday
                                     Icon(
                                         imageVector = icon,
                                         contentDescription = "Switch View Mode",
@@ -527,13 +526,13 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val tvFilter by viewModel.showTv.collectAsState()
-            val animeFilter by viewModel.showAnime.collectAsState()
-            val moviesFilter by viewModel.showMovies.collectAsState()
-            val unwatchedFilter by viewModel.showOnlyUnwatchedReleased.collectAsState()
-            val premieresOnly by viewModel.onlySeasonPremieres.collectAsState()
-            val finalesOnly by viewModel.onlySeasonFinales.collectAsState()
-            val digitalDvdOnly by viewModel.onlyDigitalDvd.collectAsState()
+            val tvFilter = uiPreferences.filterShowTv
+            val animeFilter = uiPreferences.filterShowAnime
+            val moviesFilter = uiPreferences.filterShowMovies
+            val unwatchedFilter = uiPreferences.filterOnlyUnwatched
+            val premieresOnly = uiPreferences.filterOnlyPremieres
+            val finalesOnly = uiPreferences.filterOnlyFinales
+            val digitalDvdOnly = uiPreferences.filterOnlyDigitalDvd
 
             Column(
                 modifier = Modifier.fillMaxSize()
@@ -595,7 +594,7 @@ fun MainScreen(
                     )
 
                     // Unwatched Released Toggle (Only in Table View)
-                    if (viewMode == MainViewMode.TABLE) {
+                    if (viewMode == ViewMode.TABLE) {
                         FilterChip(
                             selected = unwatchedFilter,
                             onClick = { viewModel.toggleShowOnlyUnwatchedReleased() },
@@ -619,7 +618,7 @@ fun MainScreen(
                     }
 
                     // Calendar Subtype Filters (Only in Calendar View)
-                    if (viewMode == MainViewMode.CALENDAR) {
+                    if (viewMode == ViewMode.CALENDAR) {
                         FilterChip(
                             selected = premieresOnly,
                             onClick = { viewModel.toggleOnlySeasonPremieres() },
@@ -695,7 +694,7 @@ fun MainScreen(
                 AnimatedContent(
                     targetState = viewMode,
                     transitionSpec = {
-                        if (targetState == MainViewMode.TABLE) {
+                        if (targetState == ViewMode.TABLE) {
                             slideInHorizontally { width -> width } + fadeIn() togetherWith
                                     slideOutHorizontally { width -> -width } + fadeOut()
                         } else {
@@ -706,7 +705,7 @@ fun MainScreen(
                     modifier = Modifier.weight(1f),
                     label = "view_mode_content_transition"
                 ) { mode ->
-                    if (mode == MainViewMode.CALENDAR) {
+                    if (mode == ViewMode.CALENDAR) {
                         CalendarView(
                             items = items,
                             earlierItems = earlierItems,
@@ -732,11 +731,11 @@ fun MainScreen(
 
 @Composable
 private fun ViewModeToggle(
-    viewMode: MainViewMode,
-    onViewModeChange: (MainViewMode) -> Unit,
+    viewMode: ViewMode,
+    onViewModeChange: (ViewMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isCalendar = viewMode == MainViewMode.CALENDAR
+    val isCalendar = viewMode == ViewMode.CALENDAR
     val containerWidth = 180.dp
     val containerHeight = 40.dp
     val badgeWidth = containerWidth * 3 / 5
@@ -782,7 +781,7 @@ private fun ViewModeToggle(
                         if (isCalendar) {
                             return@clickable
                         }
-                        onViewModeChange(MainViewMode.CALENDAR)
+                        onViewModeChange(ViewMode.CALENDAR)
                     },
                 horizontalArrangement = if (isCalendar) Arrangement.End else Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
@@ -821,7 +820,7 @@ private fun ViewModeToggle(
                         if (!isCalendar) {
                             return@clickable
                         }
-                        onViewModeChange(MainViewMode.TABLE)
+                        onViewModeChange(ViewMode.TABLE)
                     },
                 horizontalArrangement = if (!isCalendar) Arrangement.Start else Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically

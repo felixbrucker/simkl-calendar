@@ -9,8 +9,8 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
-import com.felixbrucker.simklcalendar.extensions.globalAutoDownloadSettings
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
+import kotlinx.coroutines.flow.first
 import timber.log.Timber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -84,10 +84,10 @@ class AlarmReceiver: BroadcastReceiver() {
             val calendarItem = item.calendarItem
             if (calendarItem.isSeasonFinale && calendarItem.season != null && item.type != MediaType.MOVIE) {
                 val settings = db.itemDownloadSettingsDao().getSettings(item.simklId)
-                val downloadPrefs = context.globalAutoDownloadSettings
+                val autoDownloadPrefs = repo.autoDownloadRepo.preferencesFlow.first()
                 val isDownloadSeasonUnwatchedEnabled = settings?.downloadSeasonUnwatched ?: when (item.type) {
-                    MediaType.TV -> downloadPrefs.getBoolean("auto_download_season_unwatched_tv", false)
-                    MediaType.ANIME -> downloadPrefs.getBoolean("auto_download_season_unwatched_anime", false)
+                    MediaType.TV -> autoDownloadPrefs.autoDownloadSeasonUnwatchedTv
+                    MediaType.ANIME -> autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime
                     MediaType.MOVIE -> false
                 }
                 if (isDownloadSeasonUnwatchedEnabled) {

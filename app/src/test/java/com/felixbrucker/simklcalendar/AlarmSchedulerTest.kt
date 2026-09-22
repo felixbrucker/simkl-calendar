@@ -4,27 +4,17 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.util.Log
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
-import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
-import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
-import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
-import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
+import com.felixbrucker.simklcalendar.data.database.*
+import com.felixbrucker.simklcalendar.data.model.*
+import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.alarm.makeItemAiredAlarmIntent
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.slot
-import io.mockk.unmockkStatic
-import io.mockk.verify
+import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -38,7 +28,6 @@ class AlarmSchedulerTest {
 
     private lateinit var context: Context
     private lateinit var alarmManager: AlarmManager
-    private lateinit var sharedPreferences: SharedPreferences
     private lateinit var appDatabase: AppDatabase
     private lateinit var calendarDao: CalendarItemDao
 
@@ -59,17 +48,17 @@ class AlarmSchedulerTest {
 
         context = mockk(relaxed = true)
         alarmManager = mockk(relaxed = true)
-        sharedPreferences = mockk(relaxed = true)
         appDatabase = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
 
         every { context.getSystemService(Context.ALARM_SERVICE) } returns alarmManager
-        every { context.getSharedPreferences(any(), any()) } returns sharedPreferences
         every { appDatabase.calendarItemDao() } returns calendarDao
 
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
         field.set(null, appDatabase)
+        
+        mockkStatic("com.felixbrucker.simklcalendar.data.preferences.NotificationPreferencesKt")
     }
 
     @After
@@ -96,7 +85,14 @@ class AlarmSchedulerTest {
 
     @Test
     fun testScheduleAllItemsAiredAlarmsInexact() = runTest {
-        every { sharedPreferences.getBoolean("use_exact_alarms", false) } returns false
+        every { context.notificationDataStore.data } returns flowOf(mockk {
+            every { asMap() } returns emptyMap()
+            // This is still tricky to mock because NotificationRepository is used inside AlarmScheduler
+        })
+        // Mocking the repo creation inside AlarmScheduler is better
+        mockkConstructor(NotificationRepository::class)
+        every { anyConstructed<NotificationRepository>().preferencesFlow } returns flowOf(NotificationPreferences(useExactAlarms = false))
+
         val calItem = CalendarItem("v2_100_1_1", 100, "Ep 1", 1, 1, Instant.ofEpochMilli(1700000000000L), null, true, false)
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "TV Show", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, null)
@@ -109,11 +105,15 @@ class AlarmSchedulerTest {
         verify { alarmManager.setAndAllowWhileIdle(capture(typeSlot), capture(triggerSlot), any<PendingIntent>()) }
         assertEquals(AlarmManager.RTC_WAKEUP, typeSlot.captured)
         assertEquals(1700000000000L, triggerSlot.captured)
+        
+        unmockkConstructor(NotificationRepository::class)
     }
 
     @Test
     fun testScheduleAllItemsAiredAlarmsExact() = runTest {
-        every { sharedPreferences.getBoolean("use_exact_alarms", false) } returns true
+        mockkConstructor(NotificationRepository::class)
+        every { anyConstructed<NotificationRepository>().preferencesFlow } returns flowOf(NotificationPreferences(useExactAlarms = true))
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             every { alarmManager.canScheduleExactAlarms() } returns true
         }
@@ -126,5 +126,7 @@ class AlarmSchedulerTest {
         AlarmScheduler.scheduleAllItemsAiredAlarms(context)
 
         verify { alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, any(), any<PendingIntent>()) }
+        
+        unmockkConstructor(NotificationRepository::class)
     }
 }

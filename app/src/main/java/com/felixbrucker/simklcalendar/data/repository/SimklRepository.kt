@@ -56,12 +56,7 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import java.net.URLEncoder
 import java.time.Instant
 import java.util.concurrent.TimeUnit
-import androidx.core.content.edit
-import com.felixbrucker.simklcalendar.extensions.globalAutoDownloadSettings
-import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
-import com.felixbrucker.simklcalendar.extensions.simklSyncStore
-import com.felixbrucker.simklcalendar.extensions.temporarySimklAuthStore
-import com.felixbrucker.simklcalendar.extensions.uiSettings
+import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import kotlinx.coroutines.delay
@@ -72,7 +67,15 @@ import java.util.Calendar
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
-class SimklRepository(private val context: Context) {
+class SimklRepository(
+    private val context: Context,
+    val appSettingsRepo: AppSettingsRepository = AppSettingsRepository(context.appSettingsDataStore),
+    val autoDownloadRepo: AutoDownloadRepository = AutoDownloadRepository(context.autoDownloadDataStore),
+    val notificationRepo: NotificationRepository = NotificationRepository(context.notificationDataStore),
+    val authRepo: AuthRepository = AuthRepository(context.authDataStore),
+    val syncMetadataRepo: SyncMetadataRepository = SyncMetadataRepository(context.syncMetadataDataStore),
+    val uiRepo: UiRepository = UiRepository(context.uiDataStore)
+) {
 
     private val refreshMutex: Mutex = Mutex()
     private val db = AppDatabase.getDatabase(context)
@@ -83,11 +86,8 @@ class SimklRepository(private val context: Context) {
     private val watchedDao = db.watchedEpisodeDao()
     private val searchLinkDao = db.customSearchLinkDao()
     private val itemDownloadSettingsDao = db.itemDownloadSettingsDao()
-    private val authPrefs = context.temporarySimklAuthStore
-    private val syncPrefs = context.simklSyncStore
-    private val downloadPrefs = context.globalAutoDownloadSettings
 
-    private val torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, downloadPrefs)
+    private val torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo)
     val torrentServiceHelper = TorrentServiceHelper.getInstance(context)
 
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
@@ -164,7 +164,7 @@ class SimklRepository(private val context: Context) {
         updateMediaStatus(calendarItem.primaryKey, newStatus)
     }
 
-    fun determineStatus(
+    suspend fun determineStatus(
         airDate: Instant,
         settings: ItemDownloadSettings?,
         mediaType: MediaType,
@@ -174,12 +174,12 @@ class SimklRepository(private val context: Context) {
         if (airDate.isAfter(Instant.now())) return MediaStatus.NOT_AIRED_YET
         if (isTheaterRelease || isWatched) return MediaStatus.IGNORED
 
-        val globalKey = when (mediaType) {
-            MediaType.TV -> "auto_download_unwatched_tv"
-            MediaType.ANIME -> "auto_download_unwatched_anime"
-            MediaType.MOVIE -> "auto_download_unwatched_movie"
+        val autoDownloadSettings = autoDownloadRepo.preferencesFlow.first()
+        val globalIsAutoDownloadUnwatched = when (mediaType) {
+            MediaType.TV -> autoDownloadSettings.autoDownloadUnwatchedTv
+            MediaType.ANIME -> autoDownloadSettings.autoDownloadUnwatchedAnime
+            MediaType.MOVIE -> autoDownloadSettings.autoDownloadUnwatchedMovie
         }
-        val globalIsAutoDownloadUnwatched = downloadPrefs.getBoolean(globalKey, false)
 
         val isAutoDownloadUnwatched = settings?.downloadUnwatched ?: globalIsAutoDownloadUnwatched
         return if (isAutoDownloadUnwatched) MediaStatus.WANTED else MediaStatus.IGNORED
@@ -396,10 +396,8 @@ class SimklRepository(private val context: Context) {
         val codeChallenge = PkceUtil.generateCodeChallenge(codeVerifier)
         val state = PkceUtil.generateState()
 
-        authPrefs.edit {
-            putString("pkce_code_verifier", codeVerifier)
-                .putString("pkce_redirect_uri", redirectUri)
-                .putString("pkce_state", state)
+        runBlocking {
+            authRepo.setPkceParams(codeVerifier, redirectUri, state)
         }
 
         val params = mapOf(
@@ -426,7 +424,7 @@ class SimklRepository(private val context: Context) {
         Timber.tag("SimklRepository").w("Clearing active user token (isV1Upgrade=$isV1Upgrade) while retaining all local user data and preferences.")
         tokenDao.clearUserToken()
         if (isV1Upgrade) {
-            authPrefs.edit { putBoolean("show_auth_v2_upgrade_hint", true) }
+            authRepo.setShowAuthV2UpgradeHint(true)
         }
     }
 
@@ -452,14 +450,6 @@ class SimklRepository(private val context: Context) {
         }
     }
 
-    fun isAuthV2UpgradeHint(): Boolean {
-        return authPrefs.getBoolean("show_auth_v2_upgrade_hint", false)
-    }
-
-    fun clearAuthV2UpgradeHint() {
-        authPrefs.edit { remove("show_auth_v2_upgrade_hint") }
-    }
-
     suspend fun logout() = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken()
         if (userToken != null) {
@@ -476,11 +466,13 @@ class SimklRepository(private val context: Context) {
         calendarDao.clearCalendarItems()
         watchlistDao.clearAll()
         watchedDao.clearAll()
-        context.globalNotificationSettings.edit { clear() }
-        context.globalAutoDownloadSettings.edit { clear() }
-        context.temporarySimklAuthStore.edit { clear() }
-        context.simklSyncStore.edit { clear() }
-        context.uiSettings.edit { clear() }
+
+        appSettingsRepo.clear()
+        notificationRepo.clear()
+        autoDownloadRepo.clear()
+        authRepo.clear()
+        syncMetadataRepo.clear()
+        uiRepo.clear()
     }
 
     suspend fun exchangeOAuthCode(
@@ -489,7 +481,8 @@ class SimklRepository(private val context: Context) {
         redirectUri: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val savedState = authPrefs.getString("pkce_state", null)
+            val authPrefs = authRepo.preferencesFlow.first()
+            val savedState = authPrefs.pkceState
             if (!savedState.isNullOrEmpty()) {
                 if (state == null || state != savedState) {
                     Timber.tag("SimklRepository").e("OAuth state mismatch or missing! CSRF verification failed.")
@@ -497,8 +490,8 @@ class SimklRepository(private val context: Context) {
                 }
             }
 
-            val codeVerifier = authPrefs.getString("pkce_code_verifier", null)
-            val savedRedirectUri = authPrefs.getString("pkce_redirect_uri", "simklcalendar://auth") ?: "simklcalendar://auth"
+            val codeVerifier = authPrefs.pkceCodeVerifier
+            val savedRedirectUri = authPrefs.pkceRedirectUri ?: "simklcalendar://auth"
             val effectiveRedirectUri = redirectUri ?: savedRedirectUri
 
             if (codeVerifier.isNullOrEmpty()) {
@@ -527,12 +520,8 @@ class SimklRepository(private val context: Context) {
             val refreshTokenExpiresAt = Instant.now().plus(180, ChronoUnit.DAYS)
 
             // Successfully received token: clear stored PKCE parameters and upgrade hint
-            authPrefs.edit {
-                remove("pkce_code_verifier")
-                    .remove("pkce_redirect_uri")
-                    .remove("pkce_state")
-                    .remove("show_auth_v2_upgrade_hint")
-            }
+            authRepo.clearPkceParams()
+            authRepo.setShowAuthV2UpgradeHint(false)
 
             // 2. Insert user token into database so @Authenticated interceptor can retrieve it
             tokenDao.insertUserToken(
@@ -652,7 +641,7 @@ class SimklRepository(private val context: Context) {
             return@withContext
         }
         val watchlistSyncResult = syncWatchlist(forceFullSync = force)
-        val lastJsonSyncTimestamp = syncPrefs.getLong("last_calendar_json_sync", 0L)
+        val lastJsonSyncTimestamp = syncMetadataRepo.preferencesFlow.first().lastCalendarJsonSync
         // If calendar jsons haven't been synced in >6h, sync calendar jsons
         val calendarJsonSyncResult = syncCalendarJsons(forceFullSync = force)
         // Backfill missing past episodes if month changed and > 1 day since last sync
@@ -854,7 +843,7 @@ class SimklRepository(private val context: Context) {
             val activities = apiService.getSyncActivities()
 
             val currentActivitiesTimestamp = activities.all
-            val savedTimestamp = if (forceFullSync) null else syncPrefs.getString("last_activities_all", null)
+            val savedTimestamp = if (forceFullSync) null else syncMetadataRepo.preferencesFlow.first().lastActivitiesAll
 
             val shouldFetchDeltas = savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
 
@@ -963,11 +952,11 @@ class SimklRepository(private val context: Context) {
 
                     // Initialize default notification settings for newly inserted shows
                     try {
-                        val notifPrefs = context.globalNotificationSettings
-                        val defaultAiring = notifPrefs.getBoolean("default_notify_airing", false)
-                        val defaultSeasonFinished = notifPrefs.getBoolean("default_notify_season_finished", true)
-                        val defaultMovieTheater = notifPrefs.getBoolean("default_notify_movie_theater", false)
-                        val defaultMovieDigital = notifPrefs.getBoolean("default_notify_movie_digital", true)
+                        val notifPrefs = notificationRepo.preferencesFlow.first()
+                        val defaultAiring = notifPrefs.defaultNotifyAiring
+                        val defaultSeasonFinished = notifPrefs.defaultNotifySeasonFinished
+                        val defaultMovieTheater = notifPrefs.defaultNotifyMovieTheater
+                        val defaultMovieDigital = notifPrefs.defaultNotifyMovieDigital
 
                         val newSettings = trackedToInsert.values.map { item ->
                             val isMovie = item.type == MediaType.MOVIE
@@ -1032,7 +1021,7 @@ class SimklRepository(private val context: Context) {
                 }
 
                 if (!currentActivitiesTimestamp.isNullOrEmpty()) {
-                    syncPrefs.edit { putString("last_activities_all", currentActivitiesTimestamp) }
+                    syncMetadataRepo.setLastActivitiesAll(currentActivitiesTimestamp)
                 }
                 changesDetected = true
             } else {
@@ -1127,8 +1116,9 @@ class SimklRepository(private val context: Context) {
                 val lastModifiedPrefKey = "cal_json_last_mod_${year}_${month}_$endpointType"
                 val lastModifiedHeaderKey = "cal_json_header_${year}_${month}_$endpointType"
 
-                val lastModifiedTimestamp = if (forceFullSync) 0L else syncPrefs.getLong(lastModifiedPrefKey, 0L)
-                val savedHeader = if (forceFullSync) null else syncPrefs.getString(lastModifiedHeaderKey, null)
+                val syncMetadata = syncMetadataRepo.preferencesFlow.first()
+                val lastModifiedTimestamp = if (forceFullSync) 0L else syncMetadata.calendarLastModifiedAt[lastModifiedPrefKey] ?: 0L
+                val savedHeader = if (forceFullSync) null else syncMetadata.calendarLastModifiedHeader[lastModifiedHeaderKey]
 
                 // Only sync calendar jsons when their last modified was over 6h in the past
                 val isOver6Hours = (nowMillis - lastModifiedTimestamp) >= sixHoursMillis
@@ -1146,7 +1136,7 @@ class SimklRepository(private val context: Context) {
 
                     if (response.code() == 304) {
                         Timber.tag("SimklRepository").d("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
-                        syncPrefs.edit { putLong(lastModifiedPrefKey, nowMillis) }
+                        syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, nowMillis)
                         continue
                     }
 
@@ -1160,10 +1150,8 @@ class SimklRepository(private val context: Context) {
                     // Track Last-Modified header from response
                     val responseLastModifiedHeader = response.headers()["Last-Modified"]
                     val parsedHeaderMillis = DateUtil.parseHttpDateToMillis(responseLastModifiedHeader) ?: nowMillis
-                    syncPrefs.edit {
-                        putLong(lastModifiedPrefKey, parsedHeaderMillis)
-                            .putString(lastModifiedHeaderKey, responseLastModifiedHeader ?: "")
-                    }
+                    syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, parsedHeaderMillis)
+                    syncMetadataRepo.setCalendarLastModifiedHeader(lastModifiedHeaderKey, responseLastModifiedHeader ?: "")
 
                     val relevantEntries = calendarResponse.calendar.filter {
                         allTrackedIds.contains(it.simklId)
@@ -1426,7 +1414,7 @@ class SimklRepository(private val context: Context) {
             Timber.tag("SimklRepository").d("Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         }
 
-        syncPrefs.edit { putLong("last_calendar_json_sync", nowMillis) }
+        syncMetadataRepo.setLastCalendarJsonSync(nowMillis)
 
         SyncResult(
             hasCalendarItemChanges = totalCalendarItemDbChanges > 0,

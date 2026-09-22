@@ -1,43 +1,14 @@
 package com.felixbrucker.simklcalendar
 
 import android.content.Context
-import android.content.SharedPreferences
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
-import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
-import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
-import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
-import com.felixbrucker.simklcalendar.data.database.UserToken
-import com.felixbrucker.simklcalendar.data.database.UserTokenDao
-import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
-import com.felixbrucker.simklcalendar.data.database.WatchlistDao
-import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.network.OAuthTokenResponse
-import com.felixbrucker.simklcalendar.data.network.SimklApiService
-import com.felixbrucker.simklcalendar.data.network.SimklEpisodeResponse
-import com.felixbrucker.simklcalendar.data.network.SimklIds
-import com.felixbrucker.simklcalendar.data.network.SimklMedia
-import com.felixbrucker.simklcalendar.data.network.SimklMovieDetailResponse
-import com.felixbrucker.simklcalendar.data.network.SimklMovieReleaseDateCountry
-import com.felixbrucker.simklcalendar.data.network.SimklMovieReleaseResult
-import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarEntry
-import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarResponse
-import com.felixbrucker.simklcalendar.data.network.SimklV2Episode
-import com.felixbrucker.simklcalendar.data.network.SimklV2Metadata
-import com.felixbrucker.simklcalendar.data.network.SyncActivitiesResponse
-import com.felixbrucker.simklcalendar.data.network.SyncAllItemsResponse
-import com.felixbrucker.simklcalendar.data.network.SyncEpisodeItem
-import com.felixbrucker.simklcalendar.data.network.SyncMovieItem
-import com.felixbrucker.simklcalendar.data.network.SyncSeasonItem
-import com.felixbrucker.simklcalendar.data.network.SyncShowItem
-import com.felixbrucker.simklcalendar.data.network.UserSettingsResponse
-import com.felixbrucker.simklcalendar.data.network.UserProfile
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
+import com.felixbrucker.simklcalendar.data.database.*
+import com.felixbrucker.simklcalendar.data.model.*
+import com.felixbrucker.simklcalendar.data.network.*
+import com.felixbrucker.simklcalendar.data.preferences.*
+import com.felixbrucker.simklcalendar.data.repository.*
+import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -45,12 +16,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
+import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SimklRepositoryDeepSyncTest {
 
     private lateinit var context: Context
-    private lateinit var sharedPreferences: SharedPreferences
     private lateinit var appDatabase: AppDatabase
     private lateinit var tokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
@@ -61,11 +32,19 @@ class SimklRepositoryDeepSyncTest {
     private lateinit var apiService: SimklApiService
 
     private lateinit var repository: SimklRepository
+    
+    private lateinit var appSettingsRepo: AppSettingsRepository
+    private lateinit var autoDownloadRepo: AutoDownloadRepository
+    private lateinit var notificationRepo: NotificationRepository
+    private lateinit var authRepo: AuthRepository
+    private lateinit var syncMetadataRepo: SyncMetadataRepository
+    private lateinit var uiRepo: UiRepository
 
     @Before
     fun setUp() {
         context = mockk(relaxed = true)
-        sharedPreferences = mockk(relaxed = true)
+        every { context.filesDir } returns File("/tmp")
+        
         appDatabase = mockk(relaxed = true)
         tokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
@@ -75,9 +54,12 @@ class SimklRepositoryDeepSyncTest {
         itemDownloadSettingsDao = mockk(relaxed = true)
         apiService = mockk(relaxed = true)
 
-        every { context.getSharedPreferences(any(), any()) } returns sharedPreferences
-        val editor = mockk<SharedPreferences.Editor>(relaxed = true)
-        every { sharedPreferences.edit() } returns editor
+        appSettingsRepo = mockk(relaxed = true)
+        autoDownloadRepo = mockk(relaxed = true)
+        notificationRepo = mockk(relaxed = true)
+        authRepo = mockk(relaxed = true)
+        syncMetadataRepo = mockk(relaxed = true)
+        uiRepo = mockk(relaxed = true)
 
         coEvery { appDatabase.userTokenDao() } returns tokenDao
         coEvery { appDatabase.calendarItemDao() } returns calendarDao
@@ -85,16 +67,30 @@ class SimklRepositoryDeepSyncTest {
         coEvery { appDatabase.watchlistDao() } returns watchlistDao
         coEvery { appDatabase.watchedEpisodeDao() } returns watchedDao
         coEvery { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
+        every { appDatabase.customSearchLinkDao() } returns mockk(relaxed = true)
 
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
         field.set(null, appDatabase)
 
-        repository = SimklRepository(context)
+        repository = SimklRepository(
+            context = context,
+            appSettingsRepo = appSettingsRepo,
+            autoDownloadRepo = autoDownloadRepo,
+            notificationRepo = notificationRepo,
+            authRepo = authRepo,
+            syncMetadataRepo = syncMetadataRepo,
+            uiRepo = uiRepo
+        )
 
         val apiField = SimklRepository::class.java.getDeclaredField("apiService")
         apiField.isAccessible = true
         apiField.set(repository, apiService)
+        
+        every { authRepo.preferencesFlow } returns flowOf(AuthPreferences())
+        every { syncMetadataRepo.preferencesFlow } returns flowOf(SyncMetadataPreferences())
+        every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences())
+        every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
     }
 
     @After
@@ -106,8 +102,10 @@ class SimklRepositoryDeepSyncTest {
 
     @Test
     fun testExchangeOAuthCodeSuccessAndFailure() = runTest {
-        every { sharedPreferences.getString("pkce_state", null) } returns "valid_state"
-        every { sharedPreferences.getString("pkce_code_verifier", null) } returns "verifier_123"
+        every { authRepo.preferencesFlow } returns flowOf(AuthPreferences(
+            pkceState = "valid_state",
+            pkceCodeVerifier = "verifier_123"
+        ))
 
         coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
             accessToken = "simkl_at_access_token_abc",
@@ -121,7 +119,10 @@ class SimklRepositoryDeepSyncTest {
         val failureState = repository.exchangeOAuthCode("code", "wrong_state", "uri")
         assertFalse(failureState)
 
-        every { sharedPreferences.getString("pkce_code_verifier", null) } returns null
+        every { authRepo.preferencesFlow } returns flowOf(AuthPreferences(
+            pkceState = "valid_state",
+            pkceCodeVerifier = null
+        ))
         val failureVerifier = repository.exchangeOAuthCode("code", "valid_state", "uri")
         assertFalse(failureVerifier)
     }

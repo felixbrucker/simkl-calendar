@@ -7,8 +7,8 @@ enum class MediaType(val key: String, val displayName: String) {
 
     val defaultEpisodeSearchStyle: EpisodeSearchStyle
         get() = when (this) {
-            ANIME -> EpisodeSearchStyle.episode
-            else -> EpisodeSearchStyle.seasonAndEpisode
+            ANIME -> EpisodeSearchStyle.Episode
+            else -> EpisodeSearchStyle.SeasonAndEpisode
         }
 
     companion object {
@@ -67,6 +67,6 @@ enum class MediaStatus(val displayName: String) {
 }
 
 enum class EpisodeSearchStyle {
-    seasonAndEpisode,
-    episode
+    SeasonAndEpisode,
+    Episode
 }

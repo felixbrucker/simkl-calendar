@@ -32,7 +32,7 @@ object DirectoryUtils {
         } ?: return
 
         for (directory in directories) {
-            val relativePath = directory.toRelativeString(baseDir)
+            val relativePath = directory.toRelativeString(baseDir).replace(File.separator, "/")
             result.add(relativePath)
             scanDir(baseDir, directory, depth + 1, result)
         }

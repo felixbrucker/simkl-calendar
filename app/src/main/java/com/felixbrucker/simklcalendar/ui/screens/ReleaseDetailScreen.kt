@@ -1,7 +1,6 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -38,7 +37,6 @@ import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
-import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.launch
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
@@ -150,11 +148,11 @@ fun ReleaseDetailScreen(
         if (activeItem != null) settingsList.firstOrNull { it.simklId == activeItem.simklId } else null
     }
 
-    val prefs = remember { context.globalNotificationSettings }
-    val defaultAiring = prefs.getBoolean("default_notify_airing", false)
-    val defaultSeasonFinished = prefs.getBoolean("default_notify_season_finished", true)
-    val defaultMovieTheater = prefs.getBoolean("default_notify_movie_theater", false)
-    val defaultMovieDigital = prefs.getBoolean("default_notify_movie_digital", true)
+    val notificationPrefs by viewModel.notificationPreferences.collectAsState()
+    val defaultAiring = notificationPrefs.defaultNotifyAiring
+    val defaultSeasonFinished = notificationPrefs.defaultNotifySeasonFinished
+    val defaultMovieTheater = notificationPrefs.defaultNotifyMovieTheater
+    val defaultMovieDigital = notificationPrefs.defaultNotifyMovieDigital
     val isMovie = activeItem?.type == MediaType.MOVIE
 
     // Individual notification toggle flows

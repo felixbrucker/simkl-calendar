@@ -54,7 +54,7 @@ fun LoginScreen(
     val context = LocalContext.current
     val token by viewModel.userToken.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
-    val isAuthV2UpgradeHint by viewModel.isAuthV2UpgradeHint.collectAsState()
+    val showAuthV2UpgradeHint by viewModel.showAuthV2UpgradeHint.collectAsState()
 
     var oauthError by remember { mutableStateOf<String?>(null) }
 
@@ -128,7 +128,7 @@ fun LoginScreen(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
                 )
 
-                if (isAuthV2UpgradeHint) {
+                if (showAuthV2UpgradeHint) {
                     AuthV2UpgradeCard()
                 }
 

@@ -1,6 +1,5 @@
 package com.felixbrucker.simklcalendar.data.network
 
-import com.felixbrucker.simklcalendar.BuildConfig
 import retrofit2.http.*
 
 interface SimklApiService {

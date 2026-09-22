@@ -106,21 +106,21 @@ class ConvertersTest {
 
     @Test
     fun testEpisodeSearchStyleConverters() {
-        val styleSeason = EpisodeSearchStyle.seasonAndEpisode
-        val styleEpisode = EpisodeSearchStyle.episode
+        val styleSeason = EpisodeSearchStyle.SeasonAndEpisode
+        val styleEpisode = EpisodeSearchStyle.Episode
 
         val strSeason = converters.fromEpisodeSearchStyle(styleSeason)
         val strEpisode = converters.fromEpisodeSearchStyle(styleEpisode)
-        val objSeason = converters.toEpisodeSearchStyle("seasonAndEpisode")
-        val objEpisode = converters.toEpisodeSearchStyle("episode")
+        val objSeason = converters.toEpisodeSearchStyle("SeasonAndEpisode")
+        val objEpisode = converters.toEpisodeSearchStyle("Episode")
         val nullStrStyle = converters.fromEpisodeSearchStyle(null)
         val invalidObjStyle = converters.toEpisodeSearchStyle("INVALID")
         val nullObjStyle = converters.toEpisodeSearchStyle(null)
 
-        assertEquals("seasonAndEpisode", strSeason)
-        assertEquals("episode", strEpisode)
-        assertEquals(EpisodeSearchStyle.seasonAndEpisode, objSeason)
-        assertEquals(EpisodeSearchStyle.episode, objEpisode)
+        assertEquals("SeasonAndEpisode", strSeason)
+        assertEquals("Episode", strEpisode)
+        assertEquals(EpisodeSearchStyle.SeasonAndEpisode, objSeason)
+        assertEquals(EpisodeSearchStyle.Episode, objEpisode)
         assertNull(nullStrStyle)
         assertNull(invalidObjStyle)
         assertNull(nullObjStyle)

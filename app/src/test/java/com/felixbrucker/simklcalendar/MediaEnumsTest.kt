@@ -53,8 +53,8 @@ class MediaEnumsTest {
         val animeDefault = MediaType.ANIME.defaultEpisodeSearchStyle
         val movieDefault = MediaType.MOVIE.defaultEpisodeSearchStyle
 
-        assertEquals(EpisodeSearchStyle.seasonAndEpisode, tvDefault)
-        assertEquals(EpisodeSearchStyle.episode, animeDefault)
-        assertEquals(EpisodeSearchStyle.seasonAndEpisode, movieDefault)
+        assertEquals(EpisodeSearchStyle.SeasonAndEpisode, tvDefault)
+        assertEquals(EpisodeSearchStyle.Episode, animeDefault)
+        assertEquals(EpisodeSearchStyle.SeasonAndEpisode, movieDefault)
     }
 }

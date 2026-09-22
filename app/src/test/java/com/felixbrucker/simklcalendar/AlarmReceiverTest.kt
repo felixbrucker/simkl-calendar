@@ -4,45 +4,23 @@ import android.app.NotificationManager as AndroidNotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
-import android.content.pm.PackageManager
 import android.util.Log
-import android.widget.Toast
-import androidx.core.content.ContextCompat
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
-import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
-import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
-import com.felixbrucker.simklcalendar.data.database.LocalItemState
-import com.felixbrucker.simklcalendar.data.database.NotificationSetting
-import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
-import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
-import com.felixbrucker.simklcalendar.data.model.MediaStatus
-import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
+import com.felixbrucker.simklcalendar.data.database.*
+import com.felixbrucker.simklcalendar.data.model.*
+import com.felixbrucker.simklcalendar.data.preferences.*
+import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmReceiver
-import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
+import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager as AppNotificationManager
 import com.felixbrucker.torrent_search_api.PaginatedSearchResult
 import com.felixbrucker.torrent_search_api.TpbProvider
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkConstructor
-import io.mockk.mockkObject
-import io.mockk.mockkStatic
-import io.mockk.spyk
-import io.mockk.unmockkConstructor
-import io.mockk.unmockkObject
-import io.mockk.unmockkStatic
-import io.mockk.verify
+import io.mockk.*
+import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 import java.time.Instant
 
 class AlarmReceiverTest {
@@ -52,9 +30,12 @@ class AlarmReceiverTest {
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
-    private lateinit var sharedPreferences: SharedPreferences
     private lateinit var androidNotificationManager: AndroidNotificationManager
     private lateinit var torrentServiceHelper: TorrentServiceHelper
+    private lateinit var repositoryMock: SimklRepository
+
+    private lateinit var autoDownloadRepo: AutoDownloadRepository
+    private lateinit var notificationRepo: NotificationRepository
 
     @Before
     fun setUp() {
@@ -70,21 +51,19 @@ class AlarmReceiverTest {
         every { Log.e(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
 
-        mockkObject(NotificationManager.Companion)
-        coEvery { NotificationManager.showNotification(any(), any()) } returns Unit
-        coEvery { NotificationManager.updateNotification(any(), any()) } returns Unit
+        mockkObject(AppNotificationManager.Companion)
+        coEvery { AppNotificationManager.showNotification(any(), any()) } returns Unit
+        coEvery { AppNotificationManager.updateNotification(any(), any()) } returns Unit
 
         context = mockk(relaxed = true)
+        every { context.filesDir } returns File("/tmp")
         appDatabase = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
         itemDownloadSettingsDao = mockk(relaxed = true)
-        sharedPreferences = mockk(relaxed = true)
         androidNotificationManager = mockk(relaxed = true)
 
         every { context.getSystemService(Context.NOTIFICATION_SERVICE) } returns androidNotificationManager
-        every { context.getSharedPreferences(any(), any()) } returns sharedPreferences
-        every { sharedPreferences.getBoolean(any(), any()) } answers { secondArg() }
 
         every { appDatabase.calendarItemDao() } returns calendarDao
         every { appDatabase.notificationSettingDao() } returns settingDao
@@ -93,14 +72,31 @@ class AlarmReceiverTest {
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
         field.set(null, appDatabase)
+
+        repositoryMock = mockk(relaxed = true)
+        mockkConstructor(SimklRepository::class)
+
+        autoDownloadRepo = mockk(relaxed = true)
+        notificationRepo = mockk(relaxed = true)
+
+        every { anyConstructed<SimklRepository>().autoDownloadRepo } returns autoDownloadRepo
+        every { anyConstructed<SimklRepository>().notificationRepo } returns notificationRepo
+        every { anyConstructed<SimklRepository>().torrentServiceHelper } returns torrentServiceHelper
+        coEvery { anyConstructed<SimklRepository>().updateItemAiredStatus(any()) } returns Unit
+        coEvery { anyConstructed<SimklRepository>().searchAndDownloadEpisode(any()) } returns Result.success("taskId")
+        coEvery { anyConstructed<SimklRepository>().searchAndDownloadSeason(any(), any()) } returns Unit
+
+        every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
+        every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences())
     }
 
     @After
     fun tearDown() {
         unmockkConstructor(TpbProvider::class)
         unmockkObject(TorrentServiceHelper.Companion)
-        unmockkObject(NotificationManager.Companion)
+        unmockkObject(AppNotificationManager.Companion)
         unmockkStatic(Log::class)
+        unmockkConstructor(SimklRepository::class)
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
         field.set(null, null)
@@ -200,7 +196,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { NotificationManager.showNotification(item, context) }
+        coVerify(timeout = 3000) { AppNotificationManager.showNotification(item, context) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_200_theater") }
     }
 
@@ -241,7 +237,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { NotificationManager.showNotification(item, context) }
+        coVerify(timeout = 3000) { AppNotificationManager.showNotification(item, context) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_200_digital") }
     }
 
@@ -262,7 +258,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { NotificationManager.showNotification(item, context) }
+        coVerify(timeout = 3000) { AppNotificationManager.showNotification(item, context) }
         coVerify(timeout = 3000) { calendarDao.markItemAsNotified("v2_100_1_10") }
     }
 
@@ -325,8 +321,8 @@ class AlarmReceiverTest {
 
         receiver.onReceive(context, intent)
 
-        coVerify(timeout = 3000) { NotificationManager.showNotification(itemNotAired, context) }
-        coVerify(timeout = 3000) { calendarDao.updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
+        coVerify(timeout = 3000) { anyConstructed<SimklRepository>().updateItemAiredStatus(any()) }
+        coVerify(timeout = 3000) { AppNotificationManager.showNotification(any(), context) }
     }
 
     @Test
@@ -348,7 +344,7 @@ class AlarmReceiverTest {
 
         receiver.onReceive(context, intent)
 
-        coVerify(timeout = 3000) { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) }
+        coVerify(timeout = 3000) { anyConstructed<SimklRepository>().searchAndDownloadSeason(100, 1) }
     }
 
     @Test
@@ -369,7 +365,7 @@ class AlarmReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify { NotificationManager.updateNotification(itemFinal, context) }
+        coVerify { AppNotificationManager.updateNotification(itemFinal, context) }
     }
 
     @Test
@@ -388,6 +384,6 @@ class AlarmReceiverTest {
 
         receiver.onReceive(context, intent)
 
-        coVerify(exactly = 0) { NotificationManager.updateNotification(any(), any()) }
+        coVerify(exactly = 0) { AppNotificationManager.updateNotification(any(), any()) }
     }
 }

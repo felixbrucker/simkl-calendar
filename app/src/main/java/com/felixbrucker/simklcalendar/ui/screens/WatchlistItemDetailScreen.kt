@@ -1,7 +1,6 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -35,7 +34,6 @@ import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
-import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
@@ -105,11 +103,11 @@ fun WatchlistItemDetailScreen(
     val isMovie = watchlistItem?.type == MediaType.MOVIE
     val isAnimeSeasonOneOnly = watchlistItem?.type == MediaType.ANIME && seasons.size == 1 && seasons.containsKey(1)
 
-    val prefs = remember { context.globalNotificationSettings }
-    val defaultAiring = prefs.getBoolean("default_notify_airing", false)
-    val defaultSeasonFinished = prefs.getBoolean("default_notify_season_finished", true)
-    val defaultMovieTheater = prefs.getBoolean("default_notify_movie_theater", false)
-    val defaultMovieDigital = prefs.getBoolean("default_notify_movie_digital", true)
+    val notificationPrefs by viewModel.notificationPreferences.collectAsState()
+    val defaultAiring = notificationPrefs.defaultNotifyAiring
+    val defaultSeasonFinished = notificationPrefs.defaultNotifySeasonFinished
+    val defaultMovieTheater = notificationPrefs.defaultNotifyMovieTheater
+    val defaultMovieDigital = notificationPrefs.defaultNotifyMovieDigital
 
     var notifyEveryEpisode by remember(showSetting, defaultAiring, defaultMovieTheater, isMovie) {
         mutableStateOf(showSetting?.notifyEveryEpisode ?: (if (isMovie) defaultMovieTheater else defaultAiring))

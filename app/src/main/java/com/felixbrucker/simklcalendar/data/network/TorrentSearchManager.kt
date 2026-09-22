@@ -1,25 +1,28 @@
 package com.felixbrucker.simklcalendar.data.network
 
-import android.content.SharedPreferences
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadDataSource
 import com.felixbrucker.simklcalendar.extensions.ensureAdded
-import com.felixbrucker.simklcalendar.extensions.getStringListWithMigration
 import com.felixbrucker.torrent_search_api.Category
 import com.felixbrucker.torrent_search_api.NyaaProvider
 import com.felixbrucker.torrent_search_api.OrderBy
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.felixbrucker.torrent_search_api.TpbProvider
+import kotlinx.coroutines.flow.first
 import timber.log.Timber
 import java.util.Locale
 
 class TorrentSearchManager(
     private val itemSettingsDao: ItemDownloadSettingsDao,
-    private val downloadPrefs: SharedPreferences
+    private val autoDownloadDataSource: AutoDownloadDataSource
 ) {
-    private val TAG = "TorrentSearchManager"
+    companion object {
+        private const val TAG = "TorrentSearchManager"
+    }
+
     private val nyaaProvider = NyaaProvider()
     private val tpbProvider = TpbProvider()
 
@@ -34,14 +37,13 @@ class TorrentSearchManager(
         val searchSeason = itemSettings?.seasonOverrides?.get(season) ?: season
         val episode = item.episodeNumber
 
-        val globalQuality = downloadPrefs.getString("quality", "1080p") ?: "1080p"
-        val globalPreferHevc = downloadPrefs.getBoolean("prefer_hevc", true)
-        val preferredKeywords: MutableList<Keyword> = downloadPrefs
-            .getStringListWithMigration("preferred_keywords")
+        val prefs = autoDownloadDataSource.preferencesFlow.first()
+        val globalQuality = prefs.quality
+        val globalPreferHevc = prefs.preferHevc
+        val preferredKeywords: MutableList<Keyword> = prefs.preferredKeywords
             .map { Keyword.single(it) }
             .toMutableList()
-        val ignoreKeywords: MutableList<Keyword> = downloadPrefs
-            .getStringListWithMigration("ignore_keywords")
+        val ignoreKeywords: MutableList<Keyword> = prefs.ignoreKeywords
             .map { Keyword.single(it) }
             .toMutableList()
         val preferHevc = itemSettings?.preferHevcOverride ?: globalPreferHevc
@@ -63,8 +65,8 @@ class TorrentSearchManager(
         val episodeSearchTerm = when(item.type) {
             MediaType.MOVIE -> ""
             else -> when (searchStyle) {
-                EpisodeSearchStyle.seasonAndEpisode -> seasonAndEpisodeTerm
-                EpisodeSearchStyle.episode -> episodeTerm
+                EpisodeSearchStyle.SeasonAndEpisode -> seasonAndEpisodeTerm
+                EpisodeSearchStyle.Episode -> episodeTerm
             }
         }
         var term = if (episodeSearchTerm.isNotEmpty()) {
