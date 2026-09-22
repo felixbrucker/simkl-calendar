@@ -12,7 +12,8 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
-import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
+import com.felixbrucker.simklcalendar.data.preferences.*
+import kotlinx.coroutines.flow.first
 import java.time.Instant.now
 import java.time.ZoneId
 
@@ -37,7 +38,7 @@ class AlarmScheduler {
             }
         }
 
-        private fun scheduleItemAiredAlarmForItem(item: CalendarItemWithWatchlist, context: Context) {
+        private suspend fun scheduleItemAiredAlarmForItem(item: CalendarItemWithWatchlist, context: Context) {
             val triggerAt = if (item.type == MediaType.MOVIE) {
                 item.date.atZone(ZoneId.systemDefault())
                     .toLocalDate()
@@ -58,8 +59,8 @@ class AlarmScheduler {
             ) ?: return
             val triggerAtMillis = triggerAt.toEpochMilli()
             try {
-                val prefs = context.globalNotificationSettings
-                val useExactAlarms = prefs.getBoolean("use_exact_alarms", false)
+                val notificationRepo = NotificationRepository(context.notificationDataStore)
+                val useExactAlarms = notificationRepo.preferencesFlow.first().useExactAlarms
 
                 if (useExactAlarms) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

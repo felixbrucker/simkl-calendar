@@ -1,30 +1,15 @@
 package com.felixbrucker.simklcalendar.data.network
 
-import android.content.SharedPreferences
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
-import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
-import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
-import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
-import com.felixbrucker.simklcalendar.data.model.MediaType
-import io.mockk.coVerify
-import com.felixbrucker.torrent_search_api.NyaaProvider
-import com.felixbrucker.torrent_search_api.PaginatedSearchResult
-import com.felixbrucker.torrent_search_api.SearchResultItem
-import com.felixbrucker.torrent_search_api.TpbProvider
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkConstructor
-import io.mockk.unmockkConstructor
+import com.felixbrucker.simklcalendar.data.database.*
+import com.felixbrucker.simklcalendar.data.model.*
+import com.felixbrucker.simklcalendar.data.preferences.*
+import com.felixbrucker.torrent_search_api.*
+import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import java.time.Instant
@@ -33,18 +18,17 @@ import java.time.Instant
 class TorrentSearchManagerTest {
 
     private lateinit var dao: ItemDownloadSettingsDao
-    private lateinit var prefs: SharedPreferences
+    private lateinit var autoDownloadDataSource: AutoDownloadDataSource
+    private val preferencesStateFlow = MutableStateFlow(AutoDownloadPreferences())
 
     @Before
     fun setUp() {
         dao = mockk(relaxed = true)
-        prefs = mockk(relaxed = true)
+        autoDownloadDataSource = mockk(relaxed = true)
 
         coEvery { dao.getSettings(any()) } returns null
-        every { prefs.getString("quality", "1080p") } returns "1080p"
-        every { prefs.getBoolean("prefer_hevc", true) } returns true
-        every { prefs.getString("preferred_keywords", null) } returns null
-        every { prefs.getString("ignore_keywords", null) } returns null
+        every { autoDownloadDataSource.preferencesFlow } returns preferencesStateFlow
+        preferencesStateFlow.value = AutoDownloadPreferences()
 
         mockkConstructor(NyaaProvider::class)
         mockkConstructor(TpbProvider::class)
@@ -60,14 +44,14 @@ class TorrentSearchManagerTest {
 
     @Test
     fun testTorrentSearchManagerInitialization() {
-        val manager = TorrentSearchManager(dao, prefs)
+        val manager = TorrentSearchManager(dao, autoDownloadDataSource)
 
         assertNotNull(manager)
     }
 
     @Test
     fun testTorrentSearchTV() = runTest {
-        val manager = TorrentSearchManager(dao, prefs)
+        val manager = TorrentSearchManager(dao, autoDownloadDataSource)
         val calendarItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, true, false)
         val watchlistItem = TrackedWatchlistItem(100, MediaType.TV, "Test Show", null, null)
         val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
@@ -87,7 +71,7 @@ class TorrentSearchManagerTest {
             preferHevcOverride = false
         )
         coEvery { dao.getSettings(200) } returns customSettings
-        val manager = TorrentSearchManager(dao, prefs)
+        val manager = TorrentSearchManager(dao, autoDownloadDataSource)
         val calendarItem = CalendarItem("v2_200_1_5", 200, "Ep 5", 1, 5, Instant.now(), null, false, false)
         val watchlistItem = TrackedWatchlistItem(200, MediaType.ANIME, "Anime Show", "Anime Romaji", null)
         val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
@@ -99,7 +83,7 @@ class TorrentSearchManagerTest {
 
     @Test
     fun testTorrentSearchMovie() = runTest {
-        val manager = TorrentSearchManager(dao, prefs)
+        val manager = TorrentSearchManager(dao, autoDownloadDataSource)
         val calendarItem = CalendarItem("v2_300_theater", 300, null, null, null, Instant.now(), null, false, false)
         val watchlistItem = TrackedWatchlistItem(300, MediaType.MOVIE, "Test Movie", null, null)
         val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
@@ -113,10 +97,10 @@ class TorrentSearchManagerTest {
     fun testTorrentSearchTVWithEpisodeSearchStyleOverride() = runTest {
         val customSettings = ItemDownloadSettings(
             simklId = 100,
-            episodeSearchStyle = EpisodeSearchStyle.episode
+            episodeSearchStyle = EpisodeSearchStyle.Episode
         )
         coEvery { dao.getSettings(100) } returns customSettings
-        val manager = TorrentSearchManager(dao, prefs)
+        val manager = TorrentSearchManager(dao, autoDownloadDataSource)
         val calendarItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, true, false)
         val watchlistItem = TrackedWatchlistItem(100, MediaType.TV, "Test Show", null, null)
         val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
@@ -132,10 +116,10 @@ class TorrentSearchManagerTest {
     fun testTorrentSearchAnimeWithSeasonAndEpisodeSearchStyleOverride() = runTest {
         val customSettings = ItemDownloadSettings(
             simklId = 200,
-            episodeSearchStyle = EpisodeSearchStyle.seasonAndEpisode
+            episodeSearchStyle = EpisodeSearchStyle.SeasonAndEpisode
         )
         coEvery { dao.getSettings(200) } returns customSettings
-        val manager = TorrentSearchManager(dao, prefs)
+        val manager = TorrentSearchManager(dao, autoDownloadDataSource)
         val calendarItem = CalendarItem("v2_200_1_5", 200, "Ep 5", 1, 5, Instant.now(), null, false, false)
         val watchlistItem = TrackedWatchlistItem(200, MediaType.ANIME, "Anime Show", "Anime Romaji", null)
         val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
@@ -149,10 +133,12 @@ class TorrentSearchManagerTest {
 
     @Test
     fun testTorrentSearchKeywordsCaseSensitivityAndHevc() = runTest {
-        every { prefs.getString("preferred_keywords", null) } returns "SubsPlease\nErai-raws"
-        every { prefs.getString("ignore_keywords", null) } returns "BAD_RELEASE"
-        every { prefs.getBoolean("prefer_hevc", true) } returns true
-        val manager = TorrentSearchManager(dao, prefs)
+        preferencesStateFlow.value = AutoDownloadPreferences(
+            preferredKeywords = listOf("SubsPlease", "Erai-raws"),
+            ignoreKeywords = listOf("BAD_RELEASE"),
+            preferHevc = true
+        )
+        val manager = TorrentSearchManager(dao, autoDownloadDataSource)
         val calendarItem = CalendarItem("v2_400_1_1", 400, "Ep 1", 1, 1, Instant.now(), null, false, false)
         val watchlistItem = TrackedWatchlistItem(400, MediaType.TV, "Test Show", null, null)
         val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)

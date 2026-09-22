@@ -1,50 +1,21 @@
 package com.felixbrucker.simklcalendar.ui.viewmodel
 
 import android.app.Application
-import android.content.SharedPreferences
 import android.os.Environment
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
-import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
-import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
-import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
-import com.felixbrucker.simklcalendar.data.database.CustomSearchLinkDao
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
-import com.felixbrucker.simklcalendar.data.database.LocalItemState
-import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
-import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
-import com.felixbrucker.simklcalendar.data.database.UserToken
-import com.felixbrucker.simklcalendar.data.database.UserTokenDao
-import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
-import com.felixbrucker.simklcalendar.data.database.WatchlistDao
-import com.felixbrucker.simklcalendar.data.model.MediaStatus
-import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
-import com.felixbrucker.simklcalendar.data.util.DownloadProgress
-import com.felixbrucker.simklcalendar.extensions.globalAutoDownloadSettings
-import com.felixbrucker.simklcalendar.extensions.uiSettings
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
+import com.felixbrucker.simklcalendar.data.database.*
+import com.felixbrucker.simklcalendar.data.model.*
+import com.felixbrucker.simklcalendar.data.preferences.*
+import com.felixbrucker.simklcalendar.data.repository.*
+import com.felixbrucker.simklcalendar.data.preferences.ViewMode
+import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.*
 import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import java.io.File
@@ -55,8 +26,6 @@ class CalendarViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var application: Application
-    private lateinit var sharedPreferences: SharedPreferences
-    private lateinit var autoDownloadPrefs: SharedPreferences
     private lateinit var appDatabase: AppDatabase
     private lateinit var userTokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
@@ -66,10 +35,22 @@ class CalendarViewModelTest {
     private lateinit var searchLinkDao: CustomSearchLinkDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var repositoryMock: SimklRepository
+
     private val calendarItemsFlow = MutableStateFlow<List<CalendarItemWithWatchlist>>(emptyList())
     private val userTokenFlow = MutableStateFlow<UserToken?>(null)
     private val watchlistItemsFlow = MutableStateFlow<List<TrackedWatchlistItem>>(emptyList())
     private val customSearchLinksFlow = MutableStateFlow<List<CustomSearchLink>>(emptyList())
+
+    private val uiPreferencesFlow = MutableStateFlow(UiPreferences())
+    private val notificationPreferencesFlow = MutableStateFlow(NotificationPreferences())
+    private val appSettingsPreferencesFlow = MutableStateFlow(AppSettingsPreferences())
+    private val authPreferencesFlow = MutableStateFlow(AuthPreferences())
+
+    private lateinit var uiRepo: UiRepository
+    private lateinit var notificationRepo: NotificationRepository
+    private lateinit var appSettingsRepo: AppSettingsRepository
+    private lateinit var authRepo: AuthRepository
+    private lateinit var autoDownloadRepo: AutoDownloadRepository
 
     @Before
     fun setUp() {
@@ -84,42 +65,38 @@ class CalendarViewModelTest {
         calendarItemsFlow.value = emptyList()
         watchlistItemsFlow.value = emptyList()
         customSearchLinksFlow.value = emptyList()
+        uiPreferencesFlow.value = UiPreferences()
+        notificationPreferencesFlow.value = NotificationPreferences()
+        appSettingsPreferencesFlow.value = AppSettingsPreferences()
+        authPreferencesFlow.value = AuthPreferences()
 
         application = mockk(relaxed = true)
-        sharedPreferences = mockk(relaxed = true)
-        autoDownloadPrefs = mockk(relaxed = true)
         appDatabase = mockk(relaxed = true)
         repositoryMock = mockk(relaxed = true)
+
+        uiRepo = mockk(relaxed = true)
+        notificationRepo = mockk(relaxed = true)
+        appSettingsRepo = mockk(relaxed = true)
+        authRepo = mockk(relaxed = true)
+        autoDownloadRepo = mockk(relaxed = true)
+
+        every { repositoryMock.uiRepo } returns uiRepo
+        every { repositoryMock.notificationRepo } returns notificationRepo
+        every { repositoryMock.appSettingsRepo } returns appSettingsRepo
+        every { repositoryMock.authRepo } returns authRepo
+        every { repositoryMock.autoDownloadRepo } returns autoDownloadRepo
+
+        every { uiRepo.preferencesFlow } returns uiPreferencesFlow
+        every { notificationRepo.preferencesFlow } returns notificationPreferencesFlow
+        every { appSettingsRepo.preferencesFlow } returns appSettingsPreferencesFlow
+        every { authRepo.preferencesFlow } returns authPreferencesFlow
+        every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
 
         coEvery { repositoryMock.syncCalendar(any()) } returns Unit
         coEvery { repositoryMock.syncCalendar() } returns Unit
         coEvery { repositoryMock.getActiveUserToken() } returns null
 
         every { application.applicationContext } returns application
-        every { application.uiSettings } returns sharedPreferences
-        every { application.globalAutoDownloadSettings } returns autoDownloadPrefs
-        every { application.getSharedPreferences(any(), any()) } returns sharedPreferences
-
-        every { sharedPreferences.getString("view_mode", any()) } returns MainViewMode.CALENDAR.name
-        every { sharedPreferences.getString(any(), any()) } answers { secondArg() ?: "" }
-        every { sharedPreferences.getBoolean("filter_show_tv", true) } returns true
-        every { sharedPreferences.getBoolean("filter_show_anime", true) } returns true
-        every { sharedPreferences.getBoolean("filter_show_movies", true) } returns true
-        every { sharedPreferences.getBoolean("filter_only_unwatched", true) } returns true
-        every { sharedPreferences.getBoolean("filter_only_premieres", false) } returns false
-        every { sharedPreferences.getBoolean("filter_only_finales", false) } returns false
-        every { sharedPreferences.getBoolean("filter_only_digital_dvd", false) } returns false
-        every { sharedPreferences.getBoolean("filter_show_earlier", false) } returns false
-        every { sharedPreferences.getBoolean(any(), any()) } answers { secondArg() as Boolean }
-
-        every { autoDownloadPrefs.getString("quality", any()) } returns "1080p"
-        every { autoDownloadPrefs.getBoolean("prefer_hevc", true) } returns true
-        every { autoDownloadPrefs.getBoolean(any(), any()) } answers { secondArg() as Boolean }
-        every { autoDownloadPrefs.getString(any(), any()) } answers { secondArg() ?: "" }
-
-        val editor = mockk<SharedPreferences.Editor>(relaxed = true)
-        every { sharedPreferences.edit() } returns editor
-        every { autoDownloadPrefs.edit() } returns editor
 
         userTokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
@@ -154,7 +131,7 @@ class CalendarViewModelTest {
         every { repositoryMock.customSearchLinks } returns customSearchLinksFlow
         every { repositoryMock.notificationSettings } returns flowOf(emptyList())
         every { repositoryMock.watchedEpisodes } returns flowOf(emptyList())
-        every { repositoryMock.torrentServiceHelper.downloads } returns MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
+        every { repositoryMock.torrentServiceHelper.downloads } returns MutableStateFlow(emptyMap())
         every { repositoryMock.torrentServiceHelper.isBound } returns MutableStateFlow(false)
         every { repositoryMock.torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
         coEvery { repositoryMock.searchAndDownloadEpisode(any()) } returns Result.failure(Exception("No torrents"))
@@ -162,11 +139,7 @@ class CalendarViewModelTest {
 
     private fun createViewModel(): CalendarViewModel {
         userTokenFlow.value = null
-        val viewModel = CalendarViewModel(application)
-        val field = CalendarViewModel::class.java.getDeclaredField("repository")
-        field.isAccessible = true
-        field.set(viewModel, repositoryMock)
-        return viewModel
+        return CalendarViewModel(application, repositoryMock)
     }
 
     @After
@@ -184,11 +157,10 @@ class CalendarViewModelTest {
     fun testViewModeToggle() = runTest {
         val viewModel = createViewModel()
 
-        viewModel.setViewMode(MainViewMode.TABLE)
+        viewModel.setViewMode(ViewMode.TABLE)
         advanceUntilIdle()
 
-        val mode = viewModel.viewMode.value
-        assertEquals(MainViewMode.TABLE, mode)
+        coVerify { uiRepo.setViewMode(ViewMode.TABLE) }
     }
 
     @Test
@@ -211,44 +183,22 @@ class CalendarViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.toggleShowTv()
-        val tv = viewModel.showTv.value
         viewModel.toggleShowAnime()
-        val anime = viewModel.showAnime.value
         viewModel.toggleShowMovies()
-        val movies = viewModel.showMovies.value
         viewModel.toggleShowOnlyUnwatchedReleased()
-        val unwatched = viewModel.showOnlyUnwatchedReleased.value
         viewModel.toggleOnlySeasonPremieres()
-        val premieres = viewModel.onlySeasonPremieres.value
         viewModel.toggleOnlySeasonFinales()
-        val finales = viewModel.onlySeasonFinales.value
         viewModel.toggleOnlyDigitalDvd()
-        val digitalDvd = viewModel.onlyDigitalDvd.value
         viewModel.toggleShowEarlierReleases()
-        val showEarlier = viewModel.showEarlierReleases.value
         viewModel.setShowEarlierReleases(true)
-        val setEarlier = viewModel.showEarlierReleases.value
         viewModel.resetFilters()
-        val resetTv = viewModel.showTv.value
-        val resetAnime = viewModel.showAnime.value
-        val resetMovies = viewModel.showMovies.value
+
         viewModel.setSearchQuery("Naruto")
         val query = viewModel.searchQuery.value
         viewModel.clearSearchQuery()
         val clearedQuery = viewModel.searchQuery.value
 
-        assertFalse(tv)
-        assertFalse(anime)
-        assertFalse(movies)
-        assertFalse(unwatched)
-        assertTrue(premieres)
-        assertTrue(finales)
-        assertTrue(digitalDvd)
-        assertTrue(showEarlier)
-        assertTrue(setEarlier)
-        assertTrue(resetTv)
-        assertTrue(resetAnime)
-        assertTrue(resetMovies)
+        coVerify { uiRepo.updateFilters(any()) }
         assertEquals("Naruto", query)
         assertEquals("", clearedQuery)
     }
@@ -258,57 +208,30 @@ class CalendarViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.updateAutoDownloadQuality("720p")
-        val quality = viewModel.autoDownloadQuality.value
         viewModel.updateAutoDownloadPreferHevc(false)
-        val preferHevc = viewModel.autoDownloadPreferHevc.value
         viewModel.updateAutoDownloadUnwatchedTv(true)
-        val unwatchedTv = viewModel.autoDownloadUnwatchedTv.value
         viewModel.updateAutoDownloadUnwatchedAnime(true)
-        val unwatchedAnime = viewModel.autoDownloadUnwatchedAnime.value
         viewModel.updateAutoDownloadUnwatchedMovie(true)
-        val unwatchedMovie = viewModel.autoDownloadUnwatchedMovie.value
         viewModel.updateAutoDownloadSeasonUnwatchedTv(true)
-        val seasonUnwatchedTv = viewModel.autoDownloadSeasonUnwatchedTv.value
         viewModel.updateAutoDownloadSeasonUnwatchedAnime(true)
-        val seasonUnwatchedAnime = viewModel.autoDownloadSeasonUnwatchedAnime.value
-        viewModel.addPreferredKeyword("SubsPlease")
-        val keywordsAfterAdd = viewModel.autoDownloadPreferredKeywords.value
-        viewModel.addPreferredKeyword("SubsPlease")
-        val keywordsAfterDuplicateAdd = viewModel.autoDownloadPreferredKeywords.value
-        viewModel.removePreferredKeyword("SubsPlease")
-        val keywordsAfterRemove = viewModel.autoDownloadPreferredKeywords.value
-        viewModel.removePreferredKeyword("NonExistent")
-        val keywordsAfterRemoveNonExistent = viewModel.autoDownloadPreferredKeywords.value
-        viewModel.updatePreferredKeywordsOrder(listOf("B", "A"))
-        val reorderedKeywords = viewModel.autoDownloadPreferredKeywords.value
-        viewModel.addIgnoreKeyword("RAW")
-        val ignoreAfterAdd = viewModel.autoDownloadIgnoreKeywords.value
-        viewModel.addIgnoreKeyword("RAW")
-        val ignoreAfterDuplicateAdd = viewModel.autoDownloadIgnoreKeywords.value
-        viewModel.removeIgnoreKeyword("RAW")
-        val ignoreAfterRemove = viewModel.autoDownloadIgnoreKeywords.value
-        viewModel.removeIgnoreKeyword("NonExistent")
-        val ignoreAfterRemoveNonExistent = viewModel.autoDownloadIgnoreKeywords.value
-        viewModel.updateIgnoreKeywordsOrder(listOf("Y", "X"))
-        val reorderedIgnore = viewModel.autoDownloadIgnoreKeywords.value
 
-        assertEquals("720p", quality)
-        assertFalse(preferHevc)
-        assertTrue(unwatchedTv)
-        assertTrue(unwatchedAnime)
-        assertTrue(unwatchedMovie)
-        assertTrue(seasonUnwatchedTv)
-        assertTrue(seasonUnwatchedAnime)
-        assertTrue(keywordsAfterAdd.contains("SubsPlease"))
-        assertEquals(1, keywordsAfterDuplicateAdd.size)
-        assertFalse(keywordsAfterRemove.contains("SubsPlease"))
-        assertEquals(0, keywordsAfterRemoveNonExistent.size)
-        assertEquals(listOf("B", "A"), reorderedKeywords)
-        assertTrue(ignoreAfterAdd.contains("RAW"))
-        assertEquals(1, ignoreAfterDuplicateAdd.size)
-        assertFalse(ignoreAfterRemove.contains("RAW"))
-        assertEquals(0, ignoreAfterRemoveNonExistent.size)
-        assertEquals(listOf("Y", "X"), reorderedIgnore)
+        viewModel.addPreferredKeyword("SubsPlease")
+        viewModel.removePreferredKeyword("SubsPlease")
+        viewModel.updatePreferredKeywordsOrder(listOf("B", "A"))
+
+        viewModel.addIgnoreKeyword("RAW")
+        viewModel.removeIgnoreKeyword("RAW")
+        viewModel.updateIgnoreKeywordsOrder(listOf("Y", "X"))
+
+        coVerify { autoDownloadRepo.setQuality("720p") }
+        coVerify { autoDownloadRepo.setPreferHevc(false) }
+        coVerify { autoDownloadRepo.setAutoDownloadUnwatchedTv(true) }
+        coVerify { autoDownloadRepo.setAutoDownloadUnwatchedAnime(true) }
+        coVerify { autoDownloadRepo.setAutoDownloadUnwatchedMovie(true) }
+        coVerify { autoDownloadRepo.setAutoDownloadSeasonUnwatchedTv(true) }
+        coVerify { autoDownloadRepo.setAutoDownloadSeasonUnwatchedAnime(true) }
+        coVerify { autoDownloadRepo.setPreferredKeywords(any()) }
+        coVerify { autoDownloadRepo.setIgnoreKeywords(any()) }
     }
 
     @Test

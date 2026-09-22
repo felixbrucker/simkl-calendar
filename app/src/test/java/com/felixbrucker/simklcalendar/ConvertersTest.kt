@@ -106,8 +106,8 @@ class ConvertersTest {
 
     @Test
     fun testEpisodeSearchStyleConverters() {
-        val styleSeason = EpisodeSearchStyle.seasonAndEpisode
-        val styleEpisode = EpisodeSearchStyle.episode
+        val styleSeason = EpisodeSearchStyle.SeasonAndEpisode
+        val styleEpisode = EpisodeSearchStyle.Episode
 
         val strSeason = converters.fromEpisodeSearchStyle(styleSeason)
         val strEpisode = converters.fromEpisodeSearchStyle(styleEpisode)
@@ -119,8 +119,8 @@ class ConvertersTest {
 
         assertEquals("seasonAndEpisode", strSeason)
         assertEquals("episode", strEpisode)
-        assertEquals(EpisodeSearchStyle.seasonAndEpisode, objSeason)
-        assertEquals(EpisodeSearchStyle.episode, objEpisode)
+        assertEquals(EpisodeSearchStyle.SeasonAndEpisode, objSeason)
+        assertEquals(EpisodeSearchStyle.Episode, objEpisode)
         assertNull(nullStrStyle)
         assertNull(invalidObjStyle)
         assertNull(nullObjStyle)

@@ -1,0 +1,59 @@
+package com.felixbrucker.simklcalendar.data.preferences
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+val Context.appSettingsDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "app_settings",
+    produceMigrations = { context ->
+        listOf(
+            SharedPreferencesMigration(
+                context = context,
+                sharedPreferencesName = "notification_prefs",
+                keysToMigrate = setOf("sync_interval_hours")
+            )
+        )
+    }
+)
+
+data class AppSettingsPreferences(
+    val syncIntervalHours: Int = 12
+)
+
+interface AppSettingsDataSource {
+    val preferencesFlow: Flow<AppSettingsPreferences>
+    suspend fun setSyncIntervalHours(hours: Int)
+    suspend fun clear()
+}
+
+class AppSettingsRepository(
+    private val dataStore: DataStore<Preferences>
+) : AppSettingsDataSource {
+
+    companion object {
+        private val KEY_SYNC_INTERVAL_HOURS = intPreferencesKey("sync_interval_hours")
+    }
+
+    override val preferencesFlow: Flow<AppSettingsPreferences> = dataStore.data.map { preferences ->
+        AppSettingsPreferences(
+            syncIntervalHours = preferences[KEY_SYNC_INTERVAL_HOURS] ?: 12
+        )
+    }
+
+    override suspend fun setSyncIntervalHours(hours: Int) {
+        dataStore.edit { preferences ->
+            preferences[KEY_SYNC_INTERVAL_HOURS] = hours
+        }
+    }
+
+    override suspend fun clear() {
+        dataStore.edit { it.clear() }
+    }
+}

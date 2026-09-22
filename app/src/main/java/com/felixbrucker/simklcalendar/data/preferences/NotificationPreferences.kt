@@ -1,0 +1,95 @@
+package com.felixbrucker.simklcalendar.data.preferences
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+val Context.notificationDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "notification_settings",
+    produceMigrations = { context ->
+        listOf(
+            SharedPreferencesMigration(
+                context = context,
+                sharedPreferencesName = "notification_prefs",
+                keysToMigrate = setOf(
+                    "use_exact_alarms",
+                    "default_notify_airing",
+                    "default_notify_season_finished",
+                    "default_notify_movie_theater",
+                    "default_notify_movie_digital"
+                )
+            )
+        )
+    }
+)
+
+data class NotificationPreferences(
+    val useExactAlarms: Boolean = false,
+    val defaultNotifyAiring: Boolean = false,
+    val defaultNotifySeasonFinished: Boolean = true,
+    val defaultNotifyMovieTheater: Boolean = false,
+    val defaultNotifyMovieDigital: Boolean = true
+)
+
+interface NotificationDataSource {
+    val preferencesFlow: Flow<NotificationPreferences>
+    suspend fun setUseExactAlarms(enabled: Boolean)
+    suspend fun setDefaultNotifyAiring(enabled: Boolean)
+    suspend fun setDefaultNotifySeasonFinished(enabled: Boolean)
+    suspend fun setDefaultNotifyMovieTheater(enabled: Boolean)
+    suspend fun setDefaultNotifyMovieDigital(enabled: Boolean)
+    suspend fun clear()
+}
+
+class NotificationRepository(
+    private val dataStore: DataStore<Preferences>
+) : NotificationDataSource {
+
+    companion object {
+        private val KEY_USE_EXACT_ALARMS = booleanPreferencesKey("use_exact_alarms")
+        private val KEY_NOTIFY_AIRING = booleanPreferencesKey("default_notify_airing")
+        private val KEY_NOTIFY_SEASON_FINISHED = booleanPreferencesKey("default_notify_season_finished")
+        private val KEY_NOTIFY_MOVIE_THEATER = booleanPreferencesKey("default_notify_movie_theater")
+        private val KEY_NOTIFY_MOVIE_DIGITAL = booleanPreferencesKey("default_notify_movie_digital")
+    }
+
+    override val preferencesFlow: Flow<NotificationPreferences> = dataStore.data.map { preferences ->
+        NotificationPreferences(
+            useExactAlarms = preferences[KEY_USE_EXACT_ALARMS] ?: false,
+            defaultNotifyAiring = preferences[KEY_NOTIFY_AIRING] ?: false,
+            defaultNotifySeasonFinished = preferences[KEY_NOTIFY_SEASON_FINISHED] ?: true,
+            defaultNotifyMovieTheater = preferences[KEY_NOTIFY_MOVIE_THEATER] ?: false,
+            defaultNotifyMovieDigital = preferences[KEY_NOTIFY_MOVIE_DIGITAL] ?: true
+        )
+    }
+
+    override suspend fun setUseExactAlarms(enabled: Boolean) {
+        dataStore.edit { it[KEY_USE_EXACT_ALARMS] = enabled }
+    }
+
+    override suspend fun setDefaultNotifyAiring(enabled: Boolean) {
+        dataStore.edit { it[KEY_NOTIFY_AIRING] = enabled }
+    }
+
+    override suspend fun setDefaultNotifySeasonFinished(enabled: Boolean) {
+        dataStore.edit { it[KEY_NOTIFY_SEASON_FINISHED] = enabled }
+    }
+
+    override suspend fun setDefaultNotifyMovieTheater(enabled: Boolean) {
+        dataStore.edit { it[KEY_NOTIFY_MOVIE_THEATER] = enabled }
+    }
+
+    override suspend fun setDefaultNotifyMovieDigital(enabled: Boolean) {
+        dataStore.edit { it[KEY_NOTIFY_MOVIE_DIGITAL] = enabled }
+    }
+
+    override suspend fun clear() {
+        dataStore.edit { it.clear() }
+    }
+}

@@ -573,24 +573,20 @@ fun DownloadSettingsCard(
     defaultSubdirectory: String,
     modifier: Modifier = Modifier,
 ) {
-    val globalUnwatchedTv by viewModel.autoDownloadUnwatchedTv.collectAsState()
-    val globalUnwatchedAnime by viewModel.autoDownloadUnwatchedAnime.collectAsState()
-    val globalUnwatchedMovie by viewModel.autoDownloadUnwatchedMovie.collectAsState()
-    val globalSeasonUnwatchedTv by viewModel.autoDownloadSeasonUnwatchedTv.collectAsState()
-    val globalSeasonUnwatchedAnime by viewModel.autoDownloadSeasonUnwatchedAnime.collectAsState()
+    val autoDownloadPrefs by viewModel.autoDownloadPreferences.collectAsState()
 
     val globalUnwatched = when (mediaType) {
-        MediaType.TV -> globalUnwatchedTv
-        MediaType.ANIME -> globalUnwatchedAnime
-        MediaType.MOVIE -> globalUnwatchedMovie
+        MediaType.TV -> autoDownloadPrefs.autoDownloadUnwatchedTv
+        MediaType.ANIME -> autoDownloadPrefs.autoDownloadUnwatchedAnime
+        MediaType.MOVIE -> autoDownloadPrefs.autoDownloadUnwatchedMovie
     }
     val globalSeasonUnwatched = when (mediaType) {
-        MediaType.TV -> globalSeasonUnwatchedTv
-        MediaType.ANIME -> globalSeasonUnwatchedAnime
+        MediaType.TV -> autoDownloadPrefs.autoDownloadSeasonUnwatchedTv
+        MediaType.ANIME -> autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime
         MediaType.MOVIE -> false
     }
-    val globalQuality by viewModel.autoDownloadQuality.collectAsState()
-    val globalPreferHevc by viewModel.autoDownloadPreferHevc.collectAsState()
+    val globalQuality = autoDownloadPrefs.quality
+    val globalPreferHevc = autoDownloadPrefs.preferHevc
     val itemSettings by viewModel.getItemDownloadSettingsFlow(simklId).collectAsState(null)
     val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
     val availableSubdirectories by viewModel.downloadSubdirectories.collectAsState()
@@ -799,8 +795,8 @@ fun DownloadSettingsCard(
                             ) {
                                 Text(
                                     when (style) {
-                                        EpisodeSearchStyle.seasonAndEpisode -> "S01E01"
-                                        EpisodeSearchStyle.episode -> "01"
+                                        EpisodeSearchStyle.SeasonAndEpisode -> "S01E01"
+                                        EpisodeSearchStyle.Episode -> "01"
                                     }
                                 )
                             }

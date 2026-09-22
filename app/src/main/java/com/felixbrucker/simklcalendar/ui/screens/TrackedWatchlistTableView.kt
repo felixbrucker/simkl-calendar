@@ -60,8 +60,7 @@ fun TrackedWatchlistTableView(
         val tv = ArrayList<WatchlistTableItem>()
         val anime = ArrayList<WatchlistTableItem>()
         val movie = ArrayList<WatchlistTableItem>()
-        for (i in 0 until items.size) {
-            val item = items[i]
+        for (item in items) {
             when (item.watchlistItem.type) {
                 MediaType.TV -> tv.add(item)
                 MediaType.ANIME -> anime.add(item)

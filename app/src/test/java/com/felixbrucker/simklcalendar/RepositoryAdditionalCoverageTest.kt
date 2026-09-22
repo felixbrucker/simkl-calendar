@@ -1,28 +1,11 @@
 package com.felixbrucker.simklcalendar
 
 import android.content.Context
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
-import com.felixbrucker.simklcalendar.data.database.CalendarItem
-import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
-import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
-import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
-import com.felixbrucker.simklcalendar.data.database.CustomSearchLinkDao
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
-import com.felixbrucker.simklcalendar.data.database.LocalItemState
-import com.felixbrucker.simklcalendar.data.database.NotificationSetting
-import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
-import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
-import com.felixbrucker.simklcalendar.data.database.UserToken
-import com.felixbrucker.simklcalendar.data.database.UserTokenDao
-import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
-import com.felixbrucker.simklcalendar.data.database.WatchlistDao
-import com.felixbrucker.simklcalendar.data.model.MediaStatus
-import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
+import com.felixbrucker.simklcalendar.data.database.*
+import com.felixbrucker.simklcalendar.data.model.*
+import com.felixbrucker.simklcalendar.data.preferences.*
+import com.felixbrucker.simklcalendar.data.repository.*
+import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -47,6 +30,13 @@ class RepositoryAdditionalCoverageTest {
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
 
     private lateinit var repository: SimklRepository
+    
+    private lateinit var appSettingsRepo: AppSettingsRepository
+    private lateinit var autoDownloadRepo: AutoDownloadRepository
+    private lateinit var notificationRepo: NotificationRepository
+    private lateinit var authRepo: AuthRepository
+    private lateinit var syncMetadataRepo: SyncMetadataRepository
+    private lateinit var uiRepo: UiRepository
 
     @Before
     fun setUp() {
@@ -60,13 +50,30 @@ class RepositoryAdditionalCoverageTest {
         searchLinkDao = mockk(relaxed = true)
         itemDownloadSettingsDao = mockk(relaxed = true)
 
+        appSettingsRepo = mockk(relaxed = true)
+        autoDownloadRepo = mockk(relaxed = true)
+        notificationRepo = mockk(relaxed = true)
+        authRepo = mockk(relaxed = true)
+        syncMetadataRepo = mockk(relaxed = true)
+        uiRepo = mockk(relaxed = true)
+
         everyAppDatabase()
 
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
         field.set(null, appDatabase)
 
-        repository = SimklRepository(context)
+        repository = SimklRepository(
+            context = context,
+            appSettingsRepo = appSettingsRepo,
+            autoDownloadRepo = autoDownloadRepo,
+            notificationRepo = notificationRepo,
+            authRepo = authRepo,
+            syncMetadataRepo = syncMetadataRepo,
+            uiRepo = uiRepo
+        )
+        
+        every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
     }
 
     private fun everyAppDatabase() {

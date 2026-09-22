@@ -47,7 +47,6 @@ import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import com.felixbrucker.simklcalendar.extensions.globalNotificationSettings
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -89,13 +88,21 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         NotificationManager.createNotificationChannel(this)
-        val syncPrefs = globalNotificationSettings
-        val syncIntervalHours = syncPrefs.getInt("sync_interval_hours", 12).toLong()
-        SyncCalendarWorker.enqueuePeriodicSync(this, syncIntervalHours)
 
-        val searchIntervalHours = syncPrefs.getInt("search_interval_hours", 12).toLong()
-        if (viewModel.isTorrentServiceInstalled()) {
-            AutoDownloadWorker.enqueuePeriodicSearch(this, searchIntervalHours)
+        // Reactively handle sync interval changes
+        lifecycleScope.launch {
+            viewModel.repository.appSettingsRepo.preferencesFlow.collect { settings ->
+                SyncCalendarWorker.enqueuePeriodicSync(this@MainActivity, settings.syncIntervalHours.toLong())
+            }
+        }
+
+        // Reactively handle search interval changes
+        lifecycleScope.launch {
+            viewModel.repository.autoDownloadRepo.preferencesFlow.collect { settings ->
+                if (viewModel.isTorrentServiceInstalled()) {
+                    AutoDownloadWorker.enqueuePeriodicSearch(this@MainActivity, settings.searchIntervalHours.toLong())
+                }
+            }
         }
 
         handleOAuthIntent(intent)
@@ -283,13 +290,12 @@ fun SimklCalendarApp(
                     viewModel = viewModel,
                     onNavigateBack = {
                         navController.popBackStack()
-                    },
-                    onNavigateToLogViewer = {
-                        navController.navigate("log_viewer") {
-                            launchSingleTop = true
-                        }
                     }
-                )
+                ) {
+                    navController.navigate("log_viewer") {
+                        launchSingleTop = true
+                    }
+                }
             }
 
             // 3.1. Log Viewer screen

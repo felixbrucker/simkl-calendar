@@ -30,10 +30,7 @@ data class DownloadProgress(
 )
 
 class TorrentServiceHelper(context: Context) {
-    private val TAG = "TorrentServiceHelper"
     private val appContext = context.applicationContext
-    private val SERVICE_PACKAGE = "com.felixbrucker.torrenthttpdownloader"
-    private val SERVICE_ACTION = "com.felixbrucker.torrenthttpdownloader.ITorrentDownloadService"
 
     private val _service = MutableStateFlow<ITorrentDownloadService?>(null)
     val service: StateFlow<ITorrentDownloadService?> = _service.asStateFlow()
@@ -192,6 +189,10 @@ class TorrentServiceHelper(context: Context) {
     }
 
     companion object {
+        private const val TAG = "TorrentServiceHelper"
+        private const val SERVICE_PACKAGE = "com.felixbrucker.torrenthttpdownloader"
+        private const val SERVICE_ACTION = "com.felixbrucker.torrenthttpdownloader.ITorrentDownloadService"
+
         @Volatile
         private var INSTANCE: TorrentServiceHelper? = null
 

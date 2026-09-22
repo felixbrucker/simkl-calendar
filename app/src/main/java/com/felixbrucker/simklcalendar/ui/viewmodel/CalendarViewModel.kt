@@ -1,7 +1,6 @@
 package com.felixbrucker.simklcalendar.ui.viewmodel
 
 import android.app.Application
-import android.content.Context
 import timber.log.Timber
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -27,18 +26,11 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 import androidx.compose.runtime.Immutable
-import androidx.core.content.edit
 import com.felixbrucker.simklcalendar.data.util.DirectoryUtils
-import com.felixbrucker.simklcalendar.extensions.getStringListWithMigration
-import com.felixbrucker.simklcalendar.extensions.globalAutoDownloadSettings
-import com.felixbrucker.simklcalendar.extensions.putStringList
-import com.felixbrucker.simklcalendar.extensions.uiSettings
+import com.felixbrucker.simklcalendar.data.preferences.*
 import kotlin.time.Duration.Companion.milliseconds
 
-enum class MainViewMode {
-    CALENDAR,
-    TABLE
-}
+import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 
 enum class TableSortField {
     NAME,
@@ -70,9 +62,10 @@ data class WatchlistTableItem(
     val downloadedProgress: Double = if (totalDownloadableReleasedCount > 0) downloadedReleasedCount.toDouble() / totalDownloadableReleasedCount else 0.0
 }
 
-class CalendarViewModel(application: Application) : AndroidViewModel(application) {
-
-    val repository = SimklRepository(application)
+class CalendarViewModel(
+    application: Application,
+    val repository: SimklRepository = SimklRepository(application)
+) : AndroidViewModel(application) {
 
     val notificationSettings: StateFlow<List<NotificationSetting>> = repository.notificationSettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -101,18 +94,27 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     private val _userToken = MutableStateFlow<UserToken?>(null)
     val userToken: StateFlow<UserToken?> = _userToken.asStateFlow()
 
-    private val _isAuthV2UpgradeHint = MutableStateFlow(false)
-    val isAuthV2UpgradeHint: StateFlow<Boolean> = _isAuthV2UpgradeHint.asStateFlow()
-
     data class AuthState(val isReady: Boolean, val token: UserToken?)
     val authState: StateFlow<AuthState> = combine(_isAuthReady, _userToken) { ready, token ->
         AuthState(ready, token)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AuthState(false, null))
 
-    private val uiPrefs = application.uiSettings
+    val uiPreferences: StateFlow<UiPreferences> = repository.uiRepo.preferencesFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiPreferences())
 
-    private val _viewMode = MutableStateFlow(MainViewMode.valueOf(uiPrefs.getString("view_mode", MainViewMode.CALENDAR.name) ?: MainViewMode.CALENDAR.name))
-    val viewMode: StateFlow<MainViewMode> = _viewMode.asStateFlow()
+    val notificationPreferences: StateFlow<NotificationPreferences> = repository.notificationRepo.preferencesFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationPreferences())
+
+    val appSettingsPreferences: StateFlow<AppSettingsPreferences> = repository.appSettingsRepo.preferencesFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettingsPreferences())
+
+    val viewMode: StateFlow<ViewMode> = uiPreferences
+        .map { it.viewMode }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ViewMode.CALENDAR)
+
+    val showAuthV2UpgradeHint: StateFlow<Boolean> = repository.authRepo.preferencesFlow
+        .map { it.showAuthV2UpgradeHint }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private var pollingJob: Job? = null
     private val downloadingItems = allCalendarItems
@@ -120,9 +122,10 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun setViewMode(mode: MainViewMode) {
-        _viewMode.value = mode
-        uiPrefs.edit { putString("view_mode", mode.name) }
+    fun setViewMode(mode: ViewMode) {
+        viewModelScope.launch {
+            repository.uiRepo.setViewMode(mode)
+        }
     }
 
     private val _tableSortField = MutableStateFlow(TableSortField.NAME)
@@ -141,75 +144,76 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     }
 
     // Filtering State Flows
-    val showTv = MutableStateFlow(uiPrefs.getBoolean("filter_show_tv", true))
-    val showAnime = MutableStateFlow(uiPrefs.getBoolean("filter_show_anime", true))
-    val showMovies = MutableStateFlow(uiPrefs.getBoolean("filter_show_movies", true))
-    val showOnlyUnwatchedReleased = MutableStateFlow(uiPrefs.getBoolean("filter_only_unwatched", true))
-    val onlySeasonPremieres = MutableStateFlow(uiPrefs.getBoolean("filter_only_premieres", false))
-    val onlySeasonFinales = MutableStateFlow(uiPrefs.getBoolean("filter_only_finales", false))
-    val onlyDigitalDvd = MutableStateFlow(uiPrefs.getBoolean("filter_only_digital_dvd", false))
-    val showEarlierReleases = MutableStateFlow(uiPrefs.getBoolean("filter_show_earlier", false))
     val searchQuery = MutableStateFlow("")
 
     fun toggleShowTv() {
-        showTv.value = !showTv.value
-        uiPrefs.edit { putBoolean("filter_show_tv", showTv.value) }
+        viewModelScope.launch {
+            repository.uiRepo.updateFilters { it.copy(filterShowTv = !it.filterShowTv) }
+        }
     }
 
     fun toggleShowAnime() {
-        showAnime.value = !showAnime.value
-        uiPrefs.edit { putBoolean("filter_show_anime", showAnime.value) }
+        viewModelScope.launch {
+            repository.uiRepo.updateFilters { it.copy(filterShowAnime = !it.filterShowAnime) }
+        }
     }
 
     fun toggleShowMovies() {
-        showMovies.value = !showMovies.value
-        uiPrefs.edit { putBoolean("filter_show_movies", showMovies.value) }
+        viewModelScope.launch {
+            repository.uiRepo.updateFilters { it.copy(filterShowMovies = !it.filterShowMovies) }
+        }
     }
 
     fun toggleShowOnlyUnwatchedReleased() {
-        showOnlyUnwatchedReleased.value = !showOnlyUnwatchedReleased.value
-        uiPrefs.edit { putBoolean("filter_only_unwatched", showOnlyUnwatchedReleased.value) }
+        viewModelScope.launch {
+            repository.uiRepo.updateFilters { it.copy(filterOnlyUnwatched = !it.filterOnlyUnwatched) }
+        }
     }
 
     fun toggleOnlySeasonPremieres() {
-        onlySeasonPremieres.value = !onlySeasonPremieres.value
-        uiPrefs.edit { putBoolean("filter_only_premieres", onlySeasonPremieres.value) }
+        viewModelScope.launch {
+            repository.uiRepo.updateFilters { it.copy(filterOnlyPremieres = !it.filterOnlyPremieres) }
+        }
     }
 
     fun toggleOnlySeasonFinales() {
-        onlySeasonFinales.value = !onlySeasonFinales.value
-        uiPrefs.edit { putBoolean("filter_only_finales", onlySeasonFinales.value) }
+        viewModelScope.launch {
+            repository.uiRepo.updateFilters { it.copy(filterOnlyFinales = !it.filterOnlyFinales) }
+        }
     }
 
     fun toggleOnlyDigitalDvd() {
-        onlyDigitalDvd.value = !onlyDigitalDvd.value
-        uiPrefs.edit { putBoolean("filter_only_digital_dvd", onlyDigitalDvd.value) }
+        viewModelScope.launch {
+            repository.uiRepo.updateFilters { it.copy(filterOnlyDigitalDvd = !it.filterOnlyDigitalDvd) }
+        }
     }
 
     fun toggleShowEarlierReleases() {
-        showEarlierReleases.value = !showEarlierReleases.value
-        uiPrefs.edit { putBoolean("filter_show_earlier", showEarlierReleases.value) }
+        viewModelScope.launch {
+            repository.uiRepo.updateFilters { it.copy(filterShowEarlier = !it.filterShowEarlier) }
+        }
     }
 
     fun setShowEarlierReleases(show: Boolean) {
-        showEarlierReleases.value = show
-        uiPrefs.edit { putBoolean("filter_show_earlier", show) }
+        viewModelScope.launch {
+            repository.uiRepo.updateFilters { it.copy(filterShowEarlier = show) }
+        }
     }
 
     fun resetFilters() {
-        showTv.value = true
-        showAnime.value = true
-        showMovies.value = true
-        onlySeasonPremieres.value = false
-        onlySeasonFinales.value = false
-        onlyDigitalDvd.value = false
-        uiPrefs.edit {
-            putBoolean("filter_show_tv", true)
-            putBoolean("filter_show_anime", true)
-            putBoolean("filter_show_movies", true)
-            putBoolean("filter_only_premieres", false)
-            putBoolean("filter_only_finales", false)
-            putBoolean("filter_only_digital_dvd", false)
+        viewModelScope.launch {
+            repository.uiRepo.updateFilters {
+                it.copy(
+                    filterShowTv = true,
+                    filterShowAnime = true,
+                    filterShowMovies = true,
+                    filterOnlyUnwatched = true,
+                    filterOnlyPremieres = false,
+                    filterOnlyFinales = false,
+                    filterOnlyDigitalDvd = false,
+                    filterShowEarlier = false
+                )
+            }
         }
     }
 
@@ -221,95 +225,99 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         searchQuery.value = ""
     }
 
-    private val downloadPrefs = application.globalAutoDownloadSettings
-
-    val autoDownloadQuality = MutableStateFlow(downloadPrefs.getString("quality", "1080p") ?: "1080p")
-    val autoDownloadPreferHevc = MutableStateFlow(downloadPrefs.getBoolean("prefer_hevc", true))
-    val autoDownloadUnwatchedTv = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_tv", false))
-    val autoDownloadUnwatchedAnime = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_anime", false))
-    val autoDownloadUnwatchedMovie = MutableStateFlow(downloadPrefs.getBoolean("auto_download_unwatched_movie", false))
-    val autoDownloadSeasonUnwatchedTv = MutableStateFlow(downloadPrefs.getBoolean("auto_download_season_unwatched_tv", false))
-    val autoDownloadSeasonUnwatchedAnime = MutableStateFlow(downloadPrefs.getBoolean("auto_download_season_unwatched_anime", false))
-    val autoDownloadPreferredKeywords = MutableStateFlow(downloadPrefs.getStringListWithMigration("preferred_keywords"))
-    val autoDownloadIgnoreKeywords = MutableStateFlow(downloadPrefs.getStringListWithMigration("ignore_keywords"))
+    val autoDownloadPreferences: StateFlow<AutoDownloadPreferences> = repository.autoDownloadRepo.preferencesFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AutoDownloadPreferences())
 
     fun updateAutoDownloadQuality(quality: String) {
-        autoDownloadQuality.value = quality
-        downloadPrefs.edit {putString("quality", quality)}
+        viewModelScope.launch {
+            repository.autoDownloadRepo.setQuality(quality)
+        }
     }
 
     fun updateAutoDownloadPreferHevc(prefer: Boolean) {
-        autoDownloadPreferHevc.value = prefer
-        downloadPrefs.edit {putBoolean("prefer_hevc", prefer)}
+        viewModelScope.launch {
+            repository.autoDownloadRepo.setPreferHevc(prefer)
+        }
     }
 
     fun updateAutoDownloadUnwatchedTv(default: Boolean) {
-        autoDownloadUnwatchedTv.value = default
-        downloadPrefs.edit { putBoolean("auto_download_unwatched_tv", default)}
+        viewModelScope.launch {
+            repository.autoDownloadRepo.setAutoDownloadUnwatchedTv(default)
+        }
     }
 
     fun updateAutoDownloadUnwatchedAnime(default: Boolean) {
-        autoDownloadUnwatchedAnime.value = default
-        downloadPrefs.edit { putBoolean("auto_download_unwatched_anime", default)}
+        viewModelScope.launch {
+            repository.autoDownloadRepo.setAutoDownloadUnwatchedAnime(default)
+        }
     }
 
     fun updateAutoDownloadUnwatchedMovie(default: Boolean) {
-        autoDownloadUnwatchedMovie.value = default
-        downloadPrefs.edit { putBoolean("auto_download_unwatched_movie", default)}
+        viewModelScope.launch {
+            repository.autoDownloadRepo.setAutoDownloadUnwatchedMovie(default)
+        }
     }
 
     fun updateAutoDownloadSeasonUnwatchedTv(default: Boolean) {
-        autoDownloadSeasonUnwatchedTv.value = default
-        downloadPrefs.edit { putBoolean("auto_download_season_unwatched_tv", default)}
+        viewModelScope.launch {
+            repository.autoDownloadRepo.setAutoDownloadSeasonUnwatchedTv(default)
+        }
     }
 
     fun updateAutoDownloadSeasonUnwatchedAnime(default: Boolean) {
-        autoDownloadSeasonUnwatchedAnime.value = default
-        downloadPrefs.edit { putBoolean("auto_download_season_unwatched_anime", default)}
+        viewModelScope.launch {
+            repository.autoDownloadRepo.setAutoDownloadSeasonUnwatchedAnime(default)
+        }
     }
 
     fun addPreferredKeyword(keyword: String) {
-        val current = autoDownloadPreferredKeywords.value.toMutableList()
-        if (!current.contains(keyword)) {
-            current.add(keyword)
-            autoDownloadPreferredKeywords.value = current
-            downloadPrefs.edit { putStringList("preferred_keywords", current) }
+        viewModelScope.launch {
+            val current = autoDownloadPreferences.value.preferredKeywords.toMutableList()
+            if (!current.contains(keyword)) {
+                current.add(keyword)
+                repository.autoDownloadRepo.setPreferredKeywords(current)
+            }
         }
     }
 
     fun removePreferredKeyword(keyword: String) {
-        val current = autoDownloadPreferredKeywords.value.toMutableList()
-        if (current.remove(keyword)) {
-            autoDownloadPreferredKeywords.value = current
-            downloadPrefs.edit { putStringList("preferred_keywords", current) }
+        viewModelScope.launch {
+            val current = autoDownloadPreferences.value.preferredKeywords.toMutableList()
+            if (current.remove(keyword)) {
+                repository.autoDownloadRepo.setPreferredKeywords(current)
+            }
         }
     }
 
     fun updatePreferredKeywordsOrder(reordered: List<String>) {
-        autoDownloadPreferredKeywords.value = reordered
-        downloadPrefs.edit { putStringList("preferred_keywords", reordered) }
+        viewModelScope.launch {
+            repository.autoDownloadRepo.setPreferredKeywords(reordered)
+        }
     }
 
     fun addIgnoreKeyword(keyword: String) {
-        val current = autoDownloadIgnoreKeywords.value.toMutableList()
-        if (!current.contains(keyword)) {
-            current.add(keyword)
-            autoDownloadIgnoreKeywords.value = current
-            downloadPrefs.edit { putStringList("ignore_keywords", current) }
+        viewModelScope.launch {
+            val current = autoDownloadPreferences.value.ignoreKeywords.toMutableList()
+            if (!current.contains(keyword)) {
+                current.add(keyword)
+                repository.autoDownloadRepo.setIgnoreKeywords(current)
+            }
         }
     }
 
     fun removeIgnoreKeyword(keyword: String) {
-        val current = autoDownloadIgnoreKeywords.value.toMutableList()
-        if (current.remove(keyword)) {
-            autoDownloadIgnoreKeywords.value = current
-            downloadPrefs.edit { putStringList("ignore_keywords", current) }
+        viewModelScope.launch {
+            val current = autoDownloadPreferences.value.ignoreKeywords.toMutableList()
+            if (current.remove(keyword)) {
+                repository.autoDownloadRepo.setIgnoreKeywords(current)
+            }
         }
     }
 
     fun updateIgnoreKeywordsOrder(reordered: List<String>) {
-        autoDownloadIgnoreKeywords.value = reordered
-        downloadPrefs.edit { putStringList("ignore_keywords", reordered) }
+        viewModelScope.launch {
+            repository.autoDownloadRepo.setIgnoreKeywords(reordered)
+        }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -317,22 +325,21 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         repository.watchlistItems,
         repository.calendarItems,
         searchQuery,
-        showTv,
-        showAnime,
-        showMovies,
-        showOnlyUnwatchedReleased,
+        uiPreferences,
         tableSortField,
         tableSortDirection
     ) { flows ->
         val watchlist = flows[0] as List<TrackedWatchlistItem>
         val calendar = flows[1] as List<CalendarItemWithWatchlist>
         val query = flows[2] as String
-        val tv = flows[3] as Boolean
-        val anime = flows[4] as Boolean
-        val movies = flows[5] as Boolean
-        val onlyUnwatchedReleased = flows[6] as Boolean
-        val sortField = flows[7] as TableSortField
-        val sortDirection = flows[8] as SortDirection
+        val ui = flows[3] as UiPreferences
+        val sortField = flows[4] as TableSortField
+        val sortDirection = flows[5] as SortDirection
+
+        val tv = ui.filterShowTv
+        val anime = ui.filterShowAnime
+        val movies = ui.filterShowMovies
+        val onlyUnwatchedReleased = ui.filterOnlyUnwatched
 
         // Pre-group calendar items by simklId upfront to convert lookup complexity from O(N*M) to O(N+M).
         val calendarBySimklId = calendar.groupBy { it.simklId }
@@ -365,8 +372,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             var downloadedReleasedCount = 0
             var totalDownloadableReleasedCount = 0
 
-            for (i in 0 until itemCalendar.size) {
-                val calItem = itemCalendar[i]
+            for (calItem in itemCalendar) {
                 val calDate = calItem.date
                 val isReleased = calDate.isBefore(now)
 
@@ -654,22 +660,19 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     @Suppress("UNCHECKED_CAST")
     val filteredCalendarItems: StateFlow<List<CalendarItemWithWatchlist>> = combine(
         repository.calendarItems,
-        showTv,
-        showAnime,
-        showMovies,
-        onlySeasonPremieres,
-        onlySeasonFinales,
-        onlyDigitalDvd,
+        uiPreferences,
         searchQuery
     ) { flows ->
         val items = flows[0] as List<CalendarItemWithWatchlist>
-        val tv = flows[1] as Boolean
-        val anime = flows[2] as Boolean
-        val movies = flows[3] as Boolean
-        val premieres = flows[4] as Boolean
-        val finales = flows[5] as Boolean
-        val digitalDvd = flows[6] as Boolean
-        val query = (flows[7] as String).trim()
+        val ui = flows[1] as UiPreferences
+        val query = (flows[2] as String).trim()
+
+        val tv = ui.filterShowTv
+        val anime = ui.filterShowAnime
+        val movies = ui.filterShowMovies
+        val premieres = ui.filterOnlyPremieres
+        val finales = ui.filterOnlyFinales
+        val digitalDvd = ui.filterOnlyDigitalDvd
 
         items.filter { item ->
             // Always exclude watched episodes / releases first (fastest short-circuit)
@@ -712,19 +715,16 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     init {
         refreshDownloadSubdirectories()
-        // Automatically sync calendar on launch only if user is logged in
         viewModelScope.launch {
             repository.resetAuthIfNeeded()
-            _isAuthV2UpgradeHint.value = repository.isAuthV2UpgradeHint()
+        }
+        viewModelScope.launch {
+            // Automatically sync calendar on launch only if user is logged in
             repository.activeUserToken.collect { token ->
                 _userToken.value = token
                 _isAuthReady.value = true
                 if (token != null && token.accessToken.isNotEmpty()) {
-                    _isAuthV2UpgradeHint.value = false
-                    repository.clearAuthV2UpgradeHint()
                     syncLocalCalendar()
-                } else if (repository.isAuthV2UpgradeHint()) {
-                    _isAuthV2UpgradeHint.value = true
                 }
             }
         }
@@ -832,6 +832,48 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 notifyEveryEpisode = notifyEpisode,
                 notifyAiredLastEpisode = notifySeasonFinished
             )
+        }
+    }
+
+    fun updateSyncInterval(hours: Int) {
+        viewModelScope.launch {
+            repository.appSettingsRepo.setSyncIntervalHours(hours)
+        }
+    }
+
+    fun updateSearchInterval(hours: Int) {
+        viewModelScope.launch {
+            repository.autoDownloadRepo.setSearchIntervalHours(hours)
+        }
+    }
+
+    fun updateUseExactAlarms(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.notificationRepo.setUseExactAlarms(enabled)
+        }
+    }
+
+    fun updateDefaultNotifyAiring(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.notificationRepo.setDefaultNotifyAiring(enabled)
+        }
+    }
+
+    fun updateDefaultNotifySeasonFinished(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.notificationRepo.setDefaultNotifySeasonFinished(enabled)
+        }
+    }
+
+    fun updateDefaultNotifyMovieTheater(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.notificationRepo.setDefaultNotifyMovieTheater(enabled)
+        }
+    }
+
+    fun updateDefaultNotifyMovieDigital(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.notificationRepo.setDefaultNotifyMovieDigital(enabled)
         }
     }
 
