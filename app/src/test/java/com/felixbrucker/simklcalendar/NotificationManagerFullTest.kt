@@ -133,8 +133,6 @@ class NotificationManagerFullTest {
         every { watchlistDao.getAllTrackedItemsFlow() } returns flowOf(emptyList())
 
         every { torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
-        mockkObject(TorrentServiceHelper.Companion)
-        every { TorrentServiceHelper.getInstance(any()) } returns torrentServiceHelper
 
         every { context.getSystemService(Context.NOTIFICATION_SERVICE) } returns androidNotificationManager
         every { context.packageName } returns "com.felixbrucker.simklcalendar"
@@ -166,7 +164,6 @@ class NotificationManagerFullTest {
         unmockkStatic(ContextCompat::class)
         unmockkStatic(Toast::class)
         unmockkStatic(Log::class)
-        unmockkObject(TorrentServiceHelper.Companion)
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
         field.set(null, null)

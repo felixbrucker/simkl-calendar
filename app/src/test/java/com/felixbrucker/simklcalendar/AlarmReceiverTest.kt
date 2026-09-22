@@ -43,8 +43,6 @@ class AlarmReceiverTest {
         mockkConstructor(TpbProvider::class)
         coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(PaginatedSearchResult(results = emptyList(), page = 1, hasNextPage = false))
 
-        mockkObject(TorrentServiceHelper.Companion)
-        every { TorrentServiceHelper.getInstance(any()) } returns torrentServiceHelper
 
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
@@ -112,7 +110,6 @@ class AlarmReceiverTest {
     @After
     fun tearDown() {
         unmockkConstructor(TpbProvider::class)
-        unmockkObject(TorrentServiceHelper.Companion)
         unmockkObject(AppNotificationManager.Companion)
         unmockkStatic(Log::class)
         unmockkConstructor(SimklRepository::class)

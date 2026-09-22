@@ -60,8 +60,6 @@ class NotificationActionReceiverTest {
     @Before
     fun setUp() {
         torrentServiceHelper = mockk(relaxed = true)
-        mockkObject(TorrentServiceHelper.Companion)
-        every { TorrentServiceHelper.getInstance(any()) } returns torrentServiceHelper
 
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
@@ -137,7 +135,6 @@ class NotificationActionReceiverTest {
 
     @After
     fun tearDown() {
-        unmockkObject(TorrentServiceHelper.Companion)
         unmockkConstructor(SimklRepository::class)
         unmockkObject(NotificationManager)
         unmockkStatic(Toast::class)

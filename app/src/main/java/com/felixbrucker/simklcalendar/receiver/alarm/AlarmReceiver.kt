@@ -35,6 +35,9 @@ class AlarmReceiver: BroadcastReceiver() {
     lateinit var autoDownloadRepo: AutoDownloadRepository
 
     @Inject
+    lateinit var notificationRepo: com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
+
+    @Inject
     lateinit var torrentServiceHelper: TorrentServiceHelper
 
     companion object {
@@ -127,7 +130,8 @@ class AlarmReceiver: BroadcastReceiver() {
             return false
         }
 
-        val setting = db.notificationSettingDao().getSettingForShow(item.simklId) ?: DefaultNotificationSettings.fromContext(context).makeNotificationSettings(item)
+        val setting = db.notificationSettingDao().getSettingForShow(item.simklId)
+            ?: notificationRepo.preferencesFlow.first().toDefaultNotificationSettings().makeNotificationSettings(item)
 
         return when {
             item.type == MediaType.MOVIE -> if (item.movieReleaseType == MovieReleaseType.THEATER) {

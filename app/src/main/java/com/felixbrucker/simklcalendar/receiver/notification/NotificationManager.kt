@@ -101,9 +101,12 @@ class NotificationManager {
             }
         }
 
-        suspend fun addActiveNotification(context: Context, primaryKey: String) {
+        suspend fun addActiveNotification(
+            context: Context,
+            primaryKey: String,
+            db: AppDatabase = AppDatabase.getDatabase(context)
+        ) {
             try {
-                val db = AppDatabase.getDatabase(context)
                 db.activeNotificationDao().insertActiveNotification(
                     ActiveNotification(primaryKey = primaryKey)
                 )
@@ -112,18 +115,23 @@ class NotificationManager {
             }
         }
 
-        suspend fun removeActiveNotification(context: Context, primaryKey: String) {
+        suspend fun removeActiveNotification(
+            context: Context,
+            primaryKey: String,
+            db: AppDatabase = AppDatabase.getDatabase(context)
+        ) {
             try {
-                val db = AppDatabase.getDatabase(context)
                 db.activeNotificationDao().deleteActiveNotification(primaryKey)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error removing active notification primaryKey=$primaryKey")
             }
         }
 
-        suspend fun getActiveNotifications(context: Context): List<String> {
+        suspend fun getActiveNotifications(
+            context: Context,
+            db: AppDatabase = AppDatabase.getDatabase(context)
+        ): List<String> {
             return try {
-                val db = AppDatabase.getDatabase(context)
                 db.activeNotificationDao().getAllActiveKeys()
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error fetching active notification keys")
@@ -131,14 +139,17 @@ class NotificationManager {
             }
         }
 
-        suspend fun restoreActiveNotifications(context: Context) {
+        suspend fun restoreActiveNotifications(
+            context: Context,
+            db: AppDatabase = AppDatabase.getDatabase(context)
+        ) {
             createNotificationChannel(context)
             val isNotificationPermissionGranted = validateNotificationPermissionsGranted(context)
             if (!isNotificationPermissionGranted) {
                 return
             }
 
-            val activeKeys = getActiveNotifications(context)
+            val activeKeys = getActiveNotifications(context, db)
             if (activeKeys.isEmpty()) {
                 return
             }
@@ -147,11 +158,10 @@ class NotificationManager {
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val currentlyPostedIds = notificationManager.activeNotifications.map { it.id }.toSet()
 
-            val db = AppDatabase.getDatabase(context)
             for (primaryKey in activeKeys) {
                 val item = db.calendarItemDao().findItem(primaryKey)
                 if (item == null) {
-                    removeActiveNotification(context, primaryKey)
+                    removeActiveNotification(context, primaryKey, db)
                     continue
                 }
 
@@ -182,12 +192,20 @@ class NotificationManager {
             notificationManager.createNotificationChannel(channel)
         }
 
-        private suspend fun buildNotification(item: CalendarItemWithWatchlist, context: Context): Notification {
-            return makeConfiguredNotificationBuilder(item, context).build()
+        private suspend fun buildNotification(
+            item: CalendarItemWithWatchlist,
+            context: Context,
+            torrentServiceHelper: TorrentServiceHelper = TorrentServiceHelper(context)
+        ): Notification {
+            return makeConfiguredNotificationBuilder(item, context, torrentServiceHelper).build()
         }
 
-        private suspend fun makeConfiguredNotificationBuilder(item: CalendarItemWithWatchlist, context: Context): NotificationCompat.Builder {
-            val db = AppDatabase.getDatabase(context)
+        private suspend fun makeConfiguredNotificationBuilder(
+            item: CalendarItemWithWatchlist,
+            context: Context,
+            torrentServiceHelper: TorrentServiceHelper = TorrentServiceHelper(context),
+            db: AppDatabase = AppDatabase.getDatabase(context)
+        ): NotificationCompat.Builder {
             val itemsInSeasonOrRelatedItems = db
                 .calendarItemDao()
                 .getItemsInSeasonOrRelatedItems(item.simklId, item.season)
@@ -274,7 +292,7 @@ class NotificationManager {
                 }
             }
 
-            val isTorrentServiceInstalled = TorrentServiceHelper.getInstance(context).isInstalled.value
+            val isTorrentServiceInstalled = torrentServiceHelper.isInstalled.value
             if (isTorrentServiceInstalled) {
                 // Download actions
                 if (item.type == MediaType.MOVIE) {

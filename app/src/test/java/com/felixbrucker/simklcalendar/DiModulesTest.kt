@@ -114,15 +114,9 @@ class DiModulesTest {
 
     @Test
     fun testTorrentModuleProviders() {
-        mockkObject(TorrentServiceHelper.Companion)
-        val mockHelper = mockk<TorrentServiceHelper>(relaxed = true)
-        every { TorrentServiceHelper.getInstance(context) } returns mockHelper
-
         val torrentManager = TorrentModule.provideTorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo)
-        val torrentHelper = TorrentModule.provideTorrentServiceHelper(context)
 
         assertNotNull(torrentManager)
-        assertNotNull(torrentHelper)
     }
 
     @Test
@@ -136,10 +130,6 @@ class DiModulesTest {
 
     @Test
     fun testSimklRepositorySecondaryConstructor() {
-        mockkObject(TorrentServiceHelper.Companion)
-        val mockHelper = mockk<TorrentServiceHelper>(relaxed = true)
-        every { TorrentServiceHelper.getInstance(context) } returns mockHelper
-
         val repository = SimklRepository(context)
 
         assertNotNull(repository)

@@ -57,8 +57,6 @@ class SimklRepositoryTest {
         apiService = mockk(relaxed = true)
         torrentServiceHelper = mockk(relaxed = true)
 
-        mockkObject(TorrentServiceHelper.Companion)
-        every { TorrentServiceHelper.getInstance(any()) } returns torrentServiceHelper
 
         appSettingsRepo = mockk(relaxed = true)
         autoDownloadRepo = mockk(relaxed = true)
@@ -102,7 +100,8 @@ class SimklRepositoryTest {
             notificationRepo = notificationRepo,
             authRepo = authRepo,
             syncMetadataRepo = syncMetadataRepo,
-            uiRepo = uiRepo
+            uiRepo = uiRepo,
+            torrentServiceHelper = torrentServiceHelper
         )
 
         coEvery { torrentServiceHelper.addTorrent(any(), any(), any(), any(), any(), any(), any()) } returns Result.success("taskId")
@@ -120,7 +119,6 @@ class SimklRepositoryTest {
         unmockkConstructor(Intent::class)
         unmockkStatic(Base64::class)
         unmockkStatic(Log::class)
-        unmockkObject(TorrentServiceHelper.Companion)
         val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
         field.isAccessible = true
         field.set(null, null)

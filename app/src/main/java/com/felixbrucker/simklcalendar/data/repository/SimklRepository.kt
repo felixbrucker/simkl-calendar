@@ -67,16 +67,17 @@ import kotlin.time.Duration.Companion.milliseconds
 @Singleton
 class SimklRepository @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val db: AppDatabase = AppDatabase.getDatabase(context),
     private val appSettingsRepo: AppSettingsRepository = AppSettingsRepository(context.appSettingsDataStore),
     private val autoDownloadRepo: AutoDownloadRepository = AutoDownloadRepository(context.autoDownloadDataStore),
     private val notificationRepo: NotificationRepository = NotificationRepository(context.notificationDataStore),
     private val authRepo: AuthRepository = AuthRepository(context.authDataStore),
     private val syncMetadataRepo: SyncMetadataRepository = SyncMetadataRepository(context.syncMetadataDataStore),
-    private val uiRepo: UiRepository = UiRepository(context.uiDataStore)
+    private val uiRepo: UiRepository = UiRepository(context.uiDataStore),
+    private val torrentServiceHelper: TorrentServiceHelper = TorrentServiceHelper(context)
 ) {
 
     private val refreshMutex: Mutex = Mutex()
-    private val db = AppDatabase.getDatabase(context)
     private val tokenDao = db.userTokenDao()
     private val calendarDao = db.calendarItemDao()
     private val settingDao = db.notificationSettingDao()
@@ -86,7 +87,6 @@ class SimklRepository @Inject constructor(
     private val itemDownloadSettingsDao = db.itemDownloadSettingsDao()
 
     private val torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo)
-    private val torrentServiceHelper = TorrentServiceHelper.getInstance(context)
 
     fun getTorrentServiceHelper(): TorrentServiceHelper = torrentServiceHelper
 
