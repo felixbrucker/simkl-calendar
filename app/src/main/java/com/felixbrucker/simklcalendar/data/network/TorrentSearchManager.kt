@@ -142,22 +142,30 @@ private fun List<SearchResultItem>.excluding(keywords: List<Keyword>): List<Sear
 // 3. "[SubsPlease] One Piece 1234" (1 match, second preferred keyword)
 // 4. "[AWS] One Piece 1234 HEVC" (1 match, third preferred keyword)
 private fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<Keyword>): List<SearchResultItem> {
-    return sortedWith(
-        compareByDescending<SearchResultItem> { item ->
-            preferredKeywords.count { keyword ->
-                item.name.contains(keyword)
+    if (isEmpty() || preferredKeywords.isEmpty()) return this
+    val keywordCount = preferredKeywords.size
+    // Precompute match count and position weight score once per item (O(N * K)) to avoid
+    // repeated string matching and allocation during sorting comparisons (O(N log N * K)).
+    return map { item ->
+        var matchCount = 0
+        var score = 0
+        for (index in 0 until keywordCount) {
+            if (item.name.contains(preferredKeywords[index])) {
+                matchCount++
+                score += (keywordCount - index)
             }
-        }.thenByDescending { item ->
-            preferredKeywords.mapIndexed { index, keyword ->
-                if (item.name.contains(keyword)) {
-                    preferredKeywords.size - index
-                } else {
-                    0
-                }
-            }.sum()
         }
-    )
+        ScoredItem(item, matchCount, score)
+    }
+    .sortedWith(compareByDescending<ScoredItem> { it.matchCount }.thenByDescending { it.score })
+    .map { it.item }
 }
+
+private data class ScoredItem(
+    val item: SearchResultItem,
+    val matchCount: Int,
+    val score: Int
+)
 
 private fun String.contains(keyword: Keyword): Boolean {
     return keyword.variants.any { contains(it, ignoreCase = keyword.ignoreCase) }
