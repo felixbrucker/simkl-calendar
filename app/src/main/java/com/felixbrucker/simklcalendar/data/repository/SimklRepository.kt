@@ -297,14 +297,14 @@ class SimklRepository @Inject constructor(
 
     /**
      * Resets active user authentication if legacy Auth V1 token or an expired refresh token is detected.
-     * 1) Legacy Auth V1 token (not prefixed with "simkl_at_"): clears user token and sets Auth V2 upgrade hint flag.
+     * 1) Legacy Auth V1 token (not prefixed with "simkl_at_" or missing a refresh token): clears user token and sets Auth V2 upgrade hint flag.
      * 2) Expired refresh token (after 180 days): clears user token.
      */
     suspend fun resetAuthIfNeeded(): Unit = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken() ?: return@withContext
 
-        if (!userToken.accessToken.startsWith("simkl_at_")) {
-            Timber.tag("SimklRepository").w("Detected legacy Auth V1 token. Transitioning user to Auth V2 login while retaining data.")
+        if (!userToken.accessToken.startsWith("simkl_at_") || userToken.refreshToken.isEmpty()) {
+            Timber.tag("SimklRepository").w("Detected legacy or migrated Auth V1 token. Transitioning user to Auth V2 login while retaining data.")
             clearUserTokenOnly(isV1Upgrade = true)
             return@withContext
         }
@@ -319,7 +319,7 @@ class SimklRepository @Inject constructor(
     suspend fun logout() = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken()
         if (userToken != null) {
-            val revokeTarget = userToken.refreshToken ?: userToken.accessToken
+            val revokeTarget = userToken.refreshToken
             if (revokeTarget.isNotEmpty()) {
                 try {
                     publicSimklApiService.revokeToken(OAuthRevokeRequest(clientId = BuildConfig.SIMKL_CLIENT_ID, token = revokeTarget))

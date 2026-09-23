@@ -40,7 +40,7 @@ class SimklApiAuthenticator(
                 }
 
                 val refreshToken = currentToken.refreshToken
-                if (refreshToken.isNullOrEmpty()) {
+                if (refreshToken.isEmpty()) {
                     return@runBlocking null
                 }
 

@@ -19,7 +19,7 @@ class TokenRefreshProvider @Inject constructor(
     private val userTokenDao: UserTokenDao,
 ) {
     suspend fun performRefreshToken(current: UserToken): UserToken? = withContext(Dispatchers.IO) {
-        if (current.refreshToken == null) throw Exception("No refresh token available")
+        if (current.refreshToken.isEmpty()) throw Exception("No refresh token available")
         try {
             val response = publicApiService.getAccessToken(
                 OAuthTokenRequest(

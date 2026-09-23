@@ -117,7 +117,7 @@ class Converters {
 
 @Database(
     entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class, ActiveNotification::class],
-    version = 30,
+    version = 31,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -288,6 +288,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `user_token_new` (`id` INTEGER NOT NULL, `accessToken` TEXT NOT NULL, `username` TEXT NOT NULL, `refreshToken` TEXT NOT NULL, `accessTokenExpiresAt` INTEGER NOT NULL, `refreshTokenExpiresAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+                db.execSQL("INSERT INTO `user_token_new` (`id`, `accessToken`, `username`, `refreshToken`, `accessTokenExpiresAt`, `refreshTokenExpiresAt`) SELECT `id`, `accessToken`, `username`, COALESCE(`refreshToken`, ''), COALESCE(`accessTokenExpiresAt`, 0), COALESCE(`refreshTokenExpiresAt`, 0) FROM `user_token`")
+                db.execSQL("DROP TABLE `user_token`")
+                db.execSQL("ALTER TABLE `user_token_new` RENAME TO `user_token`")
+            }
+        }
+
         fun makeDatabase(context: Context): AppDatabase {
             return Room
                 .databaseBuilder(
@@ -300,6 +309,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_21_22,
                     MIGRATION_22_23,
                     MIGRATION_23_24,
+                    MIGRATION_30_31,
                 )
                 .build()
         }

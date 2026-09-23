@@ -21,12 +21,12 @@ data class UserToken(
     @PrimaryKey val id: Int = 1, // Single-row lock for active user
     val accessToken: String,
     val username: String,
-    val refreshToken: String? = null,
-    val accessTokenExpiresAt: Instant? = null,
-    val refreshTokenExpiresAt: Instant? = null
+    val refreshToken: String = "",
+    val accessTokenExpiresAt: Instant = Instant.EPOCH,
+    val refreshTokenExpiresAt: Instant = Instant.EPOCH
 ) {
-    val isAccessTokenExpired: Boolean get() = accessTokenExpiresAt?.isAfter(Instant.now().minusSeconds(600)) ?: true
-    val isRefreshTokenExpired: Boolean get() = refreshTokenExpiresAt?.isAfter(Instant.now().minusSeconds(600)) ?: true
+    val isAccessTokenExpired: Boolean get() = accessTokenExpiresAt.isAfter(Instant.now().minusSeconds(60))
+    val isRefreshTokenExpired: Boolean get() = refreshTokenExpiresAt.isAfter(Instant.now().minusSeconds(60))
 }
 
 @Entity(
