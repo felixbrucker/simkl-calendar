@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -45,7 +47,8 @@ private object SmallTableWeights {
 fun TrackedWatchlistTableView(
     viewModel: CalendarViewModel,
     onNavigateToSeriesDetail: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    lazyListState: LazyListState = rememberLazyListState(),
 ) {
     val items by viewModel.watchlistTableItems.collectAsState()
     val sortField by viewModel.tableSortField.collectAsState()
@@ -85,6 +88,7 @@ fun TrackedWatchlistTableView(
             )
 
             LazyColumn(
+                state = lazyListState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 contentPadding = PaddingValues(bottom = 16.dp)
