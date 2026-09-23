@@ -2,7 +2,7 @@ package com.felixbrucker.simklcalendar.receiver.notification
 
 import android.app.Notification
 import android.app.NotificationChannel
-import android.app.NotificationManager
+import android.app.NotificationManager as SystemNotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -21,12 +21,10 @@ import coil.request.SuccessResult
 import com.felixbrucker.simklcalendar.MainActivity
 import com.felixbrucker.simklcalendar.R
 import com.felixbrucker.simklcalendar.data.database.ActiveNotification
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.data.util.PosterSize
@@ -65,8 +63,7 @@ class NotificationManager @Inject constructor(
         val notification = buildNotification(item)
         val notificationId = item.notificationId
         try {
-            val systemNotificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-            systemNotificationManager.notify(notificationId, notification)
+            context.getSystemNotificationManager().notify(notificationId, notification)
             addActiveNotification(item.primaryKey)
             Timber.tag(TAG).d("Successfully displayed notification id=$notificationId")
         } catch (e: Exception) {
@@ -84,8 +81,7 @@ class NotificationManager @Inject constructor(
         }
 
         val notificationId = item.notificationId
-        val systemNotificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val systemNotificationManager = context.getSystemNotificationManager()
 
         // Only update if the notification is currently active/visible
         val isActive = systemNotificationManager.activeNotifications.any { it.id == notificationId }
@@ -105,9 +101,7 @@ class NotificationManager @Inject constructor(
 
     suspend fun dismissNotification(item: CalendarItemWithWatchlist) {
         try {
-            val systemNotificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-            systemNotificationManager.cancel(item.notificationId)
+            context.getSystemNotificationManager().cancel(item.notificationId)
             removeActiveNotification(item.primaryKey)
             Timber.tag(TAG).d("Successfully dismissed notification id=${item.notificationId} primaryKey=${item.primaryKey}")
         } catch (e: Exception) {
@@ -154,8 +148,7 @@ class NotificationManager @Inject constructor(
             return
         }
 
-        val systemNotificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val systemNotificationManager = context.getSystemNotificationManager()
         val currentlyPostedIds = systemNotificationManager.activeNotifications.map { it.id }.toSet()
 
         for (primaryKey in activeKeys) {
@@ -180,7 +173,7 @@ class NotificationManager @Inject constructor(
     fun createNotificationChannel() {
         val name = "Simkl Calendar Notifications"
         val descriptionText = "Notifications for airing episodes and movies as well as and seasons that finished airing."
-        val importance = android.app.NotificationManager.IMPORTANCE_HIGH
+        val importance = SystemNotificationManager.IMPORTANCE_HIGH
         val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
             description = descriptionText
             enableVibration(true)
@@ -188,8 +181,7 @@ class NotificationManager @Inject constructor(
             setShowBadge(true)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-        val systemNotificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        systemNotificationManager.createNotificationChannel(channel)
+        context.getSystemNotificationManager().createNotificationChannel(channel)
     }
 
     private suspend fun buildNotification(item: CalendarItemWithWatchlist): Notification {
@@ -365,6 +357,9 @@ class NotificationManager @Inject constructor(
     }
 }
 
+fun Context.getSystemNotificationManager(): SystemNotificationManager {
+    return getSystemService(Context.NOTIFICATION_SERVICE) as SystemNotificationManager
+}
 
 fun CalendarItemWithWatchlist.makeOpenReleaseDetailViewIntent(context: Context): PendingIntent {
     val openIntent = Intent(context, MainActivity::class.java).apply {

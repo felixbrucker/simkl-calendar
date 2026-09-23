@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import timber.log.Timber
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import kotlinx.coroutines.Dispatchers

@@ -20,7 +20,6 @@ import java.time.Instant
 class RepositoryAdditionalCoverageTest {
 
     private lateinit var context: Context
-    private lateinit var appDatabase: AppDatabase
     private lateinit var tokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
@@ -30,7 +29,7 @@ class RepositoryAdditionalCoverageTest {
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
 
     private lateinit var repository: SimklRepository
-    
+
     private lateinit var appSettingsRepo: AppSettingsRepository
     private lateinit var autoDownloadRepo: AutoDownloadRepository
     private lateinit var notificationRepo: NotificationRepository
@@ -41,7 +40,6 @@ class RepositoryAdditionalCoverageTest {
     @Before
     fun setUp() {
         context = mockk(relaxed = true)
-        appDatabase = mockk(relaxed = true)
         tokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
@@ -57,12 +55,6 @@ class RepositoryAdditionalCoverageTest {
         syncMetadataRepo = mockk(relaxed = true)
         uiRepo = mockk(relaxed = true)
 
-        everyAppDatabase()
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
-
         repository = SimklRepository(
             context = context,
             tokenDao = tokenDao,
@@ -72,7 +64,8 @@ class RepositoryAdditionalCoverageTest {
             watchedDao = watchedDao,
             searchLinkDao = searchLinkDao,
             itemDownloadSettingsDao = itemDownloadSettingsDao,
-            apiService = mockk(relaxed = true),
+            publicSimklApiService = mockk(relaxed = true),
+            authenticatedSimklApiService = mockk(relaxed = true),
             appSettingsRepo = appSettingsRepo,
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
@@ -83,25 +76,12 @@ class RepositoryAdditionalCoverageTest {
             torrentSearchManager = mockk(relaxed = true),
             alarmScheduler = mockk(relaxed = true)
         )
-        
-        every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
-    }
 
-    private fun everyAppDatabase() {
-        coEvery { appDatabase.userTokenDao() } returns tokenDao
-        coEvery { appDatabase.calendarItemDao() } returns calendarDao
-        coEvery { appDatabase.notificationSettingDao() } returns settingDao
-        coEvery { appDatabase.watchlistDao() } returns watchlistDao
-        coEvery { appDatabase.watchedEpisodeDao() } returns watchedDao
-        coEvery { appDatabase.customSearchLinkDao() } returns searchLinkDao
-        coEvery { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
+        every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
     }
 
     @After
     fun tearDown() {
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test

@@ -10,11 +10,8 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.spyk
-import io.mockk.unmockkObject
 import io.mockk.verify
-import org.junit.After
 import org.junit.Before
 import org.junit.Test
 

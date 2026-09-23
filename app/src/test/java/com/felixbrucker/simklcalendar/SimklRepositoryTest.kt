@@ -26,14 +26,14 @@ class SimklRepositoryTest {
 
     private lateinit var context: Context
     private lateinit var repository: SimklRepository
-    private lateinit var appDatabase: AppDatabase
     private lateinit var tokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
     private lateinit var watchlistDao: WatchlistDao
     private lateinit var watchedDao: WatchedEpisodeDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
-    private lateinit var apiService: SimklApiService
+    private lateinit var publicApiService: PublicSimklApiService
+    private lateinit var authenticatedApiService: AuthenticatedSimklApiService
     private lateinit var torrentServiceHelper: TorrentServiceHelper
 
     private lateinit var appSettingsRepo: AppSettingsRepository
@@ -47,14 +47,14 @@ class SimklRepositoryTest {
     fun setUp() {
         context = mockk(relaxed = true)
         every { context.filesDir } returns File("/tmp")
-        appDatabase = mockk(relaxed = true)
         tokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
         watchlistDao = mockk(relaxed = true)
         watchedDao = mockk(relaxed = true)
         itemDownloadSettingsDao = mockk(relaxed = true)
-        apiService = mockk(relaxed = true)
+        publicApiService = mockk(relaxed = true)
+        authenticatedApiService = mockk(relaxed = true)
         torrentServiceHelper = mockk(relaxed = true)
 
 
@@ -81,18 +81,6 @@ class SimklRepositoryTest {
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
 
-        every { appDatabase.userTokenDao() } returns tokenDao
-        every { appDatabase.calendarItemDao() } returns calendarDao
-        every { appDatabase.notificationSettingDao() } returns settingDao
-        every { appDatabase.watchlistDao() } returns watchlistDao
-        every { appDatabase.watchedEpisodeDao() } returns watchedDao
-        every { appDatabase.customSearchLinkDao() } returns mockk(relaxed = true)
-        every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
-
         repository = SimklRepository(
             context = context,
             tokenDao = tokenDao,
@@ -102,7 +90,8 @@ class SimklRepositoryTest {
             watchedDao = watchedDao,
             searchLinkDao = mockk(relaxed = true),
             itemDownloadSettingsDao = itemDownloadSettingsDao,
-            apiService = apiService,
+            publicSimklApiService = publicApiService,
+            authenticatedSimklApiService = authenticatedApiService,
             appSettingsRepo = appSettingsRepo,
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
@@ -116,10 +105,6 @@ class SimklRepositoryTest {
 
         coEvery { torrentServiceHelper.addTorrent(any(), any(), any(), any(), any(), any(), any()) } returns Result.success("taskId")
 
-        val apiField = SimklRepository::class.java.getDeclaredField("apiService")
-        apiField.isAccessible = true
-        apiField.set(repository, apiService)
-
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
     }
 
@@ -129,9 +114,6 @@ class SimklRepositoryTest {
         unmockkConstructor(Intent::class)
         unmockkStatic(Base64::class)
         unmockkStatic(Log::class)
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test

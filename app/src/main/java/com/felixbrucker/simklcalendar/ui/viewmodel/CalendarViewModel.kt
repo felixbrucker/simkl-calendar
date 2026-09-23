@@ -74,7 +74,6 @@ class CalendarViewModel @Inject constructor(
     val autoDownloadRepo: AutoDownloadRepository,
     val notificationRepo: NotificationRepository,
     val authRepo: AuthRepository,
-    val syncMetadataRepo: SyncMetadataRepository,
     val uiRepo: UiRepository,
     val torrentServiceHelper: TorrentServiceHelper,
     val alarmScheduler: AlarmScheduler

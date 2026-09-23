@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.util.Log
 import android.widget.Toast
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -29,11 +28,9 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkConstructor
-import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.spyk
 import io.mockk.unmockkConstructor
-import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import org.junit.After
@@ -45,7 +42,6 @@ import java.time.Instant
 class NotificationActionReceiverTest {
 
     private lateinit var context: Context
-    private lateinit var appDatabase: AppDatabase
     private lateinit var tokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
@@ -107,7 +103,6 @@ class NotificationActionReceiverTest {
 
         context = mockk(relaxed = true)
         every { context.applicationContext } returns mockApp
-        appDatabase = mockk(relaxed = true)
         tokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
@@ -122,17 +117,6 @@ class NotificationActionReceiverTest {
         every { sharedPreferences.getBoolean(any(), any()) } answers { secondArg() }
 
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
-
-        every { appDatabase.userTokenDao() } returns tokenDao
-        every { appDatabase.calendarItemDao() } returns calendarDao
-        every { appDatabase.notificationSettingDao() } returns settingDao
-        every { appDatabase.watchlistDao() } returns watchlistDao
-        every { appDatabase.watchedEpisodeDao() } returns watchedDao
-        every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
     }
 
     @After
@@ -140,9 +124,6 @@ class NotificationActionReceiverTest {
         unmockkConstructor(SimklRepository::class)
         unmockkStatic(Toast::class)
         unmockkStatic(Log::class)
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test

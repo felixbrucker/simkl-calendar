@@ -1,5 +1,6 @@
 package com.felixbrucker.simklcalendar.data.network
 
+import com.felixbrucker.simklcalendar.data.network.interceptor.RateLimitInterceptor
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

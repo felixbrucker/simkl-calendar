@@ -10,7 +10,6 @@ import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -22,17 +21,17 @@ import java.io.File
 class SimklRepositoryDeepSyncTest {
 
     private lateinit var context: Context
-    private lateinit var appDatabase: AppDatabase
     private lateinit var tokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
     private lateinit var watchlistDao: WatchlistDao
     private lateinit var watchedDao: WatchedEpisodeDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
-    private lateinit var apiService: SimklApiService
+    private lateinit var publicApiService: PublicSimklApiService
+    private lateinit var authenticatedApiService: AuthenticatedSimklApiService
 
     private lateinit var repository: SimklRepository
-    
+
     private lateinit var appSettingsRepo: AppSettingsRepository
     private lateinit var autoDownloadRepo: AutoDownloadRepository
     private lateinit var notificationRepo: NotificationRepository
@@ -44,15 +43,15 @@ class SimklRepositoryDeepSyncTest {
     fun setUp() {
         context = mockk(relaxed = true)
         every { context.filesDir } returns File("/tmp")
-        
-        appDatabase = mockk(relaxed = true)
+
         tokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
         watchlistDao = mockk(relaxed = true)
         watchedDao = mockk(relaxed = true)
         itemDownloadSettingsDao = mockk(relaxed = true)
-        apiService = mockk(relaxed = true)
+        publicApiService = mockk(relaxed = true)
+        authenticatedApiService = mockk(relaxed = true)
 
         appSettingsRepo = mockk(relaxed = true)
         autoDownloadRepo = mockk(relaxed = true)
@@ -60,18 +59,6 @@ class SimklRepositoryDeepSyncTest {
         authRepo = mockk(relaxed = true)
         syncMetadataRepo = mockk(relaxed = true)
         uiRepo = mockk(relaxed = true)
-
-        coEvery { appDatabase.userTokenDao() } returns tokenDao
-        coEvery { appDatabase.calendarItemDao() } returns calendarDao
-        coEvery { appDatabase.notificationSettingDao() } returns settingDao
-        coEvery { appDatabase.watchlistDao() } returns watchlistDao
-        coEvery { appDatabase.watchedEpisodeDao() } returns watchedDao
-        coEvery { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
-        every { appDatabase.customSearchLinkDao() } returns mockk(relaxed = true)
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
 
         repository = SimklRepository(
             context = context,
@@ -82,7 +69,8 @@ class SimklRepositoryDeepSyncTest {
             watchedDao = watchedDao,
             searchLinkDao = mockk(relaxed = true),
             itemDownloadSettingsDao = itemDownloadSettingsDao,
-            apiService = apiService,
+            publicSimklApiService = publicApiService,
+            authenticatedSimklApiService = authenticatedApiService,
             appSettingsRepo = appSettingsRepo,
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
@@ -94,21 +82,10 @@ class SimklRepositoryDeepSyncTest {
             alarmScheduler = mockk(relaxed = true)
         )
 
-        val apiField = SimklRepository::class.java.getDeclaredField("apiService")
-        apiField.isAccessible = true
-        apiField.set(repository, apiService)
-        
         every { authRepo.preferencesFlow } returns flowOf(AuthPreferences())
         every { syncMetadataRepo.preferencesFlow } returns flowOf(SyncMetadataPreferences())
         every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences())
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
-    }
-
-    @After
-    fun tearDown() {
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test
@@ -118,14 +95,14 @@ class SimklRepositoryDeepSyncTest {
             pkceCodeVerifier = "verifier_123"
         ))
 
-        coEvery { apiService.getAccessToken(any()) } returns OAuthTokenResponse(
+        coEvery { publicApiService.getAccessToken(any()) } returns OAuthTokenResponse(
             accessToken = "simkl_at_access_token_abc",
             tokenType = "Bearer",
             expiresIn = 604800,
             refreshToken = "simkl_rt_refresh_token_abc",
             scope = "media:read media:write"
         )
-        coEvery { apiService.getUserSettings() } returns UserSettingsResponse(UserProfile("SimklUser123"))
+        coEvery { authenticatedApiService.getUserSettings() } returns UserSettingsResponse(UserProfile("SimklUser123"))
 
         val failureState = repository.exchangeOAuthCode("code", "wrong_state", "uri")
         assertFalse(failureState)
@@ -141,7 +118,7 @@ class SimklRepositoryDeepSyncTest {
     @Test
     fun testSyncWatchlistFullBranchExecution() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
-        coEvery { apiService.getSyncActivities() } returns SyncActivitiesResponse("2026-03-30T10:00:00Z")
+        coEvery { authenticatedApiService.getSyncActivities() } returns SyncActivitiesResponse("2026-03-30T10:00:00Z")
 
         val syncResponse = SyncAllItemsResponse(
             shows = listOf(
@@ -173,7 +150,7 @@ class SimklRepositoryDeepSyncTest {
             )
         )
 
-        coEvery { apiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns syncResponse
+        coEvery { authenticatedApiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns syncResponse
 
         val existingTracked = listOf(
             TrackedWatchlistItem(simklId = 202, type = MediaType.ANIME, title = "Anime 1", poster = null)
@@ -207,7 +184,7 @@ class SimklRepositoryDeepSyncTest {
             )
         )
 
-        coEvery { apiService.getV2Calendar(any(), any(), any(), any()) } returns Response.success(v2CalendarResponse)
+        coEvery { publicApiService.getV2Calendar(any(), any(), any(), any()) } returns Response.success(v2CalendarResponse)
 
         val movieDetail = SimklMovieDetailResponse(
             title = "Movie 1",
@@ -224,7 +201,7 @@ class SimklRepositoryDeepSyncTest {
             ids = SimklIds(simkl = 303)
         )
 
-        coEvery { apiService.getMovieDetails(303) } returns movieDetail
+        coEvery { publicApiService.getMovieDetails(303) } returns movieDetail
 
         val result = repository.syncCalendarJsons(forceFullSync = true)
 
@@ -244,7 +221,7 @@ class SimklRepositoryDeepSyncTest {
             SimklEpisodeResponse(title = "Ep 1", season = 1, episode = 1, type = "episode", aired = true, date = "2026-02-01T20:00:00Z"),
             SimklEpisodeResponse(title = "Ep 2", season = 1, episode = 2, type = "episode", aired = true, date = "2026-02-08T20:00:00Z")
         )
-        coEvery { apiService.getTvEpisodes(101) } returns episodes
+        coEvery { publicApiService.getTvEpisodes(101) } returns episodes
 
         val result = repository.backfillPastEpisodes(lastSyncTimestamp = 0L)
 

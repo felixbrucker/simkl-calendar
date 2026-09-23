@@ -9,19 +9,10 @@ import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
-import com.felixbrucker.simklcalendar.data.network.SimklApiService
-import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
-import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
-import com.felixbrucker.simklcalendar.data.preferences.AuthRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
-import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
-import com.felixbrucker.simklcalendar.data.preferences.SyncMetadataRepository
-import com.felixbrucker.simklcalendar.data.preferences.UiRepository
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
-import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.di.DatabaseModule
 import com.felixbrucker.simklcalendar.di.NetworkModule
-import com.squareup.moshi.Moshi
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
@@ -64,7 +55,7 @@ class DiModulesTest {
         every { db.customSearchLinkDao() } returns searchLinkDao
         every { db.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
         mockkObject(AppDatabase.Companion)
-        every { AppDatabase.getDatabase(context) } returns db
+        every { AppDatabase.makeDatabase(context) } returns db
     }
 
     @After
@@ -96,7 +87,7 @@ class DiModulesTest {
     @Test
     fun testNetworkModuleProviders() {
         val moshi = NetworkModule.provideMoshi()
-        val apiService = NetworkModule.provideSimklApiService(moshi, tokenDao)
+        val apiService = NetworkModule.providePublicSimklApiService(moshi)
 
         assertNotNull(moshi)
         assertNotNull(apiService)
@@ -113,7 +104,8 @@ class DiModulesTest {
             watchedDao = watchedDao,
             searchLinkDao = searchLinkDao,
             itemDownloadSettingsDao = itemDownloadSettingsDao,
-            apiService = mockk(relaxed = true),
+            publicSimklApiService = mockk(relaxed = true),
+            authenticatedSimklApiService = mockk(relaxed = true),
             appSettingsRepo = mockk(relaxed = true),
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = mockk(relaxed = true),

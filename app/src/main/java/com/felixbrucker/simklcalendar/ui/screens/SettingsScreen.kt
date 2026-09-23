@@ -44,7 +44,6 @@ import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
-import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil

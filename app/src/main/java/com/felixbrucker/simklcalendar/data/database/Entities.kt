@@ -24,7 +24,10 @@ data class UserToken(
     val refreshToken: String? = null,
     val accessTokenExpiresAt: Instant? = null,
     val refreshTokenExpiresAt: Instant? = null
-)
+) {
+    val isAccessTokenExpired: Boolean get() = accessTokenExpiresAt?.isAfter(Instant.now().minusSeconds(600)) ?: true
+    val isRefreshTokenExpired: Boolean get() = refreshTokenExpiresAt?.isAfter(Instant.now().minusSeconds(600)) ?: true
+}
 
 @Entity(
     tableName = "calendar_items",

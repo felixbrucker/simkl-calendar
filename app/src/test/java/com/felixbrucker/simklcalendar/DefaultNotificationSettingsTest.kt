@@ -1,11 +1,8 @@
 package com.felixbrucker.simklcalendar.receiver.alarm
 
-import android.content.Context
 import com.felixbrucker.simklcalendar.data.database.*
 import com.felixbrucker.simklcalendar.data.model.*
 import com.felixbrucker.simklcalendar.data.preferences.*
-import io.mockk.*
-import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.*
 import org.junit.Test
 import java.time.Instant

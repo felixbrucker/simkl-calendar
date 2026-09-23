@@ -288,21 +288,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        @Volatile
-        private var INSTANCE: AppDatabase? = null
-
-        fun getDatabase(context: Context): AppDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+        fun makeDatabase(context: Context): AppDatabase {
+            return Room
+                .databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "simkl_calendar_database"
                 )
-                .addMigrations(MIGRATION_19_20, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24)
+                .addMigrations(
+                    MIGRATION_19_20,
+                    MIGRATION_21_22,
+                    MIGRATION_22_23,
+                    MIGRATION_23_24,
+                )
                 .build()
-                INSTANCE = instance
-                instance
-            }
         }
     }
 }

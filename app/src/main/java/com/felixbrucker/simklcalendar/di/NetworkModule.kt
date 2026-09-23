@@ -1,23 +1,24 @@
 package com.felixbrucker.simklcalendar.di
 
-import com.felixbrucker.simklcalendar.BuildConfig
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
-import com.felixbrucker.simklcalendar.data.network.Authenticated
-import com.felixbrucker.simklcalendar.data.network.RateLimitInterceptor
-import com.felixbrucker.simklcalendar.data.network.SimklApiService
+import com.felixbrucker.simklcalendar.data.network.AuthenticatedSimklApiService
+import com.felixbrucker.simklcalendar.data.network.RefreshMutexProvider
+import com.felixbrucker.simklcalendar.data.network.interceptor.RateLimitInterceptor
+import com.felixbrucker.simklcalendar.data.network.interceptor.SimklApiParameterInterceptor
+import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
+import com.felixbrucker.simklcalendar.data.network.TokenRefreshProvider
+import com.felixbrucker.simklcalendar.data.network.interceptor.LoggingInterceptor
+import com.felixbrucker.simklcalendar.data.network.interceptor.SimklApiAuthenticator
+import com.felixbrucker.simklcalendar.data.network.interceptor.SimklAuthenticatedApiParameterInterceptor
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Invocation
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
-import timber.log.Timber
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -35,77 +36,13 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideSimklApiService(
+    fun providePublicSimklApiService(
         moshi: Moshi,
-        tokenDao: UserTokenDao
-    ): SimklApiService {
-        val appName = BuildConfig.APP_NAME
-        val appVersion = BuildConfig.VERSION_NAME
-        val userAgent = "$appName/$appVersion"
-
+    ): PublicSimklApiService {
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(RateLimitInterceptor())
-            .addInterceptor { chain ->
-                val originalRequest = chain.request()
-                val invocation = originalRequest.tag(Invocation::class.java)
-                val isAuthenticatedEndpoint = invocation != null && invocation.method().isAnnotationPresent(Authenticated::class.java)
-
-                val urlBuilder = originalRequest.url.newBuilder()
-                    .addQueryParameter("client_id", BuildConfig.SIMKL_CLIENT_ID)
-                    .addQueryParameter("app-name", appName)
-                    .addQueryParameter("app-version", appVersion)
-
-                val requestBuilder = originalRequest.newBuilder()
-                    .url(urlBuilder.build())
-                    .header("User-Agent", userAgent)
-                    .header("app-name", appName)
-                    .header("app-version", appVersion)
-
-                if (isAuthenticatedEndpoint) {
-                    val token = runBlocking { tokenDao.getActiveToken() }
-                    if (token != null && token.accessToken.isNotEmpty()) {
-                        requestBuilder.header("Authorization", "Bearer ${token.accessToken}")
-                    }
-                }
-
-                chain.proceed(requestBuilder.build())
-            }
-            .addInterceptor { chain ->
-                val request = chain.request()
-                val url = request.url.toString()
-                val isCalendarJson = url.contains("calendar/v2") || url.contains("data.simkl.in") || url.endsWith(".json")
-
-                val logBuffer = StringBuilder()
-                val loggingInterceptor = HttpLoggingInterceptor { line ->
-                    if (logBuffer.isNotEmpty()) {
-                        logBuffer.append("\n")
-                    }
-                    logBuffer.append(line)
-                }.apply {
-                    level = if (isCalendarJson) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.BODY
-                }
-
-                val response = try {
-                    loggingInterceptor.intercept(chain)
-                } catch (e: Exception) {
-                    if (logBuffer.isNotEmpty()) {
-                        Timber.tag("OkHttp").e(e, logBuffer.toString())
-                    } else {
-                        Timber.tag("OkHttp").e(e, "Network request failed: ${request.method} $url")
-                    }
-                    throw e
-                }
-
-                if (logBuffer.isNotEmpty()) {
-                    if (response.isSuccessful) {
-                        Timber.tag("OkHttp").d(logBuffer.toString())
-                    } else {
-                        Timber.tag("OkHttp").e(logBuffer.toString())
-                    }
-                }
-
-                response
-            }
+            .addInterceptor(SimklApiParameterInterceptor())
+            .addInterceptor(LoggingInterceptor())
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
@@ -116,6 +53,41 @@ object NetworkModule {
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
 
-        return retrofit.create(SimklApiService::class.java)
+        return retrofit.create(PublicSimklApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuthenticatedSimklApiService(
+        moshi: Moshi,
+        tokenDao: UserTokenDao,
+        refreshMutexProvider: RefreshMutexProvider,
+        tokenRefreshProvider: TokenRefreshProvider,
+    ): AuthenticatedSimklApiService {
+        val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor(RateLimitInterceptor())
+            .addInterceptor(SimklApiParameterInterceptor())
+            .addInterceptor(SimklAuthenticatedApiParameterInterceptor(
+                tokenDao = tokenDao,
+                refreshMutexProvider = refreshMutexProvider,
+                tokenRefreshProvider = tokenRefreshProvider,
+            ))
+            .addInterceptor(LoggingInterceptor())
+            .authenticator(SimklApiAuthenticator(
+                tokenDao = tokenDao,
+                refreshMutexProvider = refreshMutexProvider,
+                tokenRefreshProvider = tokenRefreshProvider,
+            ))
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
+
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://api.simkl.com/")
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+
+        return retrofit.create(AuthenticatedSimklApiService::class.java)
     }
 }

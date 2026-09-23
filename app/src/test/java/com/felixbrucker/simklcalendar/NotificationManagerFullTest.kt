@@ -15,7 +15,6 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -43,10 +42,8 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkConstructor
-import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkConstructor
-import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -67,7 +64,6 @@ class NotificationManagerFullTest {
     private lateinit var androidNotificationManager: AndroidNotificationManager
     private lateinit var packageManager: PackageManager
     private lateinit var sharedPreferences: SharedPreferences
-    private lateinit var appDatabase: AppDatabase
     private lateinit var userTokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
@@ -109,7 +105,6 @@ class NotificationManagerFullTest {
         packageManager = mockk(relaxed = true)
         androidNotificationManager = mockk(relaxed = true)
         sharedPreferences = mockk(relaxed = true)
-        appDatabase = mockk(relaxed = true)
         userTokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
@@ -143,19 +138,6 @@ class NotificationManagerFullTest {
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(any(), any()) } returns emptyList()
         coEvery { activeNotificationDao.getAllActiveKeys() } returns emptyList()
 
-        every { appDatabase.userTokenDao() } returns userTokenDao
-        every { appDatabase.calendarItemDao() } returns calendarDao
-        every { appDatabase.notificationSettingDao() } returns settingDao
-        every { appDatabase.watchlistDao() } returns watchlistDao
-        every { appDatabase.watchedEpisodeDao() } returns watchedDao
-        every { appDatabase.customSearchLinkDao() } returns searchLinkDao
-        every { appDatabase.activeNotificationDao() } returns activeNotificationDao
-        every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
-
         notificationManager = NotificationManager(context, calendarDao, activeNotificationDao, torrentServiceHelper)
     }
 
@@ -167,9 +149,6 @@ class NotificationManagerFullTest {
         unmockkStatic(ContextCompat::class)
         unmockkStatic(Toast::class)
         unmockkStatic(Log::class)
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test

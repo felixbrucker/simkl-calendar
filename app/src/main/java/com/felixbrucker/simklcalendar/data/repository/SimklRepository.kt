@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import timber.log.Timber
 import com.felixbrucker.simklcalendar.BuildConfig
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
@@ -25,12 +24,10 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
-import com.felixbrucker.simklcalendar.data.network.Authenticated
+import com.felixbrucker.simklcalendar.data.network.AuthenticatedSimklApiService
 import com.felixbrucker.simklcalendar.data.network.OAuthRevokeRequest
-import com.felixbrucker.simklcalendar.data.network.RateLimitInterceptor
 import com.felixbrucker.simklcalendar.data.network.OAuthTokenRequest
-import com.felixbrucker.simklcalendar.data.network.SimklApiService
-import retrofit2.Invocation
+import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
 import com.felixbrucker.simklcalendar.data.network.SimklIds
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryEpisodeItem
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryMovieItem
@@ -44,7 +41,6 @@ import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.PkceUtil
 import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
-import com.felixbrucker.simklcalendar.di.NetworkModule
 import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import kotlinx.coroutines.Dispatchers
@@ -62,8 +58,6 @@ import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
 import javax.inject.Inject
@@ -81,7 +75,8 @@ class SimklRepository @Inject constructor(
     private val watchedDao: WatchedEpisodeDao,
     private val searchLinkDao: CustomSearchLinkDao,
     private val itemDownloadSettingsDao: ItemDownloadSettingsDao,
-    private val apiService: SimklApiService,
+    private val publicSimklApiService: PublicSimklApiService,
+    private val authenticatedSimklApiService: AuthenticatedSimklApiService,
     private val appSettingsRepo: AppSettingsRepository,
     private val autoDownloadRepo: AutoDownloadRepository,
     private val notificationRepo: NotificationRepository,
@@ -90,11 +85,8 @@ class SimklRepository @Inject constructor(
     private val uiRepo: UiRepository,
     private val torrentServiceHelper: TorrentServiceHelper,
     private val torrentSearchManager: TorrentSearchManager,
-    private val alarmScheduler: AlarmScheduler
+    private val alarmScheduler: AlarmScheduler,
 ) {
-
-    private val refreshMutex: Mutex = Mutex()
-
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
     val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()
     val notificationSettings: Flow<List<NotificationSetting>> = settingDao.getAllSettings()
@@ -295,7 +287,7 @@ class SimklRepository @Inject constructor(
     /**
      * Clears only the active user token to prompt re-authentication without clearing any user data or preferences.
      */
-    suspend fun clearUserTokenOnly(isV1Upgrade: Boolean = false) = withContext(Dispatchers.IO) {
+    private suspend fun clearUserTokenOnly(isV1Upgrade: Boolean = false) = withContext(Dispatchers.IO) {
         Timber.tag("SimklRepository").w("Clearing active user token (isV1Upgrade=$isV1Upgrade) while retaining all local user data and preferences.")
         tokenDao.clearUserToken()
         if (isV1Upgrade) {
@@ -317,8 +309,7 @@ class SimklRepository @Inject constructor(
             return@withContext
         }
 
-        val refreshExpiresAt = userToken.refreshTokenExpiresAt
-        if (refreshExpiresAt != null && Instant.now().isAfter(refreshExpiresAt)) {
+        if (userToken.isRefreshTokenExpired) {
             Timber.tag("SimklRepository").w("Refresh token has expired after 180 days. Transitioning user to login while retaining user data.")
             clearUserTokenOnly(isV1Upgrade = false)
             return@withContext
@@ -331,7 +322,7 @@ class SimklRepository @Inject constructor(
             val revokeTarget = userToken.refreshToken ?: userToken.accessToken
             if (revokeTarget.isNotEmpty()) {
                 try {
-                    apiService.revokeToken(OAuthRevokeRequest(clientId = BuildConfig.SIMKL_CLIENT_ID, token = revokeTarget))
+                    publicSimklApiService.revokeToken(OAuthRevokeRequest(clientId = BuildConfig.SIMKL_CLIENT_ID, token = revokeTarget))
                 } catch (e: Exception) {
                     Timber.tag("SimklRepository").w(e, "Failed to revoke token on logout")
                 }
@@ -375,7 +366,7 @@ class SimklRepository @Inject constructor(
             }
 
             // 1. Exchange code for access token via POST /oauth2/token using PKCE flow
-            val response = apiService.getAccessToken(
+            val response = publicSimklApiService.getAccessToken(
                 request = OAuthTokenRequest(
                     code = code,
                     clientId = BuildConfig.SIMKL_CLIENT_ID,
@@ -411,7 +402,7 @@ class SimklRepository @Inject constructor(
 
             // 3. Fetch user profile from POST /users/settings to update the user's name
             val username = try {
-                val userResponse = apiService.getUserSettings()
+                val userResponse = authenticatedSimklApiService.getUserSettings()
                 userResponse.user.name
             } catch (e: Exception) {
                 Timber.tag("SimklRepository").e(e, "Could not fetch user profile details, using empty string fallback")
@@ -433,64 +424,6 @@ class SimklRepository @Inject constructor(
             true
         } catch (e: Exception) {
             Timber.tag("SimklRepository").e(e, "OAuth Code exchange failed")
-            false
-        }
-    }
-
-    suspend fun refreshTokenIfNeeded(): Boolean = withContext(Dispatchers.IO) {
-        val token = tokenDao.getActiveToken() ?: return@withContext false
-        val accessExpiresAt = token.accessTokenExpiresAt
-        if (accessExpiresAt != null && Instant.now().isAfter(accessExpiresAt.minusSeconds(3600))) {
-            refreshMutex.withLock {
-                val currentToken = tokenDao.getActiveToken() ?: return@withLock false
-                val currentAccessExpiresAt = currentToken.accessTokenExpiresAt
-                if (currentAccessExpiresAt == null || Instant.now().isBefore(currentAccessExpiresAt.minusSeconds(3600))) {
-                    return@withLock true
-                }
-                val refreshToken = currentToken.refreshToken ?: return@withLock false
-                return@withLock performRefreshToken(currentToken, refreshToken)
-            }
-        }
-        true
-    }
-
-    suspend fun performRefreshToken(current: UserToken, refreshToken: String): Boolean = withContext(Dispatchers.IO) {
-        if (refreshToken.isEmpty()) return@withContext false
-        try {
-            val response = apiService.getAccessToken(
-                OAuthTokenRequest(
-                    grantType = "refresh_token",
-                    clientId = BuildConfig.SIMKL_CLIENT_ID,
-                    refreshToken = refreshToken
-                )
-            )
-            val newAccessToken = response.accessToken
-            if (!newAccessToken.startsWith("simkl_at_")) {
-                clearUserTokenOnly(isV1Upgrade = false)
-                return@withContext false
-            }
-            val newRefreshToken = response.refreshToken
-            val newAccessTokenExpiresAt = Instant.now().plusSeconds(response.expiresIn)
-            val newRefreshTokenExpiresAt = Instant.now().plus(180, ChronoUnit.DAYS)
-            tokenDao.insertUserToken(
-                current.copy(
-                    accessToken = newAccessToken,
-                    refreshToken = newRefreshToken,
-                    accessTokenExpiresAt = newAccessTokenExpiresAt,
-                    refreshTokenExpiresAt = newRefreshTokenExpiresAt
-                )
-            )
-            true
-        } catch (e: retrofit2.HttpException) {
-            if (e.code() == 400 || e.code() == 401) {
-                Timber.tag("SimklRepository").w(e, "Refresh token is invalid or expired. Resetting user token.")
-                clearUserTokenOnly(isV1Upgrade = false)
-            } else {
-                Timber.tag("SimklRepository").e(e, "HTTP exception during token refresh (non-auth error)")
-            }
-            false
-        } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Network or unexpected exception during token refresh")
             false
         }
     }
@@ -597,9 +530,9 @@ class SimklRepository @Inject constructor(
                 async {
                     try {
                         val episodes = if (show.type == MediaType.TV) {
-                            apiService.getTvEpisodes(show.simklId)
+                            publicSimklApiService.getTvEpisodes(show.simklId)
                         } else {
-                            apiService.getAnimeEpisodes(show.simklId)
+                            publicSimklApiService.getAnimeEpisodes(show.simklId)
                         }
                         show to episodes
                     } catch (e: Exception) {
@@ -715,7 +648,7 @@ class SimklRepository @Inject constructor(
 
         try {
             // Phase 1: Check /sync/activities to see if any library changes occurred
-            val activities = apiService.getSyncActivities()
+            val activities = authenticatedSimklApiService.getSyncActivities()
 
             val currentActivitiesTimestamp = activities.all
             val savedTimestamp = if (forceFullSync) null else syncMetadataRepo.preferencesFlow.first().lastActivitiesAll
@@ -725,7 +658,7 @@ class SimklRepository @Inject constructor(
             if (shouldFetchDeltas) {
                 Timber.tag("SimklRepository").d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
-                val syncResponse = apiService.getSyncAllItems(
+                val syncResponse = authenticatedSimklApiService.getSyncAllItems(
                     dateFrom = savedTimestamp,
                 )
 
@@ -1002,7 +935,7 @@ class SimklRepository @Inject constructor(
                 }
 
                 try {
-                    val response = apiService.getV2Calendar(
+                    val response = publicSimklApiService.getV2Calendar(
                         year = year,
                         month = month,
                         type = endpointType,
@@ -1191,7 +1124,7 @@ class SimklRepository @Inject constructor(
             Timber.tag("SimklRepository").d("Fetching details for ${moviesNeedingDetails.size} movies missing release dates")
             for (movieId in moviesNeedingDetails) {
                 try {
-                    val movieDetail = apiService.getMovieDetails(
+                    val movieDetail = publicSimklApiService.getMovieDetails(
                         movieId = movieId
                     )
                     processTrackedItem(
@@ -1340,7 +1273,7 @@ class SimklRepository @Inject constructor(
                 )
             }
 
-            apiService.markHistoryWatched(
+            authenticatedSimklApiService.markHistoryWatched(
                 request = request
             )
 
@@ -1432,7 +1365,7 @@ class SimklRepository @Inject constructor(
                 )
             }
 
-            apiService.markHistoryWatched(
+            authenticatedSimklApiService.markHistoryWatched(
                 request = request
             )
 
@@ -1482,7 +1415,7 @@ class SimklRepository @Inject constructor(
                 )
             )
 
-            apiService.markHistoryWatched(
+            authenticatedSimklApiService.markHistoryWatched(
                 request = request
             )
 
@@ -1539,7 +1472,7 @@ class SimklRepository @Inject constructor(
                 )
             }
 
-            apiService.markHistoryUnwatched(
+            authenticatedSimklApiService.markHistoryUnwatched(
                 request = request
             )
 
@@ -1598,7 +1531,7 @@ class SimklRepository @Inject constructor(
                 )
             }
 
-            apiService.markHistoryUnwatched(
+            authenticatedSimklApiService.markHistoryUnwatched(
                 request = request
             )
 
@@ -1634,7 +1567,7 @@ class SimklRepository @Inject constructor(
                 )
             )
 
-            apiService.markHistoryUnwatched(
+            authenticatedSimklApiService.markHistoryUnwatched(
                 request = request
             )
 

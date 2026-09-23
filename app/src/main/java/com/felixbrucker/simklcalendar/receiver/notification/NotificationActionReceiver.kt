@@ -49,33 +49,33 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
         when (intent.action) {
             ACTION_MARK_ITEM_WATCHED -> {
-                handleMarkItemWatched(context, intent)
+                handleMarkItemWatched(intent)
                 return
             }
 
             ACTION_MARK_SEASON_WATCHED -> {
-                handleMarkSeasonWatched(context, intent)
+                handleMarkSeasonWatched(intent)
                 return
             }
 
             ACTION_DOWNLOAD_ITEM -> {
-                handleDownloadItem(context, intent)
+                handleDownloadItem(intent)
                 return
             }
 
             ACTION_DOWNLOAD_SEASON_MISSING_EPISODES -> {
-                handleDownloadSeasonMissingEpisodes(context, intent)
+                handleDownloadSeasonMissingEpisodes(intent)
                 return
             }
 
             ACTION_NOTIFICATION_DISMISSED -> {
-                handleNotificationDismissed(context, intent)
+                handleNotificationDismissed(intent)
                 return
             }
         }
     }
 
-    private fun handleMarkItemWatched(context: Context, intent: Intent) {
+    private fun handleMarkItemWatched(intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         Timber.tag(TAG).d("Handling mark item watched action for key=$itemPrimaryKey")
 
@@ -115,7 +115,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
         }
     }
 
-    private fun handleMarkSeasonWatched(context: Context, intent: Intent) {
+    private fun handleMarkSeasonWatched(intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         Timber.tag(TAG).d("Handling mark season watched action for key=$itemPrimaryKey")
 
@@ -149,7 +149,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
         }
     }
 
-    private fun handleDownloadItem(context: Context, intent: Intent) {
+    private fun handleDownloadItem(intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         Timber.tag(TAG).d("Handling download item action for key=$itemPrimaryKey")
 
@@ -184,7 +184,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
         }
     }
 
-    private fun handleNotificationDismissed(context: Context, intent: Intent) {
+    private fun handleNotificationDismissed(intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         Timber.tag(TAG).d("Handling notification dismissed action for key=$itemPrimaryKey")
         val pendingResult = goAsync()
@@ -199,7 +199,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
         }
     }
 
-    private fun handleDownloadSeasonMissingEpisodes(context: Context, intent: Intent) {
+    private fun handleDownloadSeasonMissingEpisodes(intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         Timber.tag(TAG).d("Handling download season missing episodes action for key=$itemPrimaryKey")
 

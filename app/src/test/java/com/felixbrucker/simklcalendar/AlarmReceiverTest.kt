@@ -26,7 +26,6 @@ import java.time.Instant
 class AlarmReceiverTest {
 
     private lateinit var context: Context
-    private lateinit var appDatabase: AppDatabase
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
@@ -82,21 +81,12 @@ class AlarmReceiverTest {
         context = mockk(relaxed = true)
         every { context.applicationContext } returns mockApp
         every { context.filesDir } returns File("/tmp")
-        appDatabase = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
         itemDownloadSettingsDao = mockk(relaxed = true)
         androidNotificationManager = mockk(relaxed = true)
 
         every { context.getSystemService(Context.NOTIFICATION_SERVICE) } returns androidNotificationManager
-
-        every { appDatabase.calendarItemDao() } returns calendarDao
-        every { appDatabase.notificationSettingDao() } returns settingDao
-        every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
 
         repositoryMock = mockk(relaxed = true)
         mockkConstructor(SimklRepository::class)
@@ -117,9 +107,6 @@ class AlarmReceiverTest {
         unmockkConstructor(TpbProvider::class)
         unmockkStatic(Log::class)
         unmockkConstructor(SimklRepository::class)
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test

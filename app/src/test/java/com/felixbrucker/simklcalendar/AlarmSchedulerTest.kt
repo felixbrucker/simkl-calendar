@@ -28,7 +28,6 @@ class AlarmSchedulerTest {
 
     private lateinit var context: Context
     private lateinit var alarmManager: AlarmManager
-    private lateinit var appDatabase: AppDatabase
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var notificationRepo: NotificationRepository
 
@@ -49,17 +48,11 @@ class AlarmSchedulerTest {
 
         context = mockk(relaxed = true)
         alarmManager = mockk(relaxed = true)
-        appDatabase = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         notificationRepo = mockk(relaxed = true)
 
         every { context.getSystemService(Context.ALARM_SERVICE) } returns alarmManager
-        every { appDatabase.calendarItemDao() } returns calendarDao
 
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
-        
         mockkStatic("com.felixbrucker.simklcalendar.data.preferences.NotificationPreferencesKt")
     }
 
@@ -68,9 +61,6 @@ class AlarmSchedulerTest {
         unmockkStatic(Log::class)
         unmockkStatic(Uri::class)
         unmockkStatic(PendingIntent::class)
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test

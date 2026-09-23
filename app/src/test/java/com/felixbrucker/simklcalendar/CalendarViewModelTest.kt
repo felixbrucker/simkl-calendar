@@ -27,7 +27,6 @@ class CalendarViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var application: Application
-    private lateinit var appDatabase: AppDatabase
     private lateinit var userTokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
@@ -73,7 +72,6 @@ class CalendarViewModelTest {
         authPreferencesFlow.value = AuthPreferences()
 
         application = mockk(relaxed = true)
-        appDatabase = mockk(relaxed = true)
         repositoryMock = mockk(relaxed = true)
 
         uiRepo = mockk(relaxed = true)
@@ -110,18 +108,6 @@ class CalendarViewModelTest {
         every { searchLinkDao.getAllSearchLinks() } returns customSearchLinksFlow
         every { watchlistDao.getAllTrackedItemsFlow() } returns watchlistItemsFlow
 
-        every { appDatabase.userTokenDao() } returns userTokenDao
-        every { appDatabase.calendarItemDao() } returns calendarDao
-        every { appDatabase.notificationSettingDao() } returns settingDao
-        every { appDatabase.watchlistDao() } returns watchlistDao
-        every { appDatabase.watchedEpisodeDao() } returns watchedDao
-        every { appDatabase.customSearchLinkDao() } returns searchLinkDao
-        every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
-
         every { repositoryMock.calendarItems } returns calendarItemsFlow
         every { repositoryMock.activeUserToken } returns userTokenFlow
         every { repositoryMock.watchlistItems } returns watchlistItemsFlow
@@ -143,7 +129,6 @@ class CalendarViewModelTest {
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
             authRepo = authRepo,
-            syncMetadataRepo = mockk(relaxed = true),
             uiRepo = uiRepo,
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = mockk(relaxed = true)
@@ -155,10 +140,6 @@ class CalendarViewModelTest {
         Dispatchers.resetMain()
         unmockkStatic(Dispatchers::class)
         unmockkStatic(Environment::class)
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test

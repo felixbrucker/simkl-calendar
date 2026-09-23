@@ -69,7 +69,7 @@ class AlarmReceiver: BroadcastReceiver() {
         val pendingResult = goAsync()
         scope.launch {
             try {
-                onItemAired(itemPrimaryKey, context)
+                onItemAired(itemPrimaryKey)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error processing item aired alarm for key=$itemPrimaryKey")
             } finally {
@@ -78,7 +78,7 @@ class AlarmReceiver: BroadcastReceiver() {
         }
     }
 
-    private suspend fun onItemAired(itemPrimaryKey: String, context: Context) {
+    private suspend fun onItemAired(itemPrimaryKey: String) {
         val item = calendarItemDao.findItem(itemPrimaryKey)
         if (item == null) {
             Timber.tag(TAG).w("Item for key=$itemPrimaryKey not found in database")
@@ -91,7 +91,7 @@ class AlarmReceiver: BroadcastReceiver() {
         repo.updateItemAiredStatus(item)
 
         // Second, check if we should post a notification for this item
-        val shouldPostNotification = shouldPostNotificationForItem(item, context)
+        val shouldPostNotification = shouldPostNotificationForItem(item)
         if (shouldPostNotification) {
             Timber.tag(TAG).d("Posting notification for '${item.title}'")
             notificationManager.showNotification(item)
@@ -137,7 +137,7 @@ class AlarmReceiver: BroadcastReceiver() {
         }
     }
 
-    private suspend fun shouldPostNotificationForItem(item: CalendarItemWithWatchlist, context: Context): Boolean {
+    private suspend fun shouldPostNotificationForItem(item: CalendarItemWithWatchlist): Boolean {
         if (item.isNotified) {
             return false
         }

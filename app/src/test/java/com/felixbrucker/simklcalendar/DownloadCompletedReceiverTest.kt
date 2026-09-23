@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -21,10 +20,8 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.spyk
-import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import org.junit.After
@@ -36,7 +33,6 @@ import java.time.Instant
 class DownloadCompletedReceiverTest {
 
     private lateinit var context: Context
-    private lateinit var appDatabase: AppDatabase
     private lateinit var repositoryMock: SimklRepository
     private lateinit var notificationManagerMock: NotificationManager
     private lateinit var calendarDao: CalendarItemDao
@@ -74,25 +70,15 @@ class DownloadCompletedReceiverTest {
 
         context = mockk(relaxed = true)
         every { context.applicationContext } returns mockApp
-        appDatabase = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         tokenDao = mockk(relaxed = true)
 
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
-        every { appDatabase.calendarItemDao() } returns calendarDao
-        every { appDatabase.userTokenDao() } returns tokenDao
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
     }
 
     @After
     fun tearDown() {
         unmockkStatic(Log::class)
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test
