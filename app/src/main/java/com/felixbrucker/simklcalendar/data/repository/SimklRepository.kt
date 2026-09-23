@@ -505,6 +505,7 @@ class SimklRepository @Inject constructor(
         val settingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(trackedIds).associateBy { it.simklId }
 
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
+        val itemsToUpdate = mutableMapOf<String, CalendarItem>()
         val localStatesToInsert = mutableListOf<LocalItemState>()
 
         fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
@@ -514,6 +515,12 @@ class SimklRepository @Inject constructor(
                 itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
                 localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
                 return
+            }
+
+            val base = itemsToUpdate[newItem.primaryKey] ?: existing
+            val updated = base.updatedWith(newItem)
+            if (updated != base) {
+                itemsToUpdate[newItem.primaryKey] = updated
             }
         }
 
@@ -539,6 +546,11 @@ class SimklRepository @Inject constructor(
 
             for ((show, episodes) in results) {
                 if (episodes == null) continue
+
+                val maxEpPerSeason = episodes
+                    .filter { it.type == "episode" && it.episode != null }
+                    .groupBy { it.season ?: 1 }
+                    .mapValues { (_, seasonEpisodes) -> seasonEpisodes.maxOf { it.episode!! } }
 
                 val showWatchedList = watchedLookup[show.simklId]
 
@@ -571,6 +583,9 @@ class SimklRepository @Inject constructor(
                         isWatched = epWatchedTimestamp != null,
                     )
 
+                    val maxEp = maxEpPerSeason[seasonNum]
+                    val isFinale = maxEp != null && epNum == maxEp
+
                     processCalendarItem(
                         CalendarItem(
                             primaryKey = keyUnique,
@@ -581,7 +596,7 @@ class SimklRepository @Inject constructor(
                             date = instant,
                             movieReleaseType = null,
                             isSeasonPremiere = epNum == 1,
-                            isSeasonFinale = false, // Not available in this endpoint, will be updated by calendar jsons if recent
+                            isSeasonFinale = isFinale,
                             watchedAt = epWatchedTimestamp,
                         ),
                         initialStatus = status
@@ -594,12 +609,15 @@ class SimklRepository @Inject constructor(
             calendarDao.insertCalendarItems(itemsToInsert.values.toList())
             calendarDao.insertLocalItemStates(localStatesToInsert)
         }
+        if (itemsToUpdate.isNotEmpty()) {
+            calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
+        }
 
-        Timber.tag("SimklRepository").d("Backfill complete: ${itemsToInsert.size} inserted")
+        Timber.tag("SimklRepository").d("Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         val hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }
 
         SyncResult(
-            hasCalendarItemChanges = itemsToInsert.isNotEmpty(),
+            hasCalendarItemChanges = itemsToInsert.isNotEmpty() || itemsToUpdate.isNotEmpty(),
             hasWantedItems = hasWantedItems,
         )
     }

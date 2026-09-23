@@ -216,7 +216,6 @@ class SimklRepositoryDeepSyncTest {
             TrackedWatchlistItem(simklId = 101, type = MediaType.TV, title = "TV Show 1", poster = null)
         )
         coEvery { watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME)) } returns trackedShows
-
         val episodes = listOf(
             SimklEpisodeResponse(title = "Ep 1", season = 1, episode = 1, type = "episode", aired = true, date = "2026-02-01T20:00:00Z"),
             SimklEpisodeResponse(title = "Ep 2", season = 1, episode = 2, type = "episode", aired = true, date = "2026-02-08T20:00:00Z")
@@ -227,5 +226,35 @@ class SimklRepositoryDeepSyncTest {
 
         assertTrue(result.hasCalendarItemChanges)
         coVerify { calendarDao.insertCalendarItems(any()) }
+    }
+
+    @Test
+    fun testBackfillPastEpisodesCalculatesSeasonFinaleCorrectly() = runTest {
+        val insertedSlot = slot<List<CalendarItem>>()
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+        val trackedShows = listOf(
+            TrackedWatchlistItem(simklId = 101, type = MediaType.TV, title = "TV Show 1", poster = null)
+        )
+        coEvery { watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME)) } returns trackedShows
+        val episodes = listOf(
+            SimklEpisodeResponse(title = "Ep 1", season = 1, episode = 1, type = "episode", aired = true, date = "2026-02-01T20:00:00Z"),
+            SimklEpisodeResponse(title = "Ep 2", season = 1, episode = 2, type = "episode", aired = true, date = "2026-02-08T20:00:00Z"),
+            SimklEpisodeResponse(title = "Special 1", season = 1, episode = null, type = "special", aired = true, date = "2026-02-09T20:00:00Z"),
+            SimklEpisodeResponse(title = "S2 Ep 1", season = 2, episode = 1, type = "episode", aired = true, date = "2026-02-15T20:00:00Z"),
+            SimklEpisodeResponse(title = "S2 Ep 2", season = 2, episode = 2, type = "episode", aired = false, date = "2026-02-22T20:00:00Z")
+        )
+        coEvery { publicApiService.getTvEpisodes(101) } returns episodes
+        coEvery { calendarDao.insertCalendarItems(capture(insertedSlot)) } returns Unit
+
+        val result = repository.backfillPastEpisodes(lastSyncTimestamp = 0L)
+
+        assertTrue(result.hasCalendarItemChanges)
+        val items = insertedSlot.captured
+        val s1e1 = items.first { it.season == 1 && it.episodeNumber == 1 }
+        val s1e2 = items.first { it.season == 1 && it.episodeNumber == 2 }
+        val s2e1 = items.first { it.season == 2 && it.episodeNumber == 1 }
+        assertFalse(s1e1.isSeasonFinale)
+        assertTrue(s1e2.isSeasonFinale)
+        assertFalse(s2e1.isSeasonFinale)
     }
 }
