@@ -505,7 +505,6 @@ class SimklRepository @Inject constructor(
         val settingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(trackedIds).associateBy { it.simklId }
 
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
-        val itemsToUpdate = mutableMapOf<String, CalendarItem>()
         val localStatesToInsert = mutableListOf<LocalItemState>()
 
         fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
@@ -515,12 +514,6 @@ class SimklRepository @Inject constructor(
                 itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
                 localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
                 return
-            }
-
-            val base = itemsToUpdate[newItem.primaryKey] ?: existing
-            val updated = base.updatedWith(newItem)
-            if (updated != base) {
-                itemsToUpdate[newItem.primaryKey] = updated
             }
         }
 
@@ -601,15 +594,12 @@ class SimklRepository @Inject constructor(
             calendarDao.insertCalendarItems(itemsToInsert.values.toList())
             calendarDao.insertLocalItemStates(localStatesToInsert)
         }
-        if (itemsToUpdate.isNotEmpty()) {
-            calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
-        }
 
-        Timber.tag("SimklRepository").d("Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
+        Timber.tag("SimklRepository").d("Backfill complete: ${itemsToInsert.size} inserted")
         val hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }
 
         SyncResult(
-            hasCalendarItemChanges = itemsToInsert.isNotEmpty() || itemsToUpdate.isNotEmpty(),
+            hasCalendarItemChanges = itemsToInsert.isNotEmpty(),
             hasWantedItems = hasWantedItems,
         )
     }
