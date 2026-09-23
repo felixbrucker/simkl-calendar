@@ -15,7 +15,6 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -43,10 +42,8 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkConstructor
-import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkConstructor
-import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -67,7 +64,6 @@ class NotificationManagerFullTest {
     private lateinit var androidNotificationManager: AndroidNotificationManager
     private lateinit var packageManager: PackageManager
     private lateinit var sharedPreferences: SharedPreferences
-    private lateinit var appDatabase: AppDatabase
     private lateinit var userTokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
@@ -77,6 +73,7 @@ class NotificationManagerFullTest {
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var activeNotificationDao: ActiveNotificationDao
     private lateinit var torrentServiceHelper: TorrentServiceHelper
+    private lateinit var notificationManager: NotificationManager
 
     @Before
     fun setUp() {
@@ -108,7 +105,6 @@ class NotificationManagerFullTest {
         packageManager = mockk(relaxed = true)
         androidNotificationManager = mockk(relaxed = true)
         sharedPreferences = mockk(relaxed = true)
-        appDatabase = mockk(relaxed = true)
         userTokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
@@ -133,8 +129,6 @@ class NotificationManagerFullTest {
         every { watchlistDao.getAllTrackedItemsFlow() } returns flowOf(emptyList())
 
         every { torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
-        mockkObject(TorrentServiceHelper.Companion)
-        every { TorrentServiceHelper.getInstance(any()) } returns torrentServiceHelper
 
         every { context.getSystemService(Context.NOTIFICATION_SERVICE) } returns androidNotificationManager
         every { context.packageName } returns "com.felixbrucker.simklcalendar"
@@ -144,18 +138,7 @@ class NotificationManagerFullTest {
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(any(), any()) } returns emptyList()
         coEvery { activeNotificationDao.getAllActiveKeys() } returns emptyList()
 
-        every { appDatabase.userTokenDao() } returns userTokenDao
-        every { appDatabase.calendarItemDao() } returns calendarDao
-        every { appDatabase.notificationSettingDao() } returns settingDao
-        every { appDatabase.watchlistDao() } returns watchlistDao
-        every { appDatabase.watchedEpisodeDao() } returns watchedDao
-        every { appDatabase.customSearchLinkDao() } returns searchLinkDao
-        every { appDatabase.activeNotificationDao() } returns activeNotificationDao
-        every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
+        notificationManager = NotificationManager(context, calendarDao, activeNotificationDao, torrentServiceHelper)
     }
 
     @After
@@ -166,10 +149,6 @@ class NotificationManagerFullTest {
         unmockkStatic(ContextCompat::class)
         unmockkStatic(Toast::class)
         unmockkStatic(Log::class)
-        unmockkObject(TorrentServiceHelper.Companion)
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test
@@ -196,7 +175,7 @@ class NotificationManagerFullTest {
 
     @Test
     fun testCreateNotificationChannel() {
-        NotificationManager.createNotificationChannel(context)
+        notificationManager.createNotificationChannel()
 
         verify { androidNotificationManager.createNotificationChannel(any()) }
     }
@@ -207,7 +186,7 @@ class NotificationManagerFullTest {
         val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
 
-        NotificationManager.showNotification(item, context)
+        notificationManager.showNotification(item)
 
         verify { androidNotificationManager.notify(item.notificationId, any()) }
     }
@@ -221,7 +200,7 @@ class NotificationManagerFullTest {
         every { activeNotif.id } returns item.notificationId
         every { androidNotificationManager.activeNotifications } returns arrayOf(activeNotif)
 
-        NotificationManager.updateNotification(item, context)
+        notificationManager.updateNotification(item)
 
         verify { androidNotificationManager.notify(item.notificationId, any()) }
     }
@@ -233,7 +212,7 @@ class NotificationManagerFullTest {
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
         every { androidNotificationManager.activeNotifications } returns arrayOf()
 
-        NotificationManager.updateNotification(item, context)
+        notificationManager.updateNotification(item)
 
         verify(exactly = 0) { androidNotificationManager.notify(any(), any<Notification>()) }
     }
@@ -244,7 +223,7 @@ class NotificationManagerFullTest {
         val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
 
-        NotificationManager.dismissNotification(item, context)
+        notificationManager.dismissNotification(item)
 
         verify { androidNotificationManager.cancel(item.notificationId) }
         coVerify { activeNotificationDao.deleteActiveNotification("v2_100_1_1") }
@@ -254,9 +233,9 @@ class NotificationManagerFullTest {
     fun testAddAndRemoveAndGetActiveNotifications() = runTest {
         coEvery { activeNotificationDao.getAllActiveKeys() } returns listOf("v2_100_1_1")
 
-        NotificationManager.addActiveNotification(context, "v2_100_1_1")
-        NotificationManager.removeActiveNotification(context, "v2_100_1_1")
-        val activeKeys = NotificationManager.getActiveNotifications(context)
+        notificationManager.addActiveNotification("v2_100_1_1")
+        notificationManager.removeActiveNotification("v2_100_1_1")
+        val activeKeys = notificationManager.getActiveNotifications()
 
         coVerify { activeNotificationDao.insertActiveNotification(match { it.primaryKey == "v2_100_1_1" }) }
         coVerify { activeNotificationDao.deleteActiveNotification("v2_100_1_1") }
@@ -273,7 +252,7 @@ class NotificationManagerFullTest {
         coEvery { calendarDao.findItem("v2_100_1_1") } returns item
         every { androidNotificationManager.activeNotifications } returns arrayOf()
 
-        NotificationManager.restoreActiveNotifications(context)
+        notificationManager.restoreActiveNotifications()
 
         verify { androidNotificationManager.notify(item.notificationId, any()) }
     }
@@ -289,7 +268,7 @@ class NotificationManagerFullTest {
         every { activeNotif.id } returns item.notificationId
         every { androidNotificationManager.activeNotifications } returns arrayOf(activeNotif)
 
-        NotificationManager.restoreActiveNotifications(context)
+        notificationManager.restoreActiveNotifications()
 
         verify(exactly = 0) { androidNotificationManager.notify(any(), any()) }
     }
@@ -299,7 +278,7 @@ class NotificationManagerFullTest {
         coEvery { activeNotificationDao.getAllActiveKeys() } returns listOf("v2_999_1_1")
         coEvery { calendarDao.findItem("v2_999_1_1") } returns null
 
-        NotificationManager.restoreActiveNotifications(context)
+        notificationManager.restoreActiveNotifications()
 
         coVerify { activeNotificationDao.deleteActiveNotification("v2_999_1_1") }
     }
@@ -318,8 +297,8 @@ class NotificationManagerFullTest {
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(200, null) } returns listOf(movieItem)
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(300, 1) } returns listOf(finaleItem)
 
-        NotificationManager.showNotification(movieItem, context)
-        NotificationManager.showNotification(finaleItem, context)
+        notificationManager.showNotification(movieItem)
+        notificationManager.showNotification(finaleItem)
 
         verify { androidNotificationManager.notify(movieItem.notificationId, any()) }
         verify { androidNotificationManager.notify(finaleItem.notificationId, any()) }
@@ -341,9 +320,9 @@ class NotificationManagerFullTest {
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(301, 1) } returns listOf(episodeItem)
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(401, 1) } returns listOf(finaleItem)
 
-        NotificationManager.showNotification(movieDigitalItem, context)
-        NotificationManager.showNotification(episodeItem, context)
-        NotificationManager.showNotification(finaleItem, context)
+        notificationManager.showNotification(movieDigitalItem)
+        notificationManager.showNotification(episodeItem)
+        notificationManager.showNotification(finaleItem)
 
         verify { androidNotificationManager.notify(movieDigitalItem.notificationId, any()) }
         verify { androidNotificationManager.notify(episodeItem.notificationId, any()) }

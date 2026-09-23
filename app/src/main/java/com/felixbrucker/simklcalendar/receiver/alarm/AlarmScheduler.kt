@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import timber.log.Timber
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -18,85 +17,93 @@ import java.time.Instant.now
 import java.time.ZoneId
 
 
-class AlarmScheduler {
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class AlarmScheduler @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val calendarItemDao: CalendarItemDao,
+    private val notificationRepo: NotificationRepository
+) {
     companion object {
         private const val TAG = "AlarmScheduler"
+    }
 
-        /**
-         * Schedules item aired alarms for all eligible upcoming items. Intended to be called after each
-         * sync to schedule any new items and reschedule changed items.
-         */
-        suspend fun scheduleAllItemsAiredAlarms(context: Context) = withContext(Dispatchers.IO) {
-            try {
-                val db = AppDatabase.getDatabase(context)
-                val calendarItems = db.calendarItemDao().getCalendarItemsForAiredAlarm(now())
-                for (item in calendarItems) {
-                    scheduleItemAiredAlarmForItem(item, context)
-                }
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Error while scheduling all notifications")
+    /**
+     * Schedules item aired alarms for all eligible upcoming items. Intended to be called after each
+     * sync to schedule any new items and reschedule changed items.
+     */
+    suspend fun scheduleAllItemsAiredAlarms() = withContext(Dispatchers.IO) {
+        try {
+            val calendarItems = calendarItemDao.getCalendarItemsForAiredAlarm(now())
+            for (item in calendarItems) {
+                scheduleItemAiredAlarmForItem(item)
             }
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error while scheduling all notifications")
         }
+    }
 
-        private suspend fun scheduleItemAiredAlarmForItem(item: CalendarItemWithWatchlist, context: Context) {
-            val triggerAt = if (item.type == MediaType.MOVIE) {
-                item.date.atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-                    .atTime(0, 0)
-                    .atZone(ZoneId.systemDefault())
-                    .toInstant()
-            } else {
-                item.date
-            }
-            val alarmManager = getAlarmManager(context) ?: return
+    private suspend fun scheduleItemAiredAlarmForItem(item: CalendarItemWithWatchlist) {
+        val triggerAt = if (item.type == MediaType.MOVIE) {
+            item.date.atZone(ZoneId.systemDefault())
+                .toLocalDate()
+                .atTime(0, 0)
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+        } else {
+            item.date
+        }
+        val alarmManager = getAlarmManager() ?: return
 
-            // Cancel any existing pending alarm
-            cancelItemAiredAlarmForItem(item, context)
+        // Cancel any existing pending alarm
+        cancelItemAiredAlarmForItem(item)
 
-            val pendingIntent = item.makeItemAiredAlarmIntent(
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                context
-            ) ?: return
-            val triggerAtMillis = triggerAt.toEpochMilli()
-            try {
-                val notificationRepo = NotificationRepository(context.notificationDataStore)
-                val useExactAlarms = notificationRepo.preferencesFlow.first().useExactAlarms
+        val pendingIntent = item.makeItemAiredAlarmIntent(
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            context
+        ) ?: return
+        val triggerAtMillis = triggerAt.toEpochMilli()
+        try {
+            val useExactAlarms = notificationRepo.preferencesFlow.first().useExactAlarms
 
-                if (useExactAlarms) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        if (alarmManager.canScheduleExactAlarms()) {
-                            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-                        } else {
-                            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-                        }
-                    } else {
+            if (useExactAlarms) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (alarmManager.canScheduleExactAlarms()) {
                         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                    } else {
+                        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
                     }
                 } else {
-                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
                 }
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Failed scheduling alarm")
+            } else {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             }
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed scheduling alarm")
         }
+    }
 
-        private fun cancelItemAiredAlarmForItem(item: CalendarItemWithWatchlist, context: Context) {
-            val alarmManager = getAlarmManager(context) ?: return
-            try {
-                val pendingIntent = item.makeItemAiredAlarmIntent(
-                    PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
-                    context,
-                ) ?: return
-                alarmManager.cancel(pendingIntent)
-                pendingIntent.cancel()
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Error cancelling alarm for item ${item.primaryKey}")
-            }
+    private fun cancelItemAiredAlarmForItem(item: CalendarItemWithWatchlist) {
+        val alarmManager = getAlarmManager() ?: return
+        try {
+            val pendingIntent = item.makeItemAiredAlarmIntent(
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+                context,
+            ) ?: return
+            alarmManager.cancel(pendingIntent)
+            pendingIntent.cancel()
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error cancelling alarm for item ${item.primaryKey}")
         }
+    }
 
-        private fun getAlarmManager(context: Context): AlarmManager? {
-            return context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
-        }
+    private fun getAlarmManager(): AlarmManager? {
+        return context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
     }
 }
 

@@ -8,8 +8,11 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
 val Context.uiDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "ui_settings",
@@ -33,16 +36,11 @@ data class UiPreferences(
     val filterShowEarlier: Boolean = false
 )
 
-interface UiDataSource {
-    val preferencesFlow: Flow<UiPreferences>
-    suspend fun setViewMode(viewMode: ViewMode)
-    suspend fun updateFilters(transform: (UiPreferences) -> UiPreferences)
-    suspend fun clear()
-}
-
-class UiRepository(
-    private val dataStore: DataStore<Preferences>
-) : UiDataSource {
+@Singleton
+class UiRepository @Inject constructor(
+    @ApplicationContext context: Context
+) {
+    private val dataStore = context.uiDataStore
 
     companion object {
         private val KEY_VIEW_MODE = stringPreferencesKey("view_mode")
@@ -56,7 +54,7 @@ class UiRepository(
         private val KEY_FILTER_SHOW_EARLIER = booleanPreferencesKey("filter_show_earlier")
     }
 
-    override val preferencesFlow: Flow<UiPreferences> = dataStore.data.map { preferences ->
+    val preferencesFlow: Flow<UiPreferences> = dataStore.data.map { preferences ->
         UiPreferences(
             viewMode = preferences[KEY_VIEW_MODE]?.let {
                 try { ViewMode.valueOf(it) } catch (_: Exception) { ViewMode.CALENDAR }
@@ -72,11 +70,11 @@ class UiRepository(
         )
     }
 
-    override suspend fun setViewMode(viewMode: ViewMode) {
+    suspend fun setViewMode(viewMode: ViewMode) {
         dataStore.edit { it[KEY_VIEW_MODE] = viewMode.name }
     }
 
-    override suspend fun updateFilters(transform: (UiPreferences) -> UiPreferences) {
+    suspend fun updateFilters(transform: (UiPreferences) -> UiPreferences) {
         dataStore.edit { preferences ->
             val current = UiPreferences(
                 viewMode = preferences[KEY_VIEW_MODE]?.let {
@@ -103,7 +101,7 @@ class UiRepository(
         }
     }
 
-    override suspend fun clear() {
+    suspend fun clear() {
         dataStore.edit { it.clear() }
     }
 }

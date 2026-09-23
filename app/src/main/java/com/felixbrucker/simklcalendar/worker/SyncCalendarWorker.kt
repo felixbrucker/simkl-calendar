@@ -9,17 +9,21 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.hilt.work.HiltWorker
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import java.util.concurrent.TimeUnit
 
-class SyncCalendarWorker(
-    appContext: Context,
-    workerParams: WorkerParameters
+@HiltWorker
+class SyncCalendarWorker @AssistedInject constructor(
+    @Assisted appContext: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val repository: SimklRepository
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
         Timber.tag(TAG).d("Starting periodic background calendar synchronization")
-        val repository = SimklRepository(applicationContext)
         val token = repository.getActiveUserToken()
         if (token == null || token.accessToken.isEmpty()) {
             Timber.tag(TAG).d("User is not authenticated. Skipping periodic calendar synchronization.")

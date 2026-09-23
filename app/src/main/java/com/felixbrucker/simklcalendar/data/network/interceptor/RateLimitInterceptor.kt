@@ -1,4 +1,4 @@
-package com.felixbrucker.simklcalendar.data.network
+package com.felixbrucker.simklcalendar.data.network.interceptor
 
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -24,7 +24,7 @@ class RateLimitInterceptor(
         while (response.code == 429 && retryCount < maxRetries) {
             val bodyString = try {
                 response.peekBody(64 * 1024).string()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 ""
             }
 

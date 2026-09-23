@@ -44,7 +44,6 @@ import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
-import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
@@ -201,7 +200,7 @@ fun SettingsScreen(
                                 color = Color(0xFFCAC4D0)
                             )
                             Text(
-                                userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Not Authenticated",
+                                userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
                                 color = Color(0xFFD0BCFF)
@@ -475,9 +474,7 @@ fun SettingsScreen(
                                         alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
                                     }
                                 }
-                                scope.launch {
-                                    AlarmScheduler.scheduleAllItemsAiredAlarms(context)
-                                }
+                                viewModel.scheduleAllItemsAiredAlarms()
                             }
                         )
                     }

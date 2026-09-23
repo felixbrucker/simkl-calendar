@@ -8,8 +8,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
 val Context.syncMetadataDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "simkl_sync_settings",
@@ -23,25 +26,18 @@ data class SyncMetadataPreferences(
     val calendarLastModifiedHeader: Map<String, String> = emptyMap()
 )
 
-interface SyncMetadataDataSource {
-    val preferencesFlow: Flow<SyncMetadataPreferences>
-    suspend fun setLastCalendarJsonSync(timestamp: Long)
-    suspend fun setLastActivitiesAll(timestamp: String?)
-    suspend fun setCalendarLastModifiedAt(key: String, timestamp: Long)
-    suspend fun setCalendarLastModifiedHeader(key: String, header: String)
-    suspend fun clear()
-}
-
-class SyncMetadataRepository(
-    private val dataStore: DataStore<Preferences>
-) : SyncMetadataDataSource {
+@Singleton
+class SyncMetadataRepository @Inject constructor(
+    @ApplicationContext context: Context
+) {
+    private val dataStore = context.syncMetadataDataStore
 
     companion object {
         private val KEY_LAST_CALENDAR_JSON_SYNC = longPreferencesKey("last_calendar_json_sync")
         private val KEY_LAST_ACTIVITIES_ALL = stringPreferencesKey("last_activities_all")
     }
 
-    override val preferencesFlow: Flow<SyncMetadataPreferences> = dataStore.data.map { preferences ->
+    val preferencesFlow: Flow<SyncMetadataPreferences> = dataStore.data.map { preferences ->
         val calendarLastModifiedAt = mutableMapOf<String, Long>()
         val calendarLastModifiedHeader = mutableMapOf<String, String>()
 
@@ -61,11 +57,11 @@ class SyncMetadataRepository(
         )
     }
 
-    override suspend fun setLastCalendarJsonSync(timestamp: Long) {
+    suspend fun setLastCalendarJsonSync(timestamp: Long) {
         dataStore.edit { it[KEY_LAST_CALENDAR_JSON_SYNC] = timestamp }
     }
 
-    override suspend fun setLastActivitiesAll(timestamp: String?) {
+    suspend fun setLastActivitiesAll(timestamp: String?) {
         dataStore.edit { preferences ->
             if (timestamp != null) {
                 preferences[KEY_LAST_ACTIVITIES_ALL] = timestamp
@@ -75,15 +71,15 @@ class SyncMetadataRepository(
         }
     }
 
-    override suspend fun setCalendarLastModifiedAt(key: String, timestamp: Long) {
+    suspend fun setCalendarLastModifiedAt(key: String, timestamp: Long) {
         dataStore.edit { it[longPreferencesKey(key)] = timestamp }
     }
 
-    override suspend fun setCalendarLastModifiedHeader(key: String, header: String) {
+    suspend fun setCalendarLastModifiedHeader(key: String, header: String) {
         dataStore.edit { it[stringPreferencesKey(key)] = header }
     }
 
-    override suspend fun clear() {
+    suspend fun clear() {
         dataStore.edit { it.clear() }
     }
 }

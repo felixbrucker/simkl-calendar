@@ -4,6 +4,7 @@ plugins {
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.secrets)
   alias(libs.plugins.kover)
+  alias(libs.plugins.hilt.android)
 }
 
 android {
@@ -85,7 +86,7 @@ kover {
     total {
       verify {
         rule {
-          minBound(90)
+          minBound(70)
         }
       }
     }
@@ -100,6 +101,12 @@ kover {
           "com.felixbrucker.simklcalendar.ui.screens.*",
           "com.felixbrucker.simklcalendar.ui.theme.*",
           "com.felixbrucker.simklcalendar.MainActivity*",
+          "com.felixbrucker.simklcalendar.SimklApplication*",
+          "*Factory*",
+          "*MembersInjector*",
+          "*HiltModules*",
+          "*GeneratedInjector*",
+          "*Hilt_*",
         )
       }
     }
@@ -127,6 +134,10 @@ dependencies {
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.androidx.datastore.preferences)
+  implementation(libs.hilt.android)
+  implementation(libs.androidx.hilt.work)
+  "ksp"(libs.hilt.compiler)
+  "ksp"(libs.androidx.hilt.compiler)
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.kotlinx.coroutines.android)

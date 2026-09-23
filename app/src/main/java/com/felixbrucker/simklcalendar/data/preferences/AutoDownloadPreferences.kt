@@ -9,8 +9,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
 val Context.autoDownloadDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "auto_download_settings",
@@ -39,24 +42,11 @@ data class AutoDownloadPreferences(
     val searchIntervalHours: Int = 12
 )
 
-interface AutoDownloadDataSource {
-    val preferencesFlow: Flow<AutoDownloadPreferences>
-    suspend fun setQuality(quality: String)
-    suspend fun setPreferHevc(prefer: Boolean)
-    suspend fun setAutoDownloadUnwatchedTv(enabled: Boolean)
-    suspend fun setAutoDownloadUnwatchedAnime(enabled: Boolean)
-    suspend fun setAutoDownloadUnwatchedMovie(enabled: Boolean)
-    suspend fun setAutoDownloadSeasonUnwatchedTv(enabled: Boolean)
-    suspend fun setAutoDownloadSeasonUnwatchedAnime(enabled: Boolean)
-    suspend fun setPreferredKeywords(keywords: List<String>)
-    suspend fun setIgnoreKeywords(keywords: List<String>)
-    suspend fun setSearchIntervalHours(hours: Int)
-    suspend fun clear()
-}
-
-class AutoDownloadRepository(
-    private val dataStore: DataStore<Preferences>
-) : AutoDownloadDataSource {
+@Singleton
+class AutoDownloadRepository @Inject constructor(
+    @ApplicationContext context: Context
+) {
+    private val dataStore = context.autoDownloadDataStore
 
     companion object {
         private val KEY_QUALITY = stringPreferencesKey("quality")
@@ -71,7 +61,7 @@ class AutoDownloadRepository(
         private val KEY_SEARCH_INTERVAL_HOURS = intPreferencesKey("search_interval_hours")
     }
 
-    override val preferencesFlow: Flow<AutoDownloadPreferences> = dataStore.data.map { preferences ->
+    val preferencesFlow: Flow<AutoDownloadPreferences> = dataStore.data.map { preferences ->
         AutoDownloadPreferences(
             quality = preferences[KEY_QUALITY] ?: "1080p",
             preferHevc = preferences[KEY_PREFER_HEVC] ?: true,
@@ -86,47 +76,47 @@ class AutoDownloadRepository(
         )
     }
 
-    override suspend fun setQuality(quality: String) {
+    suspend fun setQuality(quality: String) {
         dataStore.edit { it[KEY_QUALITY] = quality }
     }
 
-    override suspend fun setPreferHevc(prefer: Boolean) {
+    suspend fun setPreferHevc(prefer: Boolean) {
         dataStore.edit { it[KEY_PREFER_HEVC] = prefer }
     }
 
-    override suspend fun setAutoDownloadUnwatchedTv(enabled: Boolean) {
+    suspend fun setAutoDownloadUnwatchedTv(enabled: Boolean) {
         dataStore.edit { it[KEY_UNWATCHED_TV] = enabled }
     }
 
-    override suspend fun setAutoDownloadUnwatchedAnime(enabled: Boolean) {
+    suspend fun setAutoDownloadUnwatchedAnime(enabled: Boolean) {
         dataStore.edit { it[KEY_UNWATCHED_ANIME] = enabled }
     }
 
-    override suspend fun setAutoDownloadUnwatchedMovie(enabled: Boolean) {
+    suspend fun setAutoDownloadUnwatchedMovie(enabled: Boolean) {
         dataStore.edit { it[KEY_UNWATCHED_MOVIE] = enabled }
     }
 
-    override suspend fun setAutoDownloadSeasonUnwatchedTv(enabled: Boolean) {
+    suspend fun setAutoDownloadSeasonUnwatchedTv(enabled: Boolean) {
         dataStore.edit { it[KEY_SEASON_UNWATCHED_TV] = enabled }
     }
 
-    override suspend fun setAutoDownloadSeasonUnwatchedAnime(enabled: Boolean) {
+    suspend fun setAutoDownloadSeasonUnwatchedAnime(enabled: Boolean) {
         dataStore.edit { it[KEY_SEASON_UNWATCHED_ANIME] = enabled }
     }
 
-    override suspend fun setPreferredKeywords(keywords: List<String>) {
+    suspend fun setPreferredKeywords(keywords: List<String>) {
         dataStore.edit { it[KEY_PREFERRED_KEYWORDS] = keywords.joinToString("\n") }
     }
 
-    override suspend fun setIgnoreKeywords(keywords: List<String>) {
+    suspend fun setIgnoreKeywords(keywords: List<String>) {
         dataStore.edit { it[KEY_IGNORE_KEYWORDS] = keywords.joinToString("\n") }
     }
 
-    override suspend fun setSearchIntervalHours(hours: Int) {
+    suspend fun setSearchIntervalHours(hours: Int) {
         dataStore.edit { it[KEY_SEARCH_INTERVAL_HOURS] = hours }
     }
 
-    override suspend fun clear() {
+    suspend fun clear() {
         dataStore.edit { it.clear() }
     }
 }

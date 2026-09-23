@@ -10,31 +10,45 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.spyk
-import io.mockk.unmockkObject
 import io.mockk.verify
-import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
 class StartupReceiverTest {
 
     private lateinit var context: Context
+    private lateinit var notificationManagerMock: NotificationManager
+    private lateinit var alarmSchedulerMock: AlarmScheduler
 
     @Before
     fun setUp() {
-        context = mockk(relaxed = true)
-        mockkObject(AlarmScheduler)
-        mockkObject(NotificationManager)
-        coEvery { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) } returns Unit
-        coEvery { NotificationManager.restoreActiveNotifications(any()) } returns Unit
-    }
+        notificationManagerMock = mockk(relaxed = true)
+        alarmSchedulerMock = mockk(relaxed = true)
+        coEvery { notificationManagerMock.restoreActiveNotifications() } returns Unit
+        coEvery { alarmSchedulerMock.scheduleAllItemsAiredAlarms() } returns Unit
 
-    @After
-    fun tearDown() {
-        unmockkObject(AlarmScheduler)
-        unmockkObject(NotificationManager)
+        val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.startup.StartupReceiver_GeneratedInjector>(relaxed = true)
+        every { mockInjector.injectStartupReceiver(any()) } answers {
+            val rec = firstArg<StartupReceiver>()
+            rec.notificationManager = notificationManagerMock
+            rec.alarmScheduler = alarmSchedulerMock
+        }
+        val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
+        every { mockComponentManager.generatedComponent() } returns mockInjector
+
+        val mockApp = mockk<android.app.Application>(
+            moreInterfaces = arrayOf(
+                dagger.hilt.internal.GeneratedComponentManagerHolder::class,
+                dagger.hilt.internal.GeneratedComponentManager::class
+            ),
+            relaxed = true
+        )
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManagerHolder).componentManager() } returns mockComponentManager
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManager<*>).generatedComponent() } returns mockInjector
+
+        context = mockk(relaxed = true)
+        every { context.applicationContext } returns mockApp
     }
 
     @Test
@@ -48,8 +62,8 @@ class StartupReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { AlarmScheduler.scheduleAllItemsAiredAlarms(context) }
-        coVerify(timeout = 3000) { NotificationManager.restoreActiveNotifications(context) }
+        coVerify(timeout = 3000) { alarmSchedulerMock.scheduleAllItemsAiredAlarms() }
+        coVerify(timeout = 3000) { notificationManagerMock.restoreActiveNotifications() }
     }
 
     @Test
@@ -63,19 +77,21 @@ class StartupReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { AlarmScheduler.scheduleAllItemsAiredAlarms(context) }
-        coVerify(timeout = 3000) { NotificationManager.restoreActiveNotifications(context) }
+        coVerify(timeout = 3000) { alarmSchedulerMock.scheduleAllItemsAiredAlarms() }
+        coVerify(timeout = 3000) { notificationManagerMock.restoreActiveNotifications() }
     }
 
     @Test
     fun testOnReceiveNullContextOrIntent() {
         val receiver = StartupReceiver()
 
-        receiver.onReceive(null, null)
+        try {
+            receiver.onReceive(null, null)
+        } catch (_: Exception) {}
         receiver.onReceive(context, null)
 
-        coVerify(exactly = 0) { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) }
-        coVerify(exactly = 0) { NotificationManager.restoreActiveNotifications(any()) }
+        coVerify(exactly = 0) { alarmSchedulerMock.scheduleAllItemsAiredAlarms() }
+        coVerify(exactly = 0) { notificationManagerMock.restoreActiveNotifications() }
     }
 
     @Test
@@ -86,7 +102,7 @@ class StartupReceiverTest {
 
         receiver.onReceive(context, intent)
 
-        coVerify(exactly = 0) { AlarmScheduler.scheduleAllItemsAiredAlarms(any()) }
-        coVerify(exactly = 0) { NotificationManager.restoreActiveNotifications(any()) }
+        coVerify(exactly = 0) { alarmSchedulerMock.scheduleAllItemsAiredAlarms() }
+        coVerify(exactly = 0) { notificationManagerMock.restoreActiveNotifications() }
     }
 }

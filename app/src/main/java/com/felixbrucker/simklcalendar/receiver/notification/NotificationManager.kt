@@ -2,7 +2,7 @@ package com.felixbrucker.simklcalendar.receiver.notification
 
 import android.app.Notification
 import android.app.NotificationChannel
-import android.app.NotificationManager
+import android.app.NotificationManager as SystemNotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -20,14 +20,15 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.felixbrucker.simklcalendar.MainActivity
 import com.felixbrucker.simklcalendar.R
+import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.ActiveNotification
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import kotlinx.coroutines.CoroutineScope
@@ -35,329 +36,328 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URLEncoder
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class NotificationManager {
+@Singleton
+class NotificationManager @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val calendarItemDao: CalendarItemDao,
+    private val activeNotificationDao: ActiveNotificationDao,
+    private val torrentServiceHelper: TorrentServiceHelper
+) {
     companion object {
         private const val CHANNEL_ID = "simkl_calendar_notifications"
         private const val TAG = "NotificationManager"
-        suspend fun showNotification(item: CalendarItemWithWatchlist, context: Context) {
-            createNotificationChannel(context)
-            val isNotificationPermissionGranted = validateNotificationPermissionsGranted(context)
-            if (!isNotificationPermissionGranted) {
-                return
-            }
-            val notification = buildNotification(item, context)
-            val notificationId = item.notificationId
-            try {
-                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.notify(notificationId, notification)
-                addActiveNotification(context, item.primaryKey)
-                Timber.tag(TAG).d("Successfully displayed notification id=$notificationId")
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Error posting notification")
-            }
+    }
+
+    suspend fun showNotification(item: CalendarItemWithWatchlist) {
+        createNotificationChannel()
+        val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
+        if (!isNotificationPermissionGranted) {
+            return
+        }
+        val notification = buildNotification(item)
+        val notificationId = item.notificationId
+        try {
+            context.getSystemNotificationManager().notify(notificationId, notification)
+            addActiveNotification(item.primaryKey)
+            Timber.tag(TAG).d("Successfully displayed notification id=$notificationId")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error posting notification")
+        }
+    }
+
+    suspend fun updateNotification(
+        item: CalendarItemWithWatchlist,
+    ) {
+        createNotificationChannel()
+        val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
+        if (!isNotificationPermissionGranted) {
+            return
         }
 
-        suspend fun updateNotification(
-            item: CalendarItemWithWatchlist,
-            context: Context,
-        ) {
-            createNotificationChannel(context)
-            val isNotificationPermissionGranted = validateNotificationPermissionsGranted(context)
-            if (!isNotificationPermissionGranted) {
-                return
-            }
+        val notificationId = item.notificationId
+        val systemNotificationManager = context.getSystemNotificationManager()
 
-            val notificationId = item.notificationId
-            val notificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-            // Only update if the notification is currently active/visible
-            val isActive = notificationManager.activeNotifications.any { it.id == notificationId }
-            if (!isActive) {
-                Timber.tag(TAG).d("Notification id=$notificationId is not active, skipping update.")
-                return
-            }
-
-            val notification = buildNotificationForUpdate(item, context)
-            try {
-                notificationManager.notify(notificationId, notification)
-                Timber.tag(TAG).d("Successfully updated notification id=$notificationId")
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Error updating notification")
-            }
+        // Only update if the notification is currently active/visible
+        val isActive = systemNotificationManager.activeNotifications.any { it.id == notificationId }
+        if (!isActive) {
+            Timber.tag(TAG).d("Notification id=$notificationId is not active, skipping update.")
+            return
         }
 
-        suspend fun dismissNotification(item: CalendarItemWithWatchlist, context: Context) {
-            try {
-                val notificationManager =
-                    context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.cancel(item.notificationId)
-                removeActiveNotification(context, item.primaryKey)
-                Timber.tag(TAG).d("Successfully dismissed notification id=${item.notificationId} primaryKey=${item.primaryKey}")
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Error dismissing notification id=${item.notificationId}")
-            }
+        val notification = buildNotificationForUpdate(item)
+        try {
+            systemNotificationManager.notify(notificationId, notification)
+            Timber.tag(TAG).d("Successfully updated notification id=$notificationId")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error updating notification")
+        }
+    }
+
+    suspend fun dismissNotification(item: CalendarItemWithWatchlist) {
+        try {
+            context.getSystemNotificationManager().cancel(item.notificationId)
+            removeActiveNotification(item.primaryKey)
+            Timber.tag(TAG).d("Successfully dismissed notification id=${item.notificationId} primaryKey=${item.primaryKey}")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error dismissing notification id=${item.notificationId}")
+        }
+    }
+
+    suspend fun addActiveNotification(primaryKey: String) {
+        try {
+            activeNotificationDao.insertActiveNotification(
+                ActiveNotification(primaryKey = primaryKey)
+            )
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error inserting active notification primaryKey=$primaryKey")
+        }
+    }
+
+    suspend fun removeActiveNotification(primaryKey: String) {
+        try {
+            activeNotificationDao.deleteActiveNotification(primaryKey)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error removing active notification primaryKey=$primaryKey")
+        }
+    }
+
+    suspend fun getActiveNotifications(): List<String> {
+        return try {
+            activeNotificationDao.getAllActiveKeys()
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error fetching active notification keys")
+            emptyList()
+        }
+    }
+
+    suspend fun restoreActiveNotifications() {
+        createNotificationChannel()
+        val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
+        if (!isNotificationPermissionGranted) {
+            return
         }
 
-        suspend fun addActiveNotification(context: Context, primaryKey: String) {
-            try {
-                val db = AppDatabase.getDatabase(context)
-                db.activeNotificationDao().insertActiveNotification(
-                    ActiveNotification(primaryKey = primaryKey)
+        val activeKeys = getActiveNotifications()
+        if (activeKeys.isEmpty()) {
+            return
+        }
+
+        val systemNotificationManager = context.getSystemNotificationManager()
+        val currentlyPostedIds = systemNotificationManager.activeNotifications.map { it.id }.toSet()
+
+        for (primaryKey in activeKeys) {
+            val item = calendarItemDao.findItem(primaryKey)
+            if (item == null) {
+                removeActiveNotification(primaryKey)
+                continue
+            }
+
+            if (!currentlyPostedIds.contains(item.notificationId)) {
+                val notification = buildNotification(item)
+                try {
+                    systemNotificationManager.notify(item.notificationId, notification)
+                    Timber.tag(TAG).d("Restored missing notification primaryKey=$primaryKey id=${item.notificationId}")
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "Error restoring notification primaryKey=$primaryKey")
+                }
+            }
+        }
+    }
+
+    fun createNotificationChannel() {
+        val name = "Simkl Calendar Notifications"
+        val descriptionText = "Notifications for airing episodes and movies as well as and seasons that finished airing."
+        val importance = SystemNotificationManager.IMPORTANCE_HIGH
+        val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+            description = descriptionText
+            enableVibration(true)
+            enableLights(true)
+            setShowBadge(true)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+        context.getSystemNotificationManager().createNotificationChannel(channel)
+    }
+
+    private suspend fun buildNotification(item: CalendarItemWithWatchlist): Notification {
+        return makeConfiguredNotificationBuilder(item).build()
+    }
+
+    private suspend fun makeConfiguredNotificationBuilder(item: CalendarItemWithWatchlist): NotificationCompat.Builder {
+        val itemsInSeasonOrRelatedItems = calendarItemDao
+            .getItemsInSeasonOrRelatedItems(item.simklId, item.season)
+        val totalEpisodesInSeason = itemsInSeasonOrRelatedItems.maxOfOrNull { it.episodeNumber ?: 1 } ?: 1
+        val (title, message) = item.formatNotificationContent(totalEpisodesInSeason)
+        val openIntent = item.makeOpenReleaseDetailViewIntent(context)
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(openIntent)
+            .setDeleteIntent(item.makeDismissNotificationIntent(context))
+            .setAutoCancel(true)
+
+        val isWatched = if (item.type == MediaType.MOVIE) {
+            itemsInSeasonOrRelatedItems.any { it.isWatched }
+        } else if (item.isSeasonFinale) {
+            itemsInSeasonOrRelatedItems.all { it.isWatched }
+        } else {
+            item.isWatched
+        }
+
+        // Calculate aggregate media status
+        val aggregateMediaStatus = if (item.type == MediaType.MOVIE) {
+            itemsInSeasonOrRelatedItems.firstOrNull { it.movieReleaseType == MovieReleaseType.DIGITAL }?.mediaStatus
+                ?: item.mediaStatus
+        } else if (item.isSeasonFinale) {
+            val statuses = itemsInSeasonOrRelatedItems.map { it.mediaStatus }
+            when {
+                statuses.all { it == MediaStatus.DOWNLOADED } -> MediaStatus.DOWNLOADED
+                statuses.any { it == MediaStatus.DOWNLOADING } -> MediaStatus.DOWNLOADING
+                statuses.any { it == MediaStatus.WANTED } -> MediaStatus.WANTED
+                else -> MediaStatus.IGNORED
+            }
+        } else {
+            item.mediaStatus
+        }
+
+        val statusText = when (aggregateMediaStatus) {
+            MediaStatus.DOWNLOADED -> "Downloaded"
+            MediaStatus.DOWNLOADING -> "Downloading"
+            MediaStatus.WANTED -> "Wanted"
+            else -> null
+        }
+
+        val subText = listOfNotNull(
+            if (isWatched) "Watched" else null,
+            statusText
+        ).joinToString(" · ")
+
+        if (subText.isNotEmpty()) {
+            builder.setSubText(subText)
+            builder.setStyle(
+                NotificationCompat.BigTextStyle().bigText(message).setSummaryText(subText)
+            )
+        } else {
+            builder.setStyle(NotificationCompat.BigTextStyle().bigText(message))
+        }
+
+        val posterBitmap = loadPosterBitmap(item.poster)
+        if (posterBitmap != null) {
+            builder.setLargeIcon(posterBitmap)
+        }
+
+        // Add notification action buttons
+        if (!isWatched) {
+            if (item.isSeasonFinale) {
+                builder.addAction(
+                    R.drawable.ic_done_all,
+                    "Mark Season as Watched",
+                    item.makeMarkSeasonWatchedIntent(context)
                 )
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Error inserting active notification primaryKey=$primaryKey")
-            }
-        }
-
-        suspend fun removeActiveNotification(context: Context, primaryKey: String) {
-            try {
-                val db = AppDatabase.getDatabase(context)
-                db.activeNotificationDao().deleteActiveNotification(primaryKey)
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Error removing active notification primaryKey=$primaryKey")
-            }
-        }
-
-        suspend fun getActiveNotifications(context: Context): List<String> {
-            return try {
-                val db = AppDatabase.getDatabase(context)
-                db.activeNotificationDao().getAllActiveKeys()
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Error fetching active notification keys")
-                emptyList()
-            }
-        }
-
-        suspend fun restoreActiveNotifications(context: Context) {
-            createNotificationChannel(context)
-            val isNotificationPermissionGranted = validateNotificationPermissionsGranted(context)
-            if (!isNotificationPermissionGranted) {
-                return
-            }
-
-            val activeKeys = getActiveNotifications(context)
-            if (activeKeys.isEmpty()) {
-                return
-            }
-
-            val notificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val currentlyPostedIds = notificationManager.activeNotifications.map { it.id }.toSet()
-
-            val db = AppDatabase.getDatabase(context)
-            for (primaryKey in activeKeys) {
-                val item = db.calendarItemDao().findItem(primaryKey)
-                if (item == null) {
-                    removeActiveNotification(context, primaryKey)
-                    continue
-                }
-
-                if (!currentlyPostedIds.contains(item.notificationId)) {
-                    val notification = buildNotification(item, context)
-                    try {
-                        notificationManager.notify(item.notificationId, notification)
-                        Timber.tag(TAG).d("Restored missing notification primaryKey=$primaryKey id=${item.notificationId}")
-                    } catch (e: Exception) {
-                        Timber.tag(TAG).e(e, "Error restoring notification primaryKey=$primaryKey")
-                    }
-                }
-            }
-        }
-
-        fun createNotificationChannel(context: Context) {
-            val name = "Simkl Calendar Notifications"
-            val descriptionText = "Notifications for airing episodes and movies as well as and seasons that finished airing."
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-                enableVibration(true)
-                enableLights(true)
-                setShowBadge(true)
-                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            }
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        private suspend fun buildNotification(item: CalendarItemWithWatchlist, context: Context): Notification {
-            return makeConfiguredNotificationBuilder(item, context).build()
-        }
-
-        private suspend fun makeConfiguredNotificationBuilder(item: CalendarItemWithWatchlist, context: Context): NotificationCompat.Builder {
-            val db = AppDatabase.getDatabase(context)
-            val itemsInSeasonOrRelatedItems = db
-                .calendarItemDao()
-                .getItemsInSeasonOrRelatedItems(item.simklId, item.season)
-            val totalEpisodesInSeason = itemsInSeasonOrRelatedItems.maxOfOrNull { it.episodeNumber ?: 1 } ?: 1
-            val (title, message) = item.formatNotificationContent(totalEpisodesInSeason)
-            val openIntent = item.makeOpenReleaseDetailViewIntent(context)
-
-            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(title)
-                .setContentText(message)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setDefaults(NotificationCompat.DEFAULT_ALL)
-                .setCategory(NotificationCompat.CATEGORY_REMINDER)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setContentIntent(openIntent)
-                .setDeleteIntent(item.makeDismissNotificationIntent(context))
-                .setAutoCancel(true)
-
-            val isWatched = if (item.type == MediaType.MOVIE) {
-                itemsInSeasonOrRelatedItems.any { it.isWatched }
-            } else if (item.isSeasonFinale) {
-                itemsInSeasonOrRelatedItems.all { it.isWatched }
             } else {
-                item.isWatched
-            }
-
-            // Calculate aggregate media status
-            val aggregateMediaStatus = if (item.type == MediaType.MOVIE) {
-                itemsInSeasonOrRelatedItems.firstOrNull { it.movieReleaseType == MovieReleaseType.DIGITAL }?.mediaStatus
-                    ?: item.mediaStatus
-            } else if (item.isSeasonFinale) {
-                val statuses = itemsInSeasonOrRelatedItems.map { it.mediaStatus }
-                when {
-                    statuses.all { it == MediaStatus.DOWNLOADED } -> MediaStatus.DOWNLOADED
-                    statuses.any { it == MediaStatus.DOWNLOADING } -> MediaStatus.DOWNLOADING
-                    statuses.any { it == MediaStatus.WANTED } -> MediaStatus.WANTED
-                    else -> MediaStatus.IGNORED
-                }
-            } else {
-                item.mediaStatus
-            }
-
-            val statusText = when (aggregateMediaStatus) {
-                MediaStatus.DOWNLOADED -> "Downloaded"
-                MediaStatus.DOWNLOADING -> "Downloading"
-                MediaStatus.WANTED -> "Wanted"
-                else -> null
-            }
-
-            val subText = listOfNotNull(
-                if (isWatched) "Watched" else null,
-                statusText
-            ).joinToString(" · ")
-
-            if (subText.isNotEmpty()) {
-                builder.setSubText(subText)
-                builder.setStyle(
-                    NotificationCompat.BigTextStyle().bigText(message).setSummaryText(subText)
+                builder.addAction(
+                    R.drawable.ic_check,
+                    "Mark as Watched",
+                    item.makeMarkWatchedIntent(context)
                 )
-            } else {
-                builder.setStyle(NotificationCompat.BigTextStyle().bigText(message))
             }
+        }
 
-            val posterBitmap = loadPosterBitmap(context, item.poster)
-            if (posterBitmap != null) {
-                builder.setLargeIcon(posterBitmap)
-            }
-
-            // Add notification action buttons
-            if (!isWatched) {
-                if (item.isSeasonFinale) {
+        val isTorrentServiceInstalled = torrentServiceHelper.isInstalled.value
+        if (isTorrentServiceInstalled) {
+            // Download actions
+            if (item.type == MediaType.MOVIE) {
+                val digitalRelease =
+                    itemsInSeasonOrRelatedItems.find { it.movieReleaseType == MovieReleaseType.DIGITAL }
+                if (digitalRelease != null && (digitalRelease.mediaStatus == MediaStatus.IGNORED || digitalRelease.mediaStatus == MediaStatus.WANTED)) {
                     builder.addAction(
-                        R.drawable.ic_done_all,
-                        "Mark Season as Watched",
-                        item.makeMarkSeasonWatchedIntent(context)
-                    )
-                } else {
-                    builder.addAction(
-                        R.drawable.ic_check,
-                        "Mark as Watched",
-                        item.makeMarkWatchedIntent(context)
+                        R.drawable.ic_download,
+                        "Download",
+                        digitalRelease.makeDownloadItemIntent(context)
                     )
                 }
-            }
-
-            val repo = SimklRepository(context)
-            val isTorrentServiceInstalled = repo.torrentServiceHelper.isInstalled.value
-            if (isTorrentServiceInstalled) {
-                // Download actions
-                if (item.type == MediaType.MOVIE) {
-                    val digitalRelease =
-                        itemsInSeasonOrRelatedItems.find { it.movieReleaseType == MovieReleaseType.DIGITAL }
-                    if (digitalRelease != null && (digitalRelease.mediaStatus == MediaStatus.IGNORED || digitalRelease.mediaStatus == MediaStatus.WANTED)) {
+            } else {
+                val hasDownloadableEpisodes =
+                    itemsInSeasonOrRelatedItems.any { it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED }
+                if (hasDownloadableEpisodes) {
+                    if (item.isSeasonFinale) {
+                        builder.addAction(
+                            R.drawable.ic_download,
+                            "Download missing episodes",
+                            item.makeDownloadSeasonMissingEpisodesIntent(context)
+                        )
+                    } else if (item.mediaStatus == MediaStatus.IGNORED || item.mediaStatus == MediaStatus.WANTED) {
                         builder.addAction(
                             R.drawable.ic_download,
                             "Download",
-                            digitalRelease.makeDownloadItemIntent(context)
+                            item.makeDownloadItemIntent(context)
                         )
                     }
-                } else {
-                    val hasDownloadableEpisodes =
-                        itemsInSeasonOrRelatedItems.any { it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED }
-                    if (hasDownloadableEpisodes) {
-                        if (item.isSeasonFinale) {
-                            builder.addAction(
-                                R.drawable.ic_download,
-                                "Download missing episodes",
-                                item.makeDownloadSeasonMissingEpisodesIntent(context)
-                            )
-                        } else if (item.mediaStatus == MediaStatus.IGNORED || item.mediaStatus == MediaStatus.WANTED) {
-                            builder.addAction(
-                                R.drawable.ic_download,
-                                "Download",
-                                item.makeDownloadItemIntent(context)
-                            )
-                        }
-                    }
                 }
             }
-
-            return builder
         }
 
-        private suspend fun buildNotificationForUpdate(item: CalendarItemWithWatchlist, context: Context): Notification {
-            return makeConfiguredNotificationBuilder(item, context)
-                .setOnlyAlertOnce(true)
+        return builder
+    }
+
+    private suspend fun buildNotificationForUpdate(item: CalendarItemWithWatchlist): Notification {
+        return makeConfiguredNotificationBuilder(item)
+            .setOnlyAlertOnce(true)
+            .build()
+    }
+
+    private fun validateNotificationPermissionsGranted(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Timber.tag(TAG).w("POST_NOTIFICATIONS permission not granted. Cannot display notification.")
+                CoroutineScope(Dispatchers.Main).launch {
+                    Toast.makeText(context, "Notification permission required to display notification", Toast.LENGTH_SHORT).show()
+                }
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private suspend fun loadPosterBitmap(poster: String?): Bitmap? = withContext(Dispatchers.IO) {
+        if (poster.isNullOrBlank()) return@withContext null
+        try {
+            val posterUrl = poster.toPosterUrl(PosterSize.COMPACT)
+            val imageLoader = ImageLoader.Builder(context).build()
+            val request = ImageRequest.Builder(context)
+                .data(posterUrl)
+                .allowHardware(false)
                 .build()
-        }
-
-        private fun validateNotificationPermissionsGranted(context: Context): Boolean {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.POST_NOTIFICATIONS
-                    ) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    Timber.tag(TAG).w("POST_NOTIFICATIONS permission not granted. Cannot display notification.")
-                    CoroutineScope(Dispatchers.Main).launch {
-                        Toast.makeText(context, "Notification permission required to display notification", Toast.LENGTH_SHORT).show()
-                    }
-                    return false
-                }
-            }
-
-            return true
-        }
-
-        private suspend fun loadPosterBitmap(context: Context, poster: String?): Bitmap? = withContext(Dispatchers.IO) {
-            if (poster.isNullOrBlank()) return@withContext null
-            try {
-                val posterUrl = poster.toPosterUrl(PosterSize.COMPACT)
-                val imageLoader = ImageLoader.Builder(context).build()
-                val request = ImageRequest.Builder(context)
-                    .data(posterUrl)
-                    .allowHardware(false)
-                    .build()
-                val result = imageLoader.execute(request)
-                if (result is SuccessResult) {
-                    result.drawable.toBitmap()
-                } else {
-                    null
-                }
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Failed to load poster bitmap for notification")
+            val result = imageLoader.execute(request)
+            if (result is SuccessResult) {
+                result.drawable.toBitmap()
+            } else {
                 null
             }
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to load poster bitmap for notification")
+            null
         }
     }
 }
 
+fun Context.getSystemNotificationManager(): SystemNotificationManager {
+    return getSystemService(Context.NOTIFICATION_SERVICE) as SystemNotificationManager
+}
 
 fun CalendarItemWithWatchlist.makeOpenReleaseDetailViewIntent(context: Context): PendingIntent {
     val openIntent = Intent(context, MainActivity::class.java).apply {

@@ -56,7 +56,7 @@ fun WatchlistItemDetailScreen(
     onNavigateToEpisode: (String) -> Unit
 ) {
     val allCalendarItems by viewModel.allCalendarItems.collectAsState()
-    val watchlistItems by viewModel.repository.watchlistItems.collectAsState(initial = emptyList())
+    val watchlistItems by viewModel.watchlistItems.collectAsState(initial = emptyList())
     val tableItems by viewModel.watchlistTableItems.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
     val torrentDownloads by viewModel.torrentDownloads.collectAsState()

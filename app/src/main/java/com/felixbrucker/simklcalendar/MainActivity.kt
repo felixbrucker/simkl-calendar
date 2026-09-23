@@ -54,9 +54,24 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.net.URLDecoder
+import dagger.hilt.android.AndroidEntryPoint
 
+import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
+import javax.inject.Inject
+
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val viewModel: CalendarViewModel by viewModels()
+
+    @Inject
+    lateinit var appSettingsRepo: AppSettingsRepository
+
+    @Inject
+    lateinit var autoDownloadRepo: AutoDownloadRepository
+
+    @Inject
+    lateinit var notificationManager: NotificationManager
 
     // Modern AuthTab ActivityResultLauncher
     private val authTabLauncher = AuthTabIntent.registerActivityResultLauncher(this) { result ->
@@ -89,11 +104,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        NotificationManager.createNotificationChannel(this)
+        notificationManager.createNotificationChannel()
 
         // Reactively handle sync interval changes
         lifecycleScope.launch {
-            viewModel.repository.appSettingsRepo.preferencesFlow
+            appSettingsRepo.preferencesFlow
                 .map { it.syncIntervalHours }
                 .distinctUntilChanged()
                 .collect { syncIntervalHours ->
@@ -106,7 +121,7 @@ class MainActivity : ComponentActivity() {
 
         // Reactively handle search interval changes
         lifecycleScope.launch {
-            viewModel.repository.autoDownloadRepo.preferencesFlow
+            autoDownloadRepo.preferencesFlow
                 .map { it.searchIntervalHours }
                 .distinctUntilChanged()
                 .collect { searchIntervalHours ->
@@ -123,7 +138,7 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch(Dispatchers.Default) {
             handleNotificationNavigation(intent)
-            NotificationManager.restoreActiveNotifications(applicationContext)
+            notificationManager.restoreActiveNotifications()
         }
 
         setContent {
@@ -168,7 +183,7 @@ class MainActivity : ComponentActivity() {
             } else null
 
         if (!itemKey.isNullOrEmpty()) {
-            NotificationManager.removeActiveNotification(this@MainActivity, itemKey)
+            notificationManager.removeActiveNotification(itemKey)
             viewModel.setPendingDetailKey(itemKey)
         }
     }

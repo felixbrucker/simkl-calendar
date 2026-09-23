@@ -1,11 +1,8 @@
 package com.felixbrucker.simklcalendar.receiver.alarm
 
-import android.content.Context
 import com.felixbrucker.simklcalendar.data.database.*
 import com.felixbrucker.simklcalendar.data.model.*
 import com.felixbrucker.simklcalendar.data.preferences.*
-import io.mockk.*
-import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.*
 import org.junit.Test
 import java.time.Instant
@@ -13,8 +10,7 @@ import java.time.Instant
 class DefaultNotificationSettingsTest {
 
     @Test
-    fun testFromContext() {
-        val context = mockk<Context>()
+    fun testToDefaultNotificationSettings() {
         val prefs = NotificationPreferences(
             defaultNotifyAiring = true,
             defaultNotifySeasonFinished = true,
@@ -22,12 +18,12 @@ class DefaultNotificationSettingsTest {
             defaultNotifyMovieDigital = true
         )
 
-        mockkStatic("com.felixbrucker.simklcalendar.data.preferences.NotificationPreferencesKt")
-        every { context.notificationDataStore.data } returns flowOf(mockk(relaxed = true))
-        
-        // This test is hard to fix without refactoring DefaultNotificationSettings
-        // to accept the Repo or DataStore as a dependency.
-        // For now, let's just test makeNotificationSettings which is the core logic.
+        val settings = prefs.toDefaultNotificationSettings()
+
+        assertTrue(settings.itemAired)
+        assertTrue(settings.seasonFinished)
+        assertFalse(settings.movieIsInTheaters)
+        assertTrue(settings.movieIsReleasedOnDigital)
     }
 
     @Test

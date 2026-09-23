@@ -14,6 +14,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import java.time.Instant
 import androidx.compose.runtime.Immutable
 import androidx.core.net.toUri
+import java.time.Instant.now
 import kotlin.math.abs
 
 @Entity(tableName = "user_token")
@@ -21,10 +22,13 @@ data class UserToken(
     @PrimaryKey val id: Int = 1, // Single-row lock for active user
     val accessToken: String,
     val username: String,
-    val refreshToken: String? = null,
-    val accessTokenExpiresAt: Instant? = null,
-    val refreshTokenExpiresAt: Instant? = null
-)
+    val refreshToken: String = "",
+    val accessTokenExpiresAt: Instant = Instant.EPOCH,
+    val refreshTokenExpiresAt: Instant = Instant.EPOCH,
+) {
+    val isAccessTokenExpired: Boolean get() = now().minusSeconds(60).isAfter(accessTokenExpiresAt)
+    val isRefreshTokenExpired: Boolean get() = now().minusSeconds(60).isAfter(refreshTokenExpiresAt)
+}
 
 @Entity(
     tableName = "calendar_items",

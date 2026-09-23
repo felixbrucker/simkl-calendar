@@ -58,7 +58,7 @@ fun LoginScreen(
 
     var oauthError by remember { mutableStateOf<String?>(null) }
 
-    val isConfigured = viewModel.repository.isRealApiConfigured()
+    val isConfigured = viewModel.isRealApiConfigured()
 
     // Redirect to calendar dashboard if already logged in
     LaunchedEffect(token) {

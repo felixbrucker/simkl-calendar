@@ -31,6 +31,10 @@ import com.felixbrucker.simklcalendar.data.preferences.*
 import kotlin.time.Duration.Companion.milliseconds
 
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 enum class TableSortField {
     NAME,
@@ -62,10 +66,26 @@ data class WatchlistTableItem(
     val downloadedProgress: Double = if (totalDownloadableReleasedCount > 0) downloadedReleasedCount.toDouble() / totalDownloadableReleasedCount else 0.0
 }
 
-class CalendarViewModel @JvmOverloads constructor(
+@HiltViewModel
+class CalendarViewModel @Inject constructor(
     application: Application,
-    val repository: SimklRepository = SimklRepository(application)
+    private val repository: SimklRepository,
+    val appSettingsRepo: AppSettingsRepository,
+    val autoDownloadRepo: AutoDownloadRepository,
+    val notificationRepo: NotificationRepository,
+    val authRepo: AuthRepository,
+    val uiRepo: UiRepository,
+    val torrentServiceHelper: TorrentServiceHelper,
+    val alarmScheduler: AlarmScheduler
 ) : AndroidViewModel(application) {
+
+    fun scheduleAllItemsAiredAlarms() {
+        viewModelScope.launch {
+            alarmScheduler.scheduleAllItemsAiredAlarms()
+        }
+    }
+
+    val watchlistItems: Flow<List<TrackedWatchlistItem>> = repository.watchlistItems
 
     val notificationSettings: StateFlow<List<NotificationSetting>> = repository.notificationSettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -79,40 +99,39 @@ class CalendarViewModel @JvmOverloads constructor(
     val customSearchLinks: StateFlow<List<CustomSearchLink>> = repository.customSearchLinks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val torrentDownloads: StateFlow<Map<String, DownloadProgress>> = repository.torrentServiceHelper.downloads
+    val torrentDownloads: StateFlow<Map<String, DownloadProgress>> = torrentServiceHelper.downloads
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    val isTorrentServiceBound: StateFlow<Boolean> = repository.torrentServiceHelper.isBound
-    val isTorrentServiceInstalled: StateFlow<Boolean> = repository.torrentServiceHelper.isInstalled
+    val isTorrentServiceBound: StateFlow<Boolean> = torrentServiceHelper.isBound
+    val isTorrentServiceInstalled: StateFlow<Boolean> = torrentServiceHelper.isInstalled
     val hasWantedCalendarItems: StateFlow<Boolean> = allCalendarItems
         .map { it.any { item -> item.mediaStatus == MediaStatus.WANTED } }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    private val _isAuthReady = MutableStateFlow(false)
-
-    private val _userToken = MutableStateFlow<UserToken?>(null)
-    val userToken: StateFlow<UserToken?> = _userToken.asStateFlow()
+    val userToken: StateFlow<UserToken?> = repository.activeUserToken
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     data class AuthState(val isReady: Boolean, val token: UserToken?)
-    val authState: StateFlow<AuthState> = combine(_isAuthReady, _userToken) { ready, token ->
-        AuthState(ready, token)
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, AuthState(false, null))
+    val authState: StateFlow<AuthState> = repository.activeUserToken
+        .distinctUntilChanged()
+        .map { token -> AuthState(true, token) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AuthState(false, null))
 
-    val uiPreferences: StateFlow<UiPreferences> = repository.uiRepo.preferencesFlow
+    val uiPreferences: StateFlow<UiPreferences> = uiRepo.preferencesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiPreferences())
 
-    val notificationPreferences: StateFlow<NotificationPreferences> = repository.notificationRepo.preferencesFlow
+    val notificationPreferences: StateFlow<NotificationPreferences> = notificationRepo.preferencesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationPreferences())
 
-    val appSettingsPreferences: StateFlow<AppSettingsPreferences> = repository.appSettingsRepo.preferencesFlow
+    val appSettingsPreferences: StateFlow<AppSettingsPreferences> = appSettingsRepo.preferencesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettingsPreferences())
 
     val viewMode: StateFlow<ViewMode> = uiPreferences
         .map { it.viewMode }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ViewMode.CALENDAR)
 
-    val showAuthV2UpgradeHint: StateFlow<Boolean> = repository.authRepo.preferencesFlow
+    val showAuthV2UpgradeHint: StateFlow<Boolean> = authRepo.preferencesFlow
         .map { it.showAuthV2UpgradeHint }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -124,7 +143,7 @@ class CalendarViewModel @JvmOverloads constructor(
 
     fun setViewMode(mode: ViewMode) {
         viewModelScope.launch {
-            repository.uiRepo.setViewMode(mode)
+            uiRepo.setViewMode(mode)
         }
     }
 
@@ -148,61 +167,61 @@ class CalendarViewModel @JvmOverloads constructor(
 
     fun toggleShowTv() {
         viewModelScope.launch {
-            repository.uiRepo.updateFilters { it.copy(filterShowTv = !it.filterShowTv) }
+            uiRepo.updateFilters { it.copy(filterShowTv = !it.filterShowTv) }
         }
     }
 
     fun toggleShowAnime() {
         viewModelScope.launch {
-            repository.uiRepo.updateFilters { it.copy(filterShowAnime = !it.filterShowAnime) }
+            uiRepo.updateFilters { it.copy(filterShowAnime = !it.filterShowAnime) }
         }
     }
 
     fun toggleShowMovies() {
         viewModelScope.launch {
-            repository.uiRepo.updateFilters { it.copy(filterShowMovies = !it.filterShowMovies) }
+            uiRepo.updateFilters { it.copy(filterShowMovies = !it.filterShowMovies) }
         }
     }
 
     fun toggleShowOnlyUnwatchedReleased() {
         viewModelScope.launch {
-            repository.uiRepo.updateFilters { it.copy(filterOnlyUnwatched = !it.filterOnlyUnwatched) }
+            uiRepo.updateFilters { it.copy(filterOnlyUnwatched = !it.filterOnlyUnwatched) }
         }
     }
 
     fun toggleOnlySeasonPremieres() {
         viewModelScope.launch {
-            repository.uiRepo.updateFilters { it.copy(filterOnlyPremieres = !it.filterOnlyPremieres) }
+            uiRepo.updateFilters { it.copy(filterOnlyPremieres = !it.filterOnlyPremieres) }
         }
     }
 
     fun toggleOnlySeasonFinales() {
         viewModelScope.launch {
-            repository.uiRepo.updateFilters { it.copy(filterOnlyFinales = !it.filterOnlyFinales) }
+            uiRepo.updateFilters { it.copy(filterOnlyFinales = !it.filterOnlyFinales) }
         }
     }
 
     fun toggleOnlyDigitalDvd() {
         viewModelScope.launch {
-            repository.uiRepo.updateFilters { it.copy(filterOnlyDigitalDvd = !it.filterOnlyDigitalDvd) }
+            uiRepo.updateFilters { it.copy(filterOnlyDigitalDvd = !it.filterOnlyDigitalDvd) }
         }
     }
 
     fun toggleShowEarlierReleases() {
         viewModelScope.launch {
-            repository.uiRepo.updateFilters { it.copy(filterShowEarlier = !it.filterShowEarlier) }
+            uiRepo.updateFilters { it.copy(filterShowEarlier = !it.filterShowEarlier) }
         }
     }
 
     fun setShowEarlierReleases(show: Boolean) {
         viewModelScope.launch {
-            repository.uiRepo.updateFilters { it.copy(filterShowEarlier = show) }
+            uiRepo.updateFilters { it.copy(filterShowEarlier = show) }
         }
     }
 
     fun resetFilters() {
         viewModelScope.launch {
-            repository.uiRepo.updateFilters {
+            uiRepo.updateFilters {
                 it.copy(
                     filterShowTv = true,
                     filterShowAnime = true,
@@ -225,48 +244,48 @@ class CalendarViewModel @JvmOverloads constructor(
         searchQuery.value = ""
     }
 
-    val autoDownloadPreferences: StateFlow<AutoDownloadPreferences> = repository.autoDownloadRepo.preferencesFlow
+    val autoDownloadPreferences: StateFlow<AutoDownloadPreferences> = autoDownloadRepo.preferencesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AutoDownloadPreferences())
 
     fun updateAutoDownloadQuality(quality: String) {
         viewModelScope.launch {
-            repository.autoDownloadRepo.setQuality(quality)
+            autoDownloadRepo.setQuality(quality)
         }
     }
 
     fun updateAutoDownloadPreferHevc(prefer: Boolean) {
         viewModelScope.launch {
-            repository.autoDownloadRepo.setPreferHevc(prefer)
+            autoDownloadRepo.setPreferHevc(prefer)
         }
     }
 
     fun updateAutoDownloadUnwatchedTv(default: Boolean) {
         viewModelScope.launch {
-            repository.autoDownloadRepo.setAutoDownloadUnwatchedTv(default)
+            autoDownloadRepo.setAutoDownloadUnwatchedTv(default)
         }
     }
 
     fun updateAutoDownloadUnwatchedAnime(default: Boolean) {
         viewModelScope.launch {
-            repository.autoDownloadRepo.setAutoDownloadUnwatchedAnime(default)
+            autoDownloadRepo.setAutoDownloadUnwatchedAnime(default)
         }
     }
 
     fun updateAutoDownloadUnwatchedMovie(default: Boolean) {
         viewModelScope.launch {
-            repository.autoDownloadRepo.setAutoDownloadUnwatchedMovie(default)
+            autoDownloadRepo.setAutoDownloadUnwatchedMovie(default)
         }
     }
 
     fun updateAutoDownloadSeasonUnwatchedTv(default: Boolean) {
         viewModelScope.launch {
-            repository.autoDownloadRepo.setAutoDownloadSeasonUnwatchedTv(default)
+            autoDownloadRepo.setAutoDownloadSeasonUnwatchedTv(default)
         }
     }
 
     fun updateAutoDownloadSeasonUnwatchedAnime(default: Boolean) {
         viewModelScope.launch {
-            repository.autoDownloadRepo.setAutoDownloadSeasonUnwatchedAnime(default)
+            autoDownloadRepo.setAutoDownloadSeasonUnwatchedAnime(default)
         }
     }
 
@@ -275,7 +294,7 @@ class CalendarViewModel @JvmOverloads constructor(
             val current = autoDownloadPreferences.value.preferredKeywords.toMutableList()
             if (!current.contains(keyword)) {
                 current.add(keyword)
-                repository.autoDownloadRepo.setPreferredKeywords(current)
+                autoDownloadRepo.setPreferredKeywords(current)
             }
         }
     }
@@ -284,14 +303,14 @@ class CalendarViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             val current = autoDownloadPreferences.value.preferredKeywords.toMutableList()
             if (current.remove(keyword)) {
-                repository.autoDownloadRepo.setPreferredKeywords(current)
+                autoDownloadRepo.setPreferredKeywords(current)
             }
         }
     }
 
     fun updatePreferredKeywordsOrder(reordered: List<String>) {
         viewModelScope.launch {
-            repository.autoDownloadRepo.setPreferredKeywords(reordered)
+            autoDownloadRepo.setPreferredKeywords(reordered)
         }
     }
 
@@ -300,7 +319,7 @@ class CalendarViewModel @JvmOverloads constructor(
             val current = autoDownloadPreferences.value.ignoreKeywords.toMutableList()
             if (!current.contains(keyword)) {
                 current.add(keyword)
-                repository.autoDownloadRepo.setIgnoreKeywords(current)
+                autoDownloadRepo.setIgnoreKeywords(current)
             }
         }
     }
@@ -309,14 +328,14 @@ class CalendarViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             val current = autoDownloadPreferences.value.ignoreKeywords.toMutableList()
             if (current.remove(keyword)) {
-                repository.autoDownloadRepo.setIgnoreKeywords(current)
+                autoDownloadRepo.setIgnoreKeywords(current)
             }
         }
     }
 
     fun updateIgnoreKeywordsOrder(reordered: List<String>) {
         viewModelScope.launch {
-            repository.autoDownloadRepo.setIgnoreKeywords(reordered)
+            autoDownloadRepo.setIgnoreKeywords(reordered)
         }
     }
 
@@ -717,17 +736,15 @@ class CalendarViewModel @JvmOverloads constructor(
         refreshDownloadSubdirectories()
         viewModelScope.launch {
             repository.resetAuthIfNeeded()
-            // Automatically sync calendar on launch only if user is logged in
-            repository.activeUserToken.collect { token ->
-                _userToken.value = token
-                _isAuthReady.value = true
-                if (token != null && token.accessToken.isNotEmpty()) {
-                    syncLocalCalendar()
-                }
-            }
+            // Automatically sync calendar on startup and after logging
+            userToken
+                .map { it != null }
+                .distinctUntilChanged()
+                .filter { it }
+                .collect { syncLocalCalendar() }
         }
         // Refresh torrent service status
-        repository.torrentServiceHelper.refreshServiceStatus()
+        torrentServiceHelper.refreshServiceStatus()
 
         // Start polling for downloading items
         viewModelScope.launch {
@@ -804,10 +821,12 @@ class CalendarViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             _isSyncing.value = true
             val success = repository.exchangeOAuthCode(code = code, state = state, redirectUri = redirectUri)
-            _isSyncing.value = false
             if (success) {
+                // We do not need to set isSyncing to false here because the sync continues
+                // with a calendar sync and is updated there
                 onSuccess()
             } else {
+                _isSyncing.value = false
                 onFailure()
             }
         }
@@ -835,43 +854,43 @@ class CalendarViewModel @JvmOverloads constructor(
 
     fun updateSyncInterval(hours: Int) {
         viewModelScope.launch {
-            repository.appSettingsRepo.setSyncIntervalHours(hours)
+            appSettingsRepo.setSyncIntervalHours(hours)
         }
     }
 
     fun updateSearchInterval(hours: Int) {
         viewModelScope.launch {
-            repository.autoDownloadRepo.setSearchIntervalHours(hours)
+            autoDownloadRepo.setSearchIntervalHours(hours)
         }
     }
 
     fun updateUseExactAlarms(enabled: Boolean) {
         viewModelScope.launch {
-            repository.notificationRepo.setUseExactAlarms(enabled)
+            notificationRepo.setUseExactAlarms(enabled)
         }
     }
 
     fun updateDefaultNotifyAiring(enabled: Boolean) {
         viewModelScope.launch {
-            repository.notificationRepo.setDefaultNotifyAiring(enabled)
+            notificationRepo.setDefaultNotifyAiring(enabled)
         }
     }
 
     fun updateDefaultNotifySeasonFinished(enabled: Boolean) {
         viewModelScope.launch {
-            repository.notificationRepo.setDefaultNotifySeasonFinished(enabled)
+            notificationRepo.setDefaultNotifySeasonFinished(enabled)
         }
     }
 
     fun updateDefaultNotifyMovieTheater(enabled: Boolean) {
         viewModelScope.launch {
-            repository.notificationRepo.setDefaultNotifyMovieTheater(enabled)
+            notificationRepo.setDefaultNotifyMovieTheater(enabled)
         }
     }
 
     fun updateDefaultNotifyMovieDigital(enabled: Boolean) {
         viewModelScope.launch {
-            repository.notificationRepo.setDefaultNotifyMovieDigital(enabled)
+            notificationRepo.setDefaultNotifyMovieDigital(enabled)
         }
     }
 
@@ -983,19 +1002,23 @@ class CalendarViewModel @JvmOverloads constructor(
     }
 
     fun isTorrentServiceInstalled(): Boolean {
-        return repository.torrentServiceHelper.isServiceInstalled()
+        return torrentServiceHelper.isServiceInstalled()
+    }
+
+    fun isRealApiConfigured(): Boolean {
+        return repository.isRealApiConfigured()
     }
 
     private fun updatePolling(items: List<CalendarItemWithWatchlist>) {
         if (items.isEmpty()) {
             pollingJob?.cancel()
             pollingJob = null
-            repository.torrentServiceHelper.unbind()
+            torrentServiceHelper.unbind()
             return
         }
 
         if (pollingJob == null || pollingJob?.isActive == false) {
-            repository.torrentServiceHelper.bind()
+            torrentServiceHelper.bind()
             pollingJob = viewModelScope.launch {
                 while (true) {
                     if (!isTorrentServiceBound.value) {
@@ -1011,9 +1034,9 @@ class CalendarViewModel @JvmOverloads constructor(
                             launch(Dispatchers.IO) {
                                 val taskId = item.downloadTaskId ?: return@launch
                                 try {
-                                    val stats = repository.torrentServiceHelper.getProgress(taskId)
+                                    val stats = torrentServiceHelper.getProgress(taskId)
                                     if (stats != null) {
-                                        repository.torrentServiceHelper.updateDownloadProgress(taskId, stats)
+                                        torrentServiceHelper.updateDownloadProgress(taskId, stats)
                                     } else {
                                         // Task was removed from downloader
                                         // Wait a few seconds to allow completion intent to be processed
@@ -1023,10 +1046,10 @@ class CalendarViewModel @JvmOverloads constructor(
                                         if (currentEntity?.mediaStatus == MediaStatus.DOWNLOADING && currentEntity.downloadTaskId == taskId) {
                                             Timber.tag("CalendarViewModel").d("Task $taskId still not found after 3s and status is still DOWNLOADING with same taskId, reverting for ${item.primaryKey}")
                                             repository.updateDownloadTaskId(item.primaryKey, null, MediaStatus.WANTED)
-                                            repository.torrentServiceHelper.clearDownload(taskId)
+                                            torrentServiceHelper.clearDownload(taskId)
                                         } else {
                                             Timber.tag("CalendarViewModel").d("Task $taskId not found, but status is now ${currentEntity?.mediaStatus} or taskId changed, skipping revert")
-                                            repository.torrentServiceHelper.clearDownload(taskId)
+                                            torrentServiceHelper.clearDownload(taskId)
                                         }
                                     }
                                 } catch (e: Exception) {

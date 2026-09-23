@@ -11,12 +11,15 @@ import com.felixbrucker.torrenthttpdownloader.AddTorrentParams
 import com.felixbrucker.torrenthttpdownloader.IAddTorrentCallback
 import com.felixbrucker.torrenthttpdownloader.ITorrentDownloadService
 import com.felixbrucker.torrenthttpdownloader.TorrentProgressStats
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 data class DownloadProgress(
@@ -29,7 +32,10 @@ data class DownloadProgress(
     val error: String? = null
 )
 
-class TorrentServiceHelper(context: Context) {
+@Singleton
+class TorrentServiceHelper @Inject constructor(
+    @ApplicationContext context: Context
+) {
     private val appContext = context.applicationContext
 
     private val _service = MutableStateFlow<ITorrentDownloadService?>(null)
@@ -192,16 +198,5 @@ class TorrentServiceHelper(context: Context) {
         private const val TAG = "TorrentServiceHelper"
         private const val SERVICE_PACKAGE = "com.felixbrucker.torrenthttpdownloader"
         private const val SERVICE_ACTION = "com.felixbrucker.torrenthttpdownloader.ITorrentDownloadService"
-
-        @Volatile
-        private var INSTANCE: TorrentServiceHelper? = null
-
-        fun getInstance(context: Context): TorrentServiceHelper {
-            return INSTANCE ?: synchronized(this) {
-                val instance = TorrentServiceHelper(context)
-                INSTANCE = instance
-                instance
-            }
-        }
     }
 }

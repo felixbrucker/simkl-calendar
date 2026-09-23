@@ -4,26 +4,30 @@ import android.content.Context
 import android.content.Intent
 import timber.log.Timber
 import com.felixbrucker.simklcalendar.BuildConfig
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
+import com.felixbrucker.simklcalendar.data.database.CustomSearchLinkDao
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
+import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
+import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.UserToken
+import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisode
+import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
+import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
-import com.felixbrucker.simklcalendar.data.network.Authenticated
+import com.felixbrucker.simklcalendar.data.network.AuthenticatedSimklApiService
 import com.felixbrucker.simklcalendar.data.network.OAuthRevokeRequest
-import com.felixbrucker.simklcalendar.data.network.RateLimitInterceptor
 import com.felixbrucker.simklcalendar.data.network.OAuthTokenRequest
-import com.felixbrucker.simklcalendar.data.network.SimklApiService
-import retrofit2.Invocation
+import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
 import com.felixbrucker.simklcalendar.data.network.SimklIds
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryEpisodeItem
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryMovieItem
@@ -39,8 +43,6 @@ import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
 import com.felixbrucker.torrent_search_api.SearchResultItem
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -49,47 +51,42 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
 import java.net.URLEncoder
 import java.time.Instant
-import java.util.concurrent.TimeUnit
 import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
-class SimklRepository(
-    private val context: Context,
-    val appSettingsRepo: AppSettingsRepository = AppSettingsRepository(context.appSettingsDataStore),
-    val autoDownloadRepo: AutoDownloadRepository = AutoDownloadRepository(context.autoDownloadDataStore),
-    val notificationRepo: NotificationRepository = NotificationRepository(context.notificationDataStore),
-    val authRepo: AuthRepository = AuthRepository(context.authDataStore),
-    val syncMetadataRepo: SyncMetadataRepository = SyncMetadataRepository(context.syncMetadataDataStore),
-    val uiRepo: UiRepository = UiRepository(context.uiDataStore)
+@Singleton
+class SimklRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val tokenDao: UserTokenDao,
+    private val calendarDao: CalendarItemDao,
+    private val settingDao: NotificationSettingDao,
+    private val watchlistDao: WatchlistDao,
+    private val watchedDao: WatchedEpisodeDao,
+    private val searchLinkDao: CustomSearchLinkDao,
+    private val itemDownloadSettingsDao: ItemDownloadSettingsDao,
+    private val publicSimklApiService: PublicSimklApiService,
+    private val authenticatedSimklApiService: AuthenticatedSimklApiService,
+    private val appSettingsRepo: AppSettingsRepository,
+    private val autoDownloadRepo: AutoDownloadRepository,
+    private val notificationRepo: NotificationRepository,
+    private val authRepo: AuthRepository,
+    private val syncMetadataRepo: SyncMetadataRepository,
+    private val uiRepo: UiRepository,
+    private val torrentServiceHelper: TorrentServiceHelper,
+    private val torrentSearchManager: TorrentSearchManager,
+    private val alarmScheduler: AlarmScheduler,
 ) {
-
-    private val refreshMutex: Mutex = Mutex()
-    private val db = AppDatabase.getDatabase(context)
-    private val tokenDao = db.userTokenDao()
-    private val calendarDao = db.calendarItemDao()
-    private val settingDao = db.notificationSettingDao()
-    private val watchlistDao = db.watchlistDao()
-    private val watchedDao = db.watchedEpisodeDao()
-    private val searchLinkDao = db.customSearchLinkDao()
-    private val itemDownloadSettingsDao = db.itemDownloadSettingsDao()
-
-    private val torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo)
-    val torrentServiceHelper = TorrentServiceHelper.getInstance(context)
-
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
     val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()
     val notificationSettings: Flow<List<NotificationSetting>> = settingDao.getAllSettings()
@@ -250,136 +247,6 @@ class SimklRepository(
         }
     }
 
-    private val moshi = Moshi.Builder()
-        .addLast(KotlinJsonAdapterFactory())
-        .build()
-
-    private val appName = BuildConfig.APP_NAME
-    private val appVersion = BuildConfig.VERSION_NAME
-    private val userAgent = "$appName/$appVersion"
-
-    private val okHttpClient = OkHttpClient.Builder()
-        .addInterceptor(RateLimitInterceptor())
-        .addInterceptor { chain ->
-            val originalRequest = chain.request()
-            val invocation = originalRequest.tag(Invocation::class.java)
-            val isAuthenticatedEndpoint = invocation != null && invocation.method().isAnnotationPresent(Authenticated::class.java)
-
-            val urlBuilder = originalRequest.url.newBuilder()
-                .addQueryParameter("client_id", BuildConfig.SIMKL_CLIENT_ID)
-                .addQueryParameter("app-name", appName)
-                .addQueryParameter("app-version", appVersion)
-
-            val requestBuilder = originalRequest.newBuilder()
-                .url(urlBuilder.build())
-                .header("User-Agent", userAgent)
-                .header("app-name", appName)
-                .header("app-version", appVersion)
-
-            if (isAuthenticatedEndpoint) {
-                runBlocking {
-                    refreshTokenIfNeeded()
-                }
-                val token = runBlocking { tokenDao.getActiveToken() }
-                if (token != null && token.accessToken.isNotEmpty()) {
-                    requestBuilder.header("Authorization", "Bearer ${token.accessToken}")
-                }
-            }
-
-            chain.proceed(requestBuilder.build())
-        }
-        .addInterceptor { chain ->
-            val request = chain.request()
-            val url = request.url.toString()
-            val isCalendarJson = url.contains("calendar/v2") || url.contains("data.simkl.in") || url.endsWith(".json")
-
-            val logBuffer = StringBuilder()
-            val loggingInterceptor = HttpLoggingInterceptor { line ->
-                if (logBuffer.isNotEmpty()) {
-                    logBuffer.append("\n")
-                }
-                logBuffer.append(line)
-            }.apply {
-                level = if (isCalendarJson) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.BODY
-            }
-
-            val response = try {
-                loggingInterceptor.intercept(chain)
-            } catch (e: Exception) {
-                if (logBuffer.isNotEmpty()) {
-                    Timber.tag("OkHttp").e(e, logBuffer.toString())
-                } else {
-                    Timber.tag("OkHttp").e(e, "Network request failed: ${request.method} $url")
-                }
-                throw e
-            }
-
-            if (logBuffer.isNotEmpty()) {
-                if (response.isSuccessful) {
-                    Timber.tag("OkHttp").d(logBuffer.toString())
-                } else {
-                    Timber.tag("OkHttp").e(logBuffer.toString())
-                }
-            }
-
-            response
-        }
-        .authenticator { _, response ->
-            if (response.request.url.encodedPath.contains("oauth2/token")) {
-                return@authenticator null
-            }
-            var prior = response.priorResponse
-            var count = 0
-            while (prior != null) {
-                count++
-                prior = prior.priorResponse
-            }
-            if (count >= 2) {
-                return@authenticator null
-            }
-
-            val failedAuthHeader = response.request.header("Authorization")
-
-            runBlocking {
-                refreshMutex.withLock {
-                    val currentToken = tokenDao.getActiveToken() ?: return@runBlocking null
-                    val currentBearer = "Bearer ${currentToken.accessToken}"
-
-                    if (failedAuthHeader != null && failedAuthHeader != currentBearer && currentToken.accessToken.isNotEmpty()) {
-                        return@runBlocking response.request.newBuilder()
-                            .header("Authorization", currentBearer)
-                            .build()
-                    }
-
-                    val refreshToken = currentToken.refreshToken
-                    if (refreshToken.isNullOrEmpty()) {
-                        return@runBlocking null
-                    }
-
-                    val success = performRefreshToken(currentToken, refreshToken)
-                    if (success) {
-                        val updatedToken = tokenDao.getActiveToken()
-                        if (updatedToken != null) {
-                            return@runBlocking response.request.newBuilder()
-                                .header("Authorization", "Bearer ${updatedToken.accessToken}")
-                                .build()
-                        }
-                    }
-                    null
-                }
-            }
-        }
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
-
-    private val retrofit = Retrofit.Builder()
-        .baseUrl("https://api.simkl.com/")
-        .client(okHttpClient)
-        .addConverterFactory(MoshiConverterFactory.create(moshi))
-        .build()
-
-    private val apiService = retrofit.create(SimklApiService::class.java)
 
     // Check if client ID is configured in BuildConfig
     fun isRealApiConfigured(): Boolean {
@@ -420,7 +287,7 @@ class SimklRepository(
     /**
      * Clears only the active user token to prompt re-authentication without clearing any user data or preferences.
      */
-    suspend fun clearUserTokenOnly(isV1Upgrade: Boolean = false) = withContext(Dispatchers.IO) {
+    private suspend fun clearUserTokenOnly(isV1Upgrade: Boolean = false) = withContext(Dispatchers.IO) {
         Timber.tag("SimklRepository").w("Clearing active user token (isV1Upgrade=$isV1Upgrade) while retaining all local user data and preferences.")
         tokenDao.clearUserToken()
         if (isV1Upgrade) {
@@ -430,20 +297,19 @@ class SimklRepository(
 
     /**
      * Resets active user authentication if legacy Auth V1 token or an expired refresh token is detected.
-     * 1) Legacy Auth V1 token (not prefixed with "simkl_at_"): clears user token and sets Auth V2 upgrade hint flag.
+     * 1) Legacy Auth V1 token (not prefixed with "simkl_at_" or missing a refresh token): clears user token and sets Auth V2 upgrade hint flag.
      * 2) Expired refresh token (after 180 days): clears user token.
      */
     suspend fun resetAuthIfNeeded(): Unit = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken() ?: return@withContext
 
-        if (!userToken.accessToken.startsWith("simkl_at_")) {
-            Timber.tag("SimklRepository").w("Detected legacy Auth V1 token. Transitioning user to Auth V2 login while retaining data.")
+        if (!userToken.accessToken.startsWith("simkl_at_") || userToken.refreshToken.isEmpty()) {
+            Timber.tag("SimklRepository").w("Detected legacy or migrated Auth V1 token. Transitioning user to Auth V2 login while retaining data.")
             clearUserTokenOnly(isV1Upgrade = true)
             return@withContext
         }
 
-        val refreshExpiresAt = userToken.refreshTokenExpiresAt
-        if (refreshExpiresAt != null && Instant.now().isAfter(refreshExpiresAt)) {
+        if (userToken.isRefreshTokenExpired) {
             Timber.tag("SimklRepository").w("Refresh token has expired after 180 days. Transitioning user to login while retaining user data.")
             clearUserTokenOnly(isV1Upgrade = false)
             return@withContext
@@ -453,10 +319,10 @@ class SimklRepository(
     suspend fun logout() = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken()
         if (userToken != null) {
-            val revokeTarget = userToken.refreshToken ?: userToken.accessToken
+            val revokeTarget = userToken.refreshToken
             if (revokeTarget.isNotEmpty()) {
                 try {
-                    apiService.revokeToken(OAuthRevokeRequest(clientId = BuildConfig.SIMKL_CLIENT_ID, token = revokeTarget))
+                    publicSimklApiService.revokeToken(OAuthRevokeRequest(clientId = BuildConfig.SIMKL_CLIENT_ID, token = revokeTarget))
                 } catch (e: Exception) {
                     Timber.tag("SimklRepository").w(e, "Failed to revoke token on logout")
                 }
@@ -500,7 +366,7 @@ class SimklRepository(
             }
 
             // 1. Exchange code for access token via POST /oauth2/token using PKCE flow
-            val response = apiService.getAccessToken(
+            val response = publicSimklApiService.getAccessToken(
                 request = OAuthTokenRequest(
                     code = code,
                     clientId = BuildConfig.SIMKL_CLIENT_ID,
@@ -536,7 +402,7 @@ class SimklRepository(
 
             // 3. Fetch user profile from POST /users/settings to update the user's name
             val username = try {
-                val userResponse = apiService.getUserSettings()
+                val userResponse = authenticatedSimklApiService.getUserSettings()
                 userResponse.user.name
             } catch (e: Exception) {
                 Timber.tag("SimklRepository").e(e, "Could not fetch user profile details, using empty string fallback")
@@ -554,68 +420,9 @@ class SimklRepository(
                     )
                 )
             }
-            syncCalendar()
             true
         } catch (e: Exception) {
             Timber.tag("SimklRepository").e(e, "OAuth Code exchange failed")
-            false
-        }
-    }
-
-    suspend fun refreshTokenIfNeeded(): Boolean = withContext(Dispatchers.IO) {
-        val token = tokenDao.getActiveToken() ?: return@withContext false
-        val accessExpiresAt = token.accessTokenExpiresAt
-        if (accessExpiresAt != null && Instant.now().isAfter(accessExpiresAt.minusSeconds(3600))) {
-            refreshMutex.withLock {
-                val currentToken = tokenDao.getActiveToken() ?: return@withLock false
-                val currentAccessExpiresAt = currentToken.accessTokenExpiresAt
-                if (currentAccessExpiresAt == null || Instant.now().isBefore(currentAccessExpiresAt.minusSeconds(3600))) {
-                    return@withLock true
-                }
-                val refreshToken = currentToken.refreshToken ?: return@withLock false
-                return@withLock performRefreshToken(currentToken, refreshToken)
-            }
-        }
-        true
-    }
-
-    suspend fun performRefreshToken(current: UserToken, refreshToken: String): Boolean = withContext(Dispatchers.IO) {
-        if (refreshToken.isEmpty()) return@withContext false
-        try {
-            val response = apiService.getAccessToken(
-                OAuthTokenRequest(
-                    grantType = "refresh_token",
-                    clientId = BuildConfig.SIMKL_CLIENT_ID,
-                    refreshToken = refreshToken
-                )
-            )
-            val newAccessToken = response.accessToken
-            if (!newAccessToken.startsWith("simkl_at_")) {
-                clearUserTokenOnly(isV1Upgrade = false)
-                return@withContext false
-            }
-            val newRefreshToken = response.refreshToken
-            val newAccessTokenExpiresAt = Instant.now().plusSeconds(response.expiresIn)
-            val newRefreshTokenExpiresAt = Instant.now().plus(180, ChronoUnit.DAYS)
-            tokenDao.insertUserToken(
-                current.copy(
-                    accessToken = newAccessToken,
-                    refreshToken = newRefreshToken,
-                    accessTokenExpiresAt = newAccessTokenExpiresAt,
-                    refreshTokenExpiresAt = newRefreshTokenExpiresAt
-                )
-            )
-            true
-        } catch (e: retrofit2.HttpException) {
-            if (e.code() == 400 || e.code() == 401) {
-                Timber.tag("SimklRepository").w(e, "Refresh token is invalid or expired. Resetting user token.")
-                clearUserTokenOnly(isV1Upgrade = false)
-            } else {
-                Timber.tag("SimklRepository").e(e, "HTTP exception during token refresh (non-auth error)")
-            }
-            false
-        } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Network or unexpected exception during token refresh")
             false
         }
     }
@@ -650,7 +457,7 @@ class SimklRepository(
             searchAndDownloadWantedItems()
         }
         if (watchlistSyncResult.hasCalendarItemChanges || calendarJsonSyncResult.hasCalendarItemChanges || backfillSyncResult.hasCalendarItemChanges) {
-            AlarmScheduler.scheduleAllItemsAiredAlarms(context)
+            alarmScheduler.scheduleAllItemsAiredAlarms()
         }
     }
 
@@ -722,9 +529,9 @@ class SimklRepository(
                 async {
                     try {
                         val episodes = if (show.type == MediaType.TV) {
-                            apiService.getTvEpisodes(show.simklId)
+                            publicSimklApiService.getTvEpisodes(show.simklId)
                         } else {
-                            apiService.getAnimeEpisodes(show.simklId)
+                            publicSimklApiService.getAnimeEpisodes(show.simklId)
                         }
                         show to episodes
                     } catch (e: Exception) {
@@ -739,6 +546,11 @@ class SimklRepository(
 
             for ((show, episodes) in results) {
                 if (episodes == null) continue
+
+                val maxEpPerSeason = episodes
+                    .filter { it.type == "episode" && it.episode != null }
+                    .groupBy { it.season ?: 1 }
+                    .mapValues { (_, seasonEpisodes) -> seasonEpisodes.maxOf { it.episode!! } }
 
                 val showWatchedList = watchedLookup[show.simklId]
 
@@ -771,6 +583,9 @@ class SimklRepository(
                         isWatched = epWatchedTimestamp != null,
                     )
 
+                    val maxEp = maxEpPerSeason[seasonNum]
+                    val isFinale = maxEp != null && epNum == maxEp
+
                     processCalendarItem(
                         CalendarItem(
                             primaryKey = keyUnique,
@@ -781,7 +596,7 @@ class SimklRepository(
                             date = instant,
                             movieReleaseType = null,
                             isSeasonPremiere = epNum == 1,
-                            isSeasonFinale = false, // Not available in this endpoint, will be updated by calendar jsons if recent
+                            isSeasonFinale = isFinale,
                             watchedAt = epWatchedTimestamp,
                         ),
                         initialStatus = status
@@ -840,7 +655,7 @@ class SimklRepository(
 
         try {
             // Phase 1: Check /sync/activities to see if any library changes occurred
-            val activities = apiService.getSyncActivities()
+            val activities = authenticatedSimklApiService.getSyncActivities()
 
             val currentActivitiesTimestamp = activities.all
             val savedTimestamp = if (forceFullSync) null else syncMetadataRepo.preferencesFlow.first().lastActivitiesAll
@@ -850,7 +665,7 @@ class SimklRepository(
             if (shouldFetchDeltas) {
                 Timber.tag("SimklRepository").d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
-                val syncResponse = apiService.getSyncAllItems(
+                val syncResponse = authenticatedSimklApiService.getSyncAllItems(
                     dateFrom = savedTimestamp,
                 )
 
@@ -1127,7 +942,7 @@ class SimklRepository(
                 }
 
                 try {
-                    val response = apiService.getV2Calendar(
+                    val response = publicSimklApiService.getV2Calendar(
                         year = year,
                         month = month,
                         type = endpointType,
@@ -1316,7 +1131,7 @@ class SimklRepository(
             Timber.tag("SimklRepository").d("Fetching details for ${moviesNeedingDetails.size} movies missing release dates")
             for (movieId in moviesNeedingDetails) {
                 try {
-                    val movieDetail = apiService.getMovieDetails(
+                    val movieDetail = publicSimklApiService.getMovieDetails(
                         movieId = movieId
                     )
                     processTrackedItem(
@@ -1465,7 +1280,7 @@ class SimklRepository(
                 )
             }
 
-            apiService.markHistoryWatched(
+            authenticatedSimklApiService.markHistoryWatched(
                 request = request
             )
 
@@ -1557,7 +1372,7 @@ class SimklRepository(
                 )
             }
 
-            apiService.markHistoryWatched(
+            authenticatedSimklApiService.markHistoryWatched(
                 request = request
             )
 
@@ -1607,7 +1422,7 @@ class SimklRepository(
                 )
             )
 
-            apiService.markHistoryWatched(
+            authenticatedSimklApiService.markHistoryWatched(
                 request = request
             )
 
@@ -1664,7 +1479,7 @@ class SimklRepository(
                 )
             }
 
-            apiService.markHistoryUnwatched(
+            authenticatedSimklApiService.markHistoryUnwatched(
                 request = request
             )
 
@@ -1723,7 +1538,7 @@ class SimklRepository(
                 )
             }
 
-            apiService.markHistoryUnwatched(
+            authenticatedSimklApiService.markHistoryUnwatched(
                 request = request
             )
 
@@ -1759,7 +1574,7 @@ class SimklRepository(
                 )
             )
 
-            apiService.markHistoryUnwatched(
+            authenticatedSimklApiService.markHistoryUnwatched(
                 request = request
             )
 

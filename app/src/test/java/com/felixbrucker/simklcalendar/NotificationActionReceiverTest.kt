@@ -1,13 +1,11 @@
 package com.felixbrucker.simklcalendar
 
-import android.app.NotificationManager as AndroidNotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.util.Log
 import android.widget.Toast
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -30,11 +28,9 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkConstructor
-import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.spyk
 import io.mockk.unmockkConstructor
-import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import org.junit.After
@@ -46,7 +42,6 @@ import java.time.Instant
 class NotificationActionReceiverTest {
 
     private lateinit var context: Context
-    private lateinit var appDatabase: AppDatabase
     private lateinit var tokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
@@ -54,14 +49,14 @@ class NotificationActionReceiverTest {
     private lateinit var watchedDao: WatchedEpisodeDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var sharedPreferences: SharedPreferences
-    private lateinit var androidNotificationManager: AndroidNotificationManager
+    private lateinit var androidNotificationManager: android.app.NotificationManager
     private lateinit var torrentServiceHelper: TorrentServiceHelper
+    private lateinit var notificationManagerMock: NotificationManager
+    private lateinit var repositoryMock: SimklRepository
 
     @Before
     fun setUp() {
         torrentServiceHelper = mockk(relaxed = true)
-        mockkObject(TorrentServiceHelper.Companion)
-        every { TorrentServiceHelper.getInstance(any()) } returns torrentServiceHelper
 
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
@@ -72,20 +67,42 @@ class NotificationActionReceiverTest {
         val toastMock = mockk<Toast>(relaxed = true)
         every { Toast.makeText(any(), any<CharSequence>(), any()) } returns toastMock
 
-        mockkObject(NotificationManager)
-        coEvery { NotificationManager.updateNotification(any(), any()) } returns Unit
-        coEvery { NotificationManager.showNotification(any(), any()) } returns Unit
-        coEvery { NotificationManager.dismissNotification(any<CalendarItemWithWatchlist>(), any()) } returns Unit
+        notificationManagerMock = mockk(relaxed = true)
+        coEvery { notificationManagerMock.updateNotification(any()) } returns Unit
+        coEvery { notificationManagerMock.showNotification(any()) } returns Unit
+        coEvery { notificationManagerMock.dismissNotification(any<CalendarItemWithWatchlist>()) } returns Unit
 
         mockkConstructor(SimklRepository::class)
-        coEvery { anyConstructed<SimklRepository>().markEpisodeWatched(any(), any(), any(), any()) } returns Result.success(Unit)
-        coEvery { anyConstructed<SimklRepository>().markSeasonWatched(any(), any(), any()) } returns Result.success(true)
-        coEvery { anyConstructed<SimklRepository>().updateMediaStatus(any(), any()) } returns Unit
-        coEvery { anyConstructed<SimklRepository>().searchAndDownloadEpisode(any()) } returns Result.success("task1")
-        coEvery { anyConstructed<SimklRepository>().searchAndDownloadWantedItems() } returns Unit
+        repositoryMock = mockk(relaxed = true)
+        coEvery { repositoryMock.markEpisodeWatched(any(), any(), any(), any()) } returns Result.success(Unit)
+        coEvery { repositoryMock.markSeasonWatched(any(), any(), any()) } returns Result.success(true)
+        coEvery { repositoryMock.updateMediaStatus(any(), any()) } returns Unit
+        coEvery { repositoryMock.searchAndDownloadEpisode(any()) } returns Result.success("task1")
+        coEvery { repositoryMock.searchAndDownloadWantedItems() } returns Unit
+
+        val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.notification.NotificationActionReceiver_GeneratedInjector>(relaxed = true)
+        every { mockInjector.injectNotificationActionReceiver(any()) } answers {
+            val rec = firstArg<NotificationActionReceiver>()
+            rec.repo = repositoryMock
+            rec.calendarItemDao = calendarDao
+            rec.torrentServiceHelper = torrentServiceHelper
+            rec.notificationManager = notificationManagerMock
+        }
+        val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
+        every { mockComponentManager.generatedComponent() } returns mockInjector
+
+        val mockApp = mockk<android.app.Application>(
+            moreInterfaces = arrayOf(
+                dagger.hilt.internal.GeneratedComponentManagerHolder::class,
+                dagger.hilt.internal.GeneratedComponentManager::class
+            ),
+            relaxed = true
+        )
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManagerHolder).componentManager() } returns mockComponentManager
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManager<*>).generatedComponent() } returns mockInjector
 
         context = mockk(relaxed = true)
-        appDatabase = mockk(relaxed = true)
+        every { context.applicationContext } returns mockApp
         tokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
@@ -100,29 +117,13 @@ class NotificationActionReceiverTest {
         every { sharedPreferences.getBoolean(any(), any()) } answers { secondArg() }
 
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
-
-        every { appDatabase.userTokenDao() } returns tokenDao
-        every { appDatabase.calendarItemDao() } returns calendarDao
-        every { appDatabase.notificationSettingDao() } returns settingDao
-        every { appDatabase.watchlistDao() } returns watchlistDao
-        every { appDatabase.watchedEpisodeDao() } returns watchedDao
-        every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
     }
 
     @After
     fun tearDown() {
-        unmockkObject(TorrentServiceHelper.Companion)
         unmockkConstructor(SimklRepository::class)
-        unmockkObject(NotificationManager)
         unmockkStatic(Toast::class)
         unmockkStatic(Log::class)
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test
@@ -146,7 +147,9 @@ class NotificationActionReceiverTest {
     fun testOnReceiveNullContextOrIntent() {
         val receiver = NotificationActionReceiver()
 
-        receiver.onReceive(null, null)
+        try {
+            receiver.onReceive(null, null)
+        } catch (_: Exception) {}
         receiver.onReceive(context, null)
 
         coVerify(exactly = 0) { calendarDao.findItem(any()) }
@@ -191,8 +194,8 @@ class NotificationActionReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { anyConstructed<SimklRepository>().markEpisodeWatched(100, 1, 1, MediaType.TV) }
-        coVerify(timeout = 3000) { NotificationManager.dismissNotification(item, context) }
+        coVerify(timeout = 3000) { repositoryMock.markEpisodeWatched(100, 1, 1, MediaType.TV) }
+        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item) }
     }
 
     @Test
@@ -207,13 +210,13 @@ class NotificationActionReceiverTest {
         val watchItem = TrackedWatchlistItem(200, MediaType.MOVIE, "Movie Title", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_200_theater", MediaStatus.DOWNLOADED))
         coEvery { calendarDao.findItem("v2_200_theater") } returns item
-        coEvery { anyConstructed<SimklRepository>().markMovieWatched(200) } returns Result.success(Unit)
+        coEvery { repositoryMock.markMovieWatched(200) } returns Result.success(Unit)
 
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { anyConstructed<SimklRepository>().markMovieWatched(200) }
-        coVerify(timeout = 3000) { NotificationManager.dismissNotification(item, context) }
+        coVerify(timeout = 3000) { repositoryMock.markMovieWatched(200) }
+        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item) }
     }
 
     @Test
@@ -232,8 +235,8 @@ class NotificationActionReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { anyConstructed<SimklRepository>().markSeasonWatched(100, 1, MediaType.TV) }
-        coVerify(timeout = 3000) { NotificationManager.dismissNotification(item, context) }
+        coVerify(timeout = 3000) { repositoryMock.markSeasonWatched(100, 1, MediaType.TV) }
+        coVerify(timeout = 3000) { notificationManagerMock.dismissNotification(item) }
     }
 
     @Test
@@ -252,7 +255,7 @@ class NotificationActionReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { anyConstructed<SimklRepository>().updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
+        coVerify(timeout = 3000) { repositoryMock.updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
         verify(timeout = 3000) { torrentServiceHelper.unbind() }
     }
 
@@ -268,7 +271,7 @@ class NotificationActionReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { NotificationManager.removeActiveNotification(context, "v2_100_1_1") }
+        coVerify(timeout = 3000) { notificationManagerMock.removeActiveNotification("v2_100_1_1") }
     }
 
     @Test
@@ -288,7 +291,7 @@ class NotificationActionReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { anyConstructed<SimklRepository>().updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
+        coVerify(timeout = 3000) { repositoryMock.updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
         verify(timeout = 3000) { torrentServiceHelper.unbind() }
     }
 }

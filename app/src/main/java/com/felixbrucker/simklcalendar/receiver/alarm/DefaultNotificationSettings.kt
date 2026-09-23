@@ -1,11 +1,18 @@
 package com.felixbrucker.simklcalendar.receiver.alarm
 
-import android.content.Context
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.preferences.*
-import kotlinx.coroutines.flow.first
+import com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences
+
+fun NotificationPreferences.toDefaultNotificationSettings(): DefaultNotificationSettings {
+    return DefaultNotificationSettings(
+        itemAired = defaultNotifyAiring,
+        seasonFinished = defaultNotifySeasonFinished,
+        movieIsInTheaters = defaultNotifyMovieTheater,
+        movieIsReleasedOnDigital = defaultNotifyMovieDigital
+    )
+}
 
 data class DefaultNotificationSettings(
     val itemAired: Boolean,
@@ -13,20 +20,6 @@ data class DefaultNotificationSettings(
     val movieIsInTheaters: Boolean,
     val movieIsReleasedOnDigital: Boolean,
 ) {
-    companion object {
-        suspend fun fromContext(context: Context): DefaultNotificationSettings {
-            val repo = NotificationRepository(context.notificationDataStore)
-            val prefs = repo.preferencesFlow.first()
-
-            return DefaultNotificationSettings(
-                itemAired = prefs.defaultNotifyAiring,
-                seasonFinished = prefs.defaultNotifySeasonFinished,
-                movieIsInTheaters = prefs.defaultNotifyMovieTheater,
-                movieIsReleasedOnDigital = prefs.defaultNotifyMovieDigital
-            )
-        }
-    }
-
     fun makeNotificationSettings(item: CalendarItemWithWatchlist): NotificationSetting {
         val isMovie = item.type == MediaType.MOVIE
 

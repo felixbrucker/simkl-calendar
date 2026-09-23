@@ -3,23 +3,54 @@ package com.felixbrucker.simklcalendar.receiver.alarm
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
+import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-
+@AndroidEntryPoint
 class AlarmReceiver: BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @Inject
+    lateinit var repo: SimklRepository
+
+    @Inject
+    lateinit var calendarItemDao: CalendarItemDao
+
+    @Inject
+    lateinit var notificationSettingDao: NotificationSettingDao
+
+    @Inject
+    lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
+
+    @Inject
+    lateinit var autoDownloadRepo: AutoDownloadRepository
+
+    @Inject
+    lateinit var notificationRepo: NotificationRepository
+
+    @Inject
+    lateinit var torrentServiceHelper: TorrentServiceHelper
+
+    @Inject
+    lateinit var notificationManager: NotificationManager
 
     companion object {
         private const val TAG = "AlarmReceiver"
@@ -38,7 +69,7 @@ class AlarmReceiver: BroadcastReceiver() {
         val pendingResult = goAsync()
         scope.launch {
             try {
-                onItemAired(itemPrimaryKey, context)
+                onItemAired(itemPrimaryKey)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error processing item aired alarm for key=$itemPrimaryKey")
             } finally {
@@ -47,14 +78,12 @@ class AlarmReceiver: BroadcastReceiver() {
         }
     }
 
-    private suspend fun onItemAired(itemPrimaryKey: String, context: Context) {
-        val db = AppDatabase.getDatabase(context)
-        val item = db.calendarItemDao().findItem(itemPrimaryKey)
+    private suspend fun onItemAired(itemPrimaryKey: String) {
+        val item = calendarItemDao.findItem(itemPrimaryKey)
         if (item == null) {
             Timber.tag(TAG).w("Item for key=$itemPrimaryKey not found in database")
             return
         }
-        val repo = SimklRepository(context)
 
         Timber.tag(TAG).d("Processing item aired for '${item.title}' (key=$itemPrimaryKey)")
 
@@ -62,11 +91,11 @@ class AlarmReceiver: BroadcastReceiver() {
         repo.updateItemAiredStatus(item)
 
         // Second, check if we should post a notification for this item
-        val shouldPostNotification = shouldPostNotificationForItem(item, context)
+        val shouldPostNotification = shouldPostNotificationForItem(item)
         if (shouldPostNotification) {
             Timber.tag(TAG).d("Posting notification for '${item.title}'")
-            NotificationManager.showNotification(item, context)
-            db.calendarItemDao().markItemAsNotified(itemPrimaryKey)
+            notificationManager.showNotification(item)
+            calendarItemDao.markItemAsNotified(itemPrimaryKey)
         } else {
             Timber.tag(TAG).d("Skipping notification for '${item.title}' based on user preferences or notification state")
         }
@@ -74,7 +103,7 @@ class AlarmReceiver: BroadcastReceiver() {
         var didSearchAndDownload = false
         // Lastly, search and download torrents if configured
         try {
-            val updatedItem = db.calendarItemDao().findItem(itemPrimaryKey) ?: return
+            val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return
             if (updatedItem.mediaStatus == MediaStatus.WANTED) {
                 Timber.tag(TAG).d("Searching and downloading WANTED episode for '${item.title}'")
                 repo.searchAndDownloadEpisode(updatedItem)
@@ -83,8 +112,8 @@ class AlarmReceiver: BroadcastReceiver() {
 
             val calendarItem = item.calendarItem
             if (calendarItem.isSeasonFinale && calendarItem.season != null && item.type != MediaType.MOVIE) {
-                val settings = db.itemDownloadSettingsDao().getSettings(item.simklId)
-                val autoDownloadPrefs = repo.autoDownloadRepo.preferencesFlow.first()
+                val settings = itemDownloadSettingsDao.getSettings(item.simklId)
+                val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
                 val isDownloadSeasonUnwatchedEnabled = settings?.downloadSeasonUnwatched ?: when (item.type) {
                     MediaType.TV -> autoDownloadPrefs.autoDownloadSeasonUnwatchedTv
                     MediaType.ANIME -> autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime
@@ -97,24 +126,24 @@ class AlarmReceiver: BroadcastReceiver() {
                 }
             }
         } finally {
-            repo.torrentServiceHelper.unbind()
+            torrentServiceHelper.unbind()
         }
 
         if (didSearchAndDownload) {
-            val finalItem = db.calendarItemDao().findItem(itemPrimaryKey)
+            val finalItem = calendarItemDao.findItem(itemPrimaryKey)
             if (finalItem != null) {
-                NotificationManager.updateNotification(finalItem, context)
+                notificationManager.updateNotification(finalItem)
             }
         }
     }
 
-    private suspend fun shouldPostNotificationForItem(item: CalendarItemWithWatchlist, context: Context): Boolean {
+    private suspend fun shouldPostNotificationForItem(item: CalendarItemWithWatchlist): Boolean {
         if (item.isNotified) {
             return false
         }
 
-        val db = AppDatabase.getDatabase(context)
-        val setting = db.notificationSettingDao().getSettingForShow(item.simklId) ?: DefaultNotificationSettings.fromContext(context).makeNotificationSettings(item)
+        val setting = notificationSettingDao.getSettingForShow(item.simklId)
+            ?: notificationRepo.preferencesFlow.first().toDefaultNotificationSettings().makeNotificationSettings(item)
 
         return when {
             item.type == MediaType.MOVIE -> if (item.movieReleaseType == MovieReleaseType.THEATER) {

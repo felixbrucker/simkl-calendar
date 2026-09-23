@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Environment
 import com.felixbrucker.simklcalendar.data.database.*
 import com.felixbrucker.simklcalendar.data.model.*
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.data.repository.*
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
@@ -26,7 +27,6 @@ class CalendarViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var application: Application
-    private lateinit var appDatabase: AppDatabase
     private lateinit var userTokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
@@ -51,6 +51,7 @@ class CalendarViewModelTest {
     private lateinit var appSettingsRepo: AppSettingsRepository
     private lateinit var authRepo: AuthRepository
     private lateinit var autoDownloadRepo: AutoDownloadRepository
+    private lateinit var torrentServiceHelper: TorrentServiceHelper
 
     @Before
     fun setUp() {
@@ -71,7 +72,6 @@ class CalendarViewModelTest {
         authPreferencesFlow.value = AuthPreferences()
 
         application = mockk(relaxed = true)
-        appDatabase = mockk(relaxed = true)
         repositoryMock = mockk(relaxed = true)
 
         uiRepo = mockk(relaxed = true)
@@ -79,12 +79,7 @@ class CalendarViewModelTest {
         appSettingsRepo = mockk(relaxed = true)
         authRepo = mockk(relaxed = true)
         autoDownloadRepo = mockk(relaxed = true)
-
-        every { repositoryMock.uiRepo } returns uiRepo
-        every { repositoryMock.notificationRepo } returns notificationRepo
-        every { repositoryMock.appSettingsRepo } returns appSettingsRepo
-        every { repositoryMock.authRepo } returns authRepo
-        every { repositoryMock.autoDownloadRepo } returns autoDownloadRepo
+        torrentServiceHelper = mockk(relaxed = true)
 
         every { uiRepo.preferencesFlow } returns uiPreferencesFlow
         every { notificationRepo.preferencesFlow } returns notificationPreferencesFlow
@@ -113,33 +108,31 @@ class CalendarViewModelTest {
         every { searchLinkDao.getAllSearchLinks() } returns customSearchLinksFlow
         every { watchlistDao.getAllTrackedItemsFlow() } returns watchlistItemsFlow
 
-        every { appDatabase.userTokenDao() } returns userTokenDao
-        every { appDatabase.calendarItemDao() } returns calendarDao
-        every { appDatabase.notificationSettingDao() } returns settingDao
-        every { appDatabase.watchlistDao() } returns watchlistDao
-        every { appDatabase.watchedEpisodeDao() } returns watchedDao
-        every { appDatabase.customSearchLinkDao() } returns searchLinkDao
-        every { appDatabase.itemDownloadSettingsDao() } returns itemDownloadSettingsDao
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
-
         every { repositoryMock.calendarItems } returns calendarItemsFlow
         every { repositoryMock.activeUserToken } returns userTokenFlow
         every { repositoryMock.watchlistItems } returns watchlistItemsFlow
         every { repositoryMock.customSearchLinks } returns customSearchLinksFlow
         every { repositoryMock.notificationSettings } returns flowOf(emptyList())
         every { repositoryMock.watchedEpisodes } returns flowOf(emptyList())
-        every { repositoryMock.torrentServiceHelper.downloads } returns MutableStateFlow(emptyMap())
-        every { repositoryMock.torrentServiceHelper.isBound } returns MutableStateFlow(false)
-        every { repositoryMock.torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
+        every { torrentServiceHelper.downloads } returns MutableStateFlow(emptyMap())
+        every { torrentServiceHelper.isBound } returns MutableStateFlow(false)
+        every { torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
         coEvery { repositoryMock.searchAndDownloadEpisode(any()) } returns Result.failure(Exception("No torrents"))
     }
 
     private fun createViewModel(): CalendarViewModel {
         userTokenFlow.value = null
-        return CalendarViewModel(application, repositoryMock)
+        return CalendarViewModel(
+            application = application,
+            repository = repositoryMock,
+            appSettingsRepo = appSettingsRepo,
+            autoDownloadRepo = autoDownloadRepo,
+            notificationRepo = notificationRepo,
+            authRepo = authRepo,
+            uiRepo = uiRepo,
+            torrentServiceHelper = torrentServiceHelper,
+            alarmScheduler = mockk(relaxed = true)
+        )
     }
 
     @After
@@ -147,10 +140,6 @@ class CalendarViewModelTest {
         Dispatchers.resetMain()
         unmockkStatic(Dispatchers::class)
         unmockkStatic(Environment::class)
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test
@@ -696,9 +685,9 @@ class CalendarViewModelTest {
     fun testExchangeOAuthCodeSuccessCallback() = runTest {
         val viewModel = createViewModel()
         coEvery { repositoryMock.exchangeOAuthCode("code123", "state123", "simklcalendar://auth") } returns true
-
         var successCalled = false
         var failureCalled = false
+
         viewModel.exchangeOAuthCode("code123", "state123", "simklcalendar://auth", onSuccess = {
             successCalled = true
         }, onFailure = {
@@ -711,9 +700,28 @@ class CalendarViewModelTest {
     }
 
     @Test
+    fun testExchangeOAuthCodeFailureCallback() = runTest {
+        val viewModel = createViewModel()
+        coEvery { repositoryMock.exchangeOAuthCode("code123", "state123", "simklcalendar://auth") } returns false
+        var successCalled = false
+        var failureCalled = false
+
+        viewModel.exchangeOAuthCode("code123", "state123", "simklcalendar://auth", onSuccess = {
+            successCalled = true
+        }, onFailure = {
+            failureCalled = true
+        })
+        advanceUntilIdle()
+
+        assertFalse(successCalled)
+        assertTrue(failureCalled)
+        assertFalse(viewModel.isSyncing.value)
+    }
+
+    @Test
     fun testIsTorrentServiceInstalled() = runTest {
         val viewModel = createViewModel()
-        every { repositoryMock.torrentServiceHelper.isServiceInstalled() } returns true
+        every { torrentServiceHelper.isServiceInstalled() } returns true
 
         val installed = viewModel.isTorrentServiceInstalled()
 

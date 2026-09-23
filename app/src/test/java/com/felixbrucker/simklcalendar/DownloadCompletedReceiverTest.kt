@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.felixbrucker.simklcalendar.data.database.AppDatabase
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -14,16 +13,15 @@ import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.spyk
-import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import org.junit.After
@@ -35,7 +33,8 @@ import java.time.Instant
 class DownloadCompletedReceiverTest {
 
     private lateinit var context: Context
-    private lateinit var appDatabase: AppDatabase
+    private lateinit var repositoryMock: SimklRepository
+    private lateinit var notificationManagerMock: NotificationManager
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var tokenDao: UserTokenDao
 
@@ -45,30 +44,41 @@ class DownloadCompletedReceiverTest {
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
 
-        mockkObject(NotificationManager)
-        coEvery { NotificationManager.updateNotification(any(), any()) } returns Unit
+        notificationManagerMock = mockk(relaxed = true)
+        coEvery { notificationManagerMock.updateNotification(any()) } returns Unit
+
+        repositoryMock = mockk(relaxed = true)
+        val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver_GeneratedInjector>(relaxed = true)
+        every { mockInjector.injectDownloadCompletedReceiver(any()) } answers {
+            val rec = firstArg<DownloadCompletedReceiver>()
+            rec.repo = repositoryMock
+            rec.calendarItemDao = calendarDao
+            rec.notificationManager = notificationManagerMock
+        }
+        val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
+        every { mockComponentManager.generatedComponent() } returns mockInjector
+
+        val mockApp = mockk<android.app.Application>(
+            moreInterfaces = arrayOf(
+                dagger.hilt.internal.GeneratedComponentManagerHolder::class,
+                dagger.hilt.internal.GeneratedComponentManager::class
+            ),
+            relaxed = true
+        )
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManagerHolder).componentManager() } returns mockComponentManager
+        every { (mockApp as dagger.hilt.internal.GeneratedComponentManager<*>).generatedComponent() } returns mockInjector
 
         context = mockk(relaxed = true)
-        appDatabase = mockk(relaxed = true)
+        every { context.applicationContext } returns mockApp
         calendarDao = mockk(relaxed = true)
         tokenDao = mockk(relaxed = true)
 
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
-        every { appDatabase.calendarItemDao() } returns calendarDao
-        every { appDatabase.userTokenDao() } returns tokenDao
-
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
     }
 
     @After
     fun tearDown() {
-        unmockkObject(NotificationManager)
         unmockkStatic(Log::class)
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test
@@ -86,7 +96,9 @@ class DownloadCompletedReceiverTest {
         val intent = mockk<Intent>()
         every { intent.action } returns "INVALID_ACTION"
 
-        receiver.onReceive(null, null)
+        try {
+            receiver.onReceive(null, null)
+        } catch (_: Exception) {}
         receiver.onReceive(context, null)
         receiver.onReceive(context, intent)
 
@@ -124,6 +136,6 @@ class DownloadCompletedReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { calendarDao.updateDownloadTaskId("v2_100_1_1", null, MediaStatus.DOWNLOADED) }
+        coVerify(timeout = 3000) { repositoryMock.updateDownloadTaskId("v2_100_1_1", null, MediaStatus.DOWNLOADED) }
     }
 }

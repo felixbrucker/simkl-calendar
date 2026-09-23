@@ -28,8 +28,8 @@ class AlarmSchedulerTest {
 
     private lateinit var context: Context
     private lateinit var alarmManager: AlarmManager
-    private lateinit var appDatabase: AppDatabase
     private lateinit var calendarDao: CalendarItemDao
+    private lateinit var notificationRepo: NotificationRepository
 
     @Before
     fun setUp() {
@@ -48,16 +48,11 @@ class AlarmSchedulerTest {
 
         context = mockk(relaxed = true)
         alarmManager = mockk(relaxed = true)
-        appDatabase = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
+        notificationRepo = mockk(relaxed = true)
 
         every { context.getSystemService(Context.ALARM_SERVICE) } returns alarmManager
-        every { appDatabase.calendarItemDao() } returns calendarDao
 
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, appDatabase)
-        
         mockkStatic("com.felixbrucker.simklcalendar.data.preferences.NotificationPreferencesKt")
     }
 
@@ -66,9 +61,6 @@ class AlarmSchedulerTest {
         unmockkStatic(Log::class)
         unmockkStatic(Uri::class)
         unmockkStatic(PendingIntent::class)
-        val field = AppDatabase::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
     }
 
     @Test
@@ -85,34 +77,26 @@ class AlarmSchedulerTest {
 
     @Test
     fun testScheduleAllItemsAiredAlarmsInexact() = runTest {
-        every { context.notificationDataStore.data } returns flowOf(mockk {
-            every { asMap() } returns emptyMap()
-            // This is still tricky to mock because NotificationRepository is used inside AlarmScheduler
-        })
-        // Mocking the repo creation inside AlarmScheduler is better
-        mockkConstructor(NotificationRepository::class)
-        every { anyConstructed<NotificationRepository>().preferencesFlow } returns flowOf(NotificationPreferences(useExactAlarms = false))
+        every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences(useExactAlarms = false))
 
         val calItem = CalendarItem("v2_100_1_1", 100, "Ep 1", 1, 1, Instant.ofEpochMilli(1700000000000L), null, true, false)
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "TV Show", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, null)
         coEvery { calendarDao.getCalendarItemsForAiredAlarm(any()) } returns listOf(item)
 
-        AlarmScheduler.scheduleAllItemsAiredAlarms(context)
+        val scheduler = AlarmScheduler(context, calendarDao, notificationRepo)
+        scheduler.scheduleAllItemsAiredAlarms()
 
         val typeSlot = slot<Int>()
         val triggerSlot = slot<Long>()
         verify { alarmManager.setAndAllowWhileIdle(capture(typeSlot), capture(triggerSlot), any<PendingIntent>()) }
         assertEquals(AlarmManager.RTC_WAKEUP, typeSlot.captured)
         assertEquals(1700000000000L, triggerSlot.captured)
-        
-        unmockkConstructor(NotificationRepository::class)
     }
 
     @Test
     fun testScheduleAllItemsAiredAlarmsExact() = runTest {
-        mockkConstructor(NotificationRepository::class)
-        every { anyConstructed<NotificationRepository>().preferencesFlow } returns flowOf(NotificationPreferences(useExactAlarms = true))
+        every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences(useExactAlarms = true))
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             every { alarmManager.canScheduleExactAlarms() } returns true
@@ -123,10 +107,9 @@ class AlarmSchedulerTest {
         val item = CalendarItemWithWatchlist(calItem, watchItem, null)
         coEvery { calendarDao.getCalendarItemsForAiredAlarm(any()) } returns listOf(item)
 
-        AlarmScheduler.scheduleAllItemsAiredAlarms(context)
+        val scheduler = AlarmScheduler(context, calendarDao, notificationRepo)
+        scheduler.scheduleAllItemsAiredAlarms()
 
         verify { alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, any(), any<PendingIntent>()) }
-        
-        unmockkConstructor(NotificationRepository::class)
     }
 }
