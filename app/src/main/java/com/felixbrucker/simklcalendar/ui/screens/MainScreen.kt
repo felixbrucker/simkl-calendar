@@ -44,11 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
-import java.time.LocalDate
-import java.time.ZoneId
-import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import kotlinx.coroutines.delay
@@ -80,15 +76,12 @@ fun MainScreen(
     val hasWantedCalendarItems by viewModel.hasWantedCalendarItems.collectAsState()
     val userToken by viewModel.userToken.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    val torrentDownloads by viewModel.torrentDownloads.collectAsState()
 
     val density = LocalDensity.current
     val windowInfo = LocalWindowInfo.current
     val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 600.dp
 
-    // Filters states are now handled inside CalendarView
     val uiPreferences by viewModel.uiPreferences.collectAsState()
-    val showEarlierReleases = uiPreferences.filterShowEarlier
     val viewMode by viewModel.viewMode.collectAsState()
 
     val calendarListState = rememberLazyListState()
@@ -154,35 +147,6 @@ fun MainScreen(
         isSearchFocused = false
         focusManager.clearFocus()
         keyboardController?.hide()
-    }
-
-    // Separate and group earlier and upcoming releases in a single pass to minimize timezone conversions
-    val (earlierItems, earlierGrouped, upcomingGrouped) = remember(items) {
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now(zone)
-
-        val earlierList = mutableListOf<CalendarItemWithWatchlist>()
-        val earlierMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
-        val upcomingMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
-
-        for (item in items) {
-            val localDate = item.date.atZone(zone).toLocalDate()
-            if (localDate.isBefore(today)) {
-                earlierList.add(item)
-                earlierMap.getOrPut(localDate) { mutableListOf() }.add(item)
-            } else {
-                upcomingMap.getOrPut(localDate) { mutableListOf() }.add(item)
-            }
-        }
-
-        val formattedEarlier = earlierMap.mapKeys { (localDate, _) ->
-            DateUtil.formatAiringDateHeader(localDate, zone, today)
-        }
-        val formattedUpcoming = upcomingMap.mapKeys { (localDate, _) ->
-            DateUtil.formatAiringDateHeader(localDate, zone, today)
-        }
-
-        Triple(earlierList, formattedEarlier, formattedUpcoming)
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -739,13 +703,6 @@ fun MainScreen(
                 ) { mode ->
                     if (mode == ViewMode.CALENDAR) {
                         CalendarView(
-                            items = items,
-                            earlierItems = earlierItems,
-                            upcomingGrouped = upcomingGrouped,
-                            earlierGrouped = earlierGrouped,
-                            showEarlierReleases = showEarlierReleases,
-                            searchQuery = searchQuery,
-                            torrentDownloads = torrentDownloads,
                             viewModel = viewModel,
                             onNavigateToShowDetail = onNavigateToReleaseDetail,
                             lazyListState = calendarListState,

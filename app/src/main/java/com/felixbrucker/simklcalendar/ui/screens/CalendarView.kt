@@ -40,8 +40,13 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import java.time.LocalDate
+import java.time.ZoneId
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -68,21 +73,50 @@ import kotlin.collections.get
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CalendarView(
-    items: List<CalendarItemWithWatchlist>,
-    earlierItems: List<CalendarItemWithWatchlist>,
-    upcomingGrouped: Map<String, List<CalendarItemWithWatchlist>>,
-    earlierGrouped: Map<String, List<CalendarItemWithWatchlist>>,
-    showEarlierReleases: Boolean,
-    searchQuery: String,
-    torrentDownloads: Map<String, DownloadProgress>,
     viewModel: CalendarViewModel,
     onNavigateToShowDetail: (String) -> Unit,
+    modifier: Modifier = Modifier,
     lazyListState: LazyListState = rememberLazyListState(),
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    val items by viewModel.filteredCalendarItems.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val torrentDownloads by viewModel.torrentDownloads.collectAsState()
+    val uiPreferences by viewModel.uiPreferences.collectAsState()
+    val showEarlierReleases = uiPreferences.filterShowEarlier
+
+    // Separate and group earlier and upcoming releases in a single pass to minimize timezone conversions
+    val (earlierItems, earlierGrouped, upcomingGrouped) = remember(items) {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+
+        val earlierList = mutableListOf<CalendarItemWithWatchlist>()
+        val earlierMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
+        val upcomingMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
+
+        for (item in items) {
+            val localDate = item.date.atZone(zone).toLocalDate()
+            if (localDate.isBefore(today)) {
+                earlierList.add(item)
+                earlierMap.getOrPut(localDate) { mutableListOf() }.add(item)
+            } else {
+                upcomingMap.getOrPut(localDate) { mutableListOf() }.add(item)
+            }
+        }
+
+        val formattedEarlier = earlierMap.mapKeys { (localDate, _) ->
+            DateUtil.formatAiringDateHeader(localDate, zone, today)
+        }
+        val formattedUpcoming = upcomingMap.mapKeys { (localDate, _) ->
+            DateUtil.formatAiringDateHeader(localDate, zone, today)
+        }
+
+        Triple(earlierList, formattedEarlier, formattedUpcoming)
+    }
+
+    Column(modifier = modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.height(8.dp))
 
         // Calendar Group list
