@@ -821,10 +821,12 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch {
             _isSyncing.value = true
             val success = repository.exchangeOAuthCode(code = code, state = state, redirectUri = redirectUri)
-            _isSyncing.value = false
             if (success) {
+                // We do not need to set isSyncing to false here because the sync continues
+                // with a calendar sync and is updated there
                 onSuccess()
             } else {
+                _isSyncing.value = false
                 onFailure()
             }
         }

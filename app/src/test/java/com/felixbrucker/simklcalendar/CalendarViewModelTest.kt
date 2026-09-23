@@ -685,9 +685,9 @@ class CalendarViewModelTest {
     fun testExchangeOAuthCodeSuccessCallback() = runTest {
         val viewModel = createViewModel()
         coEvery { repositoryMock.exchangeOAuthCode("code123", "state123", "simklcalendar://auth") } returns true
-
         var successCalled = false
         var failureCalled = false
+
         viewModel.exchangeOAuthCode("code123", "state123", "simklcalendar://auth", onSuccess = {
             successCalled = true
         }, onFailure = {
@@ -697,6 +697,25 @@ class CalendarViewModelTest {
 
         assertTrue(successCalled)
         assertFalse(failureCalled)
+    }
+
+    @Test
+    fun testExchangeOAuthCodeFailureCallback() = runTest {
+        val viewModel = createViewModel()
+        coEvery { repositoryMock.exchangeOAuthCode("code123", "state123", "simklcalendar://auth") } returns false
+        var successCalled = false
+        var failureCalled = false
+
+        viewModel.exchangeOAuthCode("code123", "state123", "simklcalendar://auth", onSuccess = {
+            successCalled = true
+        }, onFailure = {
+            failureCalled = true
+        })
+        advanceUntilIdle()
+
+        assertFalse(successCalled)
+        assertTrue(failureCalled)
+        assertFalse(viewModel.isSyncing.value)
     }
 
     @Test
