@@ -9,6 +9,8 @@
 - **Fluent APIs**: Create custom extension functions when they produce cleaner, more natural call sites without cluttering core domain definitions.
 - Prefer idiomatic `for (item in items)` loops over index-based `0 until size` loops; use `.withIndex()` or `.forEachIndexed` when the index is required.
 - Never set disableAndroidSuperclassValidation to true, and never extend generated Hilt_* classes directly. Always extend standard Android framework classes and rely on the Hilt Gradle Plugin for transformation.
+- Prefer direct constructor injection (@Inject constructor() and scope annotations like @Singleton) over Hilt modules, using @Module only when constructor injection is not possible. Never define default parameter values in constructors that manually instantiate injectable classes.
+- Always use named arguments for boolean parameters (e.g., `showDialog(isVisible = true)`).
 
 ## Database Migrations & Schema Export Rules
 
