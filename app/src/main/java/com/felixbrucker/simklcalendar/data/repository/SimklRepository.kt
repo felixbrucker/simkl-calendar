@@ -420,7 +420,6 @@ class SimklRepository @Inject constructor(
                     )
                 )
             }
-            syncCalendar()
             true
         } catch (e: Exception) {
             Timber.tag("SimklRepository").e(e, "OAuth Code exchange failed")

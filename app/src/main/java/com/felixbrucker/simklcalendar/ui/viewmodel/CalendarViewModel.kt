@@ -109,15 +109,14 @@ class CalendarViewModel @Inject constructor(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    private val _isAuthReady = MutableStateFlow(false)
-
-    private val _userToken = MutableStateFlow<UserToken?>(null)
-    val userToken: StateFlow<UserToken?> = _userToken.asStateFlow()
+    val userToken: StateFlow<UserToken?> = repository.activeUserToken
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     data class AuthState(val isReady: Boolean, val token: UserToken?)
-    val authState: StateFlow<AuthState> = combine(_isAuthReady, _userToken) { ready, token ->
-        AuthState(ready, token)
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, AuthState(false, null))
+    val authState: StateFlow<AuthState> = repository.activeUserToken
+        .distinctUntilChanged()
+        .map { token -> AuthState(true, token) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AuthState(false, null))
 
     val uiPreferences: StateFlow<UiPreferences> = uiRepo.preferencesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiPreferences())
@@ -737,14 +736,12 @@ class CalendarViewModel @Inject constructor(
         refreshDownloadSubdirectories()
         viewModelScope.launch {
             repository.resetAuthIfNeeded()
-            // Automatically sync calendar on launch only if user is logged in
-            repository.activeUserToken.collect { token ->
-                _userToken.value = token
-                _isAuthReady.value = true
-                if (token != null && token.accessToken.isNotEmpty()) {
-                    syncLocalCalendar()
-                }
-            }
+            // Automatically sync calendar on startup and after logging
+            userToken
+                .map { it != null }
+                .distinctUntilChanged()
+                .filter { it }
+                .collect { syncLocalCalendar() }
         }
         // Refresh torrent service status
         torrentServiceHelper.refreshServiceStatus()
