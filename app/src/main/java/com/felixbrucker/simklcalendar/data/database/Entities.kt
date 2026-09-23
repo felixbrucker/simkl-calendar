@@ -23,10 +23,10 @@ data class UserToken(
     val username: String,
     val refreshToken: String = "",
     val accessTokenExpiresAt: Instant = Instant.EPOCH,
-    val refreshTokenExpiresAt: Instant = Instant.EPOCH
+    val refreshTokenExpiresAt: Instant = Instant.EPOCH,
 ) {
-    val isAccessTokenExpired: Boolean get() = accessTokenExpiresAt.isAfter(Instant.now().minusSeconds(60))
-    val isRefreshTokenExpired: Boolean get() = refreshTokenExpiresAt.isAfter(Instant.now().minusSeconds(60))
+    val isAccessTokenExpired: Boolean get() = accessTokenExpiresAt.isBefore(Instant.now().minusSeconds(60))
+    val isRefreshTokenExpired: Boolean get() = refreshTokenExpiresAt.isBefore(Instant.now().minusSeconds(60))
 }
 
 @Entity(
