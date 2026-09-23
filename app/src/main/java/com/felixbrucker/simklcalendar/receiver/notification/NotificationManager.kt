@@ -20,6 +20,8 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.felixbrucker.simklcalendar.MainActivity
 import com.felixbrucker.simklcalendar.R
+import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.ActiveNotification
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
@@ -34,13 +36,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URLEncoder
-
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
-
-import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
-import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 
 @Singleton
 class NotificationManager @Inject constructor(
