@@ -10,7 +10,13 @@ import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
+import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository
+import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
+import com.felixbrucker.simklcalendar.data.repository.NotificationSettingRepository
+import com.felixbrucker.simklcalendar.data.repository.SyncRepository
+import com.felixbrucker.simklcalendar.data.repository.UserRepository
+import com.felixbrucker.simklcalendar.data.repository.WatchlistRepository
 import com.felixbrucker.simklcalendar.di.DatabaseModule
 import com.felixbrucker.simklcalendar.di.NetworkModule
 import io.mockk.every
@@ -94,16 +100,12 @@ class DiModulesTest {
     }
 
     @Test
-    fun testSimklRepositoryInstantiation() {
-        val repository = SimklRepository(
-            context = context,
+    fun testRepositoryInstantiations() {
+        val userRepo = UserRepository(
             tokenDao = tokenDao,
             calendarDao = calendarDao,
-            settingDao = settingDao,
             watchlistDao = watchlistDao,
             watchedDao = watchedDao,
-            searchLinkDao = searchLinkDao,
-            itemDownloadSettingsDao = itemDownloadSettingsDao,
             publicSimklApiService = mockk(relaxed = true),
             authenticatedSimklApiService = mockk(relaxed = true),
             appSettingsRepo = mockk(relaxed = true),
@@ -111,12 +113,48 @@ class DiModulesTest {
             notificationRepo = mockk(relaxed = true),
             authRepo = mockk(relaxed = true),
             syncMetadataRepo = mockk(relaxed = true),
-            uiRepo = mockk(relaxed = true),
-            torrentServiceHelper = mockk(relaxed = true),
+            uiRepo = mockk(relaxed = true)
+        )
+        val calendarRepo = CalendarRepository(
+            calendarDao = calendarDao,
+            watchedDao = watchedDao,
+            itemDownloadSettingsDao = itemDownloadSettingsDao,
+            authenticatedSimklApiService = mockk(relaxed = true),
+            autoDownloadRepo = autoDownloadRepo
+        )
+        val watchlistRepo = WatchlistRepository(watchlistDao)
+        val downloadRepo = DownloadRepository(
+            context = context,
+            itemDownloadSettingsDao = itemDownloadSettingsDao,
+            calendarDao = calendarDao,
+            calendarRepository = calendarRepo,
             torrentSearchManager = mockk(relaxed = true),
+            torrentServiceHelper = mockk(relaxed = true)
+        )
+        val customSearchLinkRepo = CustomSearchLinkRepository(searchLinkDao)
+        val notificationSettingRepo = NotificationSettingRepository(settingDao)
+        val syncRepo = SyncRepository(
+            tokenDao = tokenDao,
+            calendarDao = calendarDao,
+            settingDao = settingDao,
+            watchlistDao = watchlistDao,
+            watchedDao = watchedDao,
+            itemDownloadSettingsDao = itemDownloadSettingsDao,
+            publicSimklApiService = mockk(relaxed = true),
+            authenticatedSimklApiService = mockk(relaxed = true),
+            syncMetadataRepo = mockk(relaxed = true),
+            notificationRepo = mockk(relaxed = true),
+            calendarRepository = calendarRepo,
+            downloadRepository = downloadRepo,
             alarmScheduler = mockk(relaxed = true)
         )
 
-        assertNotNull(repository)
+        assertNotNull(userRepo)
+        assertNotNull(calendarRepo)
+        assertNotNull(watchlistRepo)
+        assertNotNull(downloadRepo)
+        assertNotNull(customSearchLinkRepo)
+        assertNotNull(notificationSettingRepo)
+        assertNotNull(syncRepo)
     }
 }

@@ -3,7 +3,9 @@ package com.felixbrucker.simklcalendar.ui.viewmodel
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.preferences.*
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository
+import com.felixbrucker.simklcalendar.data.repository.SyncRepository
+import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import io.mockk.coEvery
@@ -30,7 +32,9 @@ import org.junit.Test
 class SettingsViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
-    private val repositoryMock: SimklRepository = mockk(relaxed = true)
+    private val userRepositoryMock: UserRepository = mockk(relaxed = true)
+    private val customSearchLinkRepositoryMock: CustomSearchLinkRepository = mockk(relaxed = true)
+    private val syncRepositoryMock: SyncRepository = mockk(relaxed = true)
     private val appSettingsRepo: AppSettingsRepository = mockk(relaxed = true)
     private val autoDownloadRepo: AutoDownloadRepository = mockk(relaxed = true)
     private val notificationRepo: NotificationRepository = mockk(relaxed = true)
@@ -46,8 +50,8 @@ class SettingsViewModelTest {
         userTokenFlow.value = null
         customSearchLinksFlow.value = emptyList()
 
-        every { repositoryMock.activeUserToken } returns userTokenFlow
-        every { repositoryMock.customSearchLinks } returns customSearchLinksFlow
+        every { userRepositoryMock.activeUserToken } returns userTokenFlow
+        every { customSearchLinkRepositoryMock.customSearchLinks } returns customSearchLinksFlow
         every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences())
         every { appSettingsRepo.preferencesFlow } returns flowOf(AppSettingsPreferences())
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
@@ -61,7 +65,9 @@ class SettingsViewModelTest {
     @Test
     fun testSettingsUpdates() = runTest {
         val viewModel = SettingsViewModel(
-            repositoryMock,
+            userRepositoryMock,
+            customSearchLinkRepositoryMock,
+            syncRepositoryMock,
             appSettingsRepo,
             autoDownloadRepo,
             notificationRepo,
@@ -80,7 +86,7 @@ class SettingsViewModelTest {
         viewModel.scheduleAllItemsAiredAlarms()
         advanceUntilIdle()
 
-        coVerify { repositoryMock.logout() }
+        coVerify { userRepositoryMock.logout() }
         coVerify { appSettingsRepo.setSyncIntervalHours(6) }
         coVerify { autoDownloadRepo.setSearchIntervalHours(4) }
         coVerify { notificationRepo.setUseExactAlarms(true) }
@@ -94,7 +100,9 @@ class SettingsViewModelTest {
     @Test
     fun testAutoDownloadSettingsAndKeywords() = runTest {
         val viewModel = SettingsViewModel(
-            repositoryMock,
+            userRepositoryMock,
+            customSearchLinkRepositoryMock,
+            syncRepositoryMock,
             appSettingsRepo,
             autoDownloadRepo,
             notificationRepo,
@@ -133,7 +141,9 @@ class SettingsViewModelTest {
     @Test
     fun testCustomSearchLinkOperations() = runTest {
         val viewModel = SettingsViewModel(
-            repositoryMock,
+            userRepositoryMock,
+            customSearchLinkRepositoryMock,
+            syncRepositoryMock,
             appSettingsRepo,
             autoDownloadRepo,
             notificationRepo,
@@ -149,17 +159,19 @@ class SettingsViewModelTest {
         viewModel.deleteCustomSearchLink(link2)
         advanceUntilIdle()
 
-        coVerify { repositoryMock.insertSearchLink(any()) }
-        coVerify { repositoryMock.updateSearchLink(link2) }
-        coVerify { repositoryMock.updateSearchLinks(any()) }
-        coVerify { repositoryMock.deleteSearchLink(link2) }
+        coVerify { customSearchLinkRepositoryMock.insertSearchLink(any()) }
+        coVerify { customSearchLinkRepositoryMock.updateSearchLink(link2) }
+        coVerify { customSearchLinkRepositoryMock.updateSearchLinks(any()) }
+        coVerify { customSearchLinkRepositoryMock.deleteSearchLink(link2) }
     }
 
     @Test
     fun testForceWatchlistResyncNoTokenAndSuccess() = runTest {
-        coEvery { repositoryMock.getActiveUserToken() } returns null
+        coEvery { userRepositoryMock.getActiveUserToken() } returns null
         val viewModel = SettingsViewModel(
-            repositoryMock,
+            userRepositoryMock,
+            customSearchLinkRepositoryMock,
+            syncRepositoryMock,
             appSettingsRepo,
             autoDownloadRepo,
             notificationRepo,
@@ -175,7 +187,7 @@ class SettingsViewModelTest {
         }
         advanceUntilIdle()
 
-        coEvery { repositoryMock.getActiveUserToken() } returns UserToken(accessToken = "valid_token", username = "user")
+        coEvery { userRepositoryMock.getActiveUserToken() } returns UserToken(accessToken = "valid_token", username = "user")
         var successOk = false
         var successMsg = ""
         viewModel.forceWatchlistResync { ok, msg ->
