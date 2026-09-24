@@ -91,8 +91,10 @@ class AlarmReceiver: BroadcastReceiver() {
 
         Timber.tag(TAG).d("Processing item aired for '${item.title}' (key=$itemPrimaryKey)")
 
+        // First, ensure the item's media status is correctly set after it aired
         calendarRepository.updateItemAiredStatus(item)
 
+        // Second, check if we should post a notification for this item
         val shouldPostNotification = shouldPostNotificationForItem(item)
         if (shouldPostNotification) {
             Timber.tag(TAG).d("Posting notification for '${item.title}'")
@@ -103,6 +105,7 @@ class AlarmReceiver: BroadcastReceiver() {
         }
 
         var didSearchAndDownload = false
+        // Lastly, search and download torrents if configured
         try {
             val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return
             if (updatedItem.mediaStatus == MediaStatus.WANTED) {
