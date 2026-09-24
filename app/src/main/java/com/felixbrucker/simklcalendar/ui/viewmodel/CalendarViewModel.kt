@@ -475,17 +475,6 @@ class CalendarViewModel @Inject constructor(
 
     private val _isSearchingTorrents = MutableStateFlow(false)
 
-    private val _pendingDetailKey = MutableStateFlow<String?>(null)
-    val pendingDetailKey: StateFlow<String?> = _pendingDetailKey.asStateFlow()
-
-    fun setPendingDetailKey(key: String) {
-        _pendingDetailKey.value = key
-    }
-
-    fun clearPendingDetailKey() {
-        _pendingDetailKey.value = null
-    }
-
     fun markEpisodeWatched(
         simklId: Int,
         season: Int?,

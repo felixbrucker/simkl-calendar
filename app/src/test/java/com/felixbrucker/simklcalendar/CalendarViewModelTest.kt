@@ -223,19 +223,6 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun testPendingDetailKey() = runTest {
-        val viewModel = createViewModel()
-
-        viewModel.setPendingDetailKey("key123")
-        val key = viewModel.pendingDetailKey.value
-        viewModel.clearPendingDetailKey()
-        val clearedKey = viewModel.pendingDetailKey.value
-
-        assertEquals("key123", key)
-        assertNull(clearedKey)
-    }
-
-    @Test
     fun testItemDownloadSettings() = runTest {
         val viewModel = createViewModel()
         val settings = ItemDownloadSettings(simklId = 10, qualityOverride = "1080p")

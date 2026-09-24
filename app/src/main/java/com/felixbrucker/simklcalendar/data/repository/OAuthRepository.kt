@@ -8,8 +8,8 @@ import javax.inject.Singleton
 
 data class OAuthCodeEvent(
     val code: String,
-    val state: String? = null,
-    val redirectUri: String = "simklcalendar://auth"
+    val state: String?,
+    val redirectUri: String
 )
 
 @Singleton
@@ -17,7 +17,7 @@ class OAuthRepository @Inject constructor() {
     private val _oauthCodeEvents = MutableSharedFlow<OAuthCodeEvent>(replay = 1, extraBufferCapacity = 1)
     val oauthCodeEvents: SharedFlow<OAuthCodeEvent> = _oauthCodeEvents.asSharedFlow()
 
-    fun onOAuthCodeReceived(code: String, state: String? = null, redirectUri: String = "simklcalendar://auth") {
+    fun onOAuthCodeReceived(code: String, state: String?, redirectUri: String = "simklcalendar://auth") {
         _oauthCodeEvents.tryEmit(OAuthCodeEvent(code, state, redirectUri))
     }
 }

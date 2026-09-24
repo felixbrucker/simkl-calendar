@@ -1,13 +1,17 @@
 package com.felixbrucker.simklcalendar.ui.viewmodel
 
+import android.content.Context
+import android.widget.Toast
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.preferences.AuthPreferences
 import com.felixbrucker.simklcalendar.data.preferences.AuthRepository
+import com.felixbrucker.simklcalendar.data.repository.OAuthCodeEvent
 import com.felixbrucker.simklcalendar.data.repository.OAuthRepository
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -28,6 +32,7 @@ import org.junit.Test
 class LoginViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
+    private val contextMock: Context = mockk(relaxed = true)
     private val repositoryMock: SimklRepository = mockk(relaxed = true)
     private val authRepoMock: AuthRepository = mockk(relaxed = true)
     private val oAuthRepoMock: OAuthRepository = mockk(relaxed = true)
@@ -38,11 +43,13 @@ class LoginViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        mockkStatic(Toast::class)
         userTokenFlow.value = null
         authPreferencesFlow.value = AuthPreferences()
         every { repositoryMock.activeUserToken } returns userTokenFlow
         every { authRepoMock.preferencesFlow } returns authPreferencesFlow
         every { oAuthRepoMock.oauthCodeEvents } returns MutableSharedFlow()
+        every { Toast.makeText(any(), any<CharSequence>(), any()) } returns mockk(relaxed = true)
     }
 
     @After
@@ -54,7 +61,7 @@ class LoginViewModelTest {
     fun testIsRealApiConfiguredAndCreateAuthorizationUrl() {
         every { repositoryMock.isRealApiConfigured() } returns true
         every { repositoryMock.createAuthorizationUrl("simklcalendar://auth") } returns "https://simkl.com/oauth"
-        val viewModel = LoginViewModel(repositoryMock, authRepoMock, oAuthRepoMock)
+        val viewModel = LoginViewModel(contextMock, repositoryMock, authRepoMock, oAuthRepoMock)
 
         val isConfigured = viewModel.isRealApiConfigured()
         val authUrl = viewModel.createAuthorizationUrl()
@@ -66,20 +73,13 @@ class LoginViewModelTest {
     @Test
     fun testExchangeOAuthCodeSuccess() = runTest {
         coEvery { repositoryMock.exchangeOAuthCode("code", "state", "simklcalendar://auth") } returns true
-        val viewModel = LoginViewModel(repositoryMock, authRepoMock, oAuthRepoMock)
-        var successCalled = false
-        var failureCalled = false
+        val viewModel = LoginViewModel(contextMock, repositoryMock, authRepoMock, oAuthRepoMock)
+        val event = OAuthCodeEvent("code", "state", "simklcalendar://auth")
 
-        viewModel.exchangeOAuthCode(
-            code = "code",
-            state = "state",
-            redirectUri = "simklcalendar://auth",
-            onSuccess = { successCalled = true },
-            onFailure = { failureCalled = true }
-        )
+        viewModel.exchangeOAuthCode(event)
         advanceUntilIdle()
+        val isSyncing = viewModel.isSyncing.value
 
-        assertTrue(successCalled)
-        assertFalse(failureCalled)
+        assertFalse(isSyncing)
     }
 }

@@ -50,6 +50,9 @@ import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -60,6 +63,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.repository.OAuthRepository
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -77,6 +81,12 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var notificationManager: NotificationManager
+
+    @Inject
+    lateinit var torrentServiceHelper: TorrentServiceHelper
+
+    private val _pendingDetailKey = MutableStateFlow<String?>(null)
+    val pendingDetailKey: StateFlow<String?> = _pendingDetailKey.asStateFlow()
 
     // Modern AuthTab ActivityResultLauncher
     private val authTabLauncher = AuthTabIntent.registerActivityResultLauncher(this) { result ->
@@ -130,7 +140,7 @@ class MainActivity : ComponentActivity() {
                 .map { it.searchIntervalHours }
                 .distinctUntilChanged()
                 .collect { searchIntervalHours ->
-                    if (viewModel.isTorrentServiceInstalled()) {
+                    if (torrentServiceHelper.isServiceInstalled()) {
                         AutoDownloadWorker.enqueuePeriodicSearch(
                             this@MainActivity,
                             searchIntervalHours.toLong()
@@ -150,6 +160,8 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 SimklCalendarApp(
                     viewModel = viewModel,
+                    pendingDetailKeyFlow = pendingDetailKey,
+                    onClearPendingDetailKey = { _pendingDetailKey.value = null },
                     onLaunchAuthTab = { authUrl ->
                         launchAuthTab(authUrl, "simklcalendar")
                     }
@@ -189,7 +201,7 @@ class MainActivity : ComponentActivity() {
 
         if (!itemKey.isNullOrEmpty()) {
             notificationManager.removeActiveNotification(itemKey)
-            viewModel.setPendingDetailKey(itemKey)
+            _pendingDetailKey.value = itemKey
         }
     }
 
@@ -205,8 +217,7 @@ class MainActivity : ComponentActivity() {
             if (!code.isNullOrEmpty()) {
                 oAuthRepository.onOAuthCodeReceived(
                     code = code,
-                    state = state,
-                    redirectUri = "simklcalendar://auth"
+                    state = state
                 )
             }
         }
@@ -220,11 +231,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SimklCalendarApp(
     viewModel: CalendarViewModel,
+    pendingDetailKeyFlow: StateFlow<String?>,
+    onClearPendingDetailKey: () -> Unit,
     onLaunchAuthTab: (url: String) -> Unit = {}
 ) {
     val navController = rememberNavController()
     val authState by viewModel.authState.collectAsState()
-    val pendingDetailKey by viewModel.pendingDetailKey.collectAsState()
+    val pendingDetailKey by pendingDetailKeyFlow.collectAsState()
     val context = LocalContext.current
 
     // Don't render navigation until we know if the user is logged in or not
@@ -244,7 +257,7 @@ fun SimklCalendarApp(
             navController.navigate("release_detail/$encodedKey") {
                 launchSingleTop = true
             }
-            viewModel.clearPendingDetailKey()
+            onClearPendingDetailKey()
         }
     }
 
