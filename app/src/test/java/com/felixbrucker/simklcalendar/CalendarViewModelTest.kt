@@ -614,59 +614,13 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun testOAuthAndNotificationToggle() = runTest {
+    fun testNotificationToggle() = runTest {
         val viewModel = createViewModel()
-        every { repositoryMock.createAuthorizationUrl(any()) } returns "https://simkl.com/auth"
-
-        val authUrl = viewModel.createAuthorizationUrl()
-        var exchangeSuccess = false
-        viewModel.exchangeOAuthCode("code", "state", "simklcalendar://auth", onSuccess = {
-            exchangeSuccess = true
-        }, onFailure = {})
 
         viewModel.toggleNotification(1, notifyEpisode = true, notifySeasonFinished = false)
         advanceUntilIdle()
 
-        assertEquals("https://simkl.com/auth", authUrl)
-        assertFalse(exchangeSuccess)
         coVerify { repositoryMock.toggleNotificationSetting(1, true, false) }
-    }
-
-    @Test
-    fun testExchangeOAuthCodeSuccessCallback() = runTest {
-        val viewModel = createViewModel()
-        coEvery { repositoryMock.exchangeOAuthCode("code123", "state123", "simklcalendar://auth") } returns true
-        var successCalled = false
-        var failureCalled = false
-
-        viewModel.exchangeOAuthCode("code123", "state123", "simklcalendar://auth", onSuccess = {
-            successCalled = true
-        }, onFailure = {
-            failureCalled = true
-        })
-        advanceUntilIdle()
-
-        assertTrue(successCalled)
-        assertFalse(failureCalled)
-    }
-
-    @Test
-    fun testExchangeOAuthCodeFailureCallback() = runTest {
-        val viewModel = createViewModel()
-        coEvery { repositoryMock.exchangeOAuthCode("code123", "state123", "simklcalendar://auth") } returns false
-        var successCalled = false
-        var failureCalled = false
-
-        viewModel.exchangeOAuthCode("code123", "state123", "simklcalendar://auth", onSuccess = {
-            successCalled = true
-        }, onFailure = {
-            failureCalled = true
-        })
-        advanceUntilIdle()
-
-        assertFalse(successCalled)
-        assertTrue(failureCalled)
-        assertFalse(viewModel.isSyncing.value)
     }
 
     @Test

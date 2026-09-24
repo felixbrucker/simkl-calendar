@@ -792,31 +792,6 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    fun createAuthorizationUrl(redirectUri: String = "simklcalendar://auth"): String? {
-        return repository.createAuthorizationUrl(redirectUri)
-    }
-
-    fun exchangeOAuthCode(
-        code: String,
-        state: String? = null,
-        redirectUri: String? = null,
-        onSuccess: () -> Unit,
-        onFailure: () -> Unit
-    ) {
-        viewModelScope.launch {
-            _isSyncing.value = true
-            val success = repository.exchangeOAuthCode(code = code, state = state, redirectUri = redirectUri)
-            if (success) {
-                // We do not need to set isSyncing to false here because the sync continues
-                // with a calendar sync and is updated there
-                onSuccess()
-            } else {
-                _isSyncing.value = false
-                onFailure()
-            }
-        }
-    }
-
     fun toggleNotification(
         simklId: Int,
         notifyEpisode: Boolean,

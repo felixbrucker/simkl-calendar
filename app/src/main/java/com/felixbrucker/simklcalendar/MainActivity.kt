@@ -45,6 +45,7 @@ import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
 import com.felixbrucker.simklcalendar.ui.screens.LogViewerScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.LoginViewModel
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
@@ -63,6 +64,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val viewModel: CalendarViewModel by viewModels()
+    private val loginViewModel: LoginViewModel by viewModels()
 
     @Inject
     lateinit var appSettingsRepo: AppSettingsRepository
@@ -145,6 +147,7 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 SimklCalendarApp(
                     viewModel = viewModel,
+                    loginViewModel = loginViewModel,
                     onLaunchAuthTab = { authUrl ->
                         launchAuthTab(authUrl, "simklcalendar")
                     }
@@ -198,7 +201,7 @@ class MainActivity : ComponentActivity() {
             val code = uri.getQueryParameter("code")
             val state = uri.getQueryParameter("state")
             if (!code.isNullOrEmpty()) {
-                viewModel.exchangeOAuthCode(
+                loginViewModel.exchangeOAuthCode(
                     code = code,
                     state = state,
                     redirectUri = "simklcalendar://auth",
@@ -221,6 +224,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SimklCalendarApp(
     viewModel: CalendarViewModel,
+    loginViewModel: LoginViewModel,
     onLaunchAuthTab: (url: String) -> Unit = {}
 ) {
     val navController = rememberNavController()
@@ -279,6 +283,7 @@ fun SimklCalendarApp(
             // 1. Authentication Login (OAuth via AuthTab)
             composable("login") {
                 LoginScreen(
+                    viewModel = loginViewModel,
                     onLaunchAuthTab = onLaunchAuthTab,
                     onLoginSuccess = {
                         navController.navigate("calendar") {
