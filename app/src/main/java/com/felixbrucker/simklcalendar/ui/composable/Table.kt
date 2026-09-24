@@ -47,16 +47,19 @@ private class TableMeasurePolicy(
 ) : MeasurePolicy {
     override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
         val cellConstraints = constraints.copy(minWidth = 0, minHeight = 0)
-        val measured = measurables.map { it.measure(cellConstraints) }
+        // Array and IntArray avoid List and Integer boxing allocations during layout measure passes
+        val measured = Array(measurables.size) { i -> measurables[i].measure(cellConstraints) }
 
-        val columnWidths = MutableList(columns) { column ->
+        val columnWidths = IntArray(columns)
+        for (column in 0 until columns) {
             var maxCellWidth = 0
-            repeat(rows) { row ->
-                val i = (row * columns) + column
-                val placeable = measured[i]
-                maxCellWidth = max(placeable.width, maxCellWidth)
+            for (row in 0 until rows) {
+                val placeable = measured[(row * columns) + column]
+                if (placeable.width > maxCellWidth) {
+                    maxCellWidth = placeable.width
+                }
             }
-            maxCellWidth
+            columnWidths[column] = maxCellWidth
         }
 
         if (columnWeightIndex != null && columnWeightIndex in 0 until columns) {
@@ -65,14 +68,16 @@ private class TableMeasurePolicy(
             columnWidths[columnWeightIndex] += extraWidth
         }
 
-        val rowHeights = List(rows) { row ->
+        val rowHeights = IntArray(rows)
+        for (row in 0 until rows) {
             var maxCellHeight = 0
-            repeat(columns) { column ->
-                val i = (row * columns) + column
-                val placeable = measured[i]
-                maxCellHeight = max(placeable.height, maxCellHeight)
+            for (column in 0 until columns) {
+                val placeable = measured[(row * columns) + column]
+                if (placeable.height > maxCellHeight) {
+                    maxCellHeight = placeable.height
+                }
             }
-            maxCellHeight
+            rowHeights[row] = maxCellHeight
         }
 
         val tableWidth = columnWidths.sum()
@@ -80,12 +85,11 @@ private class TableMeasurePolicy(
 
         return layout(tableWidth, tableHeight) {
             var y = 0
-            repeat(rows) { row ->
+            for (row in 0 until rows) {
                 var x = 0
                 val rowHeight = rowHeights[row]
-                repeat(columns) { column ->
-                    val i = row * columns + column
-                    val placeable = measured[i]
+                for (column in 0 until columns) {
+                    val placeable = measured[(row * columns) + column]
                     val columnWidth = columnWidths[column]
                     val yOffset = verticalAlignment.align(placeable.height, rowHeight)
                     val xOffset = horizontalAlignment.align(placeable.width, columnWidth, layoutDirection)
