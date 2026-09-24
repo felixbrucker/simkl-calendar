@@ -40,10 +40,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
@@ -51,7 +52,7 @@ import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: CalendarViewModel,
+    viewModel: SettingsViewModel = viewModel(),
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToLogViewer: () -> Unit = {}

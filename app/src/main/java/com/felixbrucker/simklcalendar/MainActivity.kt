@@ -279,7 +279,6 @@ fun SimklCalendarApp(
             // 1. Authentication Login (OAuth via AuthTab)
             composable("login") {
                 LoginScreen(
-                    viewModel = viewModel,
                     onLaunchAuthTab = onLaunchAuthTab,
                     onLoginSuccess = {
                         navController.navigate("calendar") {
@@ -316,7 +315,6 @@ fun SimklCalendarApp(
             // 3. Settings configuration screen
             composable("settings") {
                 SettingsScreen(
-                    viewModel = viewModel,
                     onNavigateBack = {
                         navController.popBackStack()
                     }

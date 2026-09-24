@@ -32,8 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.felixbrucker.simklcalendar.data.logging.LogEntry
-import com.felixbrucker.simklcalendar.data.logging.LogRepository
+import com.felixbrucker.simklcalendar.ui.viewmodel.LogViewerViewModel
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -45,6 +46,7 @@ private val logTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogViewerScreen(
+    viewModel: LogViewerViewModel = viewModel(),
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -52,7 +54,7 @@ fun LogViewerScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    val allLogs by LogRepository.logsFlow.collectAsState()
+    val allLogs by viewModel.allLogs.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedPriority by remember { mutableIntStateOf(-1) } // -1 means All
@@ -215,7 +217,7 @@ fun LogViewerScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        LogRepository.clearLogs()
+                        viewModel.clearLogs()
                         showClearDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(

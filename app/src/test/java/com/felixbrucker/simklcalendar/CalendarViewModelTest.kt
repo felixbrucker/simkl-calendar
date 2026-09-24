@@ -507,52 +507,6 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun testForceWatchlistResyncNoTokenAndSuccess() = runTest {
-        val viewModel = createViewModel()
-        coEvery { repositoryMock.getActiveUserToken() } returns null
-
-        var noTokenOk = true
-        var noTokenMsg = ""
-        viewModel.forceWatchlistResync { ok, msg ->
-            noTokenOk = ok
-            noTokenMsg = msg
-        }
-        advanceUntilIdle()
-
-        coEvery { repositoryMock.getActiveUserToken() } returns UserToken(accessToken = "valid_token", username = "user")
-        var successOk = false
-        var successMsg = ""
-        viewModel.forceWatchlistResync { ok, msg ->
-            successOk = ok
-            successMsg = msg
-        }
-        advanceUntilIdle()
-
-        assertFalse(noTokenOk)
-        assertEquals("User is not logged in", noTokenMsg)
-        assertTrue(successOk)
-        assertEquals("Watchlist re-synced successfully", successMsg)
-    }
-
-    @Test
-    fun testCustomSearchLinkOperations() = runTest {
-        val viewModel = createViewModel()
-        val link1 = CustomSearchLink(id = 0L, name = "Link 1", urlTemplate = "https://test.com/{query}", position = 0)
-        val link2 = CustomSearchLink(id = 2L, name = "Link 2", urlTemplate = "https://test2.com/{query}", position = 1)
-
-        viewModel.saveCustomSearchLink(link1)
-        viewModel.saveCustomSearchLink(link2)
-        viewModel.updateSearchLinksOrder(listOf(link2, link1))
-        viewModel.deleteCustomSearchLink(link2)
-        advanceUntilIdle()
-
-        coVerify { repositoryMock.insertSearchLink(any()) }
-        coVerify { repositoryMock.updateSearchLink(link2) }
-        coVerify { repositoryMock.updateSearchLinks(any()) }
-        coVerify { repositoryMock.deleteSearchLink(link2) }
-    }
-
-    @Test
     fun testUpdateMediaStatusAndSeasonStatus() = runTest {
         val viewModel = createViewModel()
         val calendarItem = CalendarItem(
@@ -661,7 +615,7 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun testOAuthAndLogoutAndNotificationToggle() = runTest {
+    fun testOAuthAndNotificationToggle() = runTest {
         val viewModel = createViewModel()
         every { repositoryMock.createAuthorizationUrl(any()) } returns "https://simkl.com/auth"
 
@@ -671,13 +625,11 @@ class CalendarViewModelTest {
             exchangeSuccess = true
         }, onFailure = {})
 
-        viewModel.logoutUser()
         viewModel.toggleNotification(1, notifyEpisode = true, notifySeasonFinished = false)
         advanceUntilIdle()
 
         assertEquals("https://simkl.com/auth", authUrl)
         assertFalse(exchangeSuccess)
-        coVerify { repositoryMock.logout() }
         coVerify { repositoryMock.toggleNotificationSetting(1, true, false) }
     }
 

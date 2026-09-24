@@ -79,12 +79,6 @@ class CalendarViewModel @Inject constructor(
     val alarmScheduler: AlarmScheduler
 ) : AndroidViewModel(application) {
 
-    fun scheduleAllItemsAiredAlarms() {
-        viewModelScope.launch {
-            alarmScheduler.scheduleAllItemsAiredAlarms()
-        }
-    }
-
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = repository.watchlistItems
 
     val notificationSettings: StateFlow<List<NotificationSetting>> = repository.notificationSettings
@@ -124,16 +118,9 @@ class CalendarViewModel @Inject constructor(
     val notificationPreferences: StateFlow<NotificationPreferences> = notificationRepo.preferencesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationPreferences())
 
-    val appSettingsPreferences: StateFlow<AppSettingsPreferences> = appSettingsRepo.preferencesFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettingsPreferences())
-
     val viewMode: StateFlow<ViewMode> = uiPreferences
         .map { it.viewMode }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ViewMode.CALENDAR)
-
-    val showAuthV2UpgradeHint: StateFlow<Boolean> = authRepo.preferencesFlow
-        .map { it.showAuthV2UpgradeHint }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private var pollingJob: Job? = null
     private val downloadingItems = allCalendarItems
@@ -832,12 +819,6 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    fun logoutUser() {
-        viewModelScope.launch {
-            repository.logout()
-        }
-    }
-
     fun toggleNotification(
         simklId: Int,
         notifyEpisode: Boolean,
@@ -849,100 +830,6 @@ class CalendarViewModel @Inject constructor(
                 notifyEveryEpisode = notifyEpisode,
                 notifyAiredLastEpisode = notifySeasonFinished
             )
-        }
-    }
-
-    fun updateSyncInterval(hours: Int) {
-        viewModelScope.launch {
-            appSettingsRepo.setSyncIntervalHours(hours)
-        }
-    }
-
-    fun updateSearchInterval(hours: Int) {
-        viewModelScope.launch {
-            autoDownloadRepo.setSearchIntervalHours(hours)
-        }
-    }
-
-    fun updateUseExactAlarms(enabled: Boolean) {
-        viewModelScope.launch {
-            notificationRepo.setUseExactAlarms(enabled)
-        }
-    }
-
-    fun updateDefaultNotifyAiring(enabled: Boolean) {
-        viewModelScope.launch {
-            notificationRepo.setDefaultNotifyAiring(enabled)
-        }
-    }
-
-    fun updateDefaultNotifySeasonFinished(enabled: Boolean) {
-        viewModelScope.launch {
-            notificationRepo.setDefaultNotifySeasonFinished(enabled)
-        }
-    }
-
-    fun updateDefaultNotifyMovieTheater(enabled: Boolean) {
-        viewModelScope.launch {
-            notificationRepo.setDefaultNotifyMovieTheater(enabled)
-        }
-    }
-
-    fun updateDefaultNotifyMovieDigital(enabled: Boolean) {
-        viewModelScope.launch {
-            notificationRepo.setDefaultNotifyMovieDigital(enabled)
-        }
-    }
-
-    private val _isForceSyncing = MutableStateFlow(false)
-    val isForceSyncing: StateFlow<Boolean> = _isForceSyncing.asStateFlow()
-
-    fun forceWatchlistResync(onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
-        viewModelScope.launch {
-            val token = repository.getActiveUserToken()
-            if (token == null || token.accessToken.isEmpty()) {
-                onComplete(false, "User is not logged in")
-                return@launch
-            }
-            _isForceSyncing.value = true
-            try {
-                repository.syncCalendar(force = true)
-                _isForceSyncing.value = false
-                onComplete(true, "Watchlist re-synced successfully")
-            } catch (e: Exception) {
-                _isForceSyncing.value = false
-                onComplete(false, e.message ?: "Failed to re-sync watchlist")
-            }
-        }
-    }
-
-    fun saveCustomSearchLink(link: CustomSearchLink, onComplete: () -> Unit = {}) {
-        viewModelScope.launch {
-            if (link.id == 0L) {
-                val currentLinks = customSearchLinks.value
-                val nextPos = (currentLinks.maxOfOrNull { it.position } ?: -1) + 1
-                repository.insertSearchLink(link.copy(position = nextPos))
-            } else {
-                repository.updateSearchLink(link)
-            }
-            onComplete()
-        }
-    }
-
-    fun updateSearchLinksOrder(reorderedLinks: List<CustomSearchLink>, onComplete: () -> Unit = {}) {
-        viewModelScope.launch {
-            val updated = reorderedLinks.mapIndexed { index, link ->
-                link.copy(position = index)
-            }
-            repository.updateSearchLinks(updated)
-            onComplete()
-        }
-    }
-
-    fun deleteCustomSearchLink(link: CustomSearchLink, onComplete: () -> Unit = {}) {
-        viewModelScope.launch {
-            repository.deleteSearchLink(link)
-            onComplete()
         }
     }
 
