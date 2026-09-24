@@ -232,45 +232,59 @@ fun CalendarContent(
                 } else if (earlierItems.isNotEmpty() && !showEarlierReleases) {
                     // Notice when upcoming is empty but earlier items exist
                     item(key = "no_upcoming_prompt") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.EventAvailable,
-                                    contentDescription = null,
-                                    tint = Color(0xFF3E3D4F),
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    if (searchQuery.isNotBlank()) {
-                                        "No upcoming releases matching \"$searchQuery\""
-                                    } else {
-                                        "No upcoming releases for active filters"
-                                    },
-                                    color = Color(0xFFA5A3B1),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                TextButton(onClick = { onSetShowEarlierReleases(true) }) {
-                                    Text(
-                                        if (searchQuery.isNotBlank()) {
-                                            "View ${earlierItems.size} Matching Earlier Releases"
-                                        } else {
-                                            "View ${earlierItems.size} Earlier Releases"
-                                        },
-                                        color = Color(0xFFD0BCFF)
-                                    )
-                                }
-                            }
-                        }
+                        CalendarNoUpcomingReleasesNotice(
+                            searchQuery = searchQuery,
+                            earlierCount = earlierItems.size,
+                            onShowEarlierReleases = { onSetShowEarlierReleases(true) }
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun CalendarNoUpcomingReleasesNotice(
+    searchQuery: String,
+    earlierCount: Int,
+    onShowEarlierReleases: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Default.EventAvailable,
+                contentDescription = null,
+                tint = Color(0xFF3E3D4F),
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                if (searchQuery.isNotBlank()) {
+                    "No upcoming releases matching \"$searchQuery\""
+                } else {
+                    "No upcoming releases for active filters"
+                },
+                color = Color(0xFFA5A3B1),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(onClick = onShowEarlierReleases) {
+                Text(
+                    if (searchQuery.isNotBlank()) {
+                        "View $earlierCount Matching Earlier Releases"
+                    } else {
+                        "View $earlierCount Earlier Releases"
+                    },
+                    color = Color(0xFFD0BCFF)
+                )
             }
         }
     }

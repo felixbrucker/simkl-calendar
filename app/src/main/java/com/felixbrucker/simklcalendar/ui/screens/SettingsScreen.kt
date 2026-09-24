@@ -101,12 +101,8 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val isForceSyncing by viewModel.isForceSyncing.collectAsState()
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
-    val density = LocalDensity.current
 
     var localLinks by remember(customSearchLinks) { mutableStateOf(customSearchLinks) }
-    var draggingIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    var itemSlotHeightPx by remember { mutableFloatStateOf(0f) }
 
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingLink by remember { mutableStateOf<CustomSearchLink?>(null) }
@@ -261,341 +257,16 @@ fun SettingsScreen(
             )
 
             // Custom Search Links Management Card
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = BorderStroke(1.dp, Color(0xFF49454F))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                tint = Color(0xFFD0BCFF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                "Custom Search Links",
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFE6E1E5),
-                                fontSize = 16.sp
-                            )
-                        }
-
-                        FilledTonalButton(
-                            onClick = { openAddDialog() },
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            modifier = Modifier.testTag("add_search_link_button")
-                        ) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = "Add Link",
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add Link", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    if (localLinks.isEmpty()) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFF1C1B1F),
-                            border = BorderStroke(1.dp, Color(0xFF3B383E)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.LinkOff,
-                                    contentDescription = null,
-                                    tint = Color(0xFF79747E),
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    "No custom search links configured yet",
-                                    color = Color(0xFFCAC4D0),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    "Tap '+ Add Link' above to configure custom search shortcuts.",
-                                    color = Color(0xFF79747E),
-                                    fontSize = 11.sp,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        }
-                    } else {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            if (localLinks.size > 1) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.padding(bottom = 2.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.DragHandle,
-                                        contentDescription = null,
-                                        tint = Color(0xFF938F99),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = "Long press and drag anywhere on a link to reorder",
-                                        color = Color(0xFF938F99),
-                                        fontSize = 11.sp
-                                    )
-                                }
-                            }
-
-                            val currentLinksState by rememberUpdatedState(localLinks)
-                            val currentDragging = draggingIndex
-                            val effectiveSlotHeight = if (itemSlotHeightPx > 0f) itemSlotHeightPx else with(density) { 68.dp.toPx() }
-                            val currentSlotHeightState by rememberUpdatedState(effectiveSlotHeight)
-                            val targetIndex = if (currentDragging != null && effectiveSlotHeight > 0f) {
-                                (currentDragging + (dragOffsetY / effectiveSlotHeight).roundToInt())
-                                    .coerceIn(0, localLinks.size - 1)
-                            } else null
-
-                            localLinks.forEachIndexed { index, link ->
-                                key(link.id) {
-                                    val isDraggingThis = currentDragging == index
-                                    val visualTranslationY by animateFloatAsState(
-                                        targetValue = when {
-                                            isDraggingThis -> dragOffsetY
-                                            currentDragging != null && targetIndex != null -> {
-                                                when {
-                                                    currentDragging < targetIndex && index in (currentDragging + 1)..targetIndex -> -effectiveSlotHeight
-                                                    currentDragging > targetIndex && index in targetIndex until currentDragging -> effectiveSlotHeight
-                                                    else -> 0f
-                                                }
-                                            }
-                                            else -> 0f
-                                        },
-                                        label = "reorder_trans_${link.id}"
-                                    )
-
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (isDraggingThis) Color(0xFF36323D) else Color(0xFF1C1B1F),
-                                        border = BorderStroke(
-                                            width = if (isDraggingThis) 1.5.dp else 1.dp,
-                                            color = if (isDraggingThis) Color(0xFFD0BCFF) else Color(0xFF49454F)
-                                        ),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .zIndex(if (isDraggingThis) 10f else 1f)
-                                            .onGloballyPositioned { coordinates ->
-                                                if (itemSlotHeightPx == 0f && coordinates.size.height > 0) {
-                                                    itemSlotHeightPx = coordinates.size.height.toFloat() + with(density) { 8.dp.toPx() }
-                                                }
-                                            }
-                                            .graphicsLayer {
-                                                translationY = visualTranslationY
-                                                scaleX = if (isDraggingThis) 1.03f else 1f
-                                                scaleY = if (isDraggingThis) 1.03f else 1f
-                                                shadowElevation = if (isDraggingThis) with(density) { 8.dp.toPx() } else 0f
-                                            }
-                                            .pointerInput(link.id) {
-                                                detectDragGesturesAfterLongPress(
-                                                    onDragStart = {
-                                                        val idx = currentLinksState.indexOfFirst { it.id == link.id }
-                                                        draggingIndex = if (idx != -1) idx else index
-                                                        dragOffsetY = 0f
-                                                    },
-                                                    onDrag = { change, dragAmount ->
-                                                        change.consume()
-                                                        dragOffsetY += dragAmount.y
-                                                    },
-                                                    onDragEnd = {
-                                                        val from = draggingIndex
-                                                        val slotH = currentSlotHeightState
-                                                        val links = currentLinksState
-                                                        val to = if (from != null && slotH > 0f && links.isNotEmpty()) {
-                                                            (from + (dragOffsetY / slotH).roundToInt())
-                                                                .coerceIn(0, links.size - 1)
-                                                        } else null
-
-                                                        if (from != null && to != null && from != to) {
-                                                            val updated = links.toMutableList().apply {
-                                                                add(to, removeAt(from))
-                                                            }
-                                                            localLinks = updated
-                                                            viewModel.updateSearchLinksOrder(updated)
-                                                        }
-                                                        draggingIndex = null
-                                                        dragOffsetY = 0f
-                                                    },
-                                                    onDragCancel = {
-                                                        draggingIndex = null
-                                                        dragOffsetY = 0f
-                                                    }
-                                                )
-                                            }
-                                            .testTag("custom_search_link_item_${link.id}")
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 12.dp, horizontal = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            // Drag Handle indicator icon
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .testTag("drag_handle_${link.id}"),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.DragHandle,
-                                                    contentDescription = "Reorder handle for ${link.name}",
-                                                    tint = if (isDraggingThis) Color(0xFFD0BCFF) else Color(0xFF79747E),
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-
-                                        Spacer(modifier = Modifier.width(4.dp))
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Surface(
-                                                shape = RoundedCornerShape(6.dp),
-                                                color = Color(0xFF2B2930),
-                                                modifier = Modifier.size(32.dp)
-                                            ) {
-                                                Box(
-                                                    contentAlignment = Alignment.Center,
-                                                    modifier = Modifier.fillMaxSize()
-                                                ) {
-                                                    AsyncImage(
-                                                        model = link.getFaviconUrl(),
-                                                        contentDescription = link.name,
-                                                        modifier = Modifier.size(20.dp),
-                                                        contentScale = ContentScale.Fit
-                                                    )
-                                                }
-                                            }
-
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                ) {
-                                                    Text(
-                                                        text = link.name,
-                                                        color = Color(0xFFE6E1E5),
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 14.sp
-                                                    )
-                                                    if (!link.subtitle.isNullOrBlank()) {
-                                                        Text(
-                                                            text = "• ${link.subtitle}",
-                                                            color = Color(0xFFCAC4D0),
-                                                            fontSize = 12.sp,
-                                                            maxLines = 1
-                                                        )
-                                                    }
-                                                }
-
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text(
-                                                    text = link.urlTemplate,
-                                                    color = Color(0xFF938F99),
-                                                    fontSize = 11.sp,
-                                                    maxLines = 1
-                                                )
-
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                                ) {
-                                                    link.associatedTypes.forEach { type ->
-                                                        val (label, bgCol, textCol) = when (type) {
-                                                            MediaType.TV -> Triple("TV", Color(0xFF381E72), Color(0xFFEADDFF))
-                                                            MediaType.ANIME -> Triple("Anime", Color(0xFF00382B), Color(0xFF7CE49F))
-                                                            MediaType.MOVIE -> Triple("Movie", Color(0xFF601410), Color(0xFFF2B8B5))
-                                                        }
-                                                        Surface(
-                                                            shape = RoundedCornerShape(4.dp),
-                                                            color = bgCol
-                                                        ) {
-                                                            Text(
-                                                                text = label,
-                                                                color = textCol,
-                                                                fontSize = 9.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                        ) {
-                                            IconButton(
-                                                onClick = { openEditDialog(link) },
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .testTag("edit_link_${link.id}")
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.Edit,
-                                                    contentDescription = "Edit ${link.name}",
-                                                    tint = Color(0xFFD0BCFF),
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-
-                                            IconButton(
-                                                onClick = { deleteConfirmLink = link },
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .testTag("delete_link_${link.id}")
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.Delete,
-                                                    contentDescription = "Delete ${link.name}",
-                                                    tint = Color(0xFFF2B8B5),
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+            SettingsCustomSearchLinksCard(
+                localLinks = localLinks,
+                onOpenAddDialog = { openAddDialog() },
+                onOpenEditDialog = { openEditDialog(it) },
+                onDeleteLink = { deleteConfirmLink = it },
+                onReorderLinks = { updated ->
+                    localLinks = updated
+                    viewModel.updateSearchLinksOrder(updated)
                 }
-            }
-            }
+            )
 
             // Force Watchlist Re-Sync Card
             SettingsWatchlistResyncCard(
@@ -618,238 +289,627 @@ fun SettingsScreen(
 
     // Add / Edit Custom Search Link Dialog
     if (showAddEditDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddEditDialog = false },
-            title = {
-                Text(
-                    text = if (editingLink == null) "Add Custom Search Link" else "Edit Custom Search Link",
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE6E1E5)
+        CustomSearchLinkAddEditDialog(
+            editingLink = editingLink,
+            inputName = inputName,
+            onInputNameChange = { inputName = it },
+            inputSubtitle = inputSubtitle,
+            onInputSubtitleChange = { inputSubtitle = it },
+            inputUrlTemplate = inputUrlTemplate,
+            onInputUrlTemplateChange = { inputUrlTemplate = it },
+            inputSelectedTypes = inputSelectedTypes,
+            onInputSelectedTypesChange = { inputSelectedTypes = it },
+            formError = formError,
+            onSave = {
+                if (inputName.isBlank()) {
+                    formError = "Name cannot be blank"
+                    return@CustomSearchLinkAddEditDialog
+                }
+                if (inputUrlTemplate.text.isBlank()) {
+                    formError = "URL template cannot be blank"
+                    return@CustomSearchLinkAddEditDialog
+                }
+                if (inputSelectedTypes.isEmpty()) {
+                    formError = "Select at least one associated item type"
+                    return@CustomSearchLinkAddEditDialog
+                }
+
+                val linkToSave = CustomSearchLink(
+                    id = editingLink?.id ?: 0L,
+                    name = inputName.trim(),
+                    subtitle = inputSubtitle.trim().takeIf { it.isNotBlank() },
+                    urlTemplate = inputUrlTemplate.text.trim(),
+                    associatedTypes = inputSelectedTypes.toList(),
+                    position = editingLink?.position ?: 0
                 )
-            },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Name input
-                    OutlinedTextField(
-                        value = inputName,
-                        onValueChange = { inputName = it },
-                        label = { Text("Name") },
-                        placeholder = { Text("e.g. Search Service") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("custom_search_link_name_input")
-                    )
 
-                    // Subtitle input
-                    OutlinedTextField(
-                        value = inputSubtitle,
-                        onValueChange = { inputSubtitle = it },
-                        label = { Text("Subtitle (Optional)") },
-                        placeholder = { Text("e.g. Search ratings & cast") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("custom_search_link_subtitle_input")
-                    )
-
-                    // URL Template input
-                    OutlinedTextField(
-                        value = inputUrlTemplate,
-                        onValueChange = { inputUrlTemplate = it },
-                        label = { Text("URL Template") },
-                        placeholder = { Text("https://example.com/search?q={TITLE}") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("custom_search_link_url_input")
-                    )
-
-                    fun insertPlaceholder(placeholder: String) {
-                        val currentText = inputUrlTemplate.text
-                        val selection = inputUrlTemplate.selection
-                        val start = selection.min.coerceIn(0, currentText.length)
-                        val end = selection.max.coerceIn(0, currentText.length)
-
-                        val newText = currentText.substring(0, start) + placeholder + currentText.substring(end)
-                        val newCursorPos = start + placeholder.length
-                        inputUrlTemplate = TextFieldValue(
-                            text = newText,
-                            selection = TextRange(newCursorPos)
-                        )
-                    }
-
-                    // Placeholder helper chips
-                    Column {
-                        Text(
-                            text = "Tap placeholder to insert:",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFCAC4D0)
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        @OptIn(ExperimentalLayoutApi::class)
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            listOf(
-                                "{TITLE}",
-                                "{TITLE_URL_ENCODED}",
-                                "{TITLE_ROMAJI}",
-                                "{TITLE_ROMAJI_URL_ENCODED}",
-                                "{EPISODE_SLUG}",
-                                "{SEASON_SLUG}",
-                                "{SEASON}",
-                                "{EPISODE}"
-                            ).forEach { placeholder ->
-                                Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = Color(0xFF2B2930),
-                                    border = BorderStroke(1.dp, Color(0xFF49454F)),
-                                    modifier = Modifier.clickable {
-                                        insertPlaceholder(placeholder)
-                                    }
-                                ) {
-                                    Text(
-                                        text = placeholder,
-                                        color = Color(0xFFD0BCFF),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp)
-
-                    // Associated Item Types
-                    Column {
-                        Text(
-                            text = "Associated Item Types",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFE6E1E5)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val types = listOf(
-                                MediaType.TV to "TV Show",
-                                MediaType.ANIME to "Anime",
-                                MediaType.MOVIE to "Movie"
-                            )
-                            types.forEach { (type, label) ->
-                                val isSelected = inputSelectedTypes.contains(type)
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = {
-                                        inputSelectedTypes = if (isSelected) {
-                                            inputSelectedTypes - type
-                                        } else {
-                                            inputSelectedTypes + type
-                                        }
-                                    },
-                                    label = { Text(label, fontSize = 12.sp) }
-                                )
-                            }
-                        }
-                    }
-
-                    if (formError != null) {
-                        Text(
-                            text = formError ?: "",
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                viewModel.saveCustomSearchLink(linkToSave) {
+                    showAddEditDialog = false
                 }
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (inputName.isBlank()) {
-                            formError = "Name cannot be blank"
-                            return@Button
-                        }
-                        if (inputUrlTemplate.text.isBlank()) {
-                            formError = "URL template cannot be blank"
-                            return@Button
-                        }
-                        if (inputSelectedTypes.isEmpty()) {
-                            formError = "Select at least one associated item type"
-                            return@Button
-                        }
-
-                        val linkToSave = CustomSearchLink(
-                            id = editingLink?.id ?: 0L,
-                            name = inputName.trim(),
-                            subtitle = inputSubtitle.trim().takeIf { it.isNotBlank() },
-                            urlTemplate = inputUrlTemplate.text.trim(),
-                            associatedTypes = inputSelectedTypes.toList(),
-                            position = editingLink?.position ?: 0
-                        )
-
-                        viewModel.saveCustomSearchLink(linkToSave) {
-                            showAddEditDialog = false
-                        }
-                    },
-                    modifier = Modifier.testTag("save_custom_search_link_button")
-                ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddEditDialog = false }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { showAddEditDialog = false }
         )
     }
 
     // Delete Confirmation Dialog
     deleteConfirmLink?.let { link ->
-        AlertDialog(
-            onDismissRequest = { deleteConfirmLink = null },
-            title = {
-                Text("Delete Search Link", fontWeight = FontWeight.Bold)
-            },
-            text = {
-                Text("Are you sure you want to delete '${link.name}'? This action cannot be undone.")
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteCustomSearchLink(link) {
-                            deleteConfirmLink = null
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    modifier = Modifier.testTag("confirm_delete_search_link_button")
-                ) {
-                    Text("Delete")
+        CustomSearchLinkDeleteDialog(
+            link = link,
+            onConfirmDelete = {
+                viewModel.deleteCustomSearchLink(link) {
+                    deleteConfirmLink = null
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { deleteConfirmLink = null }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { deleteConfirmLink = null }
         )
     }
+}
+
+@Composable
+fun SettingsCustomSearchLinksCard(
+    localLinks: List<CustomSearchLink>,
+    onOpenAddDialog: () -> Unit,
+    onOpenEditDialog: (CustomSearchLink) -> Unit,
+    onDeleteLink: (CustomSearchLink) -> Unit,
+    onReorderLinks: (List<CustomSearchLink>) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val density = LocalDensity.current
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var itemSlotHeightPx by remember { mutableFloatStateOf(0f) }
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = Color(0xFFD0BCFF),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "Custom Search Links",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE6E1E5),
+                        fontSize = 16.sp
+                    )
+                }
+
+                FilledTonalButton(
+                    onClick = onOpenAddDialog,
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.testTag("add_search_link_button")
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add Link",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Link", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            if (localLinks.isEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF1C1B1F),
+                    border = BorderStroke(1.dp, Color(0xFF3B383E)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.LinkOff,
+                            contentDescription = null,
+                            tint = Color(0xFF79747E),
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "No custom search links configured yet",
+                            color = Color(0xFFCAC4D0),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            "Tap '+ Add Link' above to configure custom search shortcuts.",
+                            color = Color(0xFF79747E),
+                            fontSize = 11.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (localLinks.size > 1) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.DragHandle,
+                                contentDescription = null,
+                                tint = Color(0xFF938F99),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Long press and drag anywhere on a link to reorder",
+                                color = Color(0xFF938F99),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    val currentLinksState by rememberUpdatedState(localLinks)
+                    val currentDragging = draggingIndex
+                    val effectiveSlotHeight = if (itemSlotHeightPx > 0f) itemSlotHeightPx else with(density) { 68.dp.toPx() }
+                    val currentSlotHeightState by rememberUpdatedState(effectiveSlotHeight)
+                    val targetIndex = if (currentDragging != null && effectiveSlotHeight > 0f) {
+                        (currentDragging + (dragOffsetY / effectiveSlotHeight).roundToInt())
+                            .coerceIn(0, localLinks.size - 1)
+                    } else null
+
+                    localLinks.forEachIndexed { index, link ->
+                        key(link.id) {
+                            val isDraggingThis = currentDragging == index
+                            val visualTranslationY by animateFloatAsState(
+                                targetValue = when {
+                                    isDraggingThis -> dragOffsetY
+                                    currentDragging != null && targetIndex != null -> {
+                                        when {
+                                            currentDragging < targetIndex && index in (currentDragging + 1)..targetIndex -> -effectiveSlotHeight
+                                            currentDragging > targetIndex && index in targetIndex until currentDragging -> effectiveSlotHeight
+                                            else -> 0f
+                                        }
+                                    }
+                                    else -> 0f
+                                },
+                                label = "reorder_trans_${link.id}"
+                            )
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDraggingThis) Color(0xFF36323D) else Color(0xFF1C1B1F),
+                                border = BorderStroke(
+                                    width = if (isDraggingThis) 1.5.dp else 1.dp,
+                                    color = if (isDraggingThis) Color(0xFFD0BCFF) else Color(0xFF49454F)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .zIndex(if (isDraggingThis) 10f else 1f)
+                                    .onGloballyPositioned { coordinates ->
+                                        if (itemSlotHeightPx == 0f && coordinates.size.height > 0) {
+                                            itemSlotHeightPx = coordinates.size.height.toFloat() + with(density) { 8.dp.toPx() }
+                                        }
+                                    }
+                                    .graphicsLayer {
+                                        translationY = visualTranslationY
+                                        scaleX = if (isDraggingThis) 1.03f else 1f
+                                        scaleY = if (isDraggingThis) 1.03f else 1f
+                                        shadowElevation = if (isDraggingThis) with(density) { 8.dp.toPx() } else 0f
+                                    }
+                                    .pointerInput(link.id) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                val idx = currentLinksState.indexOfFirst { it.id == link.id }
+                                                draggingIndex = if (idx != -1) idx else index
+                                                dragOffsetY = 0f
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                dragOffsetY += dragAmount.y
+                                            },
+                                            onDragEnd = {
+                                                val from = draggingIndex
+                                                val slotH = currentSlotHeightState
+                                                val links = currentLinksState
+                                                val to = if (from != null && slotH > 0f && links.isNotEmpty()) {
+                                                    (from + (dragOffsetY / slotH).roundToInt())
+                                                        .coerceIn(0, links.size - 1)
+                                                } else null
+
+                                                if (from != null && to != null && from != to) {
+                                                    val updated = links.toMutableList().apply {
+                                                        add(to, removeAt(from))
+                                                    }
+                                                    onReorderLinks(updated)
+                                                }
+                                                draggingIndex = null
+                                                dragOffsetY = 0f
+                                            },
+                                            onDragCancel = {
+                                                draggingIndex = null
+                                                dragOffsetY = 0f
+                                            }
+                                        )
+                                    }
+                                    .testTag("custom_search_link_item_${link.id}")
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .testTag("drag_handle_${link.id}"),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.DragHandle,
+                                            contentDescription = "Reorder handle for ${link.name}",
+                                            tint = if (isDraggingThis) Color(0xFFD0BCFF) else Color(0xFF79747E),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(4.dp))
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0xFF2B2930),
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Box(
+                                                contentAlignment = Alignment.Center,
+                                                modifier = Modifier.fillMaxSize()
+                                            ) {
+                                                AsyncImage(
+                                                    model = link.getFaviconUrl(),
+                                                    contentDescription = link.name,
+                                                    modifier = Modifier.size(20.dp),
+                                                    contentScale = ContentScale.Fit
+                                                )
+                                            }
+                                        }
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = link.name,
+                                                    color = Color(0xFFE6E1E5),
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp
+                                                )
+                                                if (!link.subtitle.isNullOrBlank()) {
+                                                    Text(
+                                                        text = "• ${link.subtitle}",
+                                                        color = Color(0xFFCAC4D0),
+                                                        fontSize = 12.sp,
+                                                        maxLines = 1
+                                                    )
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = link.urlTemplate,
+                                                color = Color(0xFF938F99),
+                                                fontSize = 11.sp,
+                                                maxLines = 1
+                                            )
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                link.associatedTypes.forEach { type ->
+                                                    val (label, bgCol, textCol) = when (type) {
+                                                        MediaType.TV -> Triple("TV", Color(0xFF381E72), Color(0xFFEADDFF))
+                                                        MediaType.ANIME -> Triple("Anime", Color(0xFF00382B), Color(0xFF7CE49F))
+                                                        MediaType.MOVIE -> Triple("Movie", Color(0xFF601410), Color(0xFFF2B8B5))
+                                                    }
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = bgCol
+                                                    ) {
+                                                        Text(
+                                                            text = label,
+                                                            color = textCol,
+                                                            fontSize = 9.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        IconButton(
+                                            onClick = { onOpenEditDialog(link) },
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .testTag("edit_link_${link.id}")
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                contentDescription = "Edit ${link.name}",
+                                                tint = Color(0xFFD0BCFF),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+
+                                        IconButton(
+                                            onClick = { onDeleteLink(link) },
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .testTag("delete_link_${link.id}")
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Delete ${link.name}",
+                                                tint = Color(0xFFF2B8B5),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CustomSearchLinkAddEditDialog(
+    editingLink: CustomSearchLink?,
+    inputName: String,
+    onInputNameChange: (String) -> Unit,
+    inputSubtitle: String,
+    onInputSubtitleChange: (String) -> Unit,
+    inputUrlTemplate: TextFieldValue,
+    onInputUrlTemplateChange: (TextFieldValue) -> Unit,
+    inputSelectedTypes: Set<MediaType>,
+    onInputSelectedTypesChange: (Set<MediaType>) -> Unit,
+    formError: String?,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (editingLink == null) "Add Custom Search Link" else "Edit Custom Search Link",
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFE6E1E5)
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = inputName,
+                    onValueChange = onInputNameChange,
+                    label = { Text("Name") },
+                    placeholder = { Text("e.g. Search Service") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("custom_search_link_name_input")
+                )
+
+                OutlinedTextField(
+                    value = inputSubtitle,
+                    onValueChange = onInputSubtitleChange,
+                    label = { Text("Subtitle (Optional)") },
+                    placeholder = { Text("e.g. Search ratings & cast") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("custom_search_link_subtitle_input")
+                )
+
+                OutlinedTextField(
+                    value = inputUrlTemplate,
+                    onValueChange = onInputUrlTemplateChange,
+                    label = { Text("URL Template") },
+                    placeholder = { Text("https://example.com/search?q={TITLE}") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("custom_search_link_url_input")
+                )
+
+                fun insertPlaceholder(placeholder: String) {
+                    val currentText = inputUrlTemplate.text
+                    val selection = inputUrlTemplate.selection
+                    val start = selection.min.coerceIn(0, currentText.length)
+                    val end = selection.max.coerceIn(0, currentText.length)
+
+                    val newText = currentText.substring(0, start) + placeholder + currentText.substring(end)
+                    val newCursorPos = start + placeholder.length
+                    onInputUrlTemplateChange(
+                        TextFieldValue(
+                            text = newText,
+                            selection = TextRange(newCursorPos)
+                        )
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = "Tap placeholder to insert:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFCAC4D0)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf(
+                            "{TITLE}",
+                            "{TITLE_URL_ENCODED}",
+                            "{TITLE_ROMAJI}",
+                            "{TITLE_ROMAJI_URL_ENCODED}",
+                            "{EPISODE_SLUG}",
+                            "{SEASON_SLUG}",
+                            "{SEASON}",
+                            "{EPISODE}"
+                        ).forEach { placeholder ->
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFF2B2930),
+                                border = BorderStroke(1.dp, Color(0xFF49454F)),
+                                modifier = Modifier.clickable {
+                                    insertPlaceholder(placeholder)
+                                }
+                            ) {
+                                Text(
+                                    text = placeholder,
+                                    color = Color(0xFFD0BCFF),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp)
+
+                Column {
+                    Text(
+                        text = "Associated Item Types",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFE6E1E5)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val types = listOf(
+                            MediaType.TV to "TV Show",
+                            MediaType.ANIME to "Anime",
+                            MediaType.MOVIE to "Movie"
+                        )
+                        types.forEach { (type, label) ->
+                            val isSelected = inputSelectedTypes.contains(type)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    onInputSelectedTypesChange(
+                                        if (isSelected) inputSelectedTypes - type else inputSelectedTypes + type
+                                    )
+                                },
+                                label = { Text(label, fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                }
+
+                if (formError != null) {
+                    Text(
+                        text = formError,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                modifier = Modifier.testTag("save_custom_search_link_button")
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun CustomSearchLinkDeleteDialog(
+    link: CustomSearchLink,
+    onConfirmDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Delete Search Link", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Text("Are you sure you want to delete '${link.name}'? This action cannot be undone.")
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirmDelete,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ),
+                modifier = Modifier.testTag("confirm_delete_search_link_button")
+            ) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
