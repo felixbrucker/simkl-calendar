@@ -160,10 +160,6 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 val navController = rememberNavController()
 
-                LaunchedEffect(intent) {
-                    handleNotificationNavigation(intent, navController)
-                }
-
                 SimklCalendarApp(
                     navController = navController,
                     viewModel = viewModel,
@@ -171,6 +167,10 @@ class MainActivity : ComponentActivity() {
                         launchAuthTab(authUrl, "simklcalendar")
                     }
                 )
+
+                LaunchedEffect(intent) {
+                    handleNotificationNavigation(intent, navController)
+                }
             }
         }
     }
