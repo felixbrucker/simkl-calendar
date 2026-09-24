@@ -48,8 +48,11 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
 
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 
+                // Update notification for the item that was just downloaded (if active)
                 notificationManager.updateNotification(item)
 
+                // If it's a TV show/anime episode, also check if there's an active season finale
+                // notification that needs updating to reflect the new aggregate download status.
                 val season = item.season
                 if (season != null) {
                     val finaleItem = calendarItemDao.getSeasonFinaleItem(item.simklId, season)

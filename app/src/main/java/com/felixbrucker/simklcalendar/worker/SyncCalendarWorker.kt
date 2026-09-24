@@ -32,6 +32,7 @@ class SyncCalendarWorker @AssistedInject constructor(
             return Result.success()
         }
         return try {
+            // Perform full calendar synchronization
             syncRepository.syncCalendar()
 
             Timber.tag(TAG).d("Periodic calendar synchronization succeeded")
@@ -46,6 +47,10 @@ class SyncCalendarWorker @AssistedInject constructor(
         private const val TAG = "SyncCalendarWorker"
         const val UNIQUE_WORK_NAME = "simkl_periodic_calendar_sync"
 
+        /**
+         * Enqueues a periodic background sync with configurable interval (in hours, min 1 hour or 15 mins for WorkManager).
+         * Runs reliably even when the app is in background or closed.
+         */
         fun enqueuePeriodicSync(context: Context, intervalHours: Long = 12) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)

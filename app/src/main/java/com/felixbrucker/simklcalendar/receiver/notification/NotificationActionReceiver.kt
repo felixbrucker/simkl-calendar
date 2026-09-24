@@ -162,16 +162,20 @@ class NotificationActionReceiver: BroadcastReceiver() {
             try {
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 
+                // Update status to WANTED first
                 calendarRepository.updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
 
+                // Refresh item from DB
                 val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 
+                // Trigger search and download
                 try {
                     downloadRepository.searchAndDownloadEpisode(updatedItem)
                 } finally {
                     torrentServiceHelper.unbind()
                 }
 
+                // Refetch again to reflect intermediate state change (WANTED -> DOWNLOADING / IGNORED)
                 val finalItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
                 notificationManager.updateNotification(
                     item = finalItem
@@ -217,12 +221,14 @@ class NotificationActionReceiver: BroadcastReceiver() {
                     calendarRepository.updateMediaStatus(ignored.primaryKey, MediaStatus.WANTED)
                 }
 
+                // Trigger batch search and download for all WANTED items
                 try {
                     downloadRepository.searchAndDownloadWantedItems()
                 } finally {
                     torrentServiceHelper.unbind()
                 }
 
+                // Update the notification that triggered this to reflect new season aggregate status
                 val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
                 notificationManager.updateNotification(
                     item = updatedItem
