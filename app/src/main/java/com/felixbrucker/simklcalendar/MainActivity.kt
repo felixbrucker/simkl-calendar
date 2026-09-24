@@ -193,8 +193,8 @@ class MainActivity : ComponentActivity() {
 
         val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
         if (!itemKey.isNullOrEmpty()) {
-            notificationManager.removeActiveNotification(itemKey)
             navigateToReleaseDetail(navController, itemKey)
+            notificationManager.removeActiveNotification(itemKey)
         }
     }
 
