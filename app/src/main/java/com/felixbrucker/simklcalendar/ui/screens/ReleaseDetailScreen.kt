@@ -462,11 +462,13 @@ fun ReleaseDetailScreen(
                     if (activeItem.type != MediaType.MOVIE) {
                         val sNum = activeItem.season ?: 1
                         val seasonLabel = activeItem.formattedSeasonLabel
-
                         val (isSeasonFullyWatched, _, _) = getSeasonWatchStatus(sNum)
 
-                        Button(
-                            onClick = {
+                        SeasonWatchButton(
+                            isMarkingWatched = isMarkingWatched,
+                            isSeasonFullyWatched = isSeasonFullyWatched,
+                            seasonLabel = seasonLabel,
+                            onMarkSeasonWatched = {
                                 viewModel.markSeasonWatched(
                                     simklId = activeItem.simklId,
                                     season = sNum,
@@ -495,49 +497,8 @@ fun ReleaseDetailScreen(
                                         scope.launch { snackbarHostState.showSnackbar(msg) }
                                     }
                                 }
-                            },
-                            enabled = !isMarkingWatched && !isSeasonFullyWatched,
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSeasonFullyWatched) Color(0xFF2E6543) else Color(0xFF4F378B),
-                                contentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFFEADDFF),
-                                disabledContainerColor = if (isSeasonFullyWatched) Color(0xFF1E3A2B) else Color(0xFF3B383E),
-                                disabledContentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFF79747E)
-                            ),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            if (isMarkingWatched) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = Color(0xFFEADDFF)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
-                            } else if (isSeasonFullyWatched) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "$seasonLabel Watched",
-                                    fontWeight = FontWeight.Bold
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Mark $seasonLabel as Watched",
-                                    fontWeight = FontWeight.Bold
-                                )
                             }
-                        }
+                        )
                     }
 
                     CustomSearchLinksCard(
@@ -750,6 +711,60 @@ fun ReleaseDetailScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SeasonWatchButton(
+    isMarkingWatched: Boolean,
+    isSeasonFullyWatched: Boolean,
+    seasonLabel: String,
+    onMarkSeasonWatched: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onMarkSeasonWatched,
+        enabled = !isMarkingWatched && !isSeasonFullyWatched,
+        modifier = modifier.fillMaxWidth().height(48.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSeasonFullyWatched) Color(0xFF2E6543) else Color(0xFF4F378B),
+            contentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFFEADDFF),
+            disabledContainerColor = if (isSeasonFullyWatched) Color(0xFF1E3A2B) else Color(0xFF3B383E),
+            disabledContentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFF79747E)
+        ),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        if (isMarkingWatched) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = Color(0xFFEADDFF)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
+        } else if (isSeasonFullyWatched) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "$seasonLabel Watched",
+                fontWeight = FontWeight.Bold
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Mark $seasonLabel as Watched",
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
