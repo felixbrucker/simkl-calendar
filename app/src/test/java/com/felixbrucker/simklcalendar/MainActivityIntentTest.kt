@@ -8,7 +8,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.arch.core.executor.ArchTaskExecutor
 import androidx.arch.core.executor.TaskExecutor
-import androidx.navigation.NavHostController
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.LocalItemState
@@ -42,7 +41,6 @@ class MainActivityIntentTest {
     private lateinit var context: Context
     private lateinit var oAuthRepository: OAuthRepository
     private lateinit var notificationManager: NotificationManager
-    private lateinit var navController: NavHostController
     private lateinit var mainActivity: MainActivity
 
     @Before
@@ -90,7 +88,6 @@ class MainActivityIntentTest {
         context = mockk(relaxed = true)
         oAuthRepository = mockk(relaxed = true)
         notificationManager = mockk(relaxed = true)
-        navController = mockk(relaxed = true)
 
         mainActivity = spyk(MainActivity())
         mainActivity.oAuthRepository = oAuthRepository
@@ -127,9 +124,10 @@ class MainActivityIntentTest {
         val intent = mockk<Intent>()
         every { intent.data } returns Uri.parse("simklcalendar://other")
 
-        mainActivity.handleNotificationNavigation(intent, navController)
+        mainActivity.handleNotificationNavigation(intent)
 
         coVerify(exactly = 0) { notificationManager.removeActiveNotification(any()) }
+        assertEquals(mainActivity.pendingReleaseDetailKey.value, null)
     }
 
     @Test
@@ -138,9 +136,10 @@ class MainActivityIntentTest {
         every { intent.data } returns Uri.parse("simklcalendar://release_detail")
         every { intent.getStringExtra(MainActivity.EXTRA_ITEM_KEY) } returns "v2_100_1_1"
 
-        mainActivity.handleNotificationNavigation(intent, navController)
+        mainActivity.handleNotificationNavigation(intent)
 
         coVerify { notificationManager.removeActiveNotification("v2_100_1_1") }
+        assertEquals(mainActivity.pendingReleaseDetailKey.value, "v2_100_1_1")
     }
 
     @Test
