@@ -12,16 +12,21 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.browser.auth.AuthTabIntent
 import androidx.browser.customtabs.CustomTabsClient
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -40,6 +45,7 @@ import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
 import com.felixbrucker.simklcalendar.ui.screens.LogViewerScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
+import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
@@ -53,28 +59,21 @@ import dagger.hilt.android.AndroidEntryPoint
 
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
-import com.felixbrucker.simklcalendar.data.preferences.UiRepository
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
-import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.data.repository.OAuthRepository
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val viewModel: CalendarViewModel by viewModels()
 
     @Inject
-    lateinit var repository: SimklRepository
-
-    @Inject
-    lateinit var uiRepo: UiRepository
+    lateinit var oAuthRepository: OAuthRepository
 
     @Inject
     lateinit var appSettingsRepo: AppSettingsRepository
 
     @Inject
     lateinit var autoDownloadRepo: AutoDownloadRepository
-
-    @Inject
-    lateinit var torrentServiceHelper: TorrentServiceHelper
 
     @Inject
     lateinit var notificationManager: NotificationManager
@@ -131,7 +130,7 @@ class MainActivity : ComponentActivity() {
                 .map { it.searchIntervalHours }
                 .distinctUntilChanged()
                 .collect { searchIntervalHours ->
-                    if (torrentServiceHelper.isServiceInstalled()) {
+                    if (viewModel.isTorrentServiceInstalled()) {
                         AutoDownloadWorker.enqueuePeriodicSearch(
                             this@MainActivity,
                             searchIntervalHours.toLong()
@@ -150,8 +149,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme {
                 SimklCalendarApp(
-                    repository = repository,
-                    uiRepo = uiRepo,
+                    viewModel = viewModel,
                     onLaunchAuthTab = { authUrl ->
                         launchAuthTab(authUrl, "simklcalendar")
                     }
@@ -191,7 +189,7 @@ class MainActivity : ComponentActivity() {
 
         if (!itemKey.isNullOrEmpty()) {
             notificationManager.removeActiveNotification(itemKey)
-            uiRepo.setPendingDetailKey(itemKey)
+            viewModel.setPendingDetailKey(itemKey)
         }
     }
 
@@ -205,18 +203,11 @@ class MainActivity : ComponentActivity() {
             val code = uri.getQueryParameter("code")
             val state = uri.getQueryParameter("state")
             if (!code.isNullOrEmpty()) {
-                lifecycleScope.launch {
-                    val success = repository.exchangeOAuthCode(
-                        code = code,
-                        state = state,
-                        redirectUri = "simklcalendar://auth"
-                    )
-                    if (success) {
-                        Toast.makeText(this@MainActivity, "Successfully authenticated with Simkl", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(this@MainActivity, "Authentication failed. Please try again.", Toast.LENGTH_LONG).show()
-                    }
-                }
+                oAuthRepository.onOAuthCodeReceived(
+                    code = code,
+                    state = state,
+                    redirectUri = "simklcalendar://auth"
+                )
             }
         }
     }
@@ -228,25 +219,32 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SimklCalendarApp(
-    repository: SimklRepository,
-    uiRepo: UiRepository,
+    viewModel: CalendarViewModel,
     onLaunchAuthTab: (url: String) -> Unit = {}
 ) {
     val navController = rememberNavController()
-    val userToken by repository.activeUserToken.collectAsState(initial = null)
-    val pendingDetailKey by uiRepo.pendingDetailKey.collectAsState()
+    val authState by viewModel.authState.collectAsState()
+    val pendingDetailKey by viewModel.pendingDetailKey.collectAsState()
     val context = LocalContext.current
 
+    // Don't render navigation until we know if the user is logged in or not
+    if (!authState.isReady) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Color(0xFFD0BCFF))
+        }
+        return
+    }
+
     // Automatically navigate to detail when an item key is provided via notification or deep link
-    LaunchedEffect(pendingDetailKey, userToken) {
+    LaunchedEffect(pendingDetailKey, authState.token) {
         val targetKey = pendingDetailKey
-        val token = userToken
+        val token = authState.token
         if (targetKey != null && token != null) {
             val encodedKey = URLEncoder.encode(targetKey, "UTF-8")
             navController.navigate("release_detail/$encodedKey") {
                 launchSingleTop = true
             }
-            uiRepo.clearPendingDetailKey()
+            viewModel.clearPendingDetailKey()
         }
     }
 
@@ -268,8 +266,8 @@ fun SimklCalendarApp(
 
     // Determine initial active route exactly once when auth state is ready to avoid graph resets.
     // We key by the 'is logged in' state to satisfy the lint while keeping the destination stable.
-    val startDestination = remember(userToken == null) {
-        if (userToken == null) "login" else "calendar"
+    val startDestination = remember(authState.token == null) {
+        if (authState.token == null) "login" else "calendar"
     }
 
     NavHost(
@@ -293,7 +291,7 @@ fun SimklCalendarApp(
             // 2. Calendar Schedule Dashboard
             composable("calendar") {
                 MainScreen(
-                    viewModel = hiltViewModel(),
+                    viewModel = viewModel,
                     onNavigateToSettings = {
                         navController.navigate("settings") {
                             launchSingleTop = true
@@ -348,7 +346,7 @@ fun SimklCalendarApp(
                     rawKey
                 }
                 ReleaseDetailScreen(
-                    viewModel = hiltViewModel(),
+                    viewModel = viewModel,
                     itemKey = itemKey,
                     onNavigateBack = {
                         navController.popBackStack()
@@ -366,7 +364,7 @@ fun SimklCalendarApp(
             ) { backStackEntry ->
                 val simklId = backStackEntry.arguments?.getInt("simklId") ?: 0
                 WatchlistItemDetailScreen(
-                    viewModel = hiltViewModel(),
+                    viewModel = viewModel,
                     simklId = simklId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToEpisode = { itemKey ->
