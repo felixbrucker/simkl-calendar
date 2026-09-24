@@ -35,7 +35,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.URLEncoder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -363,12 +362,7 @@ fun CalendarItemWithWatchlist.makeOpenReleaseDetailViewIntent(context: Context):
     val openIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         putExtra(MainActivity.EXTRA_ITEM_KEY, primaryKey)
-        val encodedKey = try {
-            URLEncoder.encode(primaryKey, "UTF-8")
-        } catch (_: Exception) {
-            primaryKey
-        }
-        data = "simklcalendar://release_detail/$encodedKey".toUri()
+        data = "simklcalendar://release_detail".toUri()
     }
 
     return PendingIntent.getActivity(

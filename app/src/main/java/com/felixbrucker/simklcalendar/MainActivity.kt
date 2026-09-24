@@ -160,10 +160,6 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 val navController = rememberNavController()
 
-                LaunchedEffect(intent) {
-                    handleNotificationNavigation(intent, navController)
-                }
-
                 SimklCalendarApp(
                     navController = navController,
                     viewModel = viewModel,
@@ -171,6 +167,10 @@ class MainActivity : ComponentActivity() {
                         launchAuthTab(authUrl, "simklcalendar")
                     }
                 )
+
+                LaunchedEffect(intent) {
+                    handleNotificationNavigation(intent, navController)
+                }
             }
         }
     }
@@ -188,41 +188,32 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun handleNotificationNavigation(intent: Intent?, navController: NavHostController) {
-        if (intent == null) return
-        val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
-            ?: if (intent.data?.scheme == "simklcalendar" && intent.data?.host == "detail") {
-                intent.data?.lastPathSegment?.let { segment ->
-                    try {
-                        URLDecoder.decode(segment, "UTF-8")
-                    } catch (_: Exception) {
-                        segment
-                    }
-                }
-            } else null
+    internal suspend fun handleNotificationNavigation(intent: Intent?, navController: NavHostController) {
+        if (intent?.data != "simklcalendar://release_detail".toUri()) return
 
+        val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
         if (!itemKey.isNullOrEmpty()) {
-            notificationManager.removeActiveNotification(itemKey)
             navigateToReleaseDetail(navController, itemKey)
+            notificationManager.removeActiveNotification(itemKey)
         }
     }
 
-    private fun handleOAuthUri(uri: Uri) {
-        if (uri.scheme == "simklcalendar") {
-            val iss = uri.getQueryParameter("iss")
-            if (iss != null && iss != "https://simkl.com" && iss != "https://simkl.com/") {
-                Toast.makeText(this, "Authorization response did not come from Simkl", Toast.LENGTH_LONG).show()
-                return
-            }
-            val code = uri.getQueryParameter("code")
-            val state = uri.getQueryParameter("state") ?: ""
-            if (!code.isNullOrEmpty()) {
-                oAuthRepository.onOAuthCodeReceived(
-                    code = code,
-                    state = state,
-                    redirectUri = "simklcalendar://auth"
-                )
-            }
+    internal fun handleOAuthUri(uri: Uri) {
+        if (uri.scheme != "simklcalendar" || uri.host != "auth") return
+
+        val iss = uri.getQueryParameter("iss")
+        if (iss != null && iss != "https://simkl.com" && iss != "https://simkl.com/") {
+            Toast.makeText(this, "Authorization response did not come from Simkl", Toast.LENGTH_LONG).show()
+            return
+        }
+        val code = uri.getQueryParameter("code")
+        val state = uri.getQueryParameter("state") ?: ""
+        if (!code.isNullOrEmpty()) {
+            oAuthRepository.onOAuthCodeReceived(
+                code = code,
+                state = state,
+                redirectUri = "simklcalendar://auth"
+            )
         }
     }
 
