@@ -46,10 +46,15 @@ class UserRepository @Inject constructor(
 ) {
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
 
+    // Check if client ID is configured in BuildConfig
     fun isRealApiConfigured(): Boolean {
         return BuildConfig.SIMKL_CLIENT_ID.isNotEmpty()
     }
 
+    /**
+     * Prepares PKCE authorization URL with state and stores code_verifier & state in SharedPreferences
+     * for CSRF protection and verification during the OAuth redirect callback.
+     */
     fun createAuthorizationUrl(redirectUri: String = "simklcalendar://auth"): String? {
         val clientId = BuildConfig.SIMKL_CLIENT_ID.ifEmpty { return null }
         val codeVerifier = PkceUtil.generateCodeVerifier()
@@ -77,6 +82,9 @@ class UserRepository @Inject constructor(
         return "https://simkl.com/oauth2/authorize?$queryString"
     }
 
+    /**
+     * Clears only the active user token to prompt re-authentication without clearing any user data or preferences.
+     */
     private suspend fun clearUserTokenOnly(isV1Upgrade: Boolean = false) = withContext(Dispatchers.IO) {
         Timber.tag("UserRepository").w("Clearing active user token (isV1Upgrade=$isV1Upgrade) while retaining all local user data and preferences.")
         tokenDao.clearUserToken()
@@ -85,6 +93,11 @@ class UserRepository @Inject constructor(
         }
     }
 
+    /**
+     * Resets active user authentication if legacy Auth V1 token or an expired refresh token is detected.
+     * 1) Legacy Auth V1 token (not prefixed with "simkl_at_" or missing a refresh token): clears user token and sets Auth V2 upgrade hint flag.
+     * 2) Expired refresh token (after 180 days): clears user token.
+     */
     suspend fun resetAuthIfNeeded(): Unit = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken() ?: return@withContext
 
@@ -150,6 +163,7 @@ class UserRepository @Inject constructor(
                 return@withContext false
             }
 
+            // 1. Exchange code for access token via POST /oauth2/token using PKCE flow
             val response = publicSimklApiService.getAccessToken(
                 request = OAuthTokenRequest(
                     code = code,
@@ -169,9 +183,11 @@ class UserRepository @Inject constructor(
             val accessTokenExpiresAt = Instant.now().plusSeconds(response.expiresIn)
             val refreshTokenExpiresAt = Instant.now().plus(180, ChronoUnit.DAYS)
 
+            // Successfully received token: clear stored PKCE parameters and upgrade hint
             authRepo.clearPkceParams()
             authRepo.setShowAuthV2UpgradeHint(false)
 
+            // 2. Insert user token into database so @Authenticated interceptor can retrieve it
             tokenDao.insertUserToken(
                 UserToken(
                     accessToken = accessToken,
@@ -182,6 +198,7 @@ class UserRepository @Inject constructor(
                 )
             )
 
+            // 3. Fetch user profile from POST /users/settings to update the user's name
             val username = try {
                 val userResponse = authenticatedSimklApiService.getUserSettings()
                 userResponse.user.name
