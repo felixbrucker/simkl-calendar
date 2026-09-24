@@ -88,20 +88,6 @@ fun SettingsScreen(
             alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
         }
     }
-    val enableDefaultAiring = notificationPrefs.defaultNotifyAiring
-    val enableDefaultSeasonFinished = notificationPrefs.defaultNotifySeasonFinished
-    val enableDefaultMovieTheater = notificationPrefs.defaultNotifyMovieTheater
-    val enableDefaultMovieDigital = notificationPrefs.defaultNotifyMovieDigital
-
-    val autoQuality = autoDownloadPrefs.quality
-    val autoPreferHevc = autoDownloadPrefs.preferHevc
-    val autoDownloadUnwatchedTv = autoDownloadPrefs.autoDownloadUnwatchedTv
-    val autoDownloadUnwatchedAnime = autoDownloadPrefs.autoDownloadUnwatchedAnime
-    val autoDownloadUnwatchedMovie = autoDownloadPrefs.autoDownloadUnwatchedMovie
-    val autoDownloadSeasonUnwatchedTv = autoDownloadPrefs.autoDownloadSeasonUnwatchedTv
-    val autoDownloadSeasonUnwatchedAnime = autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime
-    val autoPreferredKeywords = autoDownloadPrefs.preferredKeywords
-    val autoIgnoreKeywords = autoDownloadPrefs.ignoreKeywords
 
     var syncIntervalHours by remember(appSettings.syncIntervalHours) {
         mutableFloatStateOf(appSettings.syncIntervalHours.toFloat())
@@ -180,645 +166,99 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // User Segment
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = BorderStroke(1.dp, Color(0xFF49454F))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Session Status", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                "Logged in as",
-                                fontSize = 13.sp,
-                                color = Color(0xFFCAC4D0)
-                            )
-                            Text(
-                                userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                color = Color(0xFFD0BCFF)
-                            )
-                        }
-
-                        Button(
-                            onClick = {
-                                viewModel.logoutUser()
-                                onNavigateBack()
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Logout", fontSize = 14.sp)
-                        }
-                    }
+            SettingsUserSessionCard(
+                username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
+                onLogout = {
+                    viewModel.logoutUser()
+                    onNavigateBack()
                 }
-            }
-
+            )
 
             // Background Sync Interval Configuration Card
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = BorderStroke(1.dp, Color(0xFF49454F))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Sync,
-                                contentDescription = null,
-                                tint = Color(0xFFD0BCFF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Background Sync Interval",
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFE6E1E5),
-                                fontSize = 16.sp
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF4A4458)
-                        ) {
-                            Text(
-                                text = "${syncIntervalHours.roundToInt()} hrs",
-                                color = Color(0xFFD0BCFF),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        "Sets how frequently the app runs background checks to discover new episode releases and sync your watchlist.",
-                        color = Color(0xFFCAC4D0),
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Slider(
-                        value = syncIntervalHours,
-                        onValueChange = { newValue ->
-                            syncIntervalHours = newValue
-                        },
-                        onValueChangeFinished = {
-                            val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
-                            viewModel.updateSyncInterval(roundedHours)
-                        },
-                        valueRange = 1f..24f,
-                        steps = 22, // 1 to 24 with 1-hour increments -> 22 discrete intermediate steps
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFD0BCFF),
-                            activeTrackColor = Color(0xFFD0BCFF),
-                            inactiveTrackColor = Color(0xFF49454F),
-                            activeTickColor = Color.Transparent,
-                            inactiveTickColor = Color.Transparent
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("1 hour (frequent)", color = Color(0xFF938F99), fontSize = 11.sp)
-                        Text("12 hours (default)", color = Color(0xFF938F99), fontSize = 11.sp)
-                        Text("24 hours (daily)", color = Color(0xFF938F99), fontSize = 11.sp)
-                    }
+            SettingsSyncIntervalCard(
+                syncIntervalHours = syncIntervalHours,
+                onSyncIntervalChange = { syncIntervalHours = it },
+                onSyncIntervalChangeFinished = {
+                    val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
+                    viewModel.updateSyncInterval(roundedHours)
                 }
-            }
+            )
 
             // Notification Setup Defaults Card
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = BorderStroke(1.dp, Color(0xFF49454F))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Default Alerts (New Items)", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "Sets default alert preferences when new shows or movies are synced. Individual settings in Release Details will always take precedence.",
-                        color = Color(0xFFCAC4D0),
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // TV Shows & Anime Section Header
-                    Text(
-                        text = "TV Shows & Anime",
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFD0BCFF),
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Show toggle 1: Airing Notifications
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Airing Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text("Default to alert as soon as each episode is ready to stream.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = enableDefaultAiring,
-                            onCheckedChange = {
-                                viewModel.updateDefaultNotifyAiring(it)
-                                if (it) checkAndRequestPermission()
-                            }
-                        )
-                    }
-
-                    // Show toggle 2: Season Finished Airing
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Season Finished Airing", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text("Default to notify when a full TV Show or Anime season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = enableDefaultSeasonFinished,
-                            onCheckedChange = {
-                                viewModel.updateDefaultNotifySeasonFinished(it)
-                                if (it) checkAndRequestPermission()
-                            }
-                        )
-                    }
-
-                    HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-                    // Movies Section Header
-                    Text(
-                        text = "Movies",
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFF2B8B5),
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Movie toggle 1: Theater Release Notifications
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Theater Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text("Default to notify on the movie's theatrical release date.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = enableDefaultMovieTheater,
-                            onCheckedChange = {
-                                viewModel.updateDefaultNotifyMovieTheater(it)
-                                if (it) checkAndRequestPermission()
-                            }
-                        )
-                    }
-
-                    // Movie toggle 2: Digital / DVD Release Notifications
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Digital / DVD Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text("Default to notify when the movie releases digitally or on DVD.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = enableDefaultMovieDigital,
-                            onCheckedChange = {
-                                viewModel.updateDefaultNotifyMovieDigital(it)
-                                if (it) checkAndRequestPermission()
-                            }
-                        )
-                    }
+            SettingsDefaultAlertsCard(
+                enableDefaultAiring = notificationPrefs.defaultNotifyAiring,
+                enableDefaultSeasonFinished = notificationPrefs.defaultNotifySeasonFinished,
+                enableDefaultMovieTheater = notificationPrefs.defaultNotifyMovieTheater,
+                enableDefaultMovieDigital = notificationPrefs.defaultNotifyMovieDigital,
+                onUpdateDefaultNotifyAiring = {
+                    viewModel.updateDefaultNotifyAiring(it)
+                    if (it) checkAndRequestPermission()
+                },
+                onUpdateDefaultNotifySeasonFinished = {
+                    viewModel.updateDefaultNotifySeasonFinished(it)
+                    if (it) checkAndRequestPermission()
+                },
+                onUpdateDefaultNotifyMovieTheater = {
+                    viewModel.updateDefaultNotifyMovieTheater(it)
+                    if (it) checkAndRequestPermission()
+                },
+                onUpdateDefaultNotifyMovieDigital = {
+                    viewModel.updateDefaultNotifyMovieDigital(it)
+                    if (it) checkAndRequestPermission()
                 }
-            }
+            )
 
             // Battery Optimization Card
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = BorderStroke(1.dp, Color(0xFF49454F)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))
-                            Text("Battery Optimization", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+            SettingsBatteryOptimizationCard(
+                useExactAlarms = notificationPrefs.useExactAlarms,
+                hasExactAlarmPermission = hasExactAlarmPermission,
+                onUpdateUseExactAlarms = {
+                    viewModel.updateUseExactAlarms(it)
+                    if (it) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
+                            alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Use Exact Alarms", color = Color(0xFFE6E1E5), fontSize = 14.sp)
-                            Text(
-                                "Exact alarms ensure notifications arrive at the precise airing time but may increase battery consumption.",
-                                color = Color(0xFFCAC4D0),
-                                fontSize = 12.sp
-                            )
-                        }
-                        Switch(
-                            checked = notificationPrefs.useExactAlarms,
-                            onCheckedChange = {
-                                viewModel.updateUseExactAlarms(it)
-                                if (it) {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
-                                        alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
-                                    }
-                                }
-                                viewModel.scheduleAllItemsAiredAlarms()
-                            }
-                        )
-                    }
-
-                    if (notificationPrefs.useExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Card(
-                            shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF3B2D2C)),
-                            border = BorderStroke(1.dp, Color(0xFFF2B8B5))
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        Icons.Default.Warning,
-                                        contentDescription = null,
-                                        tint = Color(0xFFF2B8B5),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        "Exact Alarms Required",
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFF2B8B5),
-                                        fontSize = 14.sp
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    "To ensure notifications are delivered exactly when they air, the app needs permission to schedule exact alarms.",
-                                    color = Color(0xFFCAC4D0),
-                                    fontSize = 12.sp
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Button(
-                                    onClick = {
-                                        alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF601410),
-                                        contentColor = Color(0xFFF2B8B5)
-                                    ),
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("Grant Permission", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
+                    viewModel.scheduleAllItemsAiredAlarms()
+                },
+                onGrantExactAlarmPermission = {
+                    alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
                 }
-            }
+            )
 
             // Automatic Downloads Card
             val isDownloaderInstalled = remember { viewModel.isTorrentServiceInstalled() }
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = BorderStroke(1.dp, Color(0xFF49454F)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .alpha(if (isDownloaderInstalled) 1f else 0.5f)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))
-                            Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
-                        }
-                        if (isDownloaderInstalled) {
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = Color(0xFF1E3A2B),
-                                contentColor = Color(0xFF7CE49F)
-                            ) {
-                                Text(
-                                    "AVAILABLE",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        } else {
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = Color(0xFF3B383E),
-                                contentColor = Color(0xFFCAC4D0)
-                            ) {
-                                Text(
-                                    "UNAVAILABLE",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "Configure how the app interacts with the external Torrent Downloader service.",
-                        color = Color(0xFFCAC4D0),
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-
-                    if (!isDownloaderInstalled) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Downloader app not found. Please install the Torrent Downloader service to enable these features.",
-                            color = Color(0xFFF2B8B5),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Quality Selection
-                    Text("Preferred Quality", color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("4K", "1080p", "720p").forEach { quality ->
-                            val isSelected = autoQuality == quality
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { viewModel.updateAutoDownloadQuality(quality) },
-                                label = { Text(quality) },
-                                enabled = isDownloaderInstalled
-                            )
-                        }
-                    }
-
-                    // HEVC Toggle
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Prefer HEVC / x265", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                            Text("Prioritize high efficiency video coding results.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = autoPreferHevc,
-                            onCheckedChange = { viewModel.updateAutoDownloadPreferHevc(it) },
-                            enabled = isDownloaderInstalled
-                        )
-                    }
-
-                    HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-                    // Default Download Unwatched TV
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Download Unwatched TV Shows", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                            Text("Default setting for newly tracked TV Shows.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = autoDownloadUnwatchedTv,
-                            onCheckedChange = { viewModel.updateAutoDownloadUnwatchedTv(it) },
-                            enabled = isDownloaderInstalled
-                        )
-                    }
-
-                    // Default Download Unwatched Anime
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Download Unwatched Anime", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                            Text("Default setting for newly tracked Anime.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = autoDownloadUnwatchedAnime,
-                            onCheckedChange = { viewModel.updateAutoDownloadUnwatchedAnime(it) },
-                            enabled = isDownloaderInstalled
-                        )
-                    }
-
-                    // Default Download Unwatched Movies
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Download Unwatched Movies", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                            Text("Default setting for newly tracked Movies.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = autoDownloadUnwatchedMovie,
-                            onCheckedChange = { viewModel.updateAutoDownloadUnwatchedMovie(it) },
-                            enabled = isDownloaderInstalled
-                        )
-                    }
-
-                    // Default Download Season Unwatched TV
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Download Season Unwatched TV Shows", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                            Text("Default setting for newly tracked TV Shows.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = autoDownloadSeasonUnwatchedTv,
-                            onCheckedChange = { viewModel.updateAutoDownloadSeasonUnwatchedTv(it) },
-                            enabled = isDownloaderInstalled
-                        )
-                    }
-
-                    // Default Download Season Unwatched Anime
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Download Season Unwatched Anime", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                            Text("Default setting for newly tracked Anime.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = autoDownloadSeasonUnwatchedAnime,
-                            onCheckedChange = { viewModel.updateAutoDownloadSeasonUnwatchedAnime(it) },
-                            enabled = isDownloaderInstalled
-                        )
-                    }
-
-                    HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-                    // Periodic Torrent Search Interval Configuration
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Periodic Torrent Search",
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFE6E1E5),
-                                    fontSize = 15.sp
-                                )
-                                Text(
-                                    "Sets how frequently the app searches for torrents for episodes in 'Wanted' status.",
-                                    color = Color(0xFFCAC4D0),
-                                    fontSize = 12.sp,
-                                    lineHeight = 16.sp
-                                )
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = Color(0xFF4A4458)
-                            ) {
-                                Text(
-                                    text = "${searchIntervalHours.roundToInt()} hrs",
-                                    color = Color(0xFFD0BCFF),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Slider(
-                            value = searchIntervalHours,
-                            onValueChange = { newValue ->
-                                searchIntervalHours = newValue
-                            },
-                            onValueChangeFinished = {
-                                val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
-                                viewModel.updateSearchInterval(roundedHours)
-                            },
-                            enabled = isDownloaderInstalled,
-                            valueRange = 1f..24f,
-                            steps = 22,
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color(0xFFD0BCFF),
-                                activeTrackColor = Color(0xFFD0BCFF),
-                                inactiveTrackColor = Color(0xFF49454F),
-                                activeTickColor = Color.Transparent,
-                                inactiveTickColor = Color.Transparent
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("1 hour", color = Color(0xFF938F99), fontSize = 11.sp)
-                            Text("12 hours", color = Color(0xFF938F99), fontSize = 11.sp)
-                            Text("24 hours", color = Color(0xFF938F99), fontSize = 11.sp)
-                        }
-                    }
-
-                    HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-                    // Preferred Keywords
-                    KeywordManagerSection(
-                        title = "Preferred Keywords",
-                        subtitle = "Torrents containing these tags will be prioritized. First items take precedence.",
-                        keywords = autoPreferredKeywords,
-                        onAdd = { viewModel.addPreferredKeyword(it) },
-                        onRemove = { viewModel.removePreferredKeyword(it) },
-                        onReorder = { viewModel.updatePreferredKeywordsOrder(it) },
-                        enabled = isDownloaderInstalled
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Ignore Keywords
-                    KeywordManagerSection(
-                        title = "Ignore Keywords",
-                        subtitle = "Torrents containing these tags will be skipped.",
-                        keywords = autoIgnoreKeywords,
-                        onAdd = { viewModel.addIgnoreKeyword(it) },
-                        onRemove = { viewModel.removeIgnoreKeyword(it) },
-                        onReorder = { viewModel.updateIgnoreKeywordsOrder(it) },
-                        enabled = isDownloaderInstalled,
-                        color = Color(0xFFF2B8B5)
-                    )
-                }
-            }
+            SettingsAutomaticDownloadsCard(
+                isDownloaderInstalled = isDownloaderInstalled,
+                autoQuality = autoDownloadPrefs.quality,
+                autoPreferHevc = autoDownloadPrefs.preferHevc,
+                autoDownloadUnwatchedTv = autoDownloadPrefs.autoDownloadUnwatchedTv,
+                autoDownloadUnwatchedAnime = autoDownloadPrefs.autoDownloadUnwatchedAnime,
+                autoDownloadUnwatchedMovie = autoDownloadPrefs.autoDownloadUnwatchedMovie,
+                autoDownloadSeasonUnwatchedTv = autoDownloadPrefs.autoDownloadSeasonUnwatchedTv,
+                autoDownloadSeasonUnwatchedAnime = autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime,
+                searchIntervalHours = searchIntervalHours,
+                autoPreferredKeywords = autoDownloadPrefs.preferredKeywords,
+                autoIgnoreKeywords = autoDownloadPrefs.ignoreKeywords,
+                onUpdateAutoDownloadQuality = { viewModel.updateAutoDownloadQuality(it) },
+                onUpdateAutoDownloadPreferHevc = { viewModel.updateAutoDownloadPreferHevc(it) },
+                onUpdateAutoDownloadUnwatchedTv = { viewModel.updateAutoDownloadUnwatchedTv(it) },
+                onUpdateAutoDownloadUnwatchedAnime = { viewModel.updateAutoDownloadUnwatchedAnime(it) },
+                onUpdateAutoDownloadUnwatchedMovie = { viewModel.updateAutoDownloadUnwatchedMovie(it) },
+                onUpdateAutoDownloadSeasonUnwatchedTv = { viewModel.updateAutoDownloadSeasonUnwatchedTv(it) },
+                onUpdateAutoDownloadSeasonUnwatchedAnime = { viewModel.updateAutoDownloadSeasonUnwatchedAnime(it) },
+                onSearchIntervalHoursChange = { searchIntervalHours = it },
+                onSearchIntervalHoursChangeFinished = {
+                    val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
+                    viewModel.updateSearchInterval(roundedHours)
+                },
+                onAddPreferredKeyword = { viewModel.addPreferredKeyword(it) },
+                onRemovePreferredKeyword = { viewModel.removePreferredKeyword(it) },
+                onReorderPreferredKeywords = { viewModel.updatePreferredKeywordsOrder(it) },
+                onAddIgnoreKeyword = { viewModel.addIgnoreKeyword(it) },
+                onRemoveIgnoreKeyword = { viewModel.removeIgnoreKeyword(it) },
+                onReorderIgnoreKeywords = { viewModel.updateIgnoreKeywordsOrder(it) }
+            )
 
             // Custom Search Links Management Card
             Card(
@@ -1158,136 +598,21 @@ fun SettingsScreen(
             }
 
             // Force Watchlist Re-Sync Card
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = BorderStroke(1.dp, Color(0xFF49454F))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.CloudSync,
-                            contentDescription = null,
-                            tint = Color(0xFFD0BCFF),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Watchlist Synchronization",
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFE6E1E5),
-                            fontSize = 16.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        "Forces a full re-synchronization of your complete SIMKL watchlist and watched history from scratch.",
-                        color = Color(0xFFCAC4D0),
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = {
-                            viewModel.forceWatchlistResync { _, message ->
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(message)
-                                }
-                            }
-                        },
-                        enabled = !isForceSyncing,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4F378B),
-                            contentColor = Color(0xFFEADDFF),
-                            disabledContainerColor = Color(0xFF3B383E),
-                            disabledContentColor = Color(0xFF79747E)
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
-                    ) {
-                        if (isForceSyncing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = Color(0xFFEADDFF)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Re-syncing Watchlist...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        } else {
-                            Icon(
-                                Icons.Default.Refresh,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Force Watchlist Re-Sync", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            SettingsWatchlistResyncCard(
+                isForceSyncing = isForceSyncing,
+                onForceSync = {
+                    viewModel.forceWatchlistResync { _, message ->
+                        scope.launch {
+                            snackbarHostState.showSnackbar(message)
                         }
                     }
                 }
-            }
+            )
 
             // App Logs & Diagnostics Card
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                border = BorderStroke(1.dp, Color(0xFF49454F)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Terminal,
-                            contentDescription = null,
-                            tint = Color(0xFFD0BCFF),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "App Logs & Diagnostics",
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFE6E1E5),
-                            fontSize = 16.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        "View diagnostic logs generated during app operation across current and earlier app runs.",
-                        color = Color(0xFFCAC4D0),
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = onNavigateToLogViewer,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4A4458),
-                            contentColor = Color(0xFFEADDFF)
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth().height(48.dp).testTag("view_logs_button")
-                    ) {
-                        Icon(
-                            Icons.Default.Terminal,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("View Logs", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                }
-            }
+            SettingsAppLogsDiagnosticsCard(
+                onNavigateToLogViewer = onNavigateToLogViewer
+            )
         }
     }
 
@@ -1527,6 +852,798 @@ fun SettingsScreen(
     }
 }
 
+@Composable
+fun SettingsUserSessionCard(
+    username: String,
+    onLogout: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Session Status", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "Logged in as",
+                        fontSize = 13.sp,
+                        color = Color(0xFFCAC4D0)
+                    )
+                    Text(
+                        username,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color(0xFFD0BCFF)
+                    )
+                }
+
+                Button(
+                    onClick = onLogout,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Logout", fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsSyncIntervalCard(
+    syncIntervalHours: Float,
+    onSyncIntervalChange: (Float) -> Unit,
+    onSyncIntervalChangeFinished: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Sync,
+                        contentDescription = null,
+                        tint = Color(0xFFD0BCFF),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Background Sync Interval",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE6E1E5),
+                        fontSize = 16.sp
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF4A4458)
+                ) {
+                    Text(
+                        text = "${syncIntervalHours.roundToInt()} hrs",
+                        color = Color(0xFFD0BCFF),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "Sets how frequently the app runs background checks to discover new episode releases and sync your watchlist.",
+                color = Color(0xFFCAC4D0),
+                fontSize = 12.sp,
+                lineHeight = 16.sp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Slider(
+                value = syncIntervalHours,
+                onValueChange = onSyncIntervalChange,
+                onValueChangeFinished = onSyncIntervalChangeFinished,
+                valueRange = 1f..24f,
+                steps = 22,
+                colors = SliderDefaults.colors(
+                    thumbColor = Color(0xFFD0BCFF),
+                    activeTrackColor = Color(0xFFD0BCFF),
+                    inactiveTrackColor = Color(0xFF49454F),
+                    activeTickColor = Color.Transparent,
+                    inactiveTickColor = Color.Transparent
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("1 hour (frequent)", color = Color(0xFF938F99), fontSize = 11.sp)
+                Text("12 hours (default)", color = Color(0xFF938F99), fontSize = 11.sp)
+                Text("24 hours (daily)", color = Color(0xFF938F99), fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsDefaultAlertsCard(
+    enableDefaultAiring: Boolean,
+    enableDefaultSeasonFinished: Boolean,
+    enableDefaultMovieTheater: Boolean,
+    enableDefaultMovieDigital: Boolean,
+    onUpdateDefaultNotifyAiring: (Boolean) -> Unit,
+    onUpdateDefaultNotifySeasonFinished: (Boolean) -> Unit,
+    onUpdateDefaultNotifyMovieTheater: (Boolean) -> Unit,
+    onUpdateDefaultNotifyMovieDigital: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Default Alerts (New Items)", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Sets default alert preferences when new shows or movies are synced. Individual settings in Release Details will always take precedence.",
+                color = Color(0xFFCAC4D0),
+                fontSize = 12.sp,
+                lineHeight = 16.sp
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "TV Shows & Anime",
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFD0BCFF),
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Airing Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Default to alert as soon as each episode is ready to stream.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = enableDefaultAiring,
+                    onCheckedChange = onUpdateDefaultNotifyAiring
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Season Finished Airing", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Default to notify when a full TV Show or Anime season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = enableDefaultSeasonFinished,
+                    onCheckedChange = onUpdateDefaultNotifySeasonFinished
+                )
+            }
+
+            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+            Text(
+                text = "Movies",
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFF2B8B5),
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Theater Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Default to notify on the movie's theatrical release date.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = enableDefaultMovieTheater,
+                    onCheckedChange = onUpdateDefaultNotifyMovieTheater
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Digital / DVD Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Default to notify when the movie releases digitally or on DVD.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = enableDefaultMovieDigital,
+                    onCheckedChange = onUpdateDefaultNotifyMovieDigital
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsBatteryOptimizationCard(
+    useExactAlarms: Boolean,
+    hasExactAlarmPermission: Boolean,
+    onUpdateUseExactAlarms: (Boolean) -> Unit,
+    onGrantExactAlarmPermission: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))
+                    Text("Battery Optimization", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Use Exact Alarms", color = Color(0xFFE6E1E5), fontSize = 14.sp)
+                    Text(
+                        "Exact alarms ensure notifications arrive at the precise airing time but may increase battery consumption.",
+                        color = Color(0xFFCAC4D0),
+                        fontSize = 12.sp
+                    )
+                }
+                Switch(
+                    checked = useExactAlarms,
+                    onCheckedChange = onUpdateUseExactAlarms
+                )
+            }
+
+            if (useExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF3B2D2C)),
+                    border = BorderStroke(1.dp, Color(0xFFF2B8B5))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFF2B8B5),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Exact Alarms Required",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFF2B8B5),
+                                fontSize = 14.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "To ensure notifications are delivered exactly when they air, the app needs permission to schedule exact alarms.",
+                            color = Color(0xFFCAC4D0),
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = onGrantExactAlarmPermission,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF601410),
+                                contentColor = Color(0xFFF2B8B5)
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Grant Permission", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsAutomaticDownloadsCard(
+    isDownloaderInstalled: Boolean,
+    autoQuality: String,
+    autoPreferHevc: Boolean,
+    autoDownloadUnwatchedTv: Boolean,
+    autoDownloadUnwatchedAnime: Boolean,
+    autoDownloadUnwatchedMovie: Boolean,
+    autoDownloadSeasonUnwatchedTv: Boolean,
+    autoDownloadSeasonUnwatchedAnime: Boolean,
+    searchIntervalHours: Float,
+    autoPreferredKeywords: List<String>,
+    autoIgnoreKeywords: List<String>,
+    onUpdateAutoDownloadQuality: (String) -> Unit,
+    onUpdateAutoDownloadPreferHevc: (Boolean) -> Unit,
+    onUpdateAutoDownloadUnwatchedTv: (Boolean) -> Unit,
+    onUpdateAutoDownloadUnwatchedAnime: (Boolean) -> Unit,
+    onUpdateAutoDownloadUnwatchedMovie: (Boolean) -> Unit,
+    onUpdateAutoDownloadSeasonUnwatchedTv: (Boolean) -> Unit,
+    onUpdateAutoDownloadSeasonUnwatchedAnime: (Boolean) -> Unit,
+    onSearchIntervalHoursChange: (Float) -> Unit,
+    onSearchIntervalHoursChangeFinished: () -> Unit,
+    onAddPreferredKeyword: (String) -> Unit,
+    onRemovePreferredKeyword: (String) -> Unit,
+    onReorderPreferredKeywords: (List<String>) -> Unit,
+    onAddIgnoreKeyword: (String) -> Unit,
+    onRemoveIgnoreKeyword: (String) -> Unit,
+    onReorderIgnoreKeywords: (List<String>) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .alpha(if (isDownloaderInstalled) 1f else 0.5f)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))
+                    Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+                }
+                if (isDownloaderInstalled) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color(0xFF1E3A2B),
+                        contentColor = Color(0xFF7CE49F)
+                    ) {
+                        Text(
+                            "AVAILABLE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color(0xFF3B383E),
+                        contentColor = Color(0xFFCAC4D0)
+                    ) {
+                        Text(
+                            "UNAVAILABLE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Configure how the app interacts with the external Torrent Downloader service.",
+                color = Color(0xFFCAC4D0),
+                fontSize = 12.sp,
+                lineHeight = 16.sp
+            )
+
+            if (!isDownloaderInstalled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Downloader app not found. Please install the Torrent Downloader service to enable these features.",
+                    color = Color(0xFFF2B8B5),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text("Preferred Quality", color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("4K", "1080p", "720p").forEach { quality ->
+                    val isSelected = autoQuality == quality
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onUpdateAutoDownloadQuality(quality) },
+                        label = { Text(quality) },
+                        enabled = isDownloaderInstalled
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Prefer HEVC / x265", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                    Text("Prioritize high efficiency video coding results.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = autoPreferHevc,
+                    onCheckedChange = onUpdateAutoDownloadPreferHevc,
+                    enabled = isDownloaderInstalled
+                )
+            }
+
+            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Download Unwatched TV Shows", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                    Text("Default setting for newly tracked TV Shows.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = autoDownloadUnwatchedTv,
+                    onCheckedChange = onUpdateAutoDownloadUnwatchedTv,
+                    enabled = isDownloaderInstalled
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Download Unwatched Anime", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                    Text("Default setting for newly tracked Anime.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = autoDownloadUnwatchedAnime,
+                    onCheckedChange = onUpdateAutoDownloadUnwatchedAnime,
+                    enabled = isDownloaderInstalled
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Download Unwatched Movies", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                    Text("Default setting for newly tracked Movies.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = autoDownloadUnwatchedMovie,
+                    onCheckedChange = onUpdateAutoDownloadUnwatchedMovie,
+                    enabled = isDownloaderInstalled
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Download Season Unwatched TV Shows", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                    Text("Default setting for newly tracked TV Shows.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = autoDownloadSeasonUnwatchedTv,
+                    onCheckedChange = onUpdateAutoDownloadSeasonUnwatchedTv,
+                    enabled = isDownloaderInstalled
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Download Season Unwatched Anime", color = Color(0xFFE6E1E5), fontSize = 15.sp)
+                    Text("Default setting for newly tracked Anime.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = autoDownloadSeasonUnwatchedAnime,
+                    onCheckedChange = onUpdateAutoDownloadSeasonUnwatchedAnime,
+                    enabled = isDownloaderInstalled
+                )
+            }
+
+            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Periodic Torrent Search",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE6E1E5),
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            "Sets how frequently the app searches for torrents for episodes in 'Wanted' status.",
+                            color = Color(0xFFCAC4D0),
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFF4A4458)
+                    ) {
+                        Text(
+                            text = "${searchIntervalHours.roundToInt()} hrs",
+                            color = Color(0xFFD0BCFF),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Slider(
+                    value = searchIntervalHours,
+                    onValueChange = onSearchIntervalHoursChange,
+                    onValueChangeFinished = onSearchIntervalHoursChangeFinished,
+                    enabled = isDownloaderInstalled,
+                    valueRange = 1f..24f,
+                    steps = 22,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFFD0BCFF),
+                        activeTrackColor = Color(0xFFD0BCFF),
+                        inactiveTrackColor = Color(0xFF49454F),
+                        activeTickColor = Color.Transparent,
+                        inactiveTickColor = Color.Transparent
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("1 hour", color = Color(0xFF938F99), fontSize = 11.sp)
+                    Text("12 hours", color = Color(0xFF938F99), fontSize = 11.sp)
+                    Text("24 hours", color = Color(0xFF938F99), fontSize = 11.sp)
+                }
+            }
+
+            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+            KeywordManagerSection(
+                title = "Preferred Keywords",
+                subtitle = "Torrents containing these tags will be prioritized. First items take precedence.",
+                keywords = autoPreferredKeywords,
+                onAdd = onAddPreferredKeyword,
+                onRemove = onRemovePreferredKeyword,
+                onReorder = onReorderPreferredKeywords,
+                enabled = isDownloaderInstalled
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            KeywordManagerSection(
+                title = "Ignore Keywords",
+                subtitle = "Torrents containing these tags will be skipped.",
+                keywords = autoIgnoreKeywords,
+                onAdd = onAddIgnoreKeyword,
+                onRemove = onRemoveIgnoreKeyword,
+                onReorder = onReorderIgnoreKeywords,
+                enabled = isDownloaderInstalled,
+                color = Color(0xFFF2B8B5)
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsWatchlistResyncCard(
+    isForceSyncing: Boolean,
+    onForceSync: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.CloudSync,
+                    contentDescription = null,
+                    tint = Color(0xFFD0BCFF),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Watchlist Synchronization",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE6E1E5),
+                    fontSize = 16.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "Forces a full re-synchronization of your complete SIMKL watchlist and watched history from scratch.",
+                color = Color(0xFFCAC4D0),
+                fontSize = 12.sp,
+                lineHeight = 16.sp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onForceSync,
+                enabled = !isForceSyncing,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4F378B),
+                    contentColor = Color(0xFFEADDFF),
+                    disabledContainerColor = Color(0xFF3B383E),
+                    disabledContentColor = Color(0xFF79747E)
+                ),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                if (isForceSyncing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Color(0xFFEADDFF)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Re-syncing Watchlist...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                } else {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Force Watchlist Re-Sync", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsAppLogsDiagnosticsCard(
+    onNavigateToLogViewer: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Terminal,
+                    contentDescription = null,
+                    tint = Color(0xFFD0BCFF),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "App Logs & Diagnostics",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE6E1E5),
+                    fontSize = 16.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "View diagnostic logs generated during app operation across current and earlier app runs.",
+                color = Color(0xFFCAC4D0),
+                fontSize = 12.sp,
+                lineHeight = 16.sp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onNavigateToLogViewer,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4A4458),
+                    contentColor = Color(0xFFEADDFF)
+                ),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("view_logs_button")
+            ) {
+                Icon(
+                    Icons.Default.Terminal,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("View Logs", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun KeywordManagerSection(
@@ -1596,8 +1713,6 @@ fun KeywordManagerSection(
                                     }
                                     .graphicsLayer {
                                         if (isDragging) {
-                                            // When dragging in a FlowRow, we need to compensate for the
-                                            // base position shift if we've swapped items.
                                             val currentBaseCenter = itemBounds[keyword]?.center ?: Offset.Zero
                                             if (currentBaseCenter != Offset.Zero && originalCenter != Offset.Zero) {
                                                 translationX = (originalCenter.x + dragOffset.x) - currentBaseCenter.x
@@ -1735,4 +1850,3 @@ fun KeywordManagerSection(
         )
     }
 }
-

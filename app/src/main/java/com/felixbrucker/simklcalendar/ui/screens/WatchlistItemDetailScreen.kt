@@ -185,36 +185,21 @@ fun WatchlistItemDetailScreen(
                         val digitalRelease = episodes.find { it.movieReleaseType == MovieReleaseType.DIGITAL }
                         val digitalOrTheaterRelease = digitalRelease ?: episodes.firstOrNull()
                         if (digitalOrTheaterRelease != null) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                                    .background(Color(0xFF2B2930), RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                ItemWatchedStatusDropdown(
-                                    item = digitalOrTheaterRelease,
-                                    onWatchedStatusChange = { watched ->
-                                        if (watched) {
-                                            viewModel.markMovieWatched(digitalOrTheaterRelease.simklId, digitalOrTheaterRelease.primaryKey, digitalOrTheaterRelease.title) { _, _ -> }
-                                        } else {
-                                            viewModel.markMovieUnwatched(digitalOrTheaterRelease.simklId, digitalOrTheaterRelease.primaryKey, digitalOrTheaterRelease.title) { _, _ -> }
-                                        }
-                                    },
-                                    updatingWatchKeys = updatingWatchKeys
-                                )
-
-                                if (digitalRelease != null) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        ItemMediaStatusDropdown(
-                                            item = digitalRelease,
-                                            onStatusChange = { newStatus -> viewModel.updateMediaStatus(digitalRelease.primaryKey, newStatus) }
-                                        )
+                            MovieSharedActionsCard(
+                                digitalOrTheaterRelease = digitalOrTheaterRelease,
+                                digitalRelease = digitalRelease,
+                                updatingWatchKeys = updatingWatchKeys,
+                                onWatchedStatusChange = { rel, watched ->
+                                    if (watched) {
+                                        viewModel.markMovieWatched(rel.simklId, rel.primaryKey, rel.title) { _, _ -> }
+                                    } else {
+                                        viewModel.markMovieUnwatched(rel.simklId, rel.primaryKey, rel.title) { _, _ -> }
                                     }
+                                },
+                                onMediaStatusChange = { itemKeyToUpdate, newStatus ->
+                                    viewModel.updateMediaStatus(itemKeyToUpdate, newStatus)
                                 }
-                            }
+                            )
                         }
                     }
                 }
@@ -343,6 +328,43 @@ fun WatchlistItemDetailScreen(
     }
 }
 
+@Composable
+fun MovieSharedActionsCard(
+    digitalOrTheaterRelease: CalendarItemWithWatchlist,
+    digitalRelease: CalendarItemWithWatchlist?,
+    updatingWatchKeys: Set<String>,
+    onWatchedStatusChange: (CalendarItemWithWatchlist, Boolean) -> Unit,
+    onMediaStatusChange: (String, MediaStatus) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .background(Color(0xFF2B2930), RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ItemWatchedStatusDropdown(
+            item = digitalOrTheaterRelease,
+            onWatchedStatusChange = { watched -> onWatchedStatusChange(digitalOrTheaterRelease, watched) },
+            updatingWatchKeys = updatingWatchKeys
+        )
+
+        if (digitalRelease != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ItemMediaStatusDropdown(
+                    item = digitalRelease,
+                    onStatusChange = { newStatus -> onMediaStatusChange(digitalRelease.primaryKey, newStatus) }
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun WatchlistItemSummaryStats(
