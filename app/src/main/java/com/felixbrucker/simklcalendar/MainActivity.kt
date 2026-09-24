@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -58,11 +59,16 @@ import dagger.hilt.android.AndroidEntryPoint
 
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
+import com.felixbrucker.simklcalendar.data.repository.OAuthRepository
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val viewModel: CalendarViewModel by viewModels()
+
+    @Inject
+    lateinit var oAuthRepository: OAuthRepository
 
     @Inject
     lateinit var appSettingsRepo: AppSettingsRepository
@@ -72,6 +78,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var notificationManager: NotificationManager
+
+    @Inject
+    lateinit var torrentServiceHelper: TorrentServiceHelper
 
     // Modern AuthTab ActivityResultLauncher
     private val authTabLauncher = AuthTabIntent.registerActivityResultLauncher(this) { result ->
@@ -101,6 +110,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    fun navigateToReleaseDetail(navController: NavHostController, itemKey: String) {
+        val encodedKey = URLEncoder.encode(itemKey, "UTF-8")
+        navController.navigate("release_detail/$encodedKey") {
+            launchSingleTop = true
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -125,7 +141,7 @@ class MainActivity : ComponentActivity() {
                 .map { it.searchIntervalHours }
                 .distinctUntilChanged()
                 .collect { searchIntervalHours ->
-                    if (viewModel.isTorrentServiceInstalled()) {
+                    if (torrentServiceHelper.isServiceInstalled()) {
                         AutoDownloadWorker.enqueuePeriodicSearch(
                             this@MainActivity,
                             searchIntervalHours.toLong()
@@ -137,13 +153,19 @@ class MainActivity : ComponentActivity() {
         handleOAuthIntent(intent)
 
         lifecycleScope.launch(Dispatchers.Default) {
-            handleNotificationNavigation(intent)
             notificationManager.restoreActiveNotifications()
         }
 
         setContent {
             MyApplicationTheme {
+                val navController = rememberNavController()
+
+                LaunchedEffect(intent) {
+                    handleNotificationNavigation(intent, navController)
+                }
+
                 SimklCalendarApp(
+                    navController = navController,
                     viewModel = viewModel,
                     onLaunchAuthTab = { authUrl ->
                         launchAuthTab(authUrl, "simklcalendar")
@@ -157,9 +179,6 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleOAuthIntent(intent)
-        lifecycleScope.launch(Dispatchers.Default) {
-            handleNotificationNavigation(intent)
-        }
     }
 
     private fun handleOAuthIntent(intent: Intent?) {
@@ -169,7 +188,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun handleNotificationNavigation(intent: Intent?) {
+    private suspend fun handleNotificationNavigation(intent: Intent?, navController: NavHostController) {
         if (intent == null) return
         val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
             ?: if (intent.data?.scheme == "simklcalendar" && intent.data?.host == "detail") {
@@ -184,7 +203,7 @@ class MainActivity : ComponentActivity() {
 
         if (!itemKey.isNullOrEmpty()) {
             notificationManager.removeActiveNotification(itemKey)
-            viewModel.setPendingDetailKey(itemKey)
+            navigateToReleaseDetail(navController, itemKey)
         }
     }
 
@@ -196,18 +215,12 @@ class MainActivity : ComponentActivity() {
                 return
             }
             val code = uri.getQueryParameter("code")
-            val state = uri.getQueryParameter("state")
+            val state = uri.getQueryParameter("state") ?: ""
             if (!code.isNullOrEmpty()) {
-                viewModel.exchangeOAuthCode(
+                oAuthRepository.onOAuthCodeReceived(
                     code = code,
                     state = state,
-                    redirectUri = "simklcalendar://auth",
-                    onSuccess = {
-                        Toast.makeText(this, "Successfully authenticated with Simkl", Toast.LENGTH_SHORT).show()
-                    },
-                    onFailure = {
-                        Toast.makeText(this, "Authentication failed. Please try again.", Toast.LENGTH_LONG).show()
-                    }
+                    redirectUri = "simklcalendar://auth"
                 )
             }
         }
@@ -220,12 +233,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SimklCalendarApp(
+    navController: NavHostController = rememberNavController(),
     viewModel: CalendarViewModel,
     onLaunchAuthTab: (url: String) -> Unit = {}
 ) {
-    val navController = rememberNavController()
     val authState by viewModel.authState.collectAsState()
-    val pendingDetailKey by viewModel.pendingDetailKey.collectAsState()
     val context = LocalContext.current
 
     // Don't render navigation until we know if the user is logged in or not
@@ -234,19 +246,6 @@ fun SimklCalendarApp(
             CircularProgressIndicator(color = Color(0xFFD0BCFF))
         }
         return
-    }
-
-    // Automatically navigate to detail when an item key is provided via notification or deep link
-    LaunchedEffect(pendingDetailKey, authState.token) {
-        val targetKey = pendingDetailKey
-        val token = authState.token
-        if (targetKey != null && token != null) {
-            val encodedKey = URLEncoder.encode(targetKey, "UTF-8")
-            navController.navigate("release_detail/$encodedKey") {
-                launchSingleTop = true
-            }
-            viewModel.clearPendingDetailKey()
-        }
     }
 
     // Request notification permission on Android 13+ (API 33+)
@@ -279,7 +278,6 @@ fun SimklCalendarApp(
             // 1. Authentication Login (OAuth via AuthTab)
             composable("login") {
                 LoginScreen(
-                    viewModel = viewModel,
                     onLaunchAuthTab = onLaunchAuthTab,
                     onLoginSuccess = {
                         navController.navigate("calendar") {
@@ -316,7 +314,6 @@ fun SimklCalendarApp(
             // 3. Settings configuration screen
             composable("settings") {
                 SettingsScreen(
-                    viewModel = viewModel,
                     onNavigateBack = {
                         navController.popBackStack()
                     }

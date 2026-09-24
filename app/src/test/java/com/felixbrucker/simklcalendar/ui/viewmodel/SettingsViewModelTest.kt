@@ -1,0 +1,192 @@
+package com.felixbrucker.simklcalendar.ui.viewmodel
+
+import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
+import com.felixbrucker.simklcalendar.data.database.UserToken
+import com.felixbrucker.simklcalendar.data.preferences.*
+import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class SettingsViewModelTest {
+
+    private val testDispatcher = UnconfinedTestDispatcher()
+    private val repositoryMock: SimklRepository = mockk(relaxed = true)
+    private val appSettingsRepo: AppSettingsRepository = mockk(relaxed = true)
+    private val autoDownloadRepo: AutoDownloadRepository = mockk(relaxed = true)
+    private val notificationRepo: NotificationRepository = mockk(relaxed = true)
+    private val torrentServiceHelper: TorrentServiceHelper = mockk(relaxed = true)
+    private val alarmScheduler: AlarmScheduler = mockk(relaxed = true)
+
+    private val userTokenFlow = MutableStateFlow<UserToken?>(null)
+    private val customSearchLinksFlow = MutableStateFlow<List<CustomSearchLink>>(emptyList())
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+        userTokenFlow.value = null
+        customSearchLinksFlow.value = emptyList()
+
+        every { repositoryMock.activeUserToken } returns userTokenFlow
+        every { repositoryMock.customSearchLinks } returns customSearchLinksFlow
+        every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences())
+        every { appSettingsRepo.preferencesFlow } returns flowOf(AppSettingsPreferences())
+        every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun testSettingsUpdates() = runTest {
+        val viewModel = SettingsViewModel(
+            repositoryMock,
+            appSettingsRepo,
+            autoDownloadRepo,
+            notificationRepo,
+            torrentServiceHelper,
+            alarmScheduler
+        )
+
+        viewModel.logoutUser()
+        viewModel.updateSyncInterval(6)
+        viewModel.updateSearchInterval(4)
+        viewModel.updateUseExactAlarms(true)
+        viewModel.updateDefaultNotifyAiring(true)
+        viewModel.updateDefaultNotifySeasonFinished(true)
+        viewModel.updateDefaultNotifyMovieTheater(true)
+        viewModel.updateDefaultNotifyMovieDigital(true)
+        viewModel.scheduleAllItemsAiredAlarms()
+        advanceUntilIdle()
+
+        coVerify { repositoryMock.logout() }
+        coVerify { appSettingsRepo.setSyncIntervalHours(6) }
+        coVerify { autoDownloadRepo.setSearchIntervalHours(4) }
+        coVerify { notificationRepo.setUseExactAlarms(true) }
+        coVerify { notificationRepo.setDefaultNotifyAiring(true) }
+        coVerify { notificationRepo.setDefaultNotifySeasonFinished(true) }
+        coVerify { notificationRepo.setDefaultNotifyMovieTheater(true) }
+        coVerify { notificationRepo.setDefaultNotifyMovieDigital(true) }
+        coVerify { alarmScheduler.scheduleAllItemsAiredAlarms() }
+    }
+
+    @Test
+    fun testAutoDownloadSettingsAndKeywords() = runTest {
+        val viewModel = SettingsViewModel(
+            repositoryMock,
+            appSettingsRepo,
+            autoDownloadRepo,
+            notificationRepo,
+            torrentServiceHelper,
+            alarmScheduler
+        )
+
+        viewModel.updateAutoDownloadQuality("1080p")
+        viewModel.updateAutoDownloadPreferHevc(true)
+        viewModel.updateAutoDownloadUnwatchedTv(true)
+        viewModel.updateAutoDownloadUnwatchedAnime(true)
+        viewModel.updateAutoDownloadUnwatchedMovie(true)
+        viewModel.updateAutoDownloadSeasonUnwatchedTv(true)
+        viewModel.updateAutoDownloadSeasonUnwatchedAnime(true)
+
+        viewModel.addPreferredKeyword("Tag1")
+        viewModel.removePreferredKeyword("Tag1")
+        viewModel.updatePreferredKeywordsOrder(listOf("Tag2", "Tag1"))
+
+        viewModel.addIgnoreKeyword("Skip1")
+        viewModel.removeIgnoreKeyword("Skip1")
+        viewModel.updateIgnoreKeywordsOrder(listOf("Skip2", "Skip1"))
+        advanceUntilIdle()
+
+        coVerify { autoDownloadRepo.setQuality("1080p") }
+        coVerify { autoDownloadRepo.setPreferHevc(true) }
+        coVerify { autoDownloadRepo.setAutoDownloadUnwatchedTv(true) }
+        coVerify { autoDownloadRepo.setAutoDownloadUnwatchedAnime(true) }
+        coVerify { autoDownloadRepo.setAutoDownloadUnwatchedMovie(true) }
+        coVerify { autoDownloadRepo.setAutoDownloadSeasonUnwatchedTv(true) }
+        coVerify { autoDownloadRepo.setAutoDownloadSeasonUnwatchedAnime(true) }
+        coVerify { autoDownloadRepo.setPreferredKeywords(any()) }
+        coVerify { autoDownloadRepo.setIgnoreKeywords(any()) }
+    }
+
+    @Test
+    fun testCustomSearchLinkOperations() = runTest {
+        val viewModel = SettingsViewModel(
+            repositoryMock,
+            appSettingsRepo,
+            autoDownloadRepo,
+            notificationRepo,
+            torrentServiceHelper,
+            alarmScheduler
+        )
+        val link1 = CustomSearchLink(id = 0L, name = "Link 1", urlTemplate = "https://test.com/{query}", position = 0)
+        val link2 = CustomSearchLink(id = 2L, name = "Link 2", urlTemplate = "https://test2.com/{query}", position = 1)
+
+        viewModel.saveCustomSearchLink(link1)
+        viewModel.saveCustomSearchLink(link2)
+        viewModel.updateSearchLinksOrder(listOf(link2, link1))
+        viewModel.deleteCustomSearchLink(link2)
+        advanceUntilIdle()
+
+        coVerify { repositoryMock.insertSearchLink(any()) }
+        coVerify { repositoryMock.updateSearchLink(link2) }
+        coVerify { repositoryMock.updateSearchLinks(any()) }
+        coVerify { repositoryMock.deleteSearchLink(link2) }
+    }
+
+    @Test
+    fun testForceWatchlistResyncNoTokenAndSuccess() = runTest {
+        coEvery { repositoryMock.getActiveUserToken() } returns null
+        val viewModel = SettingsViewModel(
+            repositoryMock,
+            appSettingsRepo,
+            autoDownloadRepo,
+            notificationRepo,
+            torrentServiceHelper,
+            alarmScheduler
+        )
+
+        var noTokenOk = true
+        var noTokenMsg = ""
+        viewModel.forceWatchlistResync { ok, msg ->
+            noTokenOk = ok
+            noTokenMsg = msg
+        }
+        advanceUntilIdle()
+
+        coEvery { repositoryMock.getActiveUserToken() } returns UserToken(accessToken = "valid_token", username = "user")
+        var successOk = false
+        var successMsg = ""
+        viewModel.forceWatchlistResync { ok, msg ->
+            successOk = ok
+            successMsg = msg
+        }
+        advanceUntilIdle()
+
+        assertFalse(noTokenOk)
+        assertEquals("User is not logged in", noTokenMsg)
+        assertTrue(successOk)
+        assertEquals("Watchlist re-synced successfully", successMsg)
+    }
+}
