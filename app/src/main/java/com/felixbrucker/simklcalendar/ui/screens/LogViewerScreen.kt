@@ -42,14 +42,13 @@ import java.time.format.DateTimeFormatter
 private val logTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
     .withZone(ZoneId.systemDefault())
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogViewerScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -150,108 +149,23 @@ fun LogViewerScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            // Collapsible Top Controls Section (Search, Filter Chips, Count Header)
-            AnimatedVisibility(
-                visible = isTopSectionVisible,
-                enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(220)),
-                exit = shrinkVertically(animationSpec = tween(220)) + fadeOut(animationSpec = tween(220))
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp)
-                ) {
-                    // Search Input Field
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("Filter logs by tag or text...", fontSize = 13.sp) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFCAC4D0)) },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear search", tint = Color(0xFFCAC4D0))
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("log_search_input"),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFD0BCFF),
-                            unfocusedBorderColor = Color(0xFF49454F),
-                            focusedContainerColor = Color(0xFF2B2930),
-                            unfocusedContainerColor = Color(0xFF2B2930),
-                            focusedTextColor = Color(0xFFE6E1E5),
-                            unfocusedTextColor = Color(0xFFE6E1E5)
-                        )
-                    )
-
-                    // Priority Filter Chips
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        val priorities = listOf(
-                            -1 to "All",
-                            Log.VERBOSE to "Verbose",
-                            Log.DEBUG to "Debug",
-                            Log.INFO to "Info",
-                            Log.WARN to "Warn",
-                            Log.ERROR to "Error"
-                        )
-
-                        priorities.forEach { (priorityVal, label) ->
-                            val isSelected = selectedPriority == priorityVal
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { selectedPriority = priorityVal },
-                                label = { Text(label, fontSize = 12.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFD0BCFF),
-                                    selectedLabelColor = Color(0xFF381E72),
-                                    containerColor = Color(0xFF2B2930),
-                                    labelColor = Color(0xFFCAC4D0)
-                                )
-                            )
-                        }
-                    }
-
-                    // Log Count Status Header
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Showing ${filteredLogs.size} of ${allLogs.size} log entries",
-                            color = Color(0xFFCAC4D0),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        if (filteredLogs.isNotEmpty()) {
-                            TextButton(
-                                onClick = {
-                                    scope.launch {
-                                        listState.animateScrollToItem(filteredLogs.size - 1)
-                                    }
-                                },
-                                contentPadding = PaddingValues(0.dp)
-                            ) {
-                                Text("Jump to Bottom", fontSize = 11.sp, color = Color(0xFFD0BCFF))
-                            }
+            // Collapsible Top Controls Section
+            LogViewerTopControls(
+                isVisible = isTopSectionVisible,
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                selectedPriority = selectedPriority,
+                onSelectPriority = { selectedPriority = it },
+                filteredLogsCount = filteredLogs.size,
+                totalLogsCount = allLogs.size,
+                onJumpToBottom = {
+                    if (filteredLogs.isNotEmpty()) {
+                        scope.launch {
+                            listState.animateScrollToItem(filteredLogs.size - 1)
                         }
                     }
                 }
-            }
+            )
 
             // Log Entries List
             if (filteredLogs.isEmpty()) {
@@ -318,6 +232,121 @@ fun LogViewerScreen(
                 }
             }
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun LogViewerTopControls(
+    isVisible: Boolean,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    selectedPriority: Int,
+    onSelectPriority: (Int) -> Unit,
+    filteredLogsCount: Int,
+    totalLogsCount: Int,
+    onJumpToBottom: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val focusManager = LocalFocusManager.current
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(220)),
+        exit = shrinkVertically(animationSpec = tween(220)) + fadeOut(animationSpec = tween(220)),
+        modifier = modifier
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 6.dp)
+        ) {
+            // Search Input Field
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                placeholder = { Text("Filter logs by tag or text...", fontSize = 13.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFCAC4D0)) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { onSearchQueryChange("") }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear search", tint = Color(0xFFCAC4D0))
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("log_search_input"),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFFD0BCFF),
+                    unfocusedBorderColor = Color(0xFF49454F),
+                    focusedContainerColor = Color(0xFF2B2930),
+                    unfocusedContainerColor = Color(0xFF2B2930),
+                    focusedTextColor = Color(0xFFE6E1E5),
+                    unfocusedTextColor = Color(0xFFE6E1E5)
+                )
+            )
+
+            // Priority Filter Chips
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val priorities = listOf(
+                    -1 to "All",
+                    Log.VERBOSE to "Verbose",
+                    Log.DEBUG to "Debug",
+                    Log.INFO to "Info",
+                    Log.WARN to "Warn",
+                    Log.ERROR to "Error"
+                )
+
+                priorities.forEach { (priorityVal, label) ->
+                    val isSelected = selectedPriority == priorityVal
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onSelectPriority(priorityVal) },
+                        label = { Text(label, fontSize = 12.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFD0BCFF),
+                            selectedLabelColor = Color(0xFF381E72),
+                            containerColor = Color(0xFF2B2930),
+                            labelColor = Color(0xFFCAC4D0)
+                        )
+                    )
+                }
+            }
+
+            // Log Count Status Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Showing $filteredLogsCount of $totalLogsCount log entries",
+                    color = Color(0xFFCAC4D0),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+
+                if (filteredLogsCount > 0) {
+                    TextButton(
+                        onClick = onJumpToBottom,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text("Jump to Bottom", fontSize = 11.sp, color = Color(0xFFD0BCFF))
+                    }
+                }
+            }
+        }
     }
 }
 

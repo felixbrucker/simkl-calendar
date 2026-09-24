@@ -154,7 +154,7 @@ fun MainScreen(
     val alarmPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
-        // Re-check permission if needed, but the snackbar is a one-time thing here
+        // Re-check permission if needed
     }
 
     val notificationPrefs by viewModel.notificationPreferences.collectAsState()
@@ -182,293 +182,60 @@ fun MainScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    AnimatedContent(
-                        targetState = searchDisplayMode,
-                        transitionSpec = {
-                            if (targetState == SearchBarDisplayMode.EXPANDED) {
-                                (slideInHorizontally(animationSpec = tween(280)) { width -> width } + fadeIn(animationSpec = tween(250))) togetherWith
-                                (slideOutHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeOut(animationSpec = tween(200)))
-                            } else if (initialState == SearchBarDisplayMode.EXPANDED && targetState == SearchBarDisplayMode.DEFAULT) {
-                                (slideInHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeIn(animationSpec = tween(200))) togetherWith
-                                (slideOutHorizontally(animationSpec = tween(280)) { width -> width } + fadeOut(animationSpec = tween(250)))
-                            } else {
-                                fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
+                    MainTopAppBarTitleSection(
+                        searchDisplayMode = searchDisplayMode,
+                        searchQuery = searchQuery,
+                        username = username,
+                        viewMode = viewMode,
+                        isSmallScreen = isSmallScreen,
+                        focusRequester = focusRequester,
+                        onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                        onFocusChanged = { isSearchFocused = it },
+                        onSearch = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            isSearchFocused = false
+                            if (searchQuery.isBlank()) {
+                                isSearchActive = false
                             }
                         },
-                        label = "top_bar_search_transition"
-                    ) { mode ->
-                        when (mode) {
-                            SearchBarDisplayMode.EXPANDED -> {
-                                // Full slide-out focused search input field
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(44.dp)
-                                        .clip(RoundedCornerShape(22.dp))
-                                        .background(Color(0xFF2B2930))
-                                        .border(1.dp, Color(0xFFD0BCFF), RoundedCornerShape(22.dp))
-                                        .padding(horizontal = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Search active",
-                                        tint = Color(0xFFD0BCFF),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-
-                                    Spacer(modifier = Modifier.width(8.dp))
-
-                                    BasicTextField(
-                                        value = searchQuery,
-                                        onValueChange = { viewModel.setSearchQuery(it) },
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .focusRequester(focusRequester)
-                                            .onFocusChanged { state ->
-                                                isSearchFocused = state.isFocused
-                                            }
-                                            .testTag("search_input_field"),
-                                        singleLine = true,
-                                        textStyle = TextStyle(
-                                            color = Color(0xFFE6E1E5),
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Normal
-                                        ),
-                                        cursorBrush = SolidColor(Color(0xFFD0BCFF)),
-                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                        keyboardActions = KeyboardActions(
-                                            onSearch = {
-                                                focusManager.clearFocus()
-                                                keyboardController?.hide()
-                                                isSearchFocused = false
-                                                if (searchQuery.isBlank()) {
-                                                    isSearchActive = false
-                                                }
-                                            }
-                                        ),
-                                        decorationBox = { innerTextField ->
-                                            Box(contentAlignment = Alignment.CenterStart) {
-                                                if (searchQuery.isEmpty()) {
-                                                    Text(
-                                                        text = "Search show, episode, movie...",
-                                                        color = Color(0xFF938F99),
-                                                        fontSize = 14.sp
-                                                    )
-                                                }
-                                                innerTextField()
-                                            }
-                                        }
-                                    )
-
-                                    IconButton(
-                                        onClick = {
-                                            viewModel.clearSearchQuery()
-                                            isSearchActive = false
-                                            isSearchFocused = false
-                                            focusManager.clearFocus()
-                                            keyboardController?.hide()
-                                        },
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .testTag("clear_search_button")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Delete search query",
-                                            tint = Color(0xFFCAC4D0),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
+                        onClearSearch = {
+                            viewModel.clearSearchQuery()
+                            isSearchActive = false
+                            isSearchFocused = false
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        },
+                        onExpandSearch = {
+                            isSearchActive = true
+                            coroutineScope.launch {
+                                delay(50.milliseconds)
+                                focusRequester.requestFocus()
+                                keyboardController?.show()
                             }
-
-                            SearchBarDisplayMode.DOCKED -> {
-                                // Slid-back docked search bar visible with query, tap to edit, X to clear
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(40.dp)
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(Color(0xFF2B2930))
-                                        .border(1.dp, Color(0xFF79747E), RoundedCornerShape(20.dp))
-                                        .clickable {
-                                            isSearchActive = true
-                                            coroutineScope.launch {
-                                                delay(50.milliseconds)
-                                                focusRequester.requestFocus()
-                                                keyboardController?.show()
-                                            }
-                                        }
-                                        .padding(start = 12.dp, end = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Search",
-                                        tint = Color(0xFFD0BCFF),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-
-                                    Spacer(modifier = Modifier.width(8.dp))
-
-                                    Text(
-                                        text = searchQuery,
-                                        color = Color(0xFFE6E1E5),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    IconButton(
-                                        onClick = {
-                                            viewModel.clearSearchQuery()
-                                            isSearchActive = false
-                                            isSearchFocused = false
-                                            focusManager.clearFocus()
-                                            keyboardController?.hide()
-                                        },
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .testTag("clear_search_button")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Delete search query",
-                                            tint = Color(0xFFCAC4D0),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            SearchBarDisplayMode.DEFAULT -> {
-                                // Standard Calendar Title & Subtitle + View Mode Toggle
-                                Box(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    Column(
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(
-                                            text = "Simkl Calendar",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 18.sp,
-                                            color = Color.White
-                                        )
-                                        Text(
-                                            text = "Hi, $username • Tracked Schedule",
-                                            fontSize = 12.sp,
-                                            color = Color(0xFFCAC4D0),
-                                            fontWeight = FontWeight.Normal,
-                                            lineHeight = 16.sp
-                                        )
-                                    }
-
-                                    if (!isSmallScreen) {
-                                        ViewModeToggle(
-                                            viewMode = viewMode,
-                                            onViewModeChange = { viewModel.setViewMode(it) },
-                                            modifier = Modifier.align(Alignment.Center)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                        },
+                        onViewModeChange = { viewModel.setViewMode(it) }
+                    )
                 },
                 actions = {
                     if (searchDisplayMode == SearchBarDisplayMode.DEFAULT) {
                         if (isDownloaderInstalled && hasWantedCalendarItems) {
-                            AnimatedContent(
-                                targetState = shouldShowAutoDownloadStatus,
-                                transitionSpec = {
-                                    (fadeIn(animationSpec = tween(300)) + expandHorizontally()).togetherWith(
-                                        fadeOut(animationSpec = tween(300)) + shrinkHorizontally()
-                                    )
-                                },
-                                label = "auto_download_action_transition"
-                            ) { showAutoDownloadStatus ->
-                                if (showAutoDownloadStatus) {
-                                    Row(
-                                        modifier = Modifier
-                                            .padding(end = 4.dp)
-                                            .clip(RoundedCornerShape(22.dp))
-                                            .background(Color(0xFF2B2930))
-                                            .border(1.dp, Color(0xFF49454F), RoundedCornerShape(20.dp))
-                                            .animateContentSize()
-                                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            contentAlignment = Alignment.Center,
-                                            modifier = Modifier.size(22.dp)
-                                        ) {
-                                            if (isSearchingWantedTorrents) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    strokeWidth = 2.dp,
-                                                    color = Color(0xFFD0BCFF)
-                                                )
-                                            }
-                                            Icon(
-                                                imageVector = Icons.Default.Download,
-                                                contentDescription = null,
-                                                tint = Color(0xFFD0BCFF),
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = autoDownloadStatus,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color(0xFFE6E1E5),
-                                            maxLines = 1
-                                        )
-                                    }
-                                } else {
-                                    IconButton(
-                                        onClick = { viewModel.runAutoDownloadManual() },
-                                        modifier = Modifier.testTag("auto_download_button")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Download,
-                                            contentDescription = "Search Wanted Episodes",
-                                            tint = Color.White
-                                        )
-                                    }
-                                }
-                            }
+                            MainAutoDownloadActionButton(
+                                shouldShowAutoDownloadStatus = shouldShowAutoDownloadStatus,
+                                isSearchingWantedTorrents = isSearchingWantedTorrents,
+                                autoDownloadStatus = autoDownloadStatus,
+                                onRunAutoDownload = { viewModel.runAutoDownloadManual() }
+                            )
                         }
 
                         if (isSmallScreen) {
-                            IconButton(
-                                onClick = {
+                            MainMobileViewModeToggle(
+                                viewMode = viewMode,
+                                onViewModeToggle = {
                                     val nextMode = if (viewMode == ViewMode.CALENDAR) ViewMode.TABLE else ViewMode.CALENDAR
                                     viewModel.setViewMode(nextMode)
-                                },
-                                modifier = Modifier.testTag("view_mode_toggle_mobile")
-                            ) {
-                                AnimatedContent(
-                                    targetState = viewMode,
-                                    transitionSpec = {
-                                        (fadeIn(animationSpec = tween(220, delayMillis = 90)) + scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 90)))
-                                            .togetherWith(fadeOut(animationSpec = tween(90)) + scaleOut(targetScale = 0.92f, animationSpec = tween(90)))
-                                    },
-                                    label = "view_mode_icon_transition"
-                                ) { currentMode ->
-                                    val icon = if (currentMode == ViewMode.CALENDAR) Icons.Default.TableChart else Icons.Default.CalendarToday
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = "Switch View Mode",
-                                        tint = Color.White
-                                    )
                                 }
-                            }
+                            )
                         }
 
                         IconButton(
@@ -528,130 +295,24 @@ fun MainScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 // Toggles / Chip Filtering Bar (Shown in both views)
-                AnimatedVisibility(
-                    visible = isFilterBarVisible,
-                    enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(220)),
-                    exit = shrinkVertically(animationSpec = tween(220)) + fadeOut(animationSpec = tween(220))
-                ) {
-                    FlowRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        itemVerticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // TV Toggle
-                        FilterChip(
-                            selected = tvFilter,
-                            onClick = { viewModel.toggleShowTv() },
-                            label = { Text("TV") },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFBAC3FF),
-                                selectedLabelColor = Color(0xFF1A237E),
-                                containerColor = Color(0xFF313033),
-                                labelColor = Color(0xFFCAC4D0)
-                            )
-                        )
-
-                        // Anime Toggle
-                        FilterChip(
-                            selected = animeFilter,
-                            onClick = { viewModel.toggleShowAnime() },
-                            label = { Text("Anime") },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFE8DEF8),
-                                selectedLabelColor = Color(0xFF1D192B),
-                                containerColor = Color(0xFF313033),
-                                labelColor = Color(0xFFCAC4D0)
-                            )
-                        )
-
-                        // Movies Toggle
-                        FilterChip(
-                            selected = moviesFilter,
-                            onClick = { viewModel.toggleShowMovies() },
-                            label = { Text("Movies") },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFF2B8B5),
-                                selectedLabelColor = Color(0xFF601410),
-                                containerColor = Color(0xFF313033),
-                                labelColor = Color(0xFFCAC4D0)
-                            )
-                        )
-
-                        // Visual Separator
-                        VerticalDivider(
-                            modifier = Modifier
-                                .height(24.dp)
-                                .padding(horizontal = 4.dp),
-                            color = Color(0xFF49454F)
-                        )
-
-                        // Unwatched Released Toggle (Only in Table View)
-                        if (viewMode == ViewMode.TABLE) {
-                            FilterChip(
-                                selected = unwatchedFilter,
-                                onClick = { viewModel.toggleShowOnlyUnwatchedReleased() },
-                                label = { Text("Unwatched") },
-                                leadingIcon = {
-                                    if (unwatchedFilter) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                        )
-                                    }
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFD0BCFF),
-                                    selectedLabelColor = Color(0xFF381E72),
-                                    containerColor = Color(0xFF313033),
-                                    labelColor = Color(0xFFCAC4D0)
-                                )
-                            )
-                        }
-
-                        // Calendar Subtype Filters (Only in Calendar View)
-                        if (viewMode == ViewMode.CALENDAR) {
-                            FilterChip(
-                                selected = premieresOnly,
-                                onClick = { viewModel.toggleOnlySeasonPremieres() },
-                                label = { Text("Season Premiere") },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFE8DEF8),
-                                    selectedLabelColor = Color(0xFF1D192B),
-                                    containerColor = Color(0xFF313033),
-                                    labelColor = Color(0xFFCAC4D0)
-                                )
-                            )
-
-                            FilterChip(
-                                selected = finalesOnly,
-                                onClick = { viewModel.toggleOnlySeasonFinales() },
-                                label = { Text("Season Finale") },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFB3261E),
-                                    selectedLabelColor = Color.White,
-                                    containerColor = Color(0xFF313033),
-                                    labelColor = Color(0xFFCAC4D0)
-                                )
-                            )
-
-                            FilterChip(
-                                selected = digitalDvdOnly,
-                                onClick = { viewModel.toggleOnlyDigitalDvd() },
-                                label = { Text("Digital / DVD") },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFF4F378B),
-                                    selectedLabelColor = Color(0xFFEADDFF),
-                                    containerColor = Color(0xFF313033),
-                                    labelColor = Color(0xFFCAC4D0)
-                                )
-                            )
-                        }
-                    }
-                }
+                MainFilterBar(
+                    isVisible = isFilterBarVisible,
+                    viewMode = viewMode,
+                    tvFilter = tvFilter,
+                    animeFilter = animeFilter,
+                    moviesFilter = moviesFilter,
+                    unwatchedFilter = unwatchedFilter,
+                    premieresOnly = premieresOnly,
+                    finalesOnly = finalesOnly,
+                    digitalDvdOnly = digitalDvdOnly,
+                    onToggleShowTv = { viewModel.toggleShowTv() },
+                    onToggleShowAnime = { viewModel.toggleShowAnime() },
+                    onToggleShowMovies = { viewModel.toggleShowMovies() },
+                    onToggleShowOnlyUnwatchedReleased = { viewModel.toggleShowOnlyUnwatchedReleased() },
+                    onToggleOnlySeasonPremieres = { viewModel.toggleOnlySeasonPremieres() },
+                    onToggleOnlySeasonFinales = { viewModel.toggleOnlySeasonFinales() },
+                    onToggleOnlyDigitalDvd = { viewModel.toggleOnlyDigitalDvd() }
+                )
 
                 // Search Results Status Pill (when searching)
                 if (searchQuery.isNotBlank()) {
@@ -715,6 +376,478 @@ fun MainScreen(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainTopAppBarTitleSection(
+    searchDisplayMode: SearchBarDisplayMode,
+    searchQuery: String,
+    username: String,
+    viewMode: ViewMode,
+    isSmallScreen: Boolean,
+    focusRequester: FocusRequester,
+    onSearchQueryChange: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+    onSearch: () -> Unit,
+    onClearSearch: () -> Unit,
+    onExpandSearch: () -> Unit,
+    onViewModeChange: (ViewMode) -> Unit
+) {
+    AnimatedContent(
+        targetState = searchDisplayMode,
+        transitionSpec = {
+            if (targetState == SearchBarDisplayMode.EXPANDED) {
+                (slideInHorizontally(animationSpec = tween(280)) { width -> width } + fadeIn(animationSpec = tween(250))) togetherWith
+                        (slideOutHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeOut(animationSpec = tween(200)))
+            } else if (initialState == SearchBarDisplayMode.EXPANDED && targetState == SearchBarDisplayMode.DEFAULT) {
+                (slideInHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeIn(animationSpec = tween(200))) togetherWith
+                        (slideOutHorizontally(animationSpec = tween(280)) { width -> width } + fadeOut(animationSpec = tween(250)))
+            } else {
+                fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
+            }
+        },
+        label = "top_bar_search_transition"
+    ) { mode ->
+        when (mode) {
+            SearchBarDisplayMode.EXPANDED -> {
+                MainExpandedSearchBar(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = onSearchQueryChange,
+                    focusRequester = focusRequester,
+                    onFocusChanged = onFocusChanged,
+                    onSearch = onSearch,
+                    onClearSearch = onClearSearch
+                )
+            }
+
+            SearchBarDisplayMode.DOCKED -> {
+                MainDockedSearchBar(
+                    searchQuery = searchQuery,
+                    onClick = onExpandSearch,
+                    onClearSearch = onClearSearch
+                )
+            }
+
+            SearchBarDisplayMode.DEFAULT -> {
+                MainDefaultTitleBar(
+                    username = username,
+                    viewMode = viewMode,
+                    isSmallScreen = isSmallScreen,
+                    onViewModeChange = onViewModeChange
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainExpandedSearchBar(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    focusRequester: FocusRequester,
+    onFocusChanged: (Boolean) -> Unit,
+    onSearch: () -> Unit,
+    onClearSearch: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color(0xFF2B2930))
+            .border(1.dp, Color(0xFFD0BCFF), RoundedCornerShape(22.dp))
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = "Search active",
+            tint = Color(0xFFD0BCFF),
+            modifier = Modifier.size(20.dp)
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        BasicTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(focusRequester)
+                .onFocusChanged { state -> onFocusChanged(state.isFocused) }
+                .testTag("search_input_field"),
+            singleLine = true,
+            textStyle = TextStyle(
+                color = Color(0xFFE6E1E5),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Normal
+            ),
+            cursorBrush = SolidColor(Color(0xFFD0BCFF)),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+            decorationBox = { innerTextField ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (searchQuery.isEmpty()) {
+                        Text(
+                            text = "Search show, episode, movie...",
+                            color = Color(0xFF938F99),
+                            fontSize = 14.sp
+                        )
+                    }
+                    innerTextField()
+                }
+            }
+        )
+
+        IconButton(
+            onClick = onClearSearch,
+            modifier = Modifier
+                .size(32.dp)
+                .testTag("clear_search_button")
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Delete search query",
+                tint = Color(0xFFCAC4D0),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainDockedSearchBar(
+    searchQuery: String,
+    onClick: () -> Unit,
+    onClearSearch: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFF2B2930))
+            .border(1.dp, Color(0xFF79747E), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(start = 12.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = "Search",
+            tint = Color(0xFFD0BCFF),
+            modifier = Modifier.size(18.dp)
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Text(
+            text = searchQuery,
+            color = Color(0xFFE6E1E5),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+
+        IconButton(
+            onClick = onClearSearch,
+            modifier = Modifier
+                .size(32.dp)
+                .testTag("clear_search_button")
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Delete search query",
+                tint = Color(0xFFCAC4D0),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainDefaultTitleBar(
+    username: String,
+    viewMode: ViewMode,
+    isSmallScreen: Boolean,
+    onViewModeChange: (ViewMode) -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Column(
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Simkl Calendar",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Color.White
+            )
+            Text(
+                text = "Hi, $username • Tracked Schedule",
+                fontSize = 12.sp,
+                color = Color(0xFFCAC4D0),
+                fontWeight = FontWeight.Normal,
+                lineHeight = 16.sp
+            )
+        }
+
+        if (!isSmallScreen) {
+            ViewModeToggle(
+                viewMode = viewMode,
+                onViewModeChange = onViewModeChange,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainAutoDownloadActionButton(
+    shouldShowAutoDownloadStatus: Boolean,
+    isSearchingWantedTorrents: Boolean,
+    autoDownloadStatus: String,
+    onRunAutoDownload: () -> Unit
+) {
+    AnimatedContent(
+        targetState = shouldShowAutoDownloadStatus,
+        transitionSpec = {
+            (fadeIn(animationSpec = tween(300)) + expandHorizontally()).togetherWith(
+                fadeOut(animationSpec = tween(300)) + shrinkHorizontally()
+            )
+        },
+        label = "auto_download_action_transition"
+    ) { showAutoDownloadStatus ->
+        if (showAutoDownloadStatus) {
+            Row(
+                modifier = Modifier
+                    .padding(end = 4.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Color(0xFF2B2930))
+                    .border(1.dp, Color(0xFF49454F), RoundedCornerShape(20.dp))
+                    .animateContentSize()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(22.dp)
+                ) {
+                    if (isSearchingWantedTorrents) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.fillMaxSize(),
+                            strokeWidth = 2.dp,
+                            color = Color(0xFFD0BCFF)
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = Color(0xFFD0BCFF),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = autoDownloadStatus,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFE6E1E5),
+                    maxLines = 1
+                )
+            }
+        } else {
+            IconButton(
+                onClick = onRunAutoDownload,
+                modifier = Modifier.testTag("auto_download_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Download,
+                    contentDescription = "Search Wanted Episodes",
+                    tint = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainMobileViewModeToggle(
+    viewMode: ViewMode,
+    onViewModeToggle: () -> Unit
+) {
+    IconButton(
+        onClick = onViewModeToggle,
+        modifier = Modifier.testTag("view_mode_toggle_mobile")
+    ) {
+        AnimatedContent(
+            targetState = viewMode,
+            transitionSpec = {
+                (fadeIn(animationSpec = tween(220, delayMillis = 90)) + scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 90)))
+                    .togetherWith(fadeOut(animationSpec = tween(90)) + scaleOut(targetScale = 0.92f, animationSpec = tween(90)))
+            },
+            label = "view_mode_icon_transition"
+        ) { currentMode ->
+            val icon = if (currentMode == ViewMode.CALENDAR) Icons.Default.TableChart else Icons.Default.CalendarToday
+            Icon(
+                imageVector = icon,
+                contentDescription = "Switch View Mode",
+                tint = Color.White
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun MainFilterBar(
+    isVisible: Boolean,
+    viewMode: ViewMode,
+    tvFilter: Boolean,
+    animeFilter: Boolean,
+    moviesFilter: Boolean,
+    unwatchedFilter: Boolean,
+    premieresOnly: Boolean,
+    finalesOnly: Boolean,
+    digitalDvdOnly: Boolean,
+    onToggleShowTv: () -> Unit,
+    onToggleShowAnime: () -> Unit,
+    onToggleShowMovies: () -> Unit,
+    onToggleShowOnlyUnwatchedReleased: () -> Unit,
+    onToggleOnlySeasonPremieres: () -> Unit,
+    onToggleOnlySeasonFinales: () -> Unit,
+    onToggleOnlyDigitalDvd: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(220)),
+        exit = shrinkVertically(animationSpec = tween(220)) + fadeOut(animationSpec = tween(220)),
+        modifier = modifier
+    ) {
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            // TV Toggle
+            FilterChip(
+                selected = tvFilter,
+                onClick = onToggleShowTv,
+                label = { Text("TV") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFFBAC3FF),
+                    selectedLabelColor = Color(0xFF1A237E),
+                    containerColor = Color(0xFF313033),
+                    labelColor = Color(0xFFCAC4D0)
+                )
+            )
+
+            // Anime Toggle
+            FilterChip(
+                selected = animeFilter,
+                onClick = onToggleShowAnime,
+                label = { Text("Anime") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFFE8DEF8),
+                    selectedLabelColor = Color(0xFF1D192B),
+                    containerColor = Color(0xFF313033),
+                    labelColor = Color(0xFFCAC4D0)
+                )
+            )
+
+            // Movies Toggle
+            FilterChip(
+                selected = moviesFilter,
+                onClick = onToggleShowMovies,
+                label = { Text("Movies") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFFF2B8B5),
+                    selectedLabelColor = Color(0xFF601410),
+                    containerColor = Color(0xFF313033),
+                    labelColor = Color(0xFFCAC4D0)
+                )
+            )
+
+            // Visual Separator
+            VerticalDivider(
+                modifier = Modifier
+                    .height(24.dp)
+                    .padding(horizontal = 4.dp),
+                color = Color(0xFF49454F)
+            )
+
+            // Unwatched Released Toggle (Only in Table View)
+            if (viewMode == ViewMode.TABLE) {
+                FilterChip(
+                    selected = unwatchedFilter,
+                    onClick = onToggleShowOnlyUnwatchedReleased,
+                    label = { Text("Unwatched") },
+                    leadingIcon = {
+                        if (unwatchedFilter) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFFD0BCFF),
+                        selectedLabelColor = Color(0xFF381E72),
+                        containerColor = Color(0xFF313033),
+                        labelColor = Color(0xFFCAC4D0)
+                    )
+                )
+            }
+
+            // Calendar Subtype Filters (Only in Calendar View)
+            if (viewMode == ViewMode.CALENDAR) {
+                FilterChip(
+                    selected = premieresOnly,
+                    onClick = onToggleOnlySeasonPremieres,
+                    label = { Text("Season Premiere") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFFE8DEF8),
+                        selectedLabelColor = Color(0xFF1D192B),
+                        containerColor = Color(0xFF313033),
+                        labelColor = Color(0xFFCAC4D0)
+                    )
+                )
+
+                FilterChip(
+                    selected = finalesOnly,
+                    onClick = onToggleOnlySeasonFinales,
+                    label = { Text("Season Finale") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFFB3261E),
+                        selectedLabelColor = Color.White,
+                        containerColor = Color(0xFF313033),
+                        labelColor = Color(0xFFCAC4D0)
+                    )
+                )
+
+                FilterChip(
+                    selected = digitalDvdOnly,
+                    onClick = onToggleOnlyDigitalDvd,
+                    label = { Text("Digital / DVD") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF4F378B),
+                        selectedLabelColor = Color(0xFFEADDFF),
+                        containerColor = Color(0xFF313033),
+                        labelColor = Color(0xFFCAC4D0)
+                    )
+                )
             }
         }
     }
