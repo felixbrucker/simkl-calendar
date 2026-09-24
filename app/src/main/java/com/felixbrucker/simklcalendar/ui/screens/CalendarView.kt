@@ -70,7 +70,6 @@ import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlin.collections.get
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CalendarView(
     viewModel: CalendarViewModel,
@@ -78,15 +77,41 @@ fun CalendarView(
     modifier: Modifier = Modifier,
     lazyListState: LazyListState = rememberLazyListState(),
 ) {
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
-
     val items by viewModel.filteredCalendarItems.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val torrentDownloads by viewModel.torrentDownloads.collectAsState()
     val uiPreferences by viewModel.uiPreferences.collectAsState()
-    val showEarlierReleases = uiPreferences.filterShowEarlier
 
+    CalendarContent(
+        items = items,
+        searchQuery = searchQuery,
+        torrentDownloads = torrentDownloads,
+        showEarlierReleases = uiPreferences.filterShowEarlier,
+        onClearSearchQuery = { viewModel.clearSearchQuery() },
+        onResetFilters = { viewModel.resetFilters() },
+        onToggleShowEarlierReleases = { viewModel.toggleShowEarlierReleases() },
+        onSetShowEarlierReleases = { viewModel.setShowEarlierReleases(it) },
+        onNavigateToShowDetail = onNavigateToShowDetail,
+        modifier = modifier,
+        lazyListState = lazyListState
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CalendarContent(
+    items: List<CalendarItemWithWatchlist>,
+    searchQuery: String,
+    torrentDownloads: Map<String, DownloadProgress>,
+    showEarlierReleases: Boolean,
+    onClearSearchQuery: () -> Unit,
+    onResetFilters: () -> Unit,
+    onToggleShowEarlierReleases: () -> Unit,
+    onSetShowEarlierReleases: (Boolean) -> Unit,
+    onNavigateToShowDetail: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    lazyListState: LazyListState = rememberLazyListState(),
+) {
     // Separate and group earlier and upcoming releases in a single pass to minimize timezone conversions
     val (earlierItems, earlierGrouped, upcomingGrouped) = remember(items) {
         val zone = ZoneId.systemDefault()
@@ -121,54 +146,11 @@ fun CalendarView(
 
         // Calendar Group list
         if (items.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = if (searchQuery.isNotBlank()) Icons.Default.SearchOff else Icons.Default.CalendarToday,
-                        contentDescription = null,
-                        tint = Color(0xFF3E3D4F),
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        if (searchQuery.isNotBlank()) {
-                            "No releases found matching \"$searchQuery\""
-                        } else {
-                            "No releases found matching filters"
-                        },
-                        color = Color(0xFFA5A3B1),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    if (searchQuery.isNotBlank()) {
-                        TextButton(
-                            onClick = {
-                                viewModel.clearSearchQuery()
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                            }
-                        ) {
-                            Text("Clear Search Query", color = Color(0xFFD0BCFF))
-                        }
-                    } else {
-                        TextButton(
-                            onClick = {
-                                viewModel.resetFilters()
-                            },
-                        ) {
-                            Text("Reset Active Filters", color = Color(0xFFD0BCFF))
-                        }
-                    }
-                }
-            }
+            CalendarEmptyState(
+                searchQuery = searchQuery,
+                onClearSearchQuery = onClearSearchQuery,
+                onResetFilters = onResetFilters
+            )
         } else {
             LazyColumn(
                 state = lazyListState,
@@ -178,63 +160,12 @@ fun CalendarView(
                 // Earlier Releases Expandable Header Card
                 if (earlierItems.isNotEmpty()) {
                     item(key = "earlier_releases_toggle_card") {
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (showEarlierReleases) Color(0xFF381E72).copy(alpha = 0.5f) else Color(0xFF2B2930)
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (showEarlierReleases) Color(0xFFD0BCFF) else Color(0xFF49454F)
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 6.dp)
-                                .clickable { viewModel.toggleShowEarlierReleases() }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.History,
-                                        contentDescription = null,
-                                        tint = Color(0xFFD0BCFF),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Column {
-                                        Text(
-                                            text = if (showEarlierReleases) "Hide Earlier Releases" else "Show Earlier Releases",
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 14.sp,
-                                            color = Color(0xFFE6E1E5)
-                                        )
-                                        Text(
-                                            text = if (searchQuery.isNotBlank()) {
-                                                "${earlierItems.size} matching past ${if (earlierItems.size == 1) "release" else "releases"}"
-                                            } else {
-                                                "${earlierItems.size} past ${if (earlierItems.size == 1) "release" else "releases"} hidden by default"
-                                            },
-                                            fontSize = 12.sp,
-                                            color = Color(0xFFCAC4D0)
-                                        )
-                                    }
-                                }
-                                Icon(
-                                    imageVector = if (showEarlierReleases) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    contentDescription = if (showEarlierReleases) "Collapse earlier releases" else "Expand earlier releases",
-                                    tint = Color(0xFFD0BCFF),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
+                        CalendarEarlierReleasesHeader(
+                            showEarlierReleases = showEarlierReleases,
+                            earlierCount = earlierItems.size,
+                            searchQuery = searchQuery,
+                            onToggle = onToggleShowEarlierReleases
+                        )
                     }
 
                     // When expanded, render earlier day groups
@@ -326,7 +257,7 @@ fun CalendarView(
                                     fontWeight = FontWeight.Medium
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                TextButton(onClick = { viewModel.setShowEarlierReleases(true) }) {
+                                TextButton(onClick = { onSetShowEarlierReleases(true) }) {
                                     Text(
                                         if (searchQuery.isNotBlank()) {
                                             "View ${earlierItems.size} Matching Earlier Releases"
@@ -341,6 +272,130 @@ fun CalendarView(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun CalendarEmptyState(
+    searchQuery: String,
+    onClearSearchQuery: () -> Unit,
+    onResetFilters: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = if (searchQuery.isNotBlank()) Icons.Default.SearchOff else Icons.Default.CalendarToday,
+                contentDescription = null,
+                tint = Color(0xFF3E3D4F),
+                modifier = Modifier.size(64.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                if (searchQuery.isNotBlank()) {
+                    "No releases found matching \"$searchQuery\""
+                } else {
+                    "No releases found matching filters"
+                },
+                color = Color(0xFFA5A3B1),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (searchQuery.isNotBlank()) {
+                TextButton(
+                    onClick = {
+                        onClearSearchQuery()
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    }
+                ) {
+                    Text("Clear Search Query", color = Color(0xFFD0BCFF))
+                }
+            } else {
+                TextButton(
+                    onClick = onResetFilters
+                ) {
+                    Text("Reset Active Filters", color = Color(0xFFD0BCFF))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CalendarEarlierReleasesHeader(
+    showEarlierReleases: Boolean,
+    earlierCount: Int,
+    searchQuery: String,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (showEarlierReleases) Color(0xFF381E72).copy(alpha = 0.5f) else Color(0xFF2B2930)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (showEarlierReleases) Color(0xFFD0BCFF) else Color(0xFF49454F)
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clickable { onToggle() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = null,
+                    tint = Color(0xFFD0BCFF),
+                    modifier = Modifier.size(20.dp)
+                )
+                Column {
+                    Text(
+                        text = if (showEarlierReleases) "Hide Earlier Releases" else "Show Earlier Releases",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = Color(0xFFE6E1E5)
+                    )
+                    Text(
+                        text = if (searchQuery.isNotBlank()) {
+                            "$earlierCount matching past ${if (earlierCount == 1) "release" else "releases"}"
+                        } else {
+                            "$earlierCount past ${if (earlierCount == 1) "release" else "releases"} hidden by default"
+                        },
+                        fontSize = 12.sp,
+                        color = Color(0xFFCAC4D0)
+                    )
+                }
+            }
+            Icon(
+                imageVector = if (showEarlierReleases) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (showEarlierReleases) "Collapse earlier releases" else "Expand earlier releases",
+                tint = Color(0xFFD0BCFF),
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }

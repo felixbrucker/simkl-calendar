@@ -54,6 +54,30 @@ fun TrackedWatchlistTableView(
     val sortField by viewModel.tableSortField.collectAsState()
     val sortDirection by viewModel.tableSortDirection.collectAsState()
     val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
+
+    TrackedWatchlistTableContent(
+        items = items,
+        sortField = sortField,
+        sortDirection = sortDirection,
+        isDownloaderInstalled = isDownloaderInstalled,
+        onSortToggle = { viewModel.toggleTableSort(it) },
+        onNavigateToSeriesDetail = onNavigateToSeriesDetail,
+        modifier = modifier,
+        lazyListState = lazyListState
+    )
+}
+
+@Composable
+fun TrackedWatchlistTableContent(
+    items: List<WatchlistTableItem>,
+    sortField: TableSortField,
+    sortDirection: SortDirection,
+    isDownloaderInstalled: Boolean,
+    onSortToggle: (TableSortField) -> Unit,
+    onNavigateToSeriesDetail: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    lazyListState: LazyListState = rememberLazyListState(),
+) {
     val density = LocalDensity.current
     val windowInfo = LocalWindowInfo.current
     val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 800.dp
@@ -82,7 +106,7 @@ fun TrackedWatchlistTableView(
             WatchlistTableHeader(
                 sortField = sortField,
                 sortDirection = sortDirection,
-                onSortToggle = { viewModel.toggleTableSort(it) },
+                onSortToggle = onSortToggle,
                 isDownloaderInstalled = isDownloaderInstalled,
                 isSmallScreen = isSmallScreen
             )

@@ -24,8 +24,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,14 +36,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
+import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
 fun CustomSearchLinksCard(
-    viewModel: CalendarViewModel,
+    searchLinks: List<CustomSearchLink>,
     title: String,
     titleRomaji: String?,
     itemType: MediaType,
@@ -56,10 +54,9 @@ fun CustomSearchLinksCard(
     context: Context,
     modifier: Modifier = Modifier,
 ) {
-    val allSearchLinks by viewModel.customSearchLinks.collectAsState()
     // Matching Custom Search Links
-    val matchingSearchLinks = remember(allSearchLinks, itemType) {
-        allSearchLinks.filter { it.associatedTypes.contains(itemType) }
+    val matchingSearchLinks = remember(searchLinks, itemType) {
+        searchLinks.filter { it.associatedTypes.contains(itemType) }
     }
 
     if (matchingSearchLinks.isNotEmpty()) {

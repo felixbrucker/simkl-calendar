@@ -60,6 +60,12 @@ fun WatchlistItemDetailScreen(
     val tableItems by viewModel.watchlistTableItems.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
     val torrentDownloads by viewModel.torrentDownloads.collectAsState()
+    val customSearchLinks by viewModel.customSearchLinks.collectAsState()
+    val autoDownloadPrefs by viewModel.autoDownloadPreferences.collectAsState()
+    val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
+    val availableSubdirectories by viewModel.downloadSubdirectories.collectAsState()
+    val itemSettings by viewModel.getItemDownloadSettingsFlow(simklId).collectAsState(null)
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -164,12 +170,13 @@ fun WatchlistItemDetailScreen(
                     item {
                         WatchlistItemSummaryStats(
                             item = tableItem,
-                            viewModel = viewModel,
-                            simklId = simklId,
                             episodes = episodes,
                             isAnimeSeasonOneOnly = isAnimeSeasonOneOnly,
                             updatingWatchKeys = updatingWatchKeys,
-                            mediaType = watchlistItem.type
+                            mediaType = watchlistItem.type,
+                            onMarkSeasonWatched = { season -> viewModel.markSeasonWatched(simklId, season, watchlistItem.type) },
+                            onMarkSeasonUnwatched = { season -> viewModel.markSeasonUnwatched(simklId, season, watchlistItem.type) },
+                            onUpdateSeasonMediaStatus = { season, status -> viewModel.updateSeasonMediaStatus(simklId, season, status) }
                         )
                     }
                 } else {
@@ -189,7 +196,13 @@ fun WatchlistItemDetailScreen(
                             ) {
                                 ItemWatchedStatusDropdown(
                                     item = digitalOrTheaterRelease,
-                                    viewModel = viewModel,
+                                    onWatchedStatusChange = { watched ->
+                                        if (watched) {
+                                            viewModel.markMovieWatched(digitalOrTheaterRelease.simklId, digitalOrTheaterRelease.primaryKey, digitalOrTheaterRelease.title) { _, _ -> }
+                                        } else {
+                                            viewModel.markMovieUnwatched(digitalOrTheaterRelease.simklId, digitalOrTheaterRelease.primaryKey, digitalOrTheaterRelease.title) { _, _ -> }
+                                        }
+                                    },
                                     updatingWatchKeys = updatingWatchKeys
                                 )
 
@@ -197,7 +210,7 @@ fun WatchlistItemDetailScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                         ItemMediaStatusDropdown(
                                             item = digitalRelease,
-                                            viewModel = viewModel
+                                            onStatusChange = { newStatus -> viewModel.updateMediaStatus(digitalRelease.primaryKey, newStatus) }
                                         )
                                     }
                                 }
@@ -208,7 +221,7 @@ fun WatchlistItemDetailScreen(
 
                 item {
                     CustomSearchLinksCard(
-                        viewModel = viewModel,
+                        searchLinks = customSearchLinks,
                         title = watchlistItem.title,
                         titleRomaji = watchlistItem.titleRomaji,
                         itemType = watchlistItem.type,
@@ -248,19 +261,28 @@ fun WatchlistItemDetailScreen(
                                         SeasonSectionHeader(
                                             season = season,
                                             count = seasonEpisodes.size,
-                                            viewModel = viewModel,
-                                            simklId = simklId,
                                             episodes = seasonEpisodes,
                                             updatingWatchKeys = updatingWatchKeys,
-                                            mediaType = watchlistItem.type
+                                            onMarkSeasonWatched = { sNum -> viewModel.markSeasonWatched(simklId, sNum, watchlistItem.type) },
+                                            onMarkSeasonUnwatched = { sNum -> viewModel.markSeasonUnwatched(simklId, sNum, watchlistItem.type) },
+                                            onUpdateSeasonMediaStatus = { sNum, status -> viewModel.updateSeasonMediaStatus(simklId, sNum, status) }
                                         )
                                     }
 
                                     EpisodesTable(
                                         episodes = seasonEpisodes,
-                                        viewModel = viewModel,
                                         updatingWatchKeys = updatingWatchKeys,
                                         torrentDownloads = torrentDownloads,
+                                        onItemWatchedStatusChange = { ep, watched ->
+                                            if (watched) {
+                                                viewModel.markEpisodeWatched(ep.simklId, ep.season, ep.episodeNumber ?: 1, ep.type, ep.primaryKey, ep.title) { _, _ -> }
+                                            } else {
+                                                viewModel.markEpisodeUnwatched(ep.simklId, ep.season, ep.episodeNumber ?: 1, ep.type, ep.primaryKey, ep.title) { _, _ -> }
+                                            }
+                                        },
+                                        onItemMediaStatusChange = { itemKey, status ->
+                                            viewModel.updateMediaStatus(itemKey, status)
+                                        },
                                         onNavigateToEpisode = onNavigateToEpisode
                                     )
                                 }
@@ -276,10 +298,23 @@ fun WatchlistItemDetailScreen(
                         isMovie = isMovie,
                         notifyEveryEpisode = notifyEveryEpisode,
                         notifySeasonFinished = notifySeasonFinished,
-                        onNotifyEveryEpisodeChange = { notifyEveryEpisode = it },
-                        onNotifySeasonFinishedChange = { notifySeasonFinished = it },
+                        onNotifyEveryEpisodeChange = { isChecked ->
+                            notifyEveryEpisode = isChecked
+                            viewModel.toggleNotification(
+                                simklId = simklId,
+                                notifyEpisode = isChecked,
+                                notifySeasonFinished = notifySeasonFinished
+                            )
+                        },
+                        onNotifySeasonFinishedChange = { isChecked ->
+                            notifySeasonFinished = isChecked
+                            viewModel.toggleNotification(
+                                simklId = simklId,
+                                notifyEpisode = notifyEveryEpisode,
+                                notifySeasonFinished = isChecked
+                            )
+                        },
                         checkPermission = { checkAndRequestNotificationPermission() },
-                        viewModel = viewModel,
                         modifier = Modifier.padding(16.dp)
                     )
                 }
@@ -287,11 +322,15 @@ fun WatchlistItemDetailScreen(
                 // 5. Download Settings (Moved to bottom)
                 item {
                     DownloadSettingsCard(
-                        viewModel = viewModel,
                         simklId = watchlistItem.simklId,
                         itemTitle = watchlistItem.title,
                         mediaType = watchlistItem.type,
                         defaultSubdirectory = watchlistItem.defaultDestinationSubdirectory(),
+                        autoDownloadPrefs = autoDownloadPrefs,
+                        itemSettings = itemSettings,
+                        isDownloaderInstalled = isDownloaderInstalled,
+                        availableSubdirectories = availableSubdirectories,
+                        onSaveItemDownloadSettings = { viewModel.saveItemDownloadSettings(it) },
                         modifier = Modifier.padding(16.dp),
                     )
                 }
@@ -308,12 +347,13 @@ fun WatchlistItemDetailScreen(
 @Composable
 fun WatchlistItemSummaryStats(
     item: WatchlistTableItem?,
-    viewModel: CalendarViewModel,
-    simklId: Int,
     episodes: List<CalendarItemWithWatchlist>,
     isAnimeSeasonOneOnly: Boolean,
     updatingWatchKeys: Set<String>,
-    mediaType: MediaType
+    mediaType: MediaType,
+    onMarkSeasonWatched: (season: Int) -> Unit,
+    onMarkSeasonUnwatched: (season: Int) -> Unit,
+    onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit
 ) {
     if (item == null) return
 
@@ -341,12 +381,12 @@ fun WatchlistItemSummaryStats(
                 HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp)
 
                 SummaryDropdowns(
-                    viewModel = viewModel,
-                    simklId = simklId,
                     episodes = episodes,
                     updatingWatchKeys = updatingWatchKeys,
-                    mediaType = mediaType,
-                    commonStatus = commonStatus
+                    commonStatus = commonStatus,
+                    onMarkSeasonWatched = onMarkSeasonWatched,
+                    onMarkSeasonUnwatched = onMarkSeasonUnwatched,
+                    onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus
                 )
             }
         } else {
@@ -367,12 +407,12 @@ fun WatchlistItemSummaryStats(
                         color = Color(0xFF49454F)
                     )
                     SummaryDropdowns(
-                        viewModel = viewModel,
-                        simklId = simklId,
                         episodes = episodes,
                         updatingWatchKeys = updatingWatchKeys,
-                        mediaType = mediaType,
-                        commonStatus = commonStatus
+                        commonStatus = commonStatus,
+                        onMarkSeasonWatched = onMarkSeasonWatched,
+                        onMarkSeasonUnwatched = onMarkSeasonUnwatched,
+                        onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus
                     )
                 }
             }
@@ -458,12 +498,12 @@ private fun SummaryStatsContent(item: WatchlistTableItem, isNarrow: Boolean) {
 
 @Composable
 private fun SummaryDropdowns(
-    viewModel: CalendarViewModel,
-    simklId: Int,
     episodes: List<CalendarItemWithWatchlist>,
     updatingWatchKeys: Set<String>,
-    mediaType: MediaType,
-    commonStatus: MediaStatus?
+    commonStatus: MediaStatus?,
+    onMarkSeasonWatched: (season: Int) -> Unit,
+    onMarkSeasonUnwatched: (season: Int) -> Unit,
+    onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -475,9 +515,9 @@ private fun SummaryDropdowns(
             isWatched = isWatched,
             onStatusChange = { watched ->
                 if (watched) {
-                    viewModel.markSeasonWatched(simklId, 1, mediaType)
+                    onMarkSeasonWatched(1)
                 } else {
-                    viewModel.markSeasonUnwatched(simklId, 1, mediaType)
+                    onMarkSeasonUnwatched(1)
                 }
             },
             isLoading = isLoading
@@ -485,7 +525,7 @@ private fun SummaryDropdowns(
 
         MediaStatusDropdown(
             currentStatus = commonStatus ?: MediaStatus.IGNORED,
-            onStatusChange = { viewModel.updateSeasonMediaStatus(simklId, 1, it) }
+            onStatusChange = { onUpdateSeasonMediaStatus(1, it) }
         )
     }
 }
@@ -498,17 +538,15 @@ fun StatItem(label: String, value: String, modifier: Modifier = Modifier, valueC
     }
 }
 
-
-
 @Composable
 fun SeasonSectionHeader(
     season: Int,
     count: Int,
-    viewModel: CalendarViewModel,
-    simklId: Int,
     episodes: List<CalendarItemWithWatchlist>,
     updatingWatchKeys: Set<String>,
-    mediaType: MediaType
+    onMarkSeasonWatched: (season: Int) -> Unit,
+    onMarkSeasonUnwatched: (season: Int) -> Unit,
+    onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit
 ) {
     val commonStatus = remember(episodes) {
         val statuses = episodes.map { it.mediaStatus }.distinct()
@@ -538,9 +576,9 @@ fun SeasonSectionHeader(
                 isWatched = isWatched,
                 onStatusChange = { watched ->
                     if (watched) {
-                        viewModel.markSeasonWatched(simklId, season, mediaType)
+                        onMarkSeasonWatched(season)
                     } else {
-                        viewModel.markSeasonUnwatched(simklId, season, mediaType)
+                        onMarkSeasonUnwatched(season)
                     }
                 },
                 isLoading = isLoading
@@ -548,7 +586,7 @@ fun SeasonSectionHeader(
 
             MediaStatusDropdown(
                 currentStatus = commonStatus ?: MediaStatus.IGNORED,
-                onStatusChange = { viewModel.updateSeasonMediaStatus(simklId, season, it) }
+                onStatusChange = { onUpdateSeasonMediaStatus(season, it) }
             )
         }
     }
@@ -557,9 +595,10 @@ fun SeasonSectionHeader(
 @Composable
 fun EpisodesTable(
     episodes: List<CalendarItemWithWatchlist>,
-    viewModel: CalendarViewModel,
     updatingWatchKeys: Set<String>,
     torrentDownloads: Map<String, DownloadProgress>,
+    onItemWatchedStatusChange: (item: CalendarItemWithWatchlist, isWatched: Boolean) -> Unit,
+    onItemMediaStatusChange: (itemKey: String, newStatus: MediaStatus) -> Unit,
     onNavigateToEpisode: (String) -> Unit
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -639,13 +678,13 @@ fun EpisodesTable(
                             2 -> Text(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = Color(0xFFCAC4D0), maxLines = 1)
                             3 -> ItemWatchedStatusDropdown(
                                 item = episode,
-                                viewModel = viewModel,
+                                onWatchedStatusChange = { isWatched -> onItemWatchedStatusChange(episode, isWatched) },
                                 updatingWatchKeys = updatingWatchKeys
                             )
                             4 -> Row(verticalAlignment = Alignment.CenterVertically) {
                                 ItemMediaStatusDropdown(
                                     item = episode,
-                                    viewModel = viewModel
+                                    onStatusChange = { newStatus -> onItemMediaStatusChange(episode.primaryKey, newStatus) }
                                 )
                             }
                         }

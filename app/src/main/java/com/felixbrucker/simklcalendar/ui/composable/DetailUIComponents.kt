@@ -28,10 +28,10 @@ import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 
 @Composable
 fun SeasonOverrideDialog(
@@ -273,26 +273,12 @@ fun WatchedStatusDropdown(
 @Composable
 fun ItemWatchedStatusDropdown(
     item: CalendarItemWithWatchlist,
-    viewModel: CalendarViewModel,
+    onWatchedStatusChange: (isWatched: Boolean) -> Unit,
     updatingWatchKeys: Set<String>
 ) {
     WatchedStatusDropdown(
         isWatched = item.isWatched,
-        onStatusChange = { watched ->
-            if (item.type == MediaType.MOVIE) {
-                if (watched) {
-                    viewModel.markMovieWatched(item.simklId, item.primaryKey, item.title) { _, _ -> }
-                } else {
-                    viewModel.markMovieUnwatched(item.simklId, item.primaryKey, item.title) { _, _ -> }
-                }
-            } else {
-                if (watched) {
-                    viewModel.markEpisodeWatched(item.simklId, item.season, item.episodeNumber ?: 1, item.type, item.primaryKey, item.title) { _, _ -> }
-                } else {
-                    viewModel.markEpisodeUnwatched(item.simklId, item.season, item.episodeNumber ?: 1, item.type, item.primaryKey, item.title) { _, _ -> }
-                }
-            }
-        },
+        onStatusChange = onWatchedStatusChange,
         isLoading = updatingWatchKeys.contains(item.primaryKey)
     )
 }
@@ -300,11 +286,11 @@ fun ItemWatchedStatusDropdown(
 @Composable
 fun ItemMediaStatusDropdown(
     item: CalendarItemWithWatchlist,
-    viewModel: CalendarViewModel
+    onStatusChange: (MediaStatus) -> Unit
 ) {
     MediaStatusDropdown(
         currentStatus = item.mediaStatus,
-        onStatusChange = { viewModel.updateMediaStatus(item.primaryKey, it) }
+        onStatusChange = onStatusChange
     )
 }
 
@@ -323,7 +309,6 @@ fun NotificationSettingsCard(
     onNotifyEveryEpisodeChange: (Boolean) -> Unit,
     onNotifySeasonFinishedChange: (Boolean) -> Unit,
     checkPermission: () -> Unit,
-    viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -352,11 +337,6 @@ fun NotificationSettingsCard(
                         onCheckedChange = { isChecked ->
                             onNotifyEveryEpisodeChange(isChecked)
                             if (isChecked) checkPermission()
-                            viewModel.toggleNotification(
-                                simklId = simklId,
-                                notifyEpisode = isChecked,
-                                notifySeasonFinished = notifySeasonFinished
-                            )
                         }
                     )
                 }
@@ -378,11 +358,6 @@ fun NotificationSettingsCard(
                         onCheckedChange = { isChecked ->
                             onNotifySeasonFinishedChange(isChecked)
                             if (isChecked) checkPermission()
-                            viewModel.toggleNotification(
-                                simklId = simklId,
-                                notifyEpisode = notifyEveryEpisode,
-                                notifySeasonFinished = isChecked
-                            )
                         }
                     )
                 }
@@ -402,11 +377,6 @@ fun NotificationSettingsCard(
                         onCheckedChange = { isChecked ->
                             onNotifyEveryEpisodeChange(isChecked)
                             if (isChecked) checkPermission()
-                            viewModel.toggleNotification(
-                                simklId = simklId,
-                                notifyEpisode = isChecked,
-                                notifySeasonFinished = notifySeasonFinished
-                            )
                         }
                     )
                 }
@@ -428,11 +398,6 @@ fun NotificationSettingsCard(
                         onCheckedChange = { isChecked ->
                             onNotifySeasonFinishedChange(isChecked)
                             if (isChecked) checkPermission()
-                            viewModel.toggleNotification(
-                                simklId = simklId,
-                                notifyEpisode = notifyEveryEpisode,
-                                notifySeasonFinished = isChecked
-                            )
                         }
                     )
                 }
@@ -566,15 +531,17 @@ fun DetailHeader(
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadSettingsCard(
-    viewModel: CalendarViewModel,
     simklId: Int,
     itemTitle: String,
     mediaType: MediaType,
     defaultSubdirectory: String,
+    autoDownloadPrefs: AutoDownloadPreferences,
+    itemSettings: ItemDownloadSettings?,
+    isDownloaderInstalled: Boolean,
+    availableSubdirectories: List<String>,
+    onSaveItemDownloadSettings: (ItemDownloadSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val autoDownloadPrefs by viewModel.autoDownloadPreferences.collectAsState()
-
     val globalUnwatched = when (mediaType) {
         MediaType.TV -> autoDownloadPrefs.autoDownloadUnwatchedTv
         MediaType.ANIME -> autoDownloadPrefs.autoDownloadUnwatchedAnime
@@ -587,9 +554,6 @@ fun DownloadSettingsCard(
     }
     val globalQuality = autoDownloadPrefs.quality
     val globalPreferHevc = autoDownloadPrefs.preferHevc
-    val itemSettings by viewModel.getItemDownloadSettingsFlow(simklId).collectAsState(null)
-    val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
-    val availableSubdirectories by viewModel.downloadSubdirectories.collectAsState()
 
     Card(
         modifier = modifier,
@@ -610,7 +574,7 @@ fun DownloadSettingsCard(
                 Switch(
                     checked = itemSettings?.downloadUnwatched ?: globalUnwatched,
                     onCheckedChange = {
-                        viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadUnwatched = it))
+                        onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadUnwatched = it))
                     },
                     enabled = isDownloaderInstalled
                 )
@@ -628,7 +592,7 @@ fun DownloadSettingsCard(
                     Switch(
                         checked = itemSettings?.downloadSeasonUnwatched ?: globalSeasonUnwatched,
                         onCheckedChange = {
-                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSeasonUnwatched = it))
+                            onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSeasonUnwatched = it))
                         },
                         enabled = isDownloaderInstalled
                     )
@@ -646,7 +610,7 @@ fun DownloadSettingsCard(
                         selected = isSelected,
                         onClick = {
                             val next = if (isSelected && itemSettings?.qualityOverride != null) null else quality
-                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(qualityOverride = next))
+                            onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(qualityOverride = next))
                         },
                         label = { Text(quality) },
                         enabled = isDownloaderInstalled
@@ -664,7 +628,7 @@ fun DownloadSettingsCard(
                 Switch(
                     checked = itemSettings?.preferHevcOverride ?: globalPreferHevc,
                     onCheckedChange = {
-                        viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(preferHevcOverride = it))
+                        onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(preferHevcOverride = it))
                     },
                     enabled = isDownloaderInstalled
                 )
@@ -685,7 +649,7 @@ fun DownloadSettingsCard(
                         selected = isSelected,
                         onClick = {
                             val next = if (subdir == defaultSubdirectory) null else subdir
-                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSubdirectoryOverride = next))
+                            onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSubdirectoryOverride = next))
                         },
                         label = { Text(subdir, fontSize = 11.sp) },
                         enabled = isDownloaderInstalled
@@ -732,7 +696,7 @@ fun DownloadSettingsCard(
                     },
                     confirmButton = {
                         TextButton(onClick = {
-                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(titleOverride = tempTitle.trim().takeIf { it.isNotBlank() }))
+                            onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(titleOverride = tempTitle.trim().takeIf { it.isNotBlank() }))
                             showTitleDialog = false
                         }) { Text("Save") }
                     },
@@ -768,7 +732,7 @@ fun DownloadSettingsCard(
                     SeasonOverrideDialog(
                         existingOverrides = seasonOverrides,
                         onSave = {
-                            viewModel.saveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(seasonOverrides = it))
+                            onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(seasonOverrides = it))
                         },
                         onDismiss = { showSeasonDialog = false }
                     )
@@ -786,7 +750,7 @@ fun DownloadSettingsCard(
                             SegmentedButton(
                                 selected = currentSearchStyle == style,
                                 onClick = {
-                                    viewModel.saveItemDownloadSettings(
+                                    onSaveItemDownloadSettings(
                                         (itemSettings ?: ItemDownloadSettings(simklId)).copy(episodeSearchStyle = style)
                                     )
                                 },

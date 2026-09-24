@@ -46,7 +46,7 @@ import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReleaseDetailScreen(
     viewModel: CalendarViewModel,
@@ -61,10 +61,15 @@ fun ReleaseDetailScreen(
     val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 600.dp
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
     val allItems by viewModel.allCalendarItems.collectAsState()
     val allWatchedEpisodes by viewModel.watchedEpisodes.collectAsState()
     val isMarkingWatched by viewModel.isMarkingWatched.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
+    val customSearchLinks by viewModel.customSearchLinks.collectAsState()
+    val autoDownloadPrefs by viewModel.autoDownloadPreferences.collectAsState()
+    val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
+    val availableSubdirectories by viewModel.downloadSubdirectories.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -86,6 +91,8 @@ fun ReleaseDetailScreen(
             ?: allItems.firstOrNull { it.primaryKey == itemKey }
             ?: allItems.firstOrNull { it.simklId.toString() == itemKey }
     }
+
+    val itemSettings by viewModel.getItemDownloadSettingsFlow(activeItem?.simklId ?: 0).collectAsState(null)
 
     val showScheduleItems = remember(allItems, activeItem) {
         if (activeItem != null) {
@@ -390,7 +397,21 @@ fun ReleaseDetailScreen(
                                 Text("Watch Status", color = Color(0xFFCAC4D0), fontSize = 14.sp)
                                 ItemWatchedStatusDropdown(
                                     item = activeItem,
-                                    viewModel = viewModel,
+                                    onWatchedStatusChange = { watched ->
+                                        if (activeItem.type == MediaType.MOVIE) {
+                                            if (watched) {
+                                                viewModel.markMovieWatched(activeItem.simklId, activeItem.primaryKey, activeItem.title) { _, _ -> }
+                                            } else {
+                                                viewModel.markMovieUnwatched(activeItem.simklId, activeItem.primaryKey, activeItem.title) { _, _ -> }
+                                            }
+                                        } else {
+                                            if (watched) {
+                                                viewModel.markEpisodeWatched(activeItem.simklId, activeItem.season, activeItem.episodeNumber ?: 1, activeItem.type, activeItem.primaryKey, activeItem.title) { _, _ -> }
+                                            } else {
+                                                viewModel.markEpisodeUnwatched(activeItem.simklId, activeItem.season, activeItem.episodeNumber ?: 1, activeItem.type, activeItem.primaryKey, activeItem.title) { _, _ -> }
+                                            }
+                                        }
+                                    },
                                     updatingWatchKeys = updatingWatchKeys
                                 )
                             }
@@ -405,7 +426,7 @@ fun ReleaseDetailScreen(
                                     Text("Status", color = Color(0xFFCAC4D0), fontSize = 14.sp)
                                     ItemMediaStatusDropdown(
                                         item = mediaStatusItem,
-                                        viewModel = viewModel
+                                        onStatusChange = { viewModel.updateMediaStatus(mediaStatusItem.primaryKey, it) }
                                     )
                                 }
                             }
@@ -444,88 +465,83 @@ fun ReleaseDetailScreen(
 
                         val (isSeasonFullyWatched, _, _) = getSeasonWatchStatus(sNum)
 
-                        @Composable
-                        fun SeasonWatchSection(modifier: Modifier = Modifier) {
-                            Button(
-                                onClick = {
-                                    viewModel.markSeasonWatched(
-                                        simklId = activeItem.simklId,
-                                        season = sNum,
-                                        mediaType = activeItem.type,
-                                        showTitle = activeItem.title
-                                    ) { success, msg ->
-                                        if (success) {
-                                            scope.launch {
-                                                val result = snackbarHostState.showSnackbar(
-                                                    message = msg,
-                                                    actionLabel = "Revert",
-                                                    duration = SnackbarDuration.Short
-                                                )
-                                                if (result == SnackbarResult.ActionPerformed) {
-                                                    viewModel.markSeasonUnwatched(
-                                                        simklId = activeItem.simklId,
-                                                        season = sNum,
-                                                        mediaType = activeItem.type,
-                                                        showTitle = activeItem.title
-                                                    ) { _, revertMsg ->
-                                                        scope.launch { snackbarHostState.showSnackbar(revertMsg) }
-                                                    }
+                        Button(
+                            onClick = {
+                                viewModel.markSeasonWatched(
+                                    simklId = activeItem.simklId,
+                                    season = sNum,
+                                    mediaType = activeItem.type,
+                                    showTitle = activeItem.title
+                                ) { success, msg ->
+                                    if (success) {
+                                        scope.launch {
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = msg,
+                                                actionLabel = "Revert",
+                                                duration = SnackbarDuration.Short
+                                            )
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                viewModel.markSeasonUnwatched(
+                                                    simklId = activeItem.simklId,
+                                                    season = sNum,
+                                                    mediaType = activeItem.type,
+                                                    showTitle = activeItem.title
+                                                ) { _, revertMsg ->
+                                                    scope.launch { snackbarHostState.showSnackbar(revertMsg) }
                                                 }
                                             }
-                                        } else {
-                                            scope.launch { snackbarHostState.showSnackbar(msg) }
                                         }
+                                    } else {
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
                                     }
-                                },
-                                enabled = !isMarkingWatched && !isSeasonFullyWatched,
-                                modifier = modifier.fillMaxWidth().height(48.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isSeasonFullyWatched) Color(0xFF2E6543) else Color(0xFF4F378B),
-                                    contentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFFEADDFF),
-                                    disabledContainerColor = if (isSeasonFullyWatched) Color(0xFF1E3A2B) else Color(0xFF3B383E),
-                                    disabledContentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFF79747E)
-                                ),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                if (isMarkingWatched) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Color(0xFFEADDFF)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
-                                } else if (isSeasonFullyWatched) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "$seasonLabel Watched",
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Mark $seasonLabel as Watched",
-                                        fontWeight = FontWeight.Bold
-                                    )
                                 }
+                            },
+                            enabled = !isMarkingWatched && !isSeasonFullyWatched,
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSeasonFullyWatched) Color(0xFF2E6543) else Color(0xFF4F378B),
+                                contentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFFEADDFF),
+                                disabledContainerColor = if (isSeasonFullyWatched) Color(0xFF1E3A2B) else Color(0xFF3B383E),
+                                disabledContentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFF79747E)
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            if (isMarkingWatched) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color(0xFFEADDFF)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
+                            } else if (isSeasonFullyWatched) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "$seasonLabel Watched",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Mark $seasonLabel as Watched",
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
-
-                        SeasonWatchSection(modifier = Modifier.fillMaxWidth())
                     }
 
                     CustomSearchLinksCard(
-                        viewModel = viewModel,
+                        searchLinks = customSearchLinks,
                         title = activeItem.title,
                         titleRomaji = activeItem.titleRomaji,
                         itemType = activeItem.type,
@@ -626,12 +642,26 @@ fun ReleaseDetailScreen(
                                                     ) {
                                                         ItemWatchedStatusDropdown(
                                                             item = epItem,
-                                                            viewModel = viewModel,
+                                                            onWatchedStatusChange = { watched ->
+                                                                if (epItem.type == MediaType.MOVIE) {
+                                                                    if (watched) {
+                                                                        viewModel.markMovieWatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
+                                                                    } else {
+                                                                        viewModel.markMovieUnwatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
+                                                                    }
+                                                                } else {
+                                                                    if (watched) {
+                                                                        viewModel.markEpisodeWatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
+                                                                    } else {
+                                                                        viewModel.markEpisodeUnwatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
+                                                                    }
+                                                                }
+                                                            },
                                                             updatingWatchKeys = updatingWatchKeys
                                                         )
                                                         ItemMediaStatusDropdown(
                                                             item = epItem,
-                                                            viewModel = viewModel
+                                                            onStatusChange = { viewModel.updateMediaStatus(epItem.primaryKey, it) }
                                                         )
                                                     }
                                                 } else {
@@ -641,12 +671,26 @@ fun ReleaseDetailScreen(
                                                     ) {
                                                         ItemWatchedStatusDropdown(
                                                             item = epItem,
-                                                            viewModel = viewModel,
+                                                            onWatchedStatusChange = { watched ->
+                                                                if (epItem.type == MediaType.MOVIE) {
+                                                                    if (watched) {
+                                                                        viewModel.markMovieWatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
+                                                                    } else {
+                                                                        viewModel.markMovieUnwatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
+                                                                    }
+                                                                } else {
+                                                                    if (watched) {
+                                                                        viewModel.markEpisodeWatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
+                                                                    } else {
+                                                                        viewModel.markEpisodeUnwatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
+                                                                    }
+                                                                }
+                                                            },
                                                             updatingWatchKeys = updatingWatchKeys
                                                         )
                                                         ItemMediaStatusDropdown(
                                                             item = epItem,
-                                                            viewModel = viewModel
+                                                            onStatusChange = { viewModel.updateMediaStatus(epItem.primaryKey, it) }
                                                         )
                                                     }
                                                 }
@@ -674,23 +718,38 @@ fun ReleaseDetailScreen(
                         isMovie = isMovie,
                         notifyEveryEpisode = notifyEveryEpisode,
                         notifySeasonFinished = notifySeasonFinished,
-                        onNotifyEveryEpisodeChange = { notifyEveryEpisode = it },
-                        onNotifySeasonFinishedChange = { notifySeasonFinished = it },
-                        checkPermission = { checkAndRequestNotificationPermission() },
-                        viewModel = viewModel
+                        onNotifyEveryEpisodeChange = { isChecked ->
+                            notifyEveryEpisode = isChecked
+                            viewModel.toggleNotification(
+                                simklId = activeItem.simklId,
+                                notifyEpisode = isChecked,
+                                notifySeasonFinished = notifySeasonFinished
+                            )
+                        },
+                        onNotifySeasonFinishedChange = { isChecked ->
+                            notifySeasonFinished = isChecked
+                            viewModel.toggleNotification(
+                                simklId = activeItem.simklId,
+                                notifyEpisode = notifyEveryEpisode,
+                                notifySeasonFinished = isChecked
+                            )
+                        },
+                        checkPermission = { checkAndRequestNotificationPermission() }
                     )
 
                     DownloadSettingsCard(
-                        viewModel = viewModel,
                         simklId = activeItem.simklId,
                         itemTitle = activeItem.title,
                         mediaType = activeItem.type,
-                        defaultSubdirectory = activeItem.defaultDestinationSubdirectory()
+                        defaultSubdirectory = activeItem.defaultDestinationSubdirectory(),
+                        autoDownloadPrefs = autoDownloadPrefs,
+                        itemSettings = itemSettings,
+                        isDownloaderInstalled = isDownloaderInstalled,
+                        availableSubdirectories = availableSubdirectories,
+                        onSaveItemDownloadSettings = { viewModel.saveItemDownloadSettings(it) }
                     )
                 }
             }
         }
     }
 }
-
-

@@ -528,130 +528,24 @@ fun MainScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 // Toggles / Chip Filtering Bar (Shown in both views)
-                AnimatedVisibility(
-                    visible = isFilterBarVisible,
-                    enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(220)),
-                    exit = shrinkVertically(animationSpec = tween(220)) + fadeOut(animationSpec = tween(220))
-                ) {
-                    FlowRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        itemVerticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // TV Toggle
-                        FilterChip(
-                            selected = tvFilter,
-                            onClick = { viewModel.toggleShowTv() },
-                            label = { Text("TV") },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFBAC3FF),
-                                selectedLabelColor = Color(0xFF1A237E),
-                                containerColor = Color(0xFF313033),
-                                labelColor = Color(0xFFCAC4D0)
-                            )
-                        )
-
-                        // Anime Toggle
-                        FilterChip(
-                            selected = animeFilter,
-                            onClick = { viewModel.toggleShowAnime() },
-                            label = { Text("Anime") },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFE8DEF8),
-                                selectedLabelColor = Color(0xFF1D192B),
-                                containerColor = Color(0xFF313033),
-                                labelColor = Color(0xFFCAC4D0)
-                            )
-                        )
-
-                        // Movies Toggle
-                        FilterChip(
-                            selected = moviesFilter,
-                            onClick = { viewModel.toggleShowMovies() },
-                            label = { Text("Movies") },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFF2B8B5),
-                                selectedLabelColor = Color(0xFF601410),
-                                containerColor = Color(0xFF313033),
-                                labelColor = Color(0xFFCAC4D0)
-                            )
-                        )
-
-                        // Visual Separator
-                        VerticalDivider(
-                            modifier = Modifier
-                                .height(24.dp)
-                                .padding(horizontal = 4.dp),
-                            color = Color(0xFF49454F)
-                        )
-
-                        // Unwatched Released Toggle (Only in Table View)
-                        if (viewMode == ViewMode.TABLE) {
-                            FilterChip(
-                                selected = unwatchedFilter,
-                                onClick = { viewModel.toggleShowOnlyUnwatchedReleased() },
-                                label = { Text("Unwatched") },
-                                leadingIcon = {
-                                    if (unwatchedFilter) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                        )
-                                    }
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFD0BCFF),
-                                    selectedLabelColor = Color(0xFF381E72),
-                                    containerColor = Color(0xFF313033),
-                                    labelColor = Color(0xFFCAC4D0)
-                                )
-                            )
-                        }
-
-                        // Calendar Subtype Filters (Only in Calendar View)
-                        if (viewMode == ViewMode.CALENDAR) {
-                            FilterChip(
-                                selected = premieresOnly,
-                                onClick = { viewModel.toggleOnlySeasonPremieres() },
-                                label = { Text("Season Premiere") },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFE8DEF8),
-                                    selectedLabelColor = Color(0xFF1D192B),
-                                    containerColor = Color(0xFF313033),
-                                    labelColor = Color(0xFFCAC4D0)
-                                )
-                            )
-
-                            FilterChip(
-                                selected = finalesOnly,
-                                onClick = { viewModel.toggleOnlySeasonFinales() },
-                                label = { Text("Season Finale") },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFB3261E),
-                                    selectedLabelColor = Color.White,
-                                    containerColor = Color(0xFF313033),
-                                    labelColor = Color(0xFFCAC4D0)
-                                )
-                            )
-
-                            FilterChip(
-                                selected = digitalDvdOnly,
-                                onClick = { viewModel.toggleOnlyDigitalDvd() },
-                                label = { Text("Digital / DVD") },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFF4F378B),
-                                    selectedLabelColor = Color(0xFFEADDFF),
-                                    containerColor = Color(0xFF313033),
-                                    labelColor = Color(0xFFCAC4D0)
-                                )
-                            )
-                        }
-                    }
-                }
+                MainFilterBar(
+                    isVisible = isFilterBarVisible,
+                    viewMode = viewMode,
+                    tvFilter = tvFilter,
+                    animeFilter = animeFilter,
+                    moviesFilter = moviesFilter,
+                    unwatchedFilter = unwatchedFilter,
+                    premieresOnly = premieresOnly,
+                    finalesOnly = finalesOnly,
+                    digitalDvdOnly = digitalDvdOnly,
+                    onToggleShowTv = { viewModel.toggleShowTv() },
+                    onToggleShowAnime = { viewModel.toggleShowAnime() },
+                    onToggleShowMovies = { viewModel.toggleShowMovies() },
+                    onToggleShowOnlyUnwatchedReleased = { viewModel.toggleShowOnlyUnwatchedReleased() },
+                    onToggleOnlySeasonPremieres = { viewModel.toggleOnlySeasonPremieres() },
+                    onToggleOnlySeasonFinales = { viewModel.toggleOnlySeasonFinales() },
+                    onToggleOnlyDigitalDvd = { viewModel.toggleOnlyDigitalDvd() }
+                )
 
                 // Search Results Status Pill (when searching)
                 if (searchQuery.isNotBlank()) {
@@ -715,6 +609,154 @@ fun MainScreen(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun MainFilterBar(
+    isVisible: Boolean,
+    viewMode: ViewMode,
+    tvFilter: Boolean,
+    animeFilter: Boolean,
+    moviesFilter: Boolean,
+    unwatchedFilter: Boolean,
+    premieresOnly: Boolean,
+    finalesOnly: Boolean,
+    digitalDvdOnly: Boolean,
+    onToggleShowTv: () -> Unit,
+    onToggleShowAnime: () -> Unit,
+    onToggleShowMovies: () -> Unit,
+    onToggleShowOnlyUnwatchedReleased: () -> Unit,
+    onToggleOnlySeasonPremieres: () -> Unit,
+    onToggleOnlySeasonFinales: () -> Unit,
+    onToggleOnlyDigitalDvd: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(220)),
+        exit = shrinkVertically(animationSpec = tween(220)) + fadeOut(animationSpec = tween(220)),
+        modifier = modifier
+    ) {
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            // TV Toggle
+            FilterChip(
+                selected = tvFilter,
+                onClick = onToggleShowTv,
+                label = { Text("TV") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFFBAC3FF),
+                    selectedLabelColor = Color(0xFF1A237E),
+                    containerColor = Color(0xFF313033),
+                    labelColor = Color(0xFFCAC4D0)
+                )
+            )
+
+            // Anime Toggle
+            FilterChip(
+                selected = animeFilter,
+                onClick = onToggleShowAnime,
+                label = { Text("Anime") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFFE8DEF8),
+                    selectedLabelColor = Color(0xFF1D192B),
+                    containerColor = Color(0xFF313033),
+                    labelColor = Color(0xFFCAC4D0)
+                )
+            )
+
+            // Movies Toggle
+            FilterChip(
+                selected = moviesFilter,
+                onClick = onToggleShowMovies,
+                label = { Text("Movies") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFFF2B8B5),
+                    selectedLabelColor = Color(0xFF601410),
+                    containerColor = Color(0xFF313033),
+                    labelColor = Color(0xFFCAC4D0)
+                )
+            )
+
+            // Visual Separator
+            VerticalDivider(
+                modifier = Modifier
+                    .height(24.dp)
+                    .padding(horizontal = 4.dp),
+                color = Color(0xFF49454F)
+            )
+
+            // Unwatched Released Toggle (Only in Table View)
+            if (viewMode == ViewMode.TABLE) {
+                FilterChip(
+                    selected = unwatchedFilter,
+                    onClick = onToggleShowOnlyUnwatchedReleased,
+                    label = { Text("Unwatched") },
+                    leadingIcon = {
+                        if (unwatchedFilter) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFFD0BCFF),
+                        selectedLabelColor = Color(0xFF381E72),
+                        containerColor = Color(0xFF313033),
+                        labelColor = Color(0xFFCAC4D0)
+                    )
+                )
+            }
+
+            // Calendar Subtype Filters (Only in Calendar View)
+            if (viewMode == ViewMode.CALENDAR) {
+                FilterChip(
+                    selected = premieresOnly,
+                    onClick = onToggleOnlySeasonPremieres,
+                    label = { Text("Season Premiere") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFFE8DEF8),
+                        selectedLabelColor = Color(0xFF1D192B),
+                        containerColor = Color(0xFF313033),
+                        labelColor = Color(0xFFCAC4D0)
+                    )
+                )
+
+                FilterChip(
+                    selected = finalesOnly,
+                    onClick = onToggleOnlySeasonFinales,
+                    label = { Text("Season Finale") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFFB3261E),
+                        selectedLabelColor = Color.White,
+                        containerColor = Color(0xFF313033),
+                        labelColor = Color(0xFFCAC4D0)
+                    )
+                )
+
+                FilterChip(
+                    selected = digitalDvdOnly,
+                    onClick = onToggleOnlyDigitalDvd,
+                    label = { Text("Digital / DVD") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF4F378B),
+                        selectedLabelColor = Color(0xFFEADDFF),
+                        containerColor = Color(0xFF313033),
+                        labelColor = Color(0xFFCAC4D0)
+                    )
+                )
             }
         }
     }

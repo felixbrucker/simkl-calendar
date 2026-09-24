@@ -40,10 +40,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.felixbrucker.simklcalendar.R
+import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import androidx.core.net.toUri
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     viewModel: CalendarViewModel,
@@ -51,14 +51,36 @@ fun LoginScreen(
     modifier: Modifier = Modifier,
     onLaunchAuthTab: ((url: String) -> Unit)? = null,
 ) {
-    val context = LocalContext.current
     val token by viewModel.userToken.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val showAuthV2UpgradeHint by viewModel.showAuthV2UpgradeHint.collectAsState()
-
-    var oauthError by remember { mutableStateOf<String?>(null) }
-
     val isConfigured = viewModel.isRealApiConfigured()
+
+    LoginContent(
+        token = token,
+        isSyncing = isSyncing,
+        showAuthV2UpgradeHint = showAuthV2UpgradeHint,
+        isConfigured = isConfigured,
+        onCreateAuthUrl = { viewModel.createAuthorizationUrl("simklcalendar://auth") },
+        onLoginSuccess = onLoginSuccess,
+        modifier = modifier,
+        onLaunchAuthTab = onLaunchAuthTab
+    )
+}
+
+@Composable
+fun LoginContent(
+    token: UserToken?,
+    isSyncing: Boolean,
+    showAuthV2UpgradeHint: Boolean,
+    isConfigured: Boolean,
+    onCreateAuthUrl: () -> String?,
+    onLoginSuccess: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLaunchAuthTab: ((url: String) -> Unit)? = null,
+) {
+    val context = LocalContext.current
+    var oauthError by remember { mutableStateOf<String?>(null) }
 
     // Redirect to calendar dashboard if already logged in
     LaunchedEffect(token) {
@@ -157,7 +179,7 @@ fun LoginScreen(
                             Button(
                                 onClick = {
                                     oauthError = null
-                                    val authUrl = viewModel.createAuthorizationUrl("simklcalendar://auth")
+                                    val authUrl = onCreateAuthUrl()
                                     if (authUrl != null) {
                                         if (onLaunchAuthTab != null) {
                                             onLaunchAuthTab(authUrl)
