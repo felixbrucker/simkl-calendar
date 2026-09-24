@@ -118,21 +118,23 @@ object LogRepository {
         maxEntries: Int
     ): List<LogEntry> {
         val cutoff = nowMs - maxAgeMs
-        var filtered = entries.filter { it.timestamp >= cutoff }
-        if (filtered.size > maxEntries) {
-            filtered = filtered.takeLast(maxEntries)
+        var startIndex = entries.indexOfFirst { it.timestamp >= cutoff }
+        if (startIndex == -1) return emptyList()
+        if (entries.size - startIndex > maxEntries) {
+            startIndex = entries.size - maxEntries
         }
-        return filtered
+        return entries.subList(startIndex, entries.size).toList()
     }
 
     private fun saveAllLocked(entries: List<LogEntry>) {
         val file = logFile ?: return
         try {
-            val sb = StringBuilder()
-            for (entry in entries) {
-                sb.append(adapter.toJson(entry)).append("\n")
+            file.bufferedWriter().use { writer ->
+                for (entry in entries) {
+                    writer.write(adapter.toJson(entry))
+                    writer.newLine()
+                }
             }
-            file.writeText(sb.toString())
         } catch (_: Exception) {
         }
     }

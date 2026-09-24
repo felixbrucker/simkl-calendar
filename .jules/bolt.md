@@ -15,3 +15,9 @@
 **Learning:** Custom Compose `MeasurePolicy` implementations execute on every layout and scroll pass. Constructing `List<Int>` via `MutableList(columns)` or `List(rows)` causes boxed `Integer` allocations for every cell dimension check alongside `ArrayList` and `Iterator` allocations during `measurables.map` and `sum()`. Replacing these with primitive `IntArray` and `Array<Placeable>` eliminates object boxing and `ArrayList` allocations on every measure pass, reducing GC pressure during list scrolling.
 
 **Action:** Use primitive `IntArray` and `Array<Placeable>` instead of `List` or `MutableList` inside custom `MeasurePolicy.measure` blocks.
+
+## 2026-10-15 - Index-Based Sublist Slicing & Direct Stream Writing for Log Repositories
+
+**Learning:** Pruning chronologically ordered log entries with `entries.filter { it.timestamp >= cutoff }.takeLast(maxEntries)` performs an $O(N)$ list traversal and allocates two intermediate `ArrayList` copies. Leveraging monotonic timestamp order via `indexOfFirst` and `subList(startIndex, entries.size)` eliminates intermediate list allocations during pruning. Additionally, using `BufferedWriter` for JSON log persistence avoids allocating large `StringBuilder` heap strings containing all log lines before writing to disk.
+
+**Action:** Use `indexOfFirst` and `subList` when pruning chronologically ordered log collections and stream JSON log files directly with `BufferedWriter`.
