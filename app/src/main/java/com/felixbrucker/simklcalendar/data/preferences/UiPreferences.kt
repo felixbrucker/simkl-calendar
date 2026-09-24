@@ -10,6 +10,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,6 +44,17 @@ class UiRepository @Inject constructor(
     @ApplicationContext context: Context
 ) {
     private val dataStore = context.uiDataStore
+
+    private val _pendingDetailKey = MutableStateFlow<String?>(null)
+    val pendingDetailKey: StateFlow<String?> = _pendingDetailKey.asStateFlow()
+
+    fun setPendingDetailKey(key: String) {
+        _pendingDetailKey.value = key
+    }
+
+    fun clearPendingDetailKey() {
+        _pendingDetailKey.value = null
+    }
 
     companion object {
         private val KEY_VIEW_MODE = stringPreferencesKey("view_mode")

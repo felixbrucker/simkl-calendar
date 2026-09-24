@@ -53,13 +53,11 @@ fun LoginScreen(
     onLaunchAuthTab: ((url: String) -> Unit)? = null,
 ) {
     val token by viewModel.userToken.collectAsState()
-    val isSyncing by viewModel.isSyncing.collectAsState()
     val showAuthV2UpgradeHint by viewModel.showAuthV2UpgradeHint.collectAsState()
     val isConfigured = viewModel.isRealApiConfigured()
 
     LoginContent(
         token = token,
-        isSyncing = isSyncing,
         showAuthV2UpgradeHint = showAuthV2UpgradeHint,
         isConfigured = isConfigured,
         onCreateAuthUrl = { viewModel.createAuthorizationUrl("simklcalendar://auth") },
@@ -72,7 +70,6 @@ fun LoginScreen(
 @Composable
 fun LoginContent(
     token: UserToken?,
-    isSyncing: Boolean,
     showAuthV2UpgradeHint: Boolean,
     isConfigured: Boolean,
     onCreateAuthUrl: () -> String?,
@@ -199,8 +196,7 @@ fun LoginContent(
                                     containerColor = Color(0xFFD0BCFF),
                                     contentColor = Color(0xFF381E72)
                                 ),
-                                shape = RoundedCornerShape(12.dp),
-                                enabled = !isSyncing
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                                 Text("Log in with Simkl Account", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
@@ -243,17 +239,6 @@ fun LoginContent(
                             )
                         }
                     }
-                }
-            }
-
-            if (isSyncing) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.6f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Color(0xFFD0BCFF))
                 }
             }
         }

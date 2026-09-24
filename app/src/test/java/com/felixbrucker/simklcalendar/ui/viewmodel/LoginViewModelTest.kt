@@ -4,20 +4,16 @@ import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.preferences.AuthPreferences
 import com.felixbrucker.simklcalendar.data.preferences.AuthRepository
 import com.felixbrucker.simklcalendar.data.repository.SimklRepository
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -57,49 +53,5 @@ class LoginViewModelTest {
 
         assertTrue(isConfigured)
         assertEquals("https://simkl.com/oauth", authUrl)
-    }
-
-    @Test
-    fun testExchangeOAuthCodeSuccess() = runTest {
-        coEvery { repositoryMock.exchangeOAuthCode("code", "state", "simklcalendar://auth") } returns true
-        val viewModel = LoginViewModel(repositoryMock, authRepoMock)
-        var successCalled = false
-        var failureCalled = false
-
-        viewModel.exchangeOAuthCode(
-            code = "code",
-            state = "state",
-            redirectUri = "simklcalendar://auth",
-            onSuccess = { successCalled = true },
-            onFailure = { failureCalled = true }
-        )
-        advanceUntilIdle()
-        val isSyncing = viewModel.isSyncing.value
-
-        assertTrue(successCalled)
-        assertFalse(failureCalled)
-        assertFalse(isSyncing)
-    }
-
-    @Test
-    fun testExchangeOAuthCodeFailure() = runTest {
-        coEvery { repositoryMock.exchangeOAuthCode("code", "state", "simklcalendar://auth") } returns false
-        val viewModel = LoginViewModel(repositoryMock, authRepoMock)
-        var successCalled = false
-        var failureCalled = false
-
-        viewModel.exchangeOAuthCode(
-            code = "code",
-            state = "state",
-            redirectUri = "simklcalendar://auth",
-            onSuccess = { successCalled = true },
-            onFailure = { failureCalled = true }
-        )
-        advanceUntilIdle()
-        val isSyncing = viewModel.isSyncing.value
-
-        assertFalse(successCalled)
-        assertTrue(failureCalled)
-        assertFalse(isSyncing)
     }
 }
