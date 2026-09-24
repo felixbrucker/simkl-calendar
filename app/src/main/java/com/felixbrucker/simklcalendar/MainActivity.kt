@@ -29,7 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -50,9 +50,6 @@ import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -85,9 +82,6 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var torrentServiceHelper: TorrentServiceHelper
 
-    private val _pendingDetailKey = MutableStateFlow<String?>(null)
-    val pendingDetailKey: StateFlow<String?> = _pendingDetailKey.asStateFlow()
-
     // Modern AuthTab ActivityResultLauncher
     private val authTabLauncher = AuthTabIntent.registerActivityResultLauncher(this) { result ->
         handleAuthTabResult(result)
@@ -113,6 +107,13 @@ class MainActivity : ComponentActivity() {
             val customTabsIntent = CustomTabsIntent.Builder().build()
             customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             customTabsIntent.launchUrl(this, uri)
+        }
+    }
+
+    fun navigateToReleaseDetail(navController: NavHostController, itemKey: String) {
+        val encodedKey = URLEncoder.encode(itemKey, "UTF-8")
+        navController.navigate("release_detail/$encodedKey") {
+            launchSingleTop = true
         }
     }
 
@@ -152,16 +153,20 @@ class MainActivity : ComponentActivity() {
         handleOAuthIntent(intent)
 
         lifecycleScope.launch(Dispatchers.Default) {
-            handleNotificationNavigation(intent)
             notificationManager.restoreActiveNotifications()
         }
 
         setContent {
             MyApplicationTheme {
+                val navController = rememberNavController()
+
+                LaunchedEffect(intent) {
+                    handleNotificationNavigation(intent, navController)
+                }
+
                 SimklCalendarApp(
+                    navController = navController,
                     viewModel = viewModel,
-                    pendingDetailKeyFlow = pendingDetailKey,
-                    onClearPendingDetailKey = { _pendingDetailKey.value = null },
                     onLaunchAuthTab = { authUrl ->
                         launchAuthTab(authUrl, "simklcalendar")
                     }
@@ -174,9 +179,6 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleOAuthIntent(intent)
-        lifecycleScope.launch(Dispatchers.Default) {
-            handleNotificationNavigation(intent)
-        }
     }
 
     private fun handleOAuthIntent(intent: Intent?) {
@@ -186,7 +188,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun handleNotificationNavigation(intent: Intent?) {
+    private suspend fun handleNotificationNavigation(intent: Intent?, navController: NavHostController) {
         if (intent == null) return
         val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
             ?: if (intent.data?.scheme == "simklcalendar" && intent.data?.host == "detail") {
@@ -201,7 +203,7 @@ class MainActivity : ComponentActivity() {
 
         if (!itemKey.isNullOrEmpty()) {
             notificationManager.removeActiveNotification(itemKey)
-            _pendingDetailKey.value = itemKey
+            navigateToReleaseDetail(navController, itemKey)
         }
     }
 
@@ -213,11 +215,12 @@ class MainActivity : ComponentActivity() {
                 return
             }
             val code = uri.getQueryParameter("code")
-            val state = uri.getQueryParameter("state")
+            val state = uri.getQueryParameter("state") ?: ""
             if (!code.isNullOrEmpty()) {
                 oAuthRepository.onOAuthCodeReceived(
                     code = code,
-                    state = state
+                    state = state,
+                    redirectUri = "simklcalendar://auth"
                 )
             }
         }
@@ -230,14 +233,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SimklCalendarApp(
+    navController: NavHostController = rememberNavController(),
     viewModel: CalendarViewModel,
-    pendingDetailKeyFlow: StateFlow<String?>,
-    onClearPendingDetailKey: () -> Unit,
     onLaunchAuthTab: (url: String) -> Unit = {}
 ) {
-    val navController = rememberNavController()
     val authState by viewModel.authState.collectAsState()
-    val pendingDetailKey by pendingDetailKeyFlow.collectAsState()
     val context = LocalContext.current
 
     // Don't render navigation until we know if the user is logged in or not
@@ -246,19 +246,6 @@ fun SimklCalendarApp(
             CircularProgressIndicator(color = Color(0xFFD0BCFF))
         }
         return
-    }
-
-    // Automatically navigate to detail when an item key is provided via notification or deep link
-    LaunchedEffect(pendingDetailKey, authState.token) {
-        val targetKey = pendingDetailKey
-        val token = authState.token
-        if (targetKey != null && token != null) {
-            val encodedKey = URLEncoder.encode(targetKey, "UTF-8")
-            navController.navigate("release_detail/$encodedKey") {
-                launchSingleTop = true
-            }
-            onClearPendingDetailKey()
-        }
     }
 
     // Request notification permission on Android 13+ (API 33+)

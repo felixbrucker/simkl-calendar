@@ -31,7 +31,7 @@ class OAuthRepositoryTest {
     fun testOnOAuthCodeReceivedEmitsEvent() = runTest {
         val oauthRepo = OAuthRepository()
 
-        oauthRepo.onOAuthCodeReceived("code123", "state123")
+        oauthRepo.onOAuthCodeReceived("code123", "state123", "simklcalendar://auth")
         val event = oauthRepo.oauthCodeEvents.first()
         val code = event.code
         val state = event.state
