@@ -1,8 +1,7 @@
 package com.felixbrucker.simklcalendar.ui.viewmodel
 
-import android.app.Application
 import timber.log.Timber
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
@@ -68,7 +67,6 @@ data class WatchlistTableItem(
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
-    application: Application,
     private val repository: SimklRepository,
     val appSettingsRepo: AppSettingsRepository,
     val autoDownloadRepo: AutoDownloadRepository,
@@ -77,7 +75,7 @@ class CalendarViewModel @Inject constructor(
     val uiRepo: UiRepository,
     val torrentServiceHelper: TorrentServiceHelper,
     val alarmScheduler: AlarmScheduler
-) : AndroidViewModel(application) {
+) : ViewModel() {
 
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = repository.watchlistItems
 

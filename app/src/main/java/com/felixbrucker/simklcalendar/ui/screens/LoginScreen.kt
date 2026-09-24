@@ -39,7 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.felixbrucker.simklcalendar.R
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.ui.viewmodel.LoginViewModel
@@ -47,7 +47,7 @@ import androidx.core.net.toUri
 
 @Composable
 fun LoginScreen(
-    viewModel: LoginViewModel = viewModel(),
+    viewModel: LoginViewModel = hiltViewModel(),
     onLoginSuccess: () -> Unit,
     modifier: Modifier = Modifier,
     onLaunchAuthTab: ((url: String) -> Unit)? = null,

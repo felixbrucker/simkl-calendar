@@ -123,7 +123,6 @@ class CalendarViewModelTest {
     private fun createViewModel(): CalendarViewModel {
         userTokenFlow.value = null
         return CalendarViewModel(
-            application = application,
             repository = repositoryMock,
             appSettingsRepo = appSettingsRepo,
             autoDownloadRepo = autoDownloadRepo,

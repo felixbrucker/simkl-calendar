@@ -32,7 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.felixbrucker.simklcalendar.data.logging.LogEntry
 import com.felixbrucker.simklcalendar.ui.viewmodel.LogViewerViewModel
 import kotlinx.coroutines.launch
@@ -46,7 +46,7 @@ private val logTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogViewerScreen(
-    viewModel: LogViewerViewModel = viewModel(),
+    viewModel: LogViewerViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
