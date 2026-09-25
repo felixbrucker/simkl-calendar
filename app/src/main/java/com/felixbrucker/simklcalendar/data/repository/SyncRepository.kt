@@ -21,6 +21,7 @@ import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
 import com.felixbrucker.simklcalendar.data.network.SyncMovieItem
 import com.felixbrucker.simklcalendar.data.network.SyncSeasonItem
 import com.felixbrucker.simklcalendar.data.network.SyncShowItem
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
 import com.felixbrucker.simklcalendar.data.preferences.SyncMetadataRepository
 import com.felixbrucker.simklcalendar.data.util.DateUtil
@@ -56,6 +57,7 @@ class SyncRepository @Inject constructor(
     private val authenticatedSimklApiService: AuthenticatedSimklApiService,
     private val notificationRepo: NotificationRepository,
     private val syncMetadataRepo: SyncMetadataRepository,
+    private val autoDownloadRepo: AutoDownloadRepository,
     private val downloadRepository: DownloadRepository,
     private val mediaStatusResolver: MediaStatusResolver,
     private val alarmScheduler: AlarmScheduler,
@@ -347,6 +349,7 @@ class SyncRepository @Inject constructor(
         val sixHoursMillis = 6 * 60 * 60 * 1000L
         val nowMillis = System.currentTimeMillis()
         val oneMonthAgo = Instant.now().minus(30, ChronoUnit.DAYS)
+        val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
 
         // 2. Fetch CDN Calendars for current month plus next 3 months (0..3) (TV, Anime, Movies) from data.simkl.in
         val currentCal = Calendar.getInstance()
@@ -447,6 +450,7 @@ class SyncRepository @Inject constructor(
                                     mediaType = MediaType.MOVIE,
                                     isTheaterRelease = true,
                                     isWatched = false,
+                                    autoDownloadSettings = autoDownloadPrefs,
                                 )
                                 processCalendarItem(
                                     CalendarItem(
@@ -474,6 +478,7 @@ class SyncRepository @Inject constructor(
                                         mediaType = MediaType.MOVIE,
                                         isTheaterRelease = false,
                                         isWatched = false,
+                                        autoDownloadSettings = autoDownloadPrefs,
                                     )
                                     processCalendarItem(
                                         CalendarItem(
@@ -527,6 +532,7 @@ class SyncRepository @Inject constructor(
                                 mediaType = defaultType,
                                 isTheaterRelease = false,
                                 isWatched = epWatchedTimestamp != null,
+                                autoDownloadSettings = autoDownloadPrefs,
                             )
 
                             processCalendarItem(
@@ -593,6 +599,7 @@ class SyncRepository @Inject constructor(
                                 mediaType = MediaType.MOVIE,
                                 isTheaterRelease = true,
                                 isWatched = false,
+                                autoDownloadSettings = autoDownloadPrefs,
                             )
                             processCalendarItem(
                                 CalendarItem(
@@ -621,6 +628,7 @@ class SyncRepository @Inject constructor(
                                 mediaType = MediaType.MOVIE,
                                 isTheaterRelease = false,
                                 isWatched = false,
+                                autoDownloadSettings = autoDownloadPrefs,
                             )
                             processCalendarItem(
                                 CalendarItem(
@@ -720,6 +728,7 @@ class SyncRepository @Inject constructor(
         val watchedLookup = watchedDao.getWatchedEpisodesForSimklIds(trackedIds).groupBy { it.simklId }
         val settingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(trackedIds).associateBy { it.simklId }
 
+        val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
         val localStatesToInsert = mutableListOf<LocalItemState>()
@@ -797,6 +806,7 @@ class SyncRepository @Inject constructor(
                         mediaType = show.type,
                         isTheaterRelease = false,
                         isWatched = epWatchedTimestamp != null,
+                        autoDownloadSettings = autoDownloadPrefs,
                     )
 
                     val maxEp = maxEpPerSeason[seasonNum]

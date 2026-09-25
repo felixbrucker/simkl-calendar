@@ -90,6 +90,7 @@ class SimklRepositoryDeepSyncTest {
             authenticatedSimklApiService = authenticatedApiService,
             notificationRepo = notificationRepo,
             syncMetadataRepo = syncMetadataRepo,
+            autoDownloadRepo = autoDownloadRepo,
             downloadRepository = mockk(relaxed = true),
             mediaStatusResolver = mediaStatusResolver,
             alarmScheduler = mockk(relaxed = true)
