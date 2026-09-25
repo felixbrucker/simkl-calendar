@@ -32,6 +32,8 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
@@ -226,6 +228,17 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+internal fun NavController.popBackStackSafely(): Boolean {
+    val currentEntry = currentBackStackEntry ?: return false
+    if (currentEntry.lifecycle.currentState != Lifecycle.State.RESUMED) {
+        return false
+    }
+    if (previousBackStackEntry == null) {
+        return false
+    }
+    return popBackStack()
+}
+
 @Composable
 fun SimklCalendarApp(
     viewModel: CalendarViewModel,
@@ -326,7 +339,7 @@ fun SimklCalendarApp(
             composable("settings") {
                 SettingsScreen(
                     onNavigateBack = {
-                        navController.popBackStack()
+                        navController.popBackStackSafely()
                     }
                 ) {
                     navController.navigate("log_viewer") {
@@ -338,7 +351,7 @@ fun SimklCalendarApp(
             // 3.1. Log Viewer screen
             composable("log_viewer") {
                 LogViewerScreen {
-                    navController.popBackStack()
+                    navController.popBackStackSafely()
                 }
             }
 
@@ -358,7 +371,7 @@ fun SimklCalendarApp(
                     viewModel = viewModel,
                     itemKey = itemKey,
                     onNavigateBack = {
-                        navController.popBackStack()
+                        navController.popBackStackSafely()
                     },
                     onNavigateToWatchlistItem = { simklId ->
                         navController.navigate("watchlist_item_detail/$simklId")
@@ -375,7 +388,7 @@ fun SimklCalendarApp(
                 WatchlistItemDetailScreen(
                     viewModel = viewModel,
                     simklId = simklId,
-                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateBack = { navController.popBackStackSafely() },
                     onNavigateToEpisode = { itemKey ->
                         val encodedKey = URLEncoder.encode(itemKey, "UTF-8")
                         navController.navigate("release_detail/$encodedKey")
