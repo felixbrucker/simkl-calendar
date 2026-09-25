@@ -12,6 +12,7 @@ import javax.inject.Singleton
 @Retention(AnnotationRetention.BINARY)
 annotation class SentryDsn
 
+@Suppress("SameReturnValue")
 @Module
 @InstallIn(SingletonComponent::class)
 object SentryModule {
