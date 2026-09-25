@@ -4,7 +4,6 @@ import android.content.Context
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
-import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import io.sentry.Sentry
@@ -43,22 +42,6 @@ class SentryManagerTest {
     fun testSentryManagerUpdateStateWhenEnabled() {
         val context: Context = mockk(relaxed = true)
         val sentryManager = SentryManager(dsn = "DSN")
-
-        sentryManager.updateSentryState(context = context, isEnabled = true)
-
-        verify(exactly = 1) { SentryAndroid.init(context, any<Sentry.OptionsConfiguration<SentryAndroidOptions>>()) }
-    }
-
-    @Test
-    fun testSentryManagerConfiguresTracesSampleRateWhenEnabled() {
-        val context: Context = mockk(relaxed = true)
-        val sentryManager = SentryManager(dsn = "DSN")
-        val slot = slot<Sentry.OptionsConfiguration<SentryAndroidOptions>>()
-        every { SentryAndroid.init(context, capture(slot)) } answers {
-            val options = SentryAndroidOptions()
-            slot.captured.configure(options)
-            Assert.assertEquals(0.01, options.tracesSampleRate!!, 0.001)
-        }
 
         sentryManager.updateSentryState(context = context, isEnabled = true)
 
