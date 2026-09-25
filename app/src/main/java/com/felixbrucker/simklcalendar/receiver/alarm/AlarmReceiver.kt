@@ -30,7 +30,7 @@ class AlarmReceiver: BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Inject
-    lateinit var repo: CalendarRepository
+    lateinit var calendarRepository: CalendarRepository
 
     @Inject
     lateinit var downloadRepository: DownloadRepository
@@ -92,7 +92,7 @@ class AlarmReceiver: BroadcastReceiver() {
         Timber.tag(TAG).d("Processing item aired for '${item.title}' (key=$itemPrimaryKey)")
 
         // First, ensure the item's media status is correctly set after it aired
-        repo.updateItemAiredStatus(item)
+        calendarRepository.updateItemAiredStatus(item)
 
         // Second, check if we should post a notification for this item
         val shouldPostNotification = shouldPostNotificationForItem(item)

@@ -101,7 +101,7 @@ fun MainScreen(
                     isFilterBarVisible = true
                 } else if (currentIndex > previousIndex || (currentIndex == previousIndex && currentOffset > previousScrollOffset + 15)) {
                     isFilterBarVisible = false
-                } else if (currentIndex < previousIndex || (currentIndex == previousIndex && currentOffset < previousScrollOffset - 15)) {
+                } else if (currentIndex < previousIndex || (currentOffset < previousScrollOffset - 15)) {
                     isFilterBarVisible = true
                 }
                 previousIndex = currentIndex

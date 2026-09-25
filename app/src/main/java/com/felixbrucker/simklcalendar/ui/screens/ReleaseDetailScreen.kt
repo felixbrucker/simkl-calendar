@@ -343,7 +343,6 @@ fun ReleaseDetailScreen(
 
                     // Notification Settings
                     NotificationSettingsCard(
-                        simklId = activeItem.simklId,
                         isMovie = isMovie,
                         notifyEveryEpisode = notifyEveryEpisode,
                         notifySeasonFinished = notifySeasonFinished,

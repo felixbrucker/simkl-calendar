@@ -87,7 +87,7 @@ class NotificationActionReceiverTest {
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.notification.NotificationActionReceiver_GeneratedInjector>(relaxed = true)
         every { mockInjector.injectNotificationActionReceiver(any()) } answers {
             val rec = firstArg<NotificationActionReceiver>()
-            rec.repo = repositoryMock
+            rec.calendarRepository = repositoryMock
             rec.downloadRepository = downloadRepositoryMock
             rec.watchHistoryRepository = watchHistoryRepositoryMock
             rec.calendarItemDao = calendarDao

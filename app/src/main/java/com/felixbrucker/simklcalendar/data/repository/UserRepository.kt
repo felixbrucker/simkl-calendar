@@ -145,23 +145,26 @@ class UserRepository @Inject constructor(
 
     suspend fun exchangeOAuthCode(
         code: String,
-        state: String? = null,
-        redirectUri: String? = null
+        state: String,
+        redirectUri: String
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             val authPrefs = authRepo.preferencesFlow.first()
             val savedState = authPrefs.pkceState
             if (!savedState.isNullOrEmpty()) {
-                if (state == null || state != savedState) {
+                if (state != savedState) {
                     Timber.tag("UserRepository").e("OAuth state mismatch or missing! CSRF verification failed.")
                     return@withContext false
                 }
             }
 
-            val codeVerifier = authPrefs.pkceCodeVerifier
-            val savedRedirectUri = authPrefs.pkceRedirectUri ?: "simklcalendar://auth"
-            val effectiveRedirectUri = redirectUri ?: savedRedirectUri
+            val savedRedirectUri = authPrefs.pkceRedirectUri
+            if (redirectUri != savedRedirectUri) {
+                Timber.tag("UserRepository").e("OAuth redirect uri mismatch or missing! CSRF verification failed.")
+                return@withContext false
+            }
 
+            val codeVerifier = authPrefs.pkceCodeVerifier
             if (codeVerifier.isNullOrEmpty()) {
                 Timber.tag("UserRepository").e("PKCE code_verifier is missing from local storage")
                 return@withContext false
@@ -173,7 +176,7 @@ class UserRepository @Inject constructor(
                     code = code,
                     clientId = BuildConfig.SIMKL_CLIENT_ID,
                     codeVerifier = codeVerifier,
-                    redirectUri = effectiveRedirectUri,
+                    redirectUri = redirectUri,
                     grantType = "authorization_code"
                 )
             )

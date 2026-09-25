@@ -1,5 +1,6 @@
 package com.felixbrucker.simklcalendar.data.repository
 
+import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -13,7 +14,7 @@ import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class OAuthRepositoryTest {
+class OAuthEventHubTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -28,11 +29,11 @@ class OAuthRepositoryTest {
     }
 
     @Test
-    fun testOnOAuthCodeReceivedEmitsEvent() = runTest {
-        val oauthRepo = OAuthRepository()
+    fun testOnOAuthCallbackReceivedEmitsEvent() = runTest {
+        val oAuthEventHub = OAuthEventHub()
 
-        oauthRepo.onOAuthCodeReceived("code123", "state123", "simklcalendar://auth")
-        val event = oauthRepo.oauthCodeEvents.first()
+        oAuthEventHub.onOAuthCallbackReceived("code123", "state123", "simklcalendar://auth")
+        val event = oAuthEventHub.oauthCallbackEvents.first()
         val code = event.code
         val state = event.state
 

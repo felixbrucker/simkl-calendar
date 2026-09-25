@@ -51,7 +51,7 @@ class DownloadCompletedReceiverTest {
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver_GeneratedInjector>(relaxed = true)
         every { mockInjector.injectDownloadCompletedReceiver(any()) } answers {
             val rec = firstArg<DownloadCompletedReceiver>()
-            rec.repo = repositoryMock
+            rec.calendarRepository = repositoryMock
             rec.calendarItemDao = calendarDao
             rec.notificationManager = notificationManagerMock
         }

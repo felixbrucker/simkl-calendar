@@ -173,7 +173,6 @@ fun WatchlistItemDetailScreen(
                             episodes = episodes,
                             isAnimeSeasonOneOnly = isAnimeSeasonOneOnly,
                             updatingWatchKeys = updatingWatchKeys,
-                            mediaType = watchlistItem.type,
                             onMarkSeasonWatched = { season -> viewModel.markSeasonWatched(simklId, season, watchlistItem.type) },
                             onMarkSeasonUnwatched = { season -> viewModel.markSeasonUnwatched(simklId, season, watchlistItem.type) },
                             onUpdateSeasonMediaStatus = { season, status -> viewModel.updateSeasonMediaStatus(simklId, season, status) }
@@ -279,7 +278,6 @@ fun WatchlistItemDetailScreen(
                 // 4. Notification Settings
                 item {
                     NotificationSettingsCard(
-                        simklId = simklId,
                         isMovie = isMovie,
                         notifyEveryEpisode = notifyEveryEpisode,
                         notifySeasonFinished = notifySeasonFinished,
@@ -372,7 +370,6 @@ fun WatchlistItemSummaryStats(
     episodes: List<CalendarItemWithWatchlist>,
     isAnimeSeasonOneOnly: Boolean,
     updatingWatchKeys: Set<String>,
-    mediaType: MediaType,
     onMarkSeasonWatched: (season: Int) -> Unit,
     onMarkSeasonUnwatched: (season: Int) -> Unit,
     onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit

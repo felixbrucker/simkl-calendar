@@ -6,8 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.preferences.AuthRepository
-import com.felixbrucker.simklcalendar.data.repository.OAuthCodeEvent
-import com.felixbrucker.simklcalendar.data.repository.OAuthRepository
+import com.felixbrucker.simklcalendar.data.util.OAuthCallbackEvent
+import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -24,8 +24,8 @@ import javax.inject.Inject
 class LoginViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val userRepository: UserRepository,
-    private val authRepo: AuthRepository,
-    private val oAuthRepository: OAuthRepository
+    authRepo: AuthRepository,
+    private val oAuthEventHub: OAuthEventHub
 ) : ViewModel() {
 
     val userToken: StateFlow<UserToken?> = userRepository.activeUserToken
@@ -40,7 +40,7 @@ class LoginViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            oAuthRepository.oauthCodeEvents.collect { event ->
+            oAuthEventHub.oauthCallbackEvents.collect { event ->
                 exchangeOAuthCode(event)
             }
         }
@@ -52,7 +52,7 @@ class LoginViewModel @Inject constructor(
         return userRepository.createAuthorizationUrl(redirectUri)
     }
 
-    suspend fun exchangeOAuthCode(event: OAuthCodeEvent) {
+    suspend fun exchangeOAuthCode(event: OAuthCallbackEvent) {
         _isSyncing.value = true
         try {
             val success = userRepository.exchangeOAuthCode(

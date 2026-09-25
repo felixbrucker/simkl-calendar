@@ -63,7 +63,7 @@ data class CalendarItem(
     val isWatched: Boolean get() = watchedAt != null
 
     fun updatedWith(newItem: CalendarItem): CalendarItem {
-        val isDateRescheduledToFuture = this.date != newItem.date && newItem.date.isAfter(Instant.now())
+        val isDateRescheduledToFuture = this.date != newItem.date && newItem.date.isAfter(now())
         val updatedNotified = if (isDateRescheduledToFuture) false else this.isNotified
 
         return this.copy(

@@ -14,7 +14,7 @@ import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.repository.OAuthRepository
+import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import com.felixbrucker.simklcalendar.receiver.notification.makeOpenReleaseDetailViewIntent
 import io.mockk.coVerify
@@ -39,7 +39,7 @@ import java.time.Instant
 class MainActivityIntentTest {
 
     private lateinit var context: Context
-    private lateinit var oAuthRepository: OAuthRepository
+    private lateinit var oAuthEventHub: OAuthEventHub
     private lateinit var notificationManager: NotificationManager
     private lateinit var mainActivity: MainActivity
 
@@ -66,7 +66,7 @@ class MainActivityIntentTest {
             every { mockUri.scheme } answers { urlString.substringBefore("://").takeIf { urlString.contains("://") } }
             every { mockUri.host } answers { urlString.substringAfter("://").substringBefore("?").substringBefore("/") }
             every { mockUri.toString() } returns urlString
-            every { mockUri.equals(any()) } answers {
+            every { mockUri == any() } answers {
                 val other = firstArg<Any?>()
                 other is Uri && other.toString() == urlString
             }
@@ -86,11 +86,11 @@ class MainActivityIntentTest {
         every { anyConstructed<Intent>().putExtra(any<String>(), any<String>()) } returns mockk(relaxed = true)
 
         context = mockk(relaxed = true)
-        oAuthRepository = mockk(relaxed = true)
+        oAuthEventHub = mockk(relaxed = true)
         notificationManager = mockk(relaxed = true)
 
         mainActivity = spyk(MainActivity())
-        mainActivity.oAuthRepository = oAuthRepository
+        mainActivity.oAuthEventHub = oAuthEventHub
         mainActivity.notificationManager = notificationManager
     }
 
@@ -112,7 +112,7 @@ class MainActivityIntentTest {
         val uriSlot = slot<Uri>()
 
         item.makeOpenReleaseDetailViewIntent(context)
-        verify { anyConstructed<Intent>().setData(capture(uriSlot)) }
+        verify { anyConstructed<Intent>().data = capture(uriSlot) }
         val capturedUriString = uriSlot.captured.toString()
 
         assertEquals("simklcalendar://release_detail", capturedUriString)
@@ -143,29 +143,29 @@ class MainActivityIntentTest {
     }
 
     @Test
-    fun testHandleOAuthUriWithNonMatchingUriDoesNotProcess() {
+    fun testHandleOAuthUriWithNonMatchingCallbackDoesNotProcess() {
         val uri = Uri.parse("simklcalendar://release_detail")
 
-        mainActivity.handleOAuthUri(uri)
+        mainActivity.handleOAuthCallback(uri)
 
-        verify(exactly = 0) { oAuthRepository.onOAuthCodeReceived(any(), any(), any()) }
+        verify(exactly = 0) { oAuthEventHub.onOAuthCallbackReceived(any(), any(), any()) }
     }
 
     @Test
-    fun testHandleOAuthUriWithMatchingUriProcessesCode() {
+    fun testHandleOAuthUriWithMatchingCallbackProcessesCode() {
         val uri = Uri.parse("simklcalendar://auth?code=my_code&state=my_state")
 
-        mainActivity.handleOAuthUri(uri)
+        mainActivity.handleOAuthCallback(uri)
 
-        verify { oAuthRepository.onOAuthCodeReceived("my_code", "my_state", "simklcalendar://auth") }
+        verify { oAuthEventHub.onOAuthCallbackReceived("my_code", "my_state", "simklcalendar://auth") }
     }
 
     @Test
-    fun testHandleOAuthUriWithInvalidIssRejects() {
+    fun testHandleOAuthCallbackWithInvalidIssRejects() {
         val uri = Uri.parse("simklcalendar://auth?code=my_code&iss=https://fake.com")
 
-        mainActivity.handleOAuthUri(uri)
+        mainActivity.handleOAuthCallback(uri)
 
-        verify(exactly = 0) { oAuthRepository.onOAuthCodeReceived(any(), any(), any()) }
+        verify(exactly = 0) { oAuthEventHub.onOAuthCallbackReceived(any(), any(), any()) }
     }
 }

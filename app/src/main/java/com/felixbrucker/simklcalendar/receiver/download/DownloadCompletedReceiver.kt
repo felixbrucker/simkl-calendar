@@ -20,7 +20,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Inject
-    lateinit var repo: CalendarRepository
+    lateinit var calendarRepository: CalendarRepository
 
     @Inject
     lateinit var calendarItemDao: CalendarItemDao
@@ -43,7 +43,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
         val pendingResult = goAsync()
         scope.launch {
             try {
-                repo.updateDownloadTaskId(itemPrimaryKey, null, MediaStatus.DOWNLOADED)
+                calendarRepository.updateDownloadTaskId(itemPrimaryKey, null, MediaStatus.DOWNLOADED)
                 Timber.tag(TAG).d("Updated item $itemPrimaryKey to DOWNLOADED status and cleared taskId")
 
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch

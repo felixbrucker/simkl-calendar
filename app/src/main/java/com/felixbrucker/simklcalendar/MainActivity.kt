@@ -57,7 +57,7 @@ import java.net.URLDecoder
 import dagger.hilt.android.AndroidEntryPoint
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
-import com.felixbrucker.simklcalendar.data.repository.OAuthRepository
+import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
     private val viewModel: CalendarViewModel by viewModels()
 
     @Inject
-    lateinit var oAuthRepository: OAuthRepository
+    lateinit var oAuthEventHub: OAuthEventHub
 
     @Inject
     lateinit var appSettingsRepo: AppSettingsRepository
@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity() {
     private fun handleAuthTabResult(result: AuthTabIntent.AuthResult) {
         val resultUri = result.resultUri
         if (result.resultCode == AuthTabIntent.RESULT_OK && resultUri != null) {
-            handleOAuthUri(resultUri)
+            handleOAuthCallback(resultUri)
         }
     }
 
@@ -188,7 +188,7 @@ class MainActivity : ComponentActivity() {
     private fun handleOAuthIntent(intent: Intent?) {
         val uri: Uri? = intent?.data
         if (uri != null) {
-            handleOAuthUri(uri)
+            handleOAuthCallback(uri)
         }
     }
 
@@ -202,7 +202,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    internal fun handleOAuthUri(uri: Uri) {
+    internal fun handleOAuthCallback(uri: Uri) {
         if (uri.scheme != "simklcalendar" || uri.host != "auth") return
 
         val iss = uri.getQueryParameter("iss")
@@ -211,9 +211,9 @@ class MainActivity : ComponentActivity() {
             return
         }
         val code = uri.getQueryParameter("code")
-        val state = uri.getQueryParameter("state") ?: ""
-        if (!code.isNullOrEmpty()) {
-            oAuthRepository.onOAuthCodeReceived(
+        val state = uri.getQueryParameter("state")
+        if (!code.isNullOrEmpty() && !state.isNullOrEmpty()) {
+            oAuthEventHub.onOAuthCallbackReceived(
                 code = code,
                 state = state,
                 redirectUri = "simklcalendar://auth"
@@ -289,13 +289,13 @@ fun SimklCalendarApp(
             // 1. Authentication Login (OAuth via AuthTab)
             composable("login") {
                 LoginScreen(
-                    onLaunchAuthTab = onLaunchAuthTab,
                     onLoginSuccess = {
                         navController.navigate("calendar") {
                             popUpTo("login") { inclusive = true }
                             launchSingleTop = true
                         }
-                    }
+                    },
+                    onLaunchAuthTab = onLaunchAuthTab
                 )
             }
 
@@ -337,11 +337,9 @@ fun SimklCalendarApp(
 
             // 3.1. Log Viewer screen
             composable("log_viewer") {
-                LogViewerScreen(
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
+                LogViewerScreen {
+                    navController.popBackStack()
+                }
             }
 
             // 4. Release Detail screen

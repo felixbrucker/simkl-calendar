@@ -37,7 +37,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
-import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -78,15 +77,12 @@ class CalendarViewModel @Inject constructor(
     private val syncRepository: SyncRepository,
     private val watchHistoryRepository: WatchHistoryRepository,
     private val downloadRepository: DownloadRepository,
-    private val customSearchLinkRepository: CustomSearchLinkRepository,
+    customSearchLinkRepository: CustomSearchLinkRepository,
     private val notificationSettingRepository: NotificationSettingRepository,
-    val appSettingsRepo: AppSettingsRepository,
-    val autoDownloadRepo: AutoDownloadRepository,
-    val notificationRepo: NotificationRepository,
-    val authRepo: AuthRepository,
-    val uiRepo: UiRepository,
-    val torrentServiceHelper: TorrentServiceHelper,
-    val alarmScheduler: AlarmScheduler
+    private val autoDownloadRepo: AutoDownloadRepository,
+    notificationRepo: NotificationRepository,
+    private val uiRepo: UiRepository,
+    private val torrentServiceHelper: TorrentServiceHelper
 ) : ViewModel() {
 
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = calendarRepository.watchlistItems
@@ -864,10 +860,6 @@ class CalendarViewModel @Inject constructor(
 
     fun isTorrentServiceInstalled(): Boolean {
         return torrentServiceHelper.isServiceInstalled()
-    }
-
-    fun isRealApiConfigured(): Boolean {
-        return userRepository.isRealApiConfigured()
     }
 
     private fun updatePolling(items: List<CalendarItemWithWatchlist>) {

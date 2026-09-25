@@ -29,11 +29,11 @@ class SettingsViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val customSearchLinkRepository: CustomSearchLinkRepository,
     private val syncRepository: SyncRepository,
-    val appSettingsRepo: AppSettingsRepository,
-    val autoDownloadRepo: AutoDownloadRepository,
-    val notificationRepo: NotificationRepository,
-    val torrentServiceHelper: TorrentServiceHelper,
-    val alarmScheduler: AlarmScheduler
+    private val appSettingsRepo: AppSettingsRepository,
+    private val autoDownloadRepo: AutoDownloadRepository,
+    private val notificationRepo: NotificationRepository,
+    private val torrentServiceHelper: TorrentServiceHelper,
+    private val alarmScheduler: AlarmScheduler
 ) : ViewModel() {
 
     val userToken: StateFlow<UserToken?> = userRepository.activeUserToken

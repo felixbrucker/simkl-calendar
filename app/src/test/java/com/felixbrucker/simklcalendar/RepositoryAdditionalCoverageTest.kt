@@ -11,7 +11,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -57,17 +56,12 @@ class RepositoryAdditionalCoverageTest {
         calendarRepository = CalendarRepository(
             calendarDao = calendarDao,
             watchlistDao = mockk(relaxed = true),
-            itemDownloadSettingsDao = itemDownloadSettingsDao,
             mediaStatusResolver = mediaStatusResolver
         )
 
         notificationSettingRepository = NotificationSettingRepository(settingDao)
 
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
-    }
-
-    @After
-    fun tearDown() {
     }
 
     @Test

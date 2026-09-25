@@ -23,7 +23,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Inject
-    lateinit var repo: CalendarRepository
+    lateinit var calendarRepository: CalendarRepository
 
     @Inject
     lateinit var downloadRepository: DownloadRepository
@@ -167,7 +167,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 
                 // Update status to WANTED first
-                repo.updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
+                calendarRepository.updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
 
                 // Refresh item from DB
                 val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
@@ -222,7 +222,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val ignoredItems = seasonItems.filter { it.mediaStatus == MediaStatus.IGNORED }
 
                 for (ignored in ignoredItems) {
-                    repo.updateMediaStatus(ignored.primaryKey, MediaStatus.WANTED)
+                    calendarRepository.updateMediaStatus(ignored.primaryKey, MediaStatus.WANTED)
                 }
 
                 // Trigger batch search and download for all WANTED items

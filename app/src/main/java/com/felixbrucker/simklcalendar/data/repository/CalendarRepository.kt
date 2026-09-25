@@ -2,11 +2,9 @@ package com.felixbrucker.simklcalendar.data.repository
 
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
-import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -18,8 +16,7 @@ import javax.inject.Singleton
 @Singleton
 class CalendarRepository @Inject constructor(
     private val calendarDao: CalendarItemDao,
-    private val watchlistDao: WatchlistDao,
-    private val itemDownloadSettingsDao: ItemDownloadSettingsDao,
+    watchlistDao: WatchlistDao,
     private val mediaStatusResolver: MediaStatusResolver,
 ) {
     val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()
@@ -41,15 +38,7 @@ class CalendarRepository @Inject constructor(
         val calendarItem = item.calendarItem
         if (item.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext
 
-        val settings = itemDownloadSettingsDao.getSettings(item.simklId)
-
-        val newStatus = mediaStatusResolver.resolve(
-            airDate = calendarItem.date,
-            settings = settings,
-            mediaType = item.type,
-            isTheaterRelease = calendarItem.movieReleaseType == MovieReleaseType.THEATER,
-            isWatched = item.isWatched,
-        )
+        val newStatus = mediaStatusResolver.resolve(item)
         updateMediaStatus(calendarItem.primaryKey, newStatus)
     }
 }

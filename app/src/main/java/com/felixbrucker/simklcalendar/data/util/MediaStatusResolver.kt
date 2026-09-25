@@ -1,8 +1,10 @@
 package com.felixbrucker.simklcalendar.data.util
 
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import kotlinx.coroutines.flow.first
 import java.time.Instant
@@ -13,6 +15,16 @@ import javax.inject.Singleton
 class MediaStatusResolver @Inject constructor(
     private val autoDownloadRepo: AutoDownloadRepository
 ) {
+    suspend fun resolve(item: CalendarItemWithWatchlist): MediaStatus {
+        return resolve(
+            airDate = item.date,
+            settings = item.downloadSettings,
+            mediaType = item.type,
+            isTheaterRelease = item.movieReleaseType == MovieReleaseType.THEATER,
+            isWatched = item.isWatched,
+        )
+    }
+
     suspend fun resolve(
         airDate: Instant,
         settings: ItemDownloadSettings?,

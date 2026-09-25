@@ -47,8 +47,6 @@ class CalendarViewModelTest {
 
     private lateinit var uiRepo: UiRepository
     private lateinit var notificationRepo: NotificationRepository
-    private lateinit var appSettingsRepo: AppSettingsRepository
-    private lateinit var authRepo: AuthRepository
     private lateinit var autoDownloadRepo: AutoDownloadRepository
     private lateinit var torrentServiceHelper: TorrentServiceHelper
 
@@ -81,15 +79,11 @@ class CalendarViewModelTest {
 
         uiRepo = mockk(relaxed = true)
         notificationRepo = mockk(relaxed = true)
-        appSettingsRepo = mockk(relaxed = true)
-        authRepo = mockk(relaxed = true)
         autoDownloadRepo = mockk(relaxed = true)
         torrentServiceHelper = mockk(relaxed = true)
 
         every { uiRepo.preferencesFlow } returns uiPreferencesFlow
         every { notificationRepo.preferencesFlow } returns notificationPreferencesFlow
-        every { appSettingsRepo.preferencesFlow } returns appSettingsPreferencesFlow
-        every { authRepo.preferencesFlow } returns authPreferencesFlow
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
 
         coEvery { syncRepositoryMock.syncCalendar(any()) } returns Unit
@@ -120,13 +114,10 @@ class CalendarViewModelTest {
             downloadRepository = downloadRepositoryMock,
             customSearchLinkRepository = customSearchLinkRepositoryMock,
             notificationSettingRepository = notificationSettingRepositoryMock,
-            appSettingsRepo = appSettingsRepo,
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
-            authRepo = authRepo,
             uiRepo = uiRepo,
             torrentServiceHelper = torrentServiceHelper,
-            alarmScheduler = mockk(relaxed = true)
         )
     }
 

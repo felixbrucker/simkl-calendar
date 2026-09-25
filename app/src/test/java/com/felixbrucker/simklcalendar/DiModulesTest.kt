@@ -115,7 +115,6 @@ class DiModulesTest {
         val calendarRepo = CalendarRepository(
             calendarDao = calendarDao,
             watchlistDao = watchlistDao,
-            itemDownloadSettingsDao = itemDownloadSettingsDao,
             mediaStatusResolver = mediaStatusResolver
         )
 

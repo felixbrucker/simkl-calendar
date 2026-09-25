@@ -52,9 +52,9 @@ import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier,
     onNavigateToLogViewer: () -> Unit = {}
 ) {
     val context = LocalContext.current

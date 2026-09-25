@@ -60,7 +60,7 @@ class AlarmReceiverTest {
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.alarm.AlarmReceiver_GeneratedInjector>(relaxed = true)
         every { mockInjector.injectAlarmReceiver(any()) } answers {
             val rec = firstArg<AlarmReceiver>()
-            rec.repo = repositoryMock
+            rec.calendarRepository = repositoryMock
             rec.downloadRepository = downloadRepositoryMock
             rec.calendarItemDao = calendarDao
             rec.notificationSettingDao = settingDao

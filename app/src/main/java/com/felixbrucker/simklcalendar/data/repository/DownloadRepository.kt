@@ -11,7 +11,6 @@ import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
-import com.felixbrucker.torrent_search_api.SearchResultItem
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -39,10 +38,6 @@ class DownloadRepository @Inject constructor(
         return itemDownloadSettingsDao.getSettingsFlow(simklId)
     }
 
-    suspend fun searchTorrents(item: CalendarItemWithWatchlist): List<SearchResultItem> {
-        return torrentSearchManager.search(item)
-    }
-
     suspend fun searchAndDownloadSeason(simklId: Int, season: Int) = withContext(Dispatchers.IO) {
         val unwatchedItems = calendarDao.getUnwatchedDownloadableSeasonItems(simklId, season)
         unwatchedItems.forEach { item ->
@@ -52,14 +47,6 @@ class DownloadRepository @Inject constructor(
             val updatedItem = calendarDao.findItem(item.primaryKey) ?: item
             searchAndDownloadEpisode(updatedItem)
         }
-    }
-
-    fun generateCompletionIntentUri(primaryKey: String): String {
-        val intent = Intent(DownloadCompletedReceiver.ACTION_DOWNLOAD_COMPLETED).apply {
-            setClassName(context.packageName, DownloadCompletedReceiver::class.java.name)
-            putExtra(DownloadCompletedReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
-        }
-        return intent.toUri(Intent.URI_INTENT_SCHEME)
     }
 
     suspend fun searchAndDownloadEpisode(
@@ -72,7 +59,7 @@ class DownloadRepository @Inject constructor(
 
         // 2. Search torrents
         val results = try {
-            searchTorrents(item)
+            torrentSearchManager.search(item)
         } catch (e: Exception) {
             return@withContext Result.failure(e)
         }
@@ -117,5 +104,13 @@ class DownloadRepository @Inject constructor(
             onProgress(index + 1, wantedItems.size, item.title, result.isSuccess)
             delay(withDelay) // Artificial delay to prevent flicker and show progress
         }
+    }
+
+    private fun generateCompletionIntentUri(primaryKey: String): String {
+        val intent = Intent(DownloadCompletedReceiver.ACTION_DOWNLOAD_COMPLETED).apply {
+            setClassName(context.packageName, DownloadCompletedReceiver::class.java.name)
+            putExtra(DownloadCompletedReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
+        }
+        return intent.toUri(Intent.URI_INTENT_SCHEME)
     }
 }
