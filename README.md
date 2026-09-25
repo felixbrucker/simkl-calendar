@@ -5,22 +5,27 @@ Simkl Calendar is a modern Android application that integrates with your [Simkl]
 ## ✨ Features
 
 - **Unified Calendar**: View all your tracked TV shows, anime, and movies in a single, easy-to-read calendar.
+- **Tracked Watchlist**: View and manage your tracked TV shows, anime, and movies in a structured table or list view.
 - **Personalized Alerts**: Receive notifications when new episodes or movies from your watchlist are aired.
 - **Quick Actions**: Mark episodes or entire seasons as watched directly from the notification.
 - **Torrent Search**: Integrated torrent search functionality to find releases quickly.
 - **Downloader Integration**: Seamlessly works with the [Torrent HTTP Downloader](https://github.com/felixbrucker/torrent-http-downloader-app) app.
+- **Custom Search Links**: Configure custom URL templates to easily search external sites or services for your media.
 - **Modern UI**: Built with Jetpack Compose and Material 3 for a clean and responsive experience.
-- **Offline Support**: Uses Room database for local caching and offline access.
+- **Offline Support**: Uses Room database and DataStore for local caching, preferences, and offline access.
 
 ## 🛠️ Tech Stack
 
 - **Language**: [Kotlin](https://kotlinlang.org/)
 - **UI Framework**: [Jetpack Compose](https://developer.android.com/jetpack/compose)
+- **Dependency Injection**: [Hilt](https://dagger.dev/hilt/)
 - **Architecture**: MVVM (Model-View-ViewModel) with Single-Responsibility principles.
-- **Networking**: [Retrofit](https://square.github.io/retrofit/) & [OkHttp](https://square.github.io/okhttp/)
-- **Local Database**: [Room](https://developer.android.com/training/data-storage/room)
+- **Networking**: [Retrofit](https://square.github.io/retrofit/), [OkHttp](https://square.github.io/okhttp/) & [Moshi](https://github.com/square/moshi)
+- **Local Database & Storage**: [Room](https://developer.android.com/training/data-storage/room) & [Jetpack DataStore](https://developer.android.com/topic/libraries/architecture/datastore)
 - **Background Tasks**: [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager)
 - **Image Loading**: [Coil](https://coil-kt.github.io/coil/)
+- **Error Tracking & Monitoring**: [Sentry](https://sentry.io/)
+- **Logging**: [Timber](https://github.com/JakeWharton/timber)
 - **Dependency Management**: Gradle Version Catalog
 - **Code Coverage**: [Kover](https://github.com/Kotlin/kotlinx-kover)
 
