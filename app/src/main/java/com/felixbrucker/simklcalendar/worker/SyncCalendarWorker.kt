@@ -12,26 +12,28 @@ import androidx.work.WorkerParameters
 import androidx.hilt.work.HiltWorker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.SyncRepository
+import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
 class SyncCalendarWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    private val repository: SimklRepository
+    private val userRepository: UserRepository,
+    private val syncRepository: SyncRepository
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
         Timber.tag(TAG).d("Starting periodic background calendar synchronization")
-        val token = repository.getActiveUserToken()
+        val token = userRepository.getActiveUserToken()
         if (token == null || token.accessToken.isEmpty()) {
             Timber.tag(TAG).d("User is not authenticated. Skipping periodic calendar synchronization.")
             return Result.success()
         }
         return try {
             // Perform full calendar synchronization
-            repository.syncCalendar()
+            syncRepository.syncCalendar()
 
             Timber.tag(TAG).d("Periodic calendar synchronization succeeded")
             Result.success()

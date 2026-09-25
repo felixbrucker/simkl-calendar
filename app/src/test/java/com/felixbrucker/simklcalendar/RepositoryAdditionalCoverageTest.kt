@@ -5,12 +5,12 @@ import com.felixbrucker.simklcalendar.data.database.*
 import com.felixbrucker.simklcalendar.data.model.*
 import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.data.repository.*
+import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -20,68 +20,48 @@ import java.time.Instant
 class RepositoryAdditionalCoverageTest {
 
     private lateinit var context: Context
-    private lateinit var tokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
-    private lateinit var watchlistDao: WatchlistDao
-    private lateinit var watchedDao: WatchedEpisodeDao
     private lateinit var searchLinkDao: CustomSearchLinkDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
 
-    private lateinit var repository: SimklRepository
+    private lateinit var downloadRepository: DownloadRepository
+    private lateinit var customSearchLinkRepository: CustomSearchLinkRepository
+    private lateinit var calendarRepository: CalendarRepository
+    private lateinit var notificationSettingRepository: NotificationSettingRepository
 
-    private lateinit var appSettingsRepo: AppSettingsRepository
     private lateinit var autoDownloadRepo: AutoDownloadRepository
-    private lateinit var notificationRepo: NotificationRepository
-    private lateinit var authRepo: AuthRepository
-    private lateinit var syncMetadataRepo: SyncMetadataRepository
-    private lateinit var uiRepo: UiRepository
 
     @Before
     fun setUp() {
         context = mockk(relaxed = true)
-        tokenDao = mockk(relaxed = true)
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
-        watchlistDao = mockk(relaxed = true)
-        watchedDao = mockk(relaxed = true)
         searchLinkDao = mockk(relaxed = true)
         itemDownloadSettingsDao = mockk(relaxed = true)
-
-        appSettingsRepo = mockk(relaxed = true)
         autoDownloadRepo = mockk(relaxed = true)
-        notificationRepo = mockk(relaxed = true)
-        authRepo = mockk(relaxed = true)
-        syncMetadataRepo = mockk(relaxed = true)
-        uiRepo = mockk(relaxed = true)
 
-        repository = SimklRepository(
+        val mediaStatusResolver = MediaStatusResolver(autoDownloadRepo)
+
+        downloadRepository = DownloadRepository(
             context = context,
-            tokenDao = tokenDao,
             calendarDao = calendarDao,
-            settingDao = settingDao,
-            watchlistDao = watchlistDao,
-            watchedDao = watchedDao,
-            searchLinkDao = searchLinkDao,
             itemDownloadSettingsDao = itemDownloadSettingsDao,
-            publicSimklApiService = mockk(relaxed = true),
-            authenticatedSimklApiService = mockk(relaxed = true),
-            appSettingsRepo = appSettingsRepo,
-            autoDownloadRepo = autoDownloadRepo,
-            notificationRepo = notificationRepo,
-            authRepo = authRepo,
-            syncMetadataRepo = syncMetadataRepo,
-            uiRepo = uiRepo,
-            torrentServiceHelper = mockk(relaxed = true),
             torrentSearchManager = mockk(relaxed = true),
-            alarmScheduler = mockk(relaxed = true)
+            torrentServiceHelper = mockk(relaxed = true)
         )
 
-        every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
-    }
+        customSearchLinkRepository = CustomSearchLinkRepository(searchLinkDao)
 
-    @After
-    fun tearDown() {
+        calendarRepository = CalendarRepository(
+            calendarDao = calendarDao,
+            watchlistDao = mockk(relaxed = true),
+            mediaStatusResolver = mediaStatusResolver
+        )
+
+        notificationSettingRepository = NotificationSettingRepository(settingDao)
+
+        every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
     }
 
     @Test
@@ -89,8 +69,8 @@ class RepositoryAdditionalCoverageTest {
         val settings = ItemDownloadSettings(simklId = 55, downloadUnwatched = true, qualityOverride = "1080p")
         coEvery { itemDownloadSettingsDao.getSettingsFlow(55) } returns flowOf(settings)
 
-        repository.saveItemDownloadSettings(settings)
-        val retrieved = repository.getItemDownloadSettingsFlow(55).first()
+        downloadRepository.saveItemDownloadSettings(settings)
+        val retrieved = downloadRepository.getItemDownloadSettingsFlow(55).first()
 
         coVerify { itemDownloadSettingsDao.insertOrUpdate(settings) }
         assertEquals("1080p", retrieved?.qualityOverride)
@@ -102,10 +82,10 @@ class RepositoryAdditionalCoverageTest {
         val link2 = CustomSearchLink(id = 2L, name = "Link 2", urlTemplate = "http://test2.com", position = 1)
         coEvery { searchLinkDao.insertSearchLink(link1) } returns 1L
 
-        val id = repository.insertSearchLink(link1)
-        repository.updateSearchLink(link1)
-        repository.updateSearchLinks(listOf(link1, link2))
-        repository.deleteSearchLink(link1)
+        val id = customSearchLinkRepository.insertSearchLink(link1)
+        customSearchLinkRepository.updateSearchLink(link1)
+        customSearchLinkRepository.updateSearchLinks(listOf(link1, link2))
+        customSearchLinkRepository.deleteSearchLink(link1)
 
         assertEquals(1L, id)
         coVerify { searchLinkDao.insertSearchLink(link1) }
@@ -116,9 +96,9 @@ class RepositoryAdditionalCoverageTest {
 
     @Test
     fun testUpdateMediaStatusMethods() = runTest {
-        repository.updateMediaStatus("v2_10_1_1", MediaStatus.WANTED)
-        repository.updateSeasonMediaStatus(10, 1, MediaStatus.IGNORED)
-        repository.updateDownloadTaskId("v2_10_1_1", "task_123", MediaStatus.DOWNLOADING)
+        calendarRepository.updateMediaStatus("v2_10_1_1", MediaStatus.WANTED)
+        calendarRepository.updateSeasonMediaStatus(10, 1, MediaStatus.IGNORED)
+        calendarRepository.updateDownloadTaskId("v2_10_1_1", "task_123", MediaStatus.DOWNLOADING)
 
         coVerify { calendarDao.updateMediaStatus("v2_10_1_1", MediaStatus.WANTED) }
         coVerify { calendarDao.updateSeasonMediaStatus(10, 1, MediaStatus.IGNORED, any()) }
@@ -135,14 +115,14 @@ class RepositoryAdditionalCoverageTest {
 
         coEvery { calendarDao.findItem("v2_10_1_1") } returns itemWithWatchlist
 
-        repository.updateItemAiredStatus(itemWithWatchlist)
+        calendarRepository.updateItemAiredStatus(itemWithWatchlist)
 
         coVerify { calendarDao.updateMediaStatus("v2_10_1_1", any()) }
     }
 
     @Test
     fun testToggleNotificationSetting() = runTest {
-        repository.toggleNotificationSetting(simklId = 77, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
+        notificationSettingRepository.toggleNotificationSetting(simklId = 77, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
 
         coVerify {
             settingDao.saveSetting(

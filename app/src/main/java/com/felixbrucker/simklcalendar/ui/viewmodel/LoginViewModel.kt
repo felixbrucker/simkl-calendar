@@ -6,9 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.preferences.AuthRepository
-import com.felixbrucker.simklcalendar.data.repository.OAuthCodeEvent
-import com.felixbrucker.simklcalendar.data.repository.OAuthRepository
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.util.OAuthCallbackEvent
+import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
+import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,12 +23,12 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val repository: SimklRepository,
-    private val authRepo: AuthRepository,
-    private val oAuthRepository: OAuthRepository
+    private val userRepository: UserRepository,
+    authRepo: AuthRepository,
+    private val oAuthEventHub: OAuthEventHub
 ) : ViewModel() {
 
-    val userToken: StateFlow<UserToken?> = repository.activeUserToken
+    val userToken: StateFlow<UserToken?> = userRepository.activeUserToken
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val showAuthV2UpgradeHint: StateFlow<Boolean> = authRepo.preferencesFlow
@@ -40,22 +40,22 @@ class LoginViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            oAuthRepository.oauthCodeEvents.collect { event ->
+            oAuthEventHub.oauthCallbackEvents.collect { event ->
                 exchangeOAuthCode(event)
             }
         }
     }
 
-    fun isRealApiConfigured(): Boolean = repository.isRealApiConfigured()
+    fun isRealApiConfigured(): Boolean = userRepository.isRealApiConfigured()
 
     fun createAuthorizationUrl(redirectUri: String = "simklcalendar://auth"): String? {
-        return repository.createAuthorizationUrl(redirectUri)
+        return userRepository.createAuthorizationUrl(redirectUri)
     }
 
-    suspend fun exchangeOAuthCode(event: OAuthCodeEvent) {
+    suspend fun exchangeOAuthCode(event: OAuthCallbackEvent) {
         _isSyncing.value = true
         try {
-            val success = repository.exchangeOAuthCode(
+            val success = userRepository.exchangeOAuthCode(
                 code = event.code,
                 state = event.state,
                 redirectUri = event.redirectUri

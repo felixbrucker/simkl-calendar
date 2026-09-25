@@ -8,7 +8,7 @@ import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.network.AuthenticatedSimklApiService
 import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.unmockkAll
@@ -26,7 +26,7 @@ class SimklRepositoryMarkTest {
     private lateinit var watchedDao: WatchedEpisodeDao
     private lateinit var publicApiService: PublicSimklApiService
     private lateinit var authenticatedApiService: AuthenticatedSimklApiService
-    private lateinit var repository: SimklRepository
+    private lateinit var repository: WatchHistoryRepository
 
     @Before
     fun setUp() {
@@ -41,26 +41,10 @@ class SimklRepositoryMarkTest {
         coEvery { authenticatedApiService.markHistoryWatched(any()) } returns mockk(relaxed = true)
         coEvery { authenticatedApiService.markHistoryUnwatched(any()) } returns mockk(relaxed = true)
 
-        repository = SimklRepository(
-            context = context,
-            tokenDao = tokenDao,
+        repository = WatchHistoryRepository(
             calendarDao = calendarDao,
-            settingDao = mockk(relaxed = true),
-            watchlistDao = mockk(relaxed = true),
             watchedDao = watchedDao,
-            searchLinkDao = mockk(relaxed = true),
-            itemDownloadSettingsDao = mockk(relaxed = true),
-            publicSimklApiService = publicApiService,
-            authenticatedSimklApiService = authenticatedApiService,
-            appSettingsRepo = mockk(relaxed = true),
-            autoDownloadRepo = mockk(relaxed = true),
-            notificationRepo = mockk(relaxed = true),
-            authRepo = mockk(relaxed = true),
-            syncMetadataRepo = mockk(relaxed = true),
-            uiRepo = mockk(relaxed = true),
-            torrentServiceHelper = mockk(relaxed = true),
-            torrentSearchManager = mockk(relaxed = true),
-            alarmScheduler = mockk(relaxed = true)
+            authenticatedSimklApiService = authenticatedApiService
         )
     }
 

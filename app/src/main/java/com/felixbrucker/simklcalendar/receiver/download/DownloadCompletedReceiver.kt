@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +20,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Inject
-    lateinit var repo: SimklRepository
+    lateinit var calendarRepository: CalendarRepository
 
     @Inject
     lateinit var calendarItemDao: CalendarItemDao
@@ -43,7 +43,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
         val pendingResult = goAsync()
         scope.launch {
             try {
-                repo.updateDownloadTaskId(itemPrimaryKey, null, MediaStatus.DOWNLOADED)
+                calendarRepository.updateDownloadTaskId(itemPrimaryKey, null, MediaStatus.DOWNLOADED)
                 Timber.tag(TAG).d("Updated item $itemPrimaryKey to DOWNLOADED status and cleared taskId")
 
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch

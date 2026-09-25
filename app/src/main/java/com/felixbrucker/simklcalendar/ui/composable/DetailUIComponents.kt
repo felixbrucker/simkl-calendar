@@ -302,7 +302,6 @@ fun getTableItemColor(x: Int, y: Int): Color {
 
 @Composable
 fun NotificationSettingsCard(
-    simklId: Int,
     isMovie: Boolean,
     notifyEveryEpisode: Boolean,
     notifySeasonFinished: Boolean,

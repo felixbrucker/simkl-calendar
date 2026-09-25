@@ -10,7 +10,9 @@ import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences
 import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository
+import com.felixbrucker.simklcalendar.data.repository.SyncRepository
+import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,15 +26,17 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val repository: SimklRepository,
-    val appSettingsRepo: AppSettingsRepository,
-    val autoDownloadRepo: AutoDownloadRepository,
-    val notificationRepo: NotificationRepository,
-    val torrentServiceHelper: TorrentServiceHelper,
-    val alarmScheduler: AlarmScheduler
+    private val userRepository: UserRepository,
+    private val customSearchLinkRepository: CustomSearchLinkRepository,
+    private val syncRepository: SyncRepository,
+    private val appSettingsRepo: AppSettingsRepository,
+    private val autoDownloadRepo: AutoDownloadRepository,
+    private val notificationRepo: NotificationRepository,
+    private val torrentServiceHelper: TorrentServiceHelper,
+    private val alarmScheduler: AlarmScheduler
 ) : ViewModel() {
 
-    val userToken: StateFlow<UserToken?> = repository.activeUserToken
+    val userToken: StateFlow<UserToken?> = userRepository.activeUserToken
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val notificationPreferences: StateFlow<NotificationPreferences> = notificationRepo.preferencesFlow
@@ -44,7 +48,7 @@ class SettingsViewModel @Inject constructor(
     val autoDownloadPreferences: StateFlow<AutoDownloadPreferences> = autoDownloadRepo.preferencesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AutoDownloadPreferences())
 
-    val customSearchLinks: StateFlow<List<CustomSearchLink>> = repository.customSearchLinks
+    val customSearchLinks: StateFlow<List<CustomSearchLink>> = customSearchLinkRepository.customSearchLinks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isForceSyncing = MutableStateFlow(false)
@@ -52,7 +56,7 @@ class SettingsViewModel @Inject constructor(
 
     fun logoutUser() {
         viewModelScope.launch {
-            repository.logout()
+            userRepository.logout()
         }
     }
 
@@ -205,9 +209,9 @@ class SettingsViewModel @Inject constructor(
             if (link.id == 0L) {
                 val currentLinks = customSearchLinks.value
                 val nextPos = (currentLinks.maxOfOrNull { it.position } ?: -1) + 1
-                repository.insertSearchLink(link.copy(position = nextPos))
+                customSearchLinkRepository.insertSearchLink(link.copy(position = nextPos))
             } else {
-                repository.updateSearchLink(link)
+                customSearchLinkRepository.updateSearchLink(link)
             }
             onComplete()
         }
@@ -218,28 +222,28 @@ class SettingsViewModel @Inject constructor(
             val updated = reorderedLinks.mapIndexed { index, link ->
                 link.copy(position = index)
             }
-            repository.updateSearchLinks(updated)
+            customSearchLinkRepository.updateSearchLinks(updated)
             onComplete()
         }
     }
 
     fun deleteCustomSearchLink(link: CustomSearchLink, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
-            repository.deleteSearchLink(link)
+            customSearchLinkRepository.deleteSearchLink(link)
             onComplete()
         }
     }
 
     fun forceWatchlistResync(onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
         viewModelScope.launch {
-            val token = repository.getActiveUserToken()
+            val token = userRepository.getActiveUserToken()
             if (token == null || token.accessToken.isEmpty()) {
                 onComplete(false, "User is not logged in")
                 return@launch
             }
             _isForceSyncing.value = true
             try {
-                repository.syncCalendar(force = true)
+                syncRepository.syncCalendar(force = true)
                 _isForceSyncing.value = false
                 onComplete(true, "Watchlist re-synced successfully")
             } catch (e: Exception) {

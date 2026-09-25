@@ -10,6 +10,7 @@ import com.felixbrucker.simklcalendar.data.database.*
 import com.felixbrucker.simklcalendar.data.model.*
 import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.data.network.*
+import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,7 +26,9 @@ import java.time.Instant
 class SimklRepositoryTest {
 
     private lateinit var context: Context
-    private lateinit var repository: SimklRepository
+    private lateinit var userRepository: UserRepository
+    private lateinit var downloadRepository: DownloadRepository
+    private lateinit var mediaStatusResolver: MediaStatusResolver
     private lateinit var tokenDao: UserTokenDao
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
@@ -57,7 +60,6 @@ class SimklRepositoryTest {
         authenticatedApiService = mockk(relaxed = true)
         torrentServiceHelper = mockk(relaxed = true)
 
-
         appSettingsRepo = mockk(relaxed = true)
         autoDownloadRepo = mockk(relaxed = true)
         notificationRepo = mockk(relaxed = true)
@@ -81,15 +83,13 @@ class SimklRepositoryTest {
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
 
-        repository = SimklRepository(
-            context = context,
+        mediaStatusResolver = MediaStatusResolver(autoDownloadRepo)
+
+        userRepository = UserRepository(
             tokenDao = tokenDao,
             calendarDao = calendarDao,
-            settingDao = settingDao,
             watchlistDao = watchlistDao,
             watchedDao = watchedDao,
-            searchLinkDao = mockk(relaxed = true),
-            itemDownloadSettingsDao = itemDownloadSettingsDao,
             publicSimklApiService = publicApiService,
             authenticatedSimklApiService = authenticatedApiService,
             appSettingsRepo = appSettingsRepo,
@@ -98,9 +98,14 @@ class SimklRepositoryTest {
             authRepo = authRepo,
             syncMetadataRepo = syncMetadataRepo,
             uiRepo = uiRepo,
-            torrentServiceHelper = torrentServiceHelper,
+        )
+
+        downloadRepository = DownloadRepository(
+            context = context,
+            calendarDao = calendarDao,
+            itemDownloadSettingsDao = itemDownloadSettingsDao,
             torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo),
-            alarmScheduler = mockk(relaxed = true)
+            torrentServiceHelper = torrentServiceHelper,
         )
 
         coEvery { torrentServiceHelper.addTorrent(any(), any(), any(), any(), any(), any(), any()) } returns Result.success("taskId")
@@ -120,7 +125,7 @@ class SimklRepositoryTest {
     fun testDetermineStatusFutureNotAiredYet() = runTest {
         val future = Instant.now().plusSeconds(3600)
 
-        val status = repository.determineStatus(future, null, MediaType.TV, false, false)
+        val status = mediaStatusResolver.resolve(future, null, MediaType.TV, false, false)
 
         assertEquals(MediaStatus.NOT_AIRED_YET, status)
     }
@@ -129,7 +134,7 @@ class SimklRepositoryTest {
     fun testDetermineStatusTheaterIgnored() = runTest {
         val past = Instant.now().minusSeconds(3600)
 
-        val status = repository.determineStatus(past, null, MediaType.MOVIE, true, false)
+        val status = mediaStatusResolver.resolve(past, null, MediaType.MOVIE, true, false)
 
         assertEquals(MediaStatus.IGNORED, status)
     }
@@ -142,17 +147,16 @@ class SimklRepositoryTest {
         coEvery { calendarDao.getUnwatchedDownloadableSeasonItems(100, 1) } returns listOf(item)
         coEvery { calendarDao.findItem("v2_100_1_2") } returns item
 
-        repository.searchAndDownloadSeason(100, 1)
+        downloadRepository.searchAndDownloadSeason(100, 1)
 
         coVerify { calendarDao.updateMediaStatus("v2_100_1_2", MediaStatus.WANTED) }
     }
-
 
     @Test
     fun testDetermineStatusWatchedIgnored() = runTest {
         val past = Instant.now().minusSeconds(3600)
 
-        val status = repository.determineStatus(past, null, MediaType.TV, false, true)
+        val status = mediaStatusResolver.resolve(past, null, MediaType.TV, false, true)
 
         assertEquals(MediaStatus.IGNORED, status)
     }
@@ -162,7 +166,7 @@ class SimklRepositoryTest {
         val past = Instant.now().minusSeconds(3600)
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences(autoDownloadUnwatchedTv = true))
 
-        val status = repository.determineStatus(past, null, MediaType.TV, false, false)
+        val status = mediaStatusResolver.resolve(past, null, MediaType.TV, false, false)
 
         assertEquals(MediaStatus.WANTED, status)
     }
@@ -172,7 +176,7 @@ class SimklRepositoryTest {
         val past = Instant.now().minusSeconds(3600)
         val settings = ItemDownloadSettings(simklId = 100, downloadUnwatched = false)
 
-        val status = repository.determineStatus(past, settings, MediaType.TV, false, false)
+        val status = mediaStatusResolver.resolve(past, settings, MediaType.TV, false, false)
 
         assertEquals(MediaStatus.IGNORED, status)
     }
@@ -181,8 +185,8 @@ class SimklRepositoryTest {
     fun testLogoutAndTokenManagement() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
 
-        val token = repository.getActiveUserToken()
-        repository.logout()
+        val token = userRepository.getActiveUserToken()
+        userRepository.logout()
 
         assertNotNull(token)
         assertEquals("token123", token?.accessToken)

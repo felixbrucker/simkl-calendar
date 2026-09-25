@@ -47,9 +47,9 @@ import androidx.core.net.toUri
 
 @Composable
 fun LoginScreen(
+    modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel(),
     onLoginSuccess: () -> Unit,
-    modifier: Modifier = Modifier,
     onLaunchAuthTab: ((url: String) -> Unit)? = null,
 ) {
     val token by viewModel.userToken.collectAsState()

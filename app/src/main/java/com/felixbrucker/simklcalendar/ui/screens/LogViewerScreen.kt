@@ -46,9 +46,9 @@ private val logTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogViewerScreen(
+    modifier: Modifier = Modifier,
     viewModel: LogViewerViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -71,7 +71,7 @@ fun LogViewerScreen(
                     isTopSectionVisible = true
                 } else if (currentIndex > previousIndex || (currentIndex == previousIndex && currentOffset > previousScrollOffset + 15)) {
                     isTopSectionVisible = false
-                } else if (currentIndex < previousIndex || (currentIndex == previousIndex && currentOffset < previousScrollOffset - 15)) {
+                } else if (currentIndex < previousIndex || (currentOffset < previousScrollOffset - 15)) {
                     isTopSectionVisible = true
                 }
                 previousIndex = currentIndex
