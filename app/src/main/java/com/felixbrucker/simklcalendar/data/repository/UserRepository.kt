@@ -59,7 +59,7 @@ class UserRepository @Inject constructor(
      * Prepares PKCE authorization URL with state and stores code_verifier & state in SharedPreferences
      * for CSRF protection and verification during the OAuth redirect callback.
      */
-    fun createAuthorizationUrl(redirectUri: String = "simklcalendar://auth"): String? {
+    fun createAuthorizationUrl(redirectUri: String): String? {
         val clientId = BuildConfig.SIMKL_CLIENT_ID.ifEmpty { return null }
         val codeVerifier = PkceUtil.generateCodeVerifier()
         val codeChallenge = PkceUtil.generateCodeChallenge(codeVerifier)
@@ -124,13 +124,16 @@ class UserRepository @Inject constructor(
             val revokeTarget = userToken.refreshToken
             if (revokeTarget.isNotEmpty()) {
                 try {
-                    publicSimklApiService.revokeToken(OAuthRevokeRequest(clientId = BuildConfig.SIMKL_CLIENT_ID, token = revokeTarget))
+                    publicSimklApiService.revokeToken(OAuthRevokeRequest(
+                        clientId = BuildConfig.SIMKL_CLIENT_ID,
+                        token = revokeTarget
+                    ))
                 } catch (e: Exception) {
                     Timber.tag("UserRepository").w(e, "Failed to revoke token on logout")
                 }
             }
         }
-        tokenDao.clearUserToken()
+
         calendarDao.clearCalendarItems()
         watchlistDao.clearAll()
         watchedDao.clearAll()
@@ -141,6 +144,8 @@ class UserRepository @Inject constructor(
         authRepo.clear()
         syncMetadataRepo.clear()
         uiRepo.clear()
+
+        tokenDao.clearUserToken()
     }
 
     suspend fun exchangeOAuthCode(

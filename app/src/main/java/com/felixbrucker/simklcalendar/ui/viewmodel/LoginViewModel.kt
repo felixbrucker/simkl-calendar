@@ -42,13 +42,14 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             oAuthEventHub.oauthCallbackEvents.collect { event ->
                 exchangeOAuthCode(event)
+                oAuthEventHub.resetOAuthCallbackEvent()
             }
         }
     }
 
     fun isRealApiConfigured(): Boolean = userRepository.isRealApiConfigured()
 
-    fun createAuthorizationUrl(redirectUri: String = "simklcalendar://auth"): String? {
+    fun createAuthorizationUrl(redirectUri: String): String? {
         return userRepository.createAuthorizationUrl(redirectUri)
     }
 

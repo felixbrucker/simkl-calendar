@@ -11,7 +11,7 @@ interface PublicSimklApiService {
     @POST("oauth2/revoke")
     suspend fun revokeToken(
         @Body request: OAuthRevokeRequest
-    ): retrofit2.Response<Unit>
+    )
 
     @GET("https://data.simkl.in/calendar/v2/{year}/{month}/{type}.json")
     suspend fun getV2Calendar(

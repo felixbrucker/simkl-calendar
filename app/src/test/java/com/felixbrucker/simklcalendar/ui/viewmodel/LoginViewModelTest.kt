@@ -64,7 +64,7 @@ class LoginViewModelTest {
         val viewModel = LoginViewModel(contextMock, userRepositoryMock, authRepoMock, oAuthEventHubMock)
 
         val isConfigured = viewModel.isRealApiConfigured()
-        val authUrl = viewModel.createAuthorizationUrl()
+        val authUrl = viewModel.createAuthorizationUrl("simklcalendar://auth")
 
         assertTrue(isConfigured)
         assertEquals("https://simkl.com/oauth", authUrl)
