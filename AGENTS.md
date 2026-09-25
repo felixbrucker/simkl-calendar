@@ -1,4 +1,4 @@
-# AI Agent Guidelines for Simkl Calendar
+# AI Agent Guidelines
 
 ## Code Conventions
 
@@ -11,9 +11,6 @@
 - Never set disableAndroidSuperclassValidation to true, and never extend generated Hilt_* classes directly. Always extend standard Android framework classes and rely on the Hilt Gradle Plugin for transformation.
 - Prefer direct constructor injection (@Inject constructor() and scope annotations like @Singleton) over Hilt modules, using @Module only when constructor injection is not possible. Never define default parameter values in constructors that manually instantiate injectable classes.
 - Always use named arguments for boolean parameters (e.g., `showDialog(isVisible = true)`).
-- Do not remove existing comments in the code
-- Create composables for every ui section that's longer than 15 lines of code
-- Boolean variables should be prefixed with `is` or `has` if possible
 
 ## Database Migrations & Schema Export Rules
 
@@ -25,7 +22,7 @@ Whenever modifying the Room database or entities in this project:
 
 2. **MANDATORY Schema JSON Generation & Platform Registration**:
    - Every time the database `version` is incremented, AI agents **MUST** ensure the corresponding JSON schema file is generated, registered in AI Studio's workspace layer, and committed under:
-     `app/schemas/com.felixbrucker.simklcalendar.data.database.AppDatabase/<version>.json`
+     `app/schemas/<applicationId>.data.database.AppDatabase/<version>.json`
    - Keep `exportSchema = true` on `@Database`.
    - Ensure the KSP schema export argument in `app/build.gradle.kts` (`ksp { arg("room.schemaLocation", "$projectDir/schemas") }`) remains intact.
    - **CRITICAL Platform Registration Step**: When Room's KSP compiler generates the schema in the container background filesystem, the AI Studio Web UI and Git Sync index will not automatically track it unless it is explicitly written through the agent's file tools. AI agents **MUST** view the newly generated `<version>.json` content and explicitly create/write it using `create_file` so AI Studio's workspace system and Git sync tracking register it properly.
@@ -48,7 +45,7 @@ When writing or modifying tests, you MUST follow these guidelines to ensure comp
   * **No Redundant Comments:** Do NOT add comments labeling the sections (e.g., never write `// Setup`, `// 1. Arrange`, `// Call`, etc.). The structure and empty lines alone should dictate the sections.
   * **Phase 1 (Setup):** Configure only the state and variables specific to what this exact test is verifying. *Note: Generic setup that applies to multiple tests must be abstracted into `before` hooks (or equivalent setup methods).*
   * **Phase 2 (Execution):** Call the target method being tested.
-  * **Phase 3 (Verification):** Assert and verify the expected results or state changes.
+  * **Phase 3 (Verification):** Assert/verify the expected results or state changes.
 
 ## Google Jules Agent Environment Setup
 
