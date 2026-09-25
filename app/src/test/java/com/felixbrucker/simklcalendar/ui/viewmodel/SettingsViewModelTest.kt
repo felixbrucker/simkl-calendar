@@ -6,6 +6,7 @@ import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository
 import com.felixbrucker.simklcalendar.data.repository.SyncRepository
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
+import com.felixbrucker.simklcalendar.data.sentry.SentryManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import io.mockk.coEvery
@@ -40,6 +41,7 @@ class SettingsViewModelTest {
     private val notificationRepo: NotificationRepository = mockk(relaxed = true)
     private val torrentServiceHelper: TorrentServiceHelper = mockk(relaxed = true)
     private val alarmScheduler: AlarmScheduler = mockk(relaxed = true)
+    private val sentryManager: SentryManager = mockk(relaxed = true)
 
     private val userTokenFlow = MutableStateFlow<UserToken?>(null)
     private val customSearchLinksFlow = MutableStateFlow<List<CustomSearchLink>>(emptyList())
@@ -64,6 +66,7 @@ class SettingsViewModelTest {
 
     @Test
     fun testSettingsUpdates() = runTest {
+        every { sentryManager.isDsnConfigured } returns true
         val viewModel = SettingsViewModel(
             userRepository = userRepositoryMock,
             customSearchLinkRepository = customSearchLinkRepositoryMock,
@@ -72,11 +75,14 @@ class SettingsViewModelTest {
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
             torrentServiceHelper = torrentServiceHelper,
-            alarmScheduler = alarmScheduler
+            alarmScheduler = alarmScheduler,
+            sentryManager = sentryManager
         )
 
         viewModel.logoutUser()
         viewModel.updateSyncInterval(6)
+        viewModel.updateSentryEnabled(false)
+        val isConfigured = viewModel.isSentryConfigured
         viewModel.updateSearchInterval(4)
         viewModel.updateUseExactAlarms(true)
         viewModel.updateDefaultNotifyAiring(true)
@@ -86,8 +92,10 @@ class SettingsViewModelTest {
         viewModel.scheduleAllItemsAiredAlarms()
         advanceUntilIdle()
 
+        assertTrue(isConfigured)
         coVerify { userRepositoryMock.logout() }
         coVerify { appSettingsRepo.setSyncIntervalHours(6) }
+        coVerify { appSettingsRepo.setIsSentryEnabled(false) }
         coVerify { autoDownloadRepo.setSearchIntervalHours(4) }
         coVerify { notificationRepo.setUseExactAlarms(true) }
         coVerify { notificationRepo.setDefaultNotifyAiring(true) }
@@ -107,7 +115,8 @@ class SettingsViewModelTest {
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
             torrentServiceHelper = torrentServiceHelper,
-            alarmScheduler = alarmScheduler
+            alarmScheduler = alarmScheduler,
+            sentryManager = sentryManager
         )
 
         viewModel.updateAutoDownloadQuality("1080p")
@@ -148,7 +157,8 @@ class SettingsViewModelTest {
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
             torrentServiceHelper = torrentServiceHelper,
-            alarmScheduler = alarmScheduler
+            alarmScheduler = alarmScheduler,
+            sentryManager = sentryManager
         )
         val link1 = CustomSearchLink(id = 0L, name = "Link 1", urlTemplate = "https://test.com/{query}", position = 0)
         val link2 = CustomSearchLink(id = 2L, name = "Link 2", urlTemplate = "https://test2.com/{query}", position = 1)
@@ -176,7 +186,8 @@ class SettingsViewModelTest {
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
             torrentServiceHelper = torrentServiceHelper,
-            alarmScheduler = alarmScheduler
+            alarmScheduler = alarmScheduler,
+            sentryManager = sentryManager
         )
 
         var noTokenOk = true

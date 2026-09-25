@@ -283,6 +283,9 @@ fun SettingsScreen(
 
             // App Logs & Diagnostics Card
             SettingsAppLogsDiagnosticsCard(
+                sentryEnabled = appSettings.isSentryEnabled,
+                isSentryConfigured = viewModel.isSentryConfigured,
+                onUpdateSentryEnabled = { viewModel.updateSentryEnabled(it) },
                 onNavigateToLogViewer = onNavigateToLogViewer
             )
         }
@@ -1645,6 +1648,9 @@ fun SettingsWatchlistResyncCard(
 
 @Composable
 fun SettingsAppLogsDiagnosticsCard(
+    sentryEnabled: Boolean,
+    isSentryConfigured: Boolean,
+    onUpdateSentryEnabled: (Boolean) -> Unit,
     onNavigateToLogViewer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1660,47 +1666,141 @@ fun SettingsAppLogsDiagnosticsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.Terminal,
+                    Icons.Default.BugReport,
                     contentDescription = null,
                     tint = Color(0xFFD0BCFF),
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    "App Logs & Diagnostics",
+                    "Crash Reporting & Diagnostics",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFE6E1E5),
                     fontSize = 16.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                "View diagnostic logs generated during app operation across current and earlier app runs.",
-                color = Color(0xFFCAC4D0),
-                fontSize = 12.sp,
-                lineHeight = 16.sp
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SettingsSentrySection(
+                sentryEnabled = sentryEnabled,
+                isSentryConfigured = isSentryConfigured,
+                onUpdateSentryEnabled = onUpdateSentryEnabled
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 
-            Button(
-                onClick = onNavigateToLogViewer,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF4A4458),
-                    contentColor = Color(0xFFEADDFF)
-                ),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("view_logs_button")
-            ) {
-                Icon(
-                    Icons.Default.Terminal,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+            SettingsAppLogsSection(
+                onNavigateToLogViewer = onNavigateToLogViewer
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsSentrySection(
+    sentryEnabled: Boolean,
+    isSentryConfigured: Boolean,
+    onUpdateSentryEnabled: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Sentry Crash Reporting",
+                    color = Color(0xFFE6E1E5),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("View Logs", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(
+                    "Automatically report application crashes to Sentry.",
+                    color = Color(0xFFCAC4D0),
+                    fontSize = 12.sp
+                )
             }
+            Spacer(modifier = Modifier.width(8.dp))
+            Switch(
+                checked = sentryEnabled && isSentryConfigured,
+                onCheckedChange = onUpdateSentryEnabled,
+                enabled = isSentryConfigured,
+                modifier = Modifier.testTag("sentry_enabled_switch")
+            )
+        }
+
+        if (!isSentryConfigured) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2D36)),
+                border = BorderStroke(1.dp, Color(0xFF4A4D58)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            tint = Color(0xFFD0BCFF),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Sentry Not Configured",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD0BCFF),
+                            fontSize = 14.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Sentry is not configured in this app build and can't be enabled.",
+                        color = Color(0xFFCAC4D0),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsAppLogsSection(
+    onNavigateToLogViewer: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            "View diagnostic logs generated during app operation across current and earlier app runs.",
+            color = Color(0xFFCAC4D0),
+            fontSize = 12.sp,
+            lineHeight = 16.sp
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(
+            onClick = onNavigateToLogViewer,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF4A4458),
+                contentColor = Color(0xFFEADDFF)
+            ),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("view_logs_button")
+        ) {
+            Icon(
+                Icons.Default.Terminal,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("View Logs", fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
     }
 }

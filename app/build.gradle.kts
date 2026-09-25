@@ -75,6 +75,7 @@ android {
 secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
+  ignoreList.remove("SENTRY_DSN")
 }
 
 ksp {
@@ -148,6 +149,8 @@ dependencies {
   implementation(libs.okhttp)
   implementation(libs.retrofit)
   implementation(libs.timber)
+  implementation(libs.sentry.android)
+  implementation(libs.sentry.timber)
   implementation(libs.torrent.search.api.kt)
   debugImplementation(libs.androidx.compose.ui.tooling)
   testImplementation(libs.junit)

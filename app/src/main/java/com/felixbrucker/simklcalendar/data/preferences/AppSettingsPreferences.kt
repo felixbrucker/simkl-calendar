@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -27,7 +28,8 @@ val Context.appSettingsDataStore: DataStore<Preferences> by preferencesDataStore
 )
 
 data class AppSettingsPreferences(
-    val syncIntervalHours: Int = 12
+    val syncIntervalHours: Int = 12,
+    val isSentryEnabled: Boolean = true
 )
 
 @Singleton
@@ -38,17 +40,25 @@ class AppSettingsRepository @Inject constructor(
 
     companion object {
         private val KEY_SYNC_INTERVAL_HOURS = intPreferencesKey("sync_interval_hours")
+        private val KEY_IS_SENTRY_ENABLED = booleanPreferencesKey("is_sentry_enabled")
     }
 
     val preferencesFlow: Flow<AppSettingsPreferences> = dataStore.data.map { preferences ->
         AppSettingsPreferences(
-            syncIntervalHours = preferences[KEY_SYNC_INTERVAL_HOURS] ?: 12
+            syncIntervalHours = preferences[KEY_SYNC_INTERVAL_HOURS] ?: 12,
+            isSentryEnabled = preferences[KEY_IS_SENTRY_ENABLED] ?: true
         )
     }
 
     suspend fun setSyncIntervalHours(hours: Int) {
         dataStore.edit { preferences ->
             preferences[KEY_SYNC_INTERVAL_HOURS] = hours
+        }
+    }
+
+    suspend fun setIsSentryEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[KEY_IS_SENTRY_ENABLED] = enabled
         }
     }
 

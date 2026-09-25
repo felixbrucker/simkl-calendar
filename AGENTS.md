@@ -12,6 +12,8 @@
 - Prefer direct constructor injection (@Inject constructor() and scope annotations like @Singleton) over Hilt modules, using @Module only when constructor injection is not possible. Never define default parameter values in constructors that manually instantiate injectable classes.
 - Always use named arguments for boolean parameters (e.g., `showDialog(isVisible = true)`).
 - Do not remove existing comments in the code
+- Create composables for every ui section that's longer than 15 lines of code
+- Boolean variables should be prefixed with `is` or `has` if possible
 
 ## Database Migrations & Schema Export Rules
 

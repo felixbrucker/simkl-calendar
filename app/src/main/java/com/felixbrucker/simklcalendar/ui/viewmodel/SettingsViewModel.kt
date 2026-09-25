@@ -13,6 +13,7 @@ import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
 import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository
 import com.felixbrucker.simklcalendar.data.repository.SyncRepository
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
+import com.felixbrucker.simklcalendar.data.sentry.SentryManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,7 +34,8 @@ class SettingsViewModel @Inject constructor(
     private val autoDownloadRepo: AutoDownloadRepository,
     private val notificationRepo: NotificationRepository,
     private val torrentServiceHelper: TorrentServiceHelper,
-    private val alarmScheduler: AlarmScheduler
+    private val alarmScheduler: AlarmScheduler,
+    private val sentryManager: SentryManager
 ) : ViewModel() {
 
     val userToken: StateFlow<UserToken?> = userRepository.activeUserToken
@@ -51,6 +53,8 @@ class SettingsViewModel @Inject constructor(
     val customSearchLinks: StateFlow<List<CustomSearchLink>> = customSearchLinkRepository.customSearchLinks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val isSentryConfigured: Boolean get() = sentryManager.isDsnConfigured
+
     private val _isForceSyncing = MutableStateFlow(false)
     val isForceSyncing: StateFlow<Boolean> = _isForceSyncing.asStateFlow()
 
@@ -63,6 +67,12 @@ class SettingsViewModel @Inject constructor(
     fun updateSyncInterval(hours: Int) {
         viewModelScope.launch {
             appSettingsRepo.setSyncIntervalHours(hours)
+        }
+    }
+
+    fun updateSentryEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettingsRepo.setIsSentryEnabled(enabled)
         }
     }
 
