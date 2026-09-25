@@ -54,6 +54,7 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val isSentryConfigured: Boolean get() = sentryManager.isDsnConfigured
+    val isSentryRunning: Boolean get() = sentryManager.isSentryRunning
 
     private val _isForceSyncing = MutableStateFlow(false)
     val isForceSyncing: StateFlow<Boolean> = _isForceSyncing.asStateFlow()

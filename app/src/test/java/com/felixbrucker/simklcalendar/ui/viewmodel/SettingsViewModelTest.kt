@@ -212,4 +212,44 @@ class SettingsViewModelTest {
         assertTrue(successOk)
         assertEquals("Watchlist re-synced successfully", successMsg)
     }
+
+    @Test
+    fun testIsSentryRunningReturnsTrueWhenRunning() = runTest {
+        every { sentryManager.isSentryRunning } returns true
+        val viewModel = SettingsViewModel(
+            userRepository = userRepositoryMock,
+            customSearchLinkRepository = customSearchLinkRepositoryMock,
+            syncRepository = syncRepositoryMock,
+            appSettingsRepo = appSettingsRepo,
+            autoDownloadRepo = autoDownloadRepo,
+            notificationRepo = notificationRepo,
+            torrentServiceHelper = torrentServiceHelper,
+            alarmScheduler = alarmScheduler,
+            sentryManager = sentryManager
+        )
+
+        val isRunning = viewModel.isSentryRunning
+
+        assertTrue(isRunning)
+    }
+
+    @Test
+    fun testIsSentryRunningReturnsFalseWhenNotRunning() = runTest {
+        every { sentryManager.isSentryRunning } returns false
+        val viewModel = SettingsViewModel(
+            userRepository = userRepositoryMock,
+            customSearchLinkRepository = customSearchLinkRepositoryMock,
+            syncRepository = syncRepositoryMock,
+            appSettingsRepo = appSettingsRepo,
+            autoDownloadRepo = autoDownloadRepo,
+            notificationRepo = notificationRepo,
+            torrentServiceHelper = torrentServiceHelper,
+            alarmScheduler = alarmScheduler,
+            sentryManager = sentryManager
+        )
+
+        val isRunning = viewModel.isSentryRunning
+
+        assertFalse(isRunning)
+    }
 }

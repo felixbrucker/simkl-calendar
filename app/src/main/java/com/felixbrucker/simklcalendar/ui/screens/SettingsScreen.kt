@@ -285,6 +285,7 @@ fun SettingsScreen(
             SettingsAppLogsDiagnosticsCard(
                 sentryEnabled = appSettings.isSentryEnabled,
                 isSentryConfigured = viewModel.isSentryConfigured,
+                isSentryRunning = viewModel.isSentryRunning,
                 onUpdateSentryEnabled = { viewModel.updateSentryEnabled(it) },
                 onNavigateToLogViewer = onNavigateToLogViewer
             )
@@ -1650,6 +1651,7 @@ fun SettingsWatchlistResyncCard(
 fun SettingsAppLogsDiagnosticsCard(
     sentryEnabled: Boolean,
     isSentryConfigured: Boolean,
+    isSentryRunning: Boolean,
     onUpdateSentryEnabled: (Boolean) -> Unit,
     onNavigateToLogViewer: () -> Unit,
     modifier: Modifier = Modifier
@@ -1685,6 +1687,7 @@ fun SettingsAppLogsDiagnosticsCard(
             SettingsSentrySection(
                 sentryEnabled = sentryEnabled,
                 isSentryConfigured = isSentryConfigured,
+                isSentryRunning = isSentryRunning,
                 onUpdateSentryEnabled = onUpdateSentryEnabled
             )
 
@@ -1701,6 +1704,7 @@ fun SettingsAppLogsDiagnosticsCard(
 fun SettingsSentrySection(
     sentryEnabled: Boolean,
     isSentryConfigured: Boolean,
+    isSentryRunning: Boolean,
     onUpdateSentryEnabled: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1720,7 +1724,7 @@ fun SettingsSentrySection(
                     fontSize = 15.sp
                 )
                 Text(
-                    "Automatically report application crashes to Sentry.",
+                    "Automatically report application crashes",
                     color = Color(0xFFCAC4D0),
                     fontSize = 12.sp
                 )
@@ -1761,6 +1765,38 @@ fun SettingsSentrySection(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Sentry is not configured in this app build and can't be enabled.",
+                        color = Color(0xFFCAC4D0),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        } else if (isSentryRunning && !sentryEnabled) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF3B2D2C)),
+                border = BorderStroke(1.dp, Color(0xFFF2B8B5)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFF2B8B5),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Restart Required",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFF2B8B5),
+                            fontSize = 14.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Please restart the app for this change to take effect.",
                         color = Color(0xFFCAC4D0),
                         fontSize = 12.sp
                     )

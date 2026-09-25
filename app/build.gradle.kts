@@ -5,6 +5,7 @@ plugins {
   alias(libs.plugins.secrets)
   alias(libs.plugins.kover)
   alias(libs.plugins.hilt.android)
+  alias(libs.plugins.sentry.android)
 }
 
 android {
@@ -150,6 +151,7 @@ dependencies {
   implementation(libs.retrofit)
   implementation(libs.timber)
   implementation(libs.sentry.android)
+  implementation(libs.sentry.android.sqlite)
   implementation(libs.sentry.timber)
   implementation(libs.torrent.search.api.kt)
   debugImplementation(libs.androidx.compose.ui.tooling)

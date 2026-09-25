@@ -15,7 +15,7 @@ class SentryManager @Inject constructor(
     @SentryDsn private val dsn: String
 ) {
     val isDsnConfigured: Boolean get() = dsn.isNotBlank()
-    private var isInitialized: Boolean = false
+    val isSentryRunning: Boolean get() = Sentry.isEnabled()
 
     fun updateSentryState(context: Context, isEnabled: Boolean) {
         if (!isDsnConfigured) {
@@ -23,13 +23,16 @@ class SentryManager @Inject constructor(
             return
         }
 
-        if (!isInitialized && isEnabled) {
+        if (!isSentryRunning && isEnabled) {
             SentryAndroid.init(context) { options ->
                 options.dsn = dsn
                 options.isEnabled = true
 
                 // Enable screenshot for crashes
                 options.isAttachScreenshot = true
+
+                // Sample 100% of errors
+                options.sampleRate = 1.0
 
                 // Enable automatic traces for user interactions
                 options.isEnableUserInteractionTracing = true
@@ -55,20 +58,8 @@ class SentryManager @Inject constructor(
                 options.isEnableUncaughtExceptionHandler = true
             }
             Timber.i("Sentry initialized")
-            isInitialized = true
 
             return
         }
-
-        val isCurrentlyEnabled = Sentry.isEnabled()
-        if (isInitialized && isCurrentlyEnabled != isEnabled) {
-            setSentryIsEnabled(isEnabled)
-            Timber.i("Sentry ${if (isEnabled) "enabled" else "disabled"} by user setting.")
-        }
     }
-}
-
-private fun setSentryIsEnabled(isEnabled: Boolean) {
-    @Suppress("UnstableApiUsage")
-    Sentry.getCurrentScopes().options.isEnabled = isEnabled
 }
