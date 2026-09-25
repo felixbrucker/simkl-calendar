@@ -30,6 +30,7 @@ jobs:
         uses: ./.github/actions/setup-env
         with:
           simkl_client_id: ${{ secrets.SIMKL_CLIENT_ID }}
+          sentry_dsn: ${{ secrets.SENTRY_DSN }}
           keystore_base64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Run Unit Tests and Generate Coverage Report
@@ -64,6 +65,7 @@ jobs:
         uses: ./.github/actions/setup-env
         with:
           simkl_client_id: ${{ secrets.SIMKL_CLIENT_ID }}
+          sentry_dsn: ${{ secrets.SENTRY_DSN }}
           keystore_base64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Build Release APK

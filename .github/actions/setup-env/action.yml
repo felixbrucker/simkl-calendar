@@ -5,6 +5,9 @@ inputs:
   simkl_client_id:
     description: 'Simkl Client ID from secrets'
     required: false
+  sentry_dsn:
+    description: 'Sentry DSN from secrets'
+    required: false
   keystore_base64:
     description: 'Base64 encoded keystore from secrets'
     required: false
@@ -23,6 +26,7 @@ runs:
       shell: bash
       env:
         SIMKL_CLIENT_ID: ${{ inputs.simkl_client_id }}
+        SENTRY_DSN: ${{ inputs.sentry_dsn }}
         KEYSTORE_BASE64: ${{ inputs.keystore_base64 }}
       run: |
         if [ -f .env.example ]; then
@@ -34,6 +38,11 @@ runs:
         if [ -n "$SIMKL_CLIENT_ID" ]; then
           sed -i '/^SIMKL_CLIENT_ID=/d' .env
           echo "SIMKL_CLIENT_ID=$SIMKL_CLIENT_ID" >> .env
+        fi
+        
+        if [ -n "$SENTRY_DSN" ]; then
+          sed -i '/^SENTRY_DSN=/d' .env
+          echo "SENTRY_DSN=$SENTRY_DSN" >> .env
         fi
         
         if [ -n "$KEYSTORE_BASE64" ]; then
