@@ -10,7 +10,9 @@ import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
+import com.felixbrucker.simklcalendar.data.repository.UserRepository
+import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import com.felixbrucker.simklcalendar.di.DatabaseModule
 import com.felixbrucker.simklcalendar.di.NetworkModule
 import io.mockk.every
@@ -94,16 +96,13 @@ class DiModulesTest {
     }
 
     @Test
-    fun testSimklRepositoryInstantiation() {
-        val repository = SimklRepository(
-            context = context,
+    fun testDomainRepositoryInstantiation() {
+        val mediaStatusResolver = MediaStatusResolver(autoDownloadRepo)
+        val userRepo = UserRepository(
             tokenDao = tokenDao,
             calendarDao = calendarDao,
-            settingDao = settingDao,
             watchlistDao = watchlistDao,
             watchedDao = watchedDao,
-            searchLinkDao = searchLinkDao,
-            itemDownloadSettingsDao = itemDownloadSettingsDao,
             publicSimklApiService = mockk(relaxed = true),
             authenticatedSimklApiService = mockk(relaxed = true),
             appSettingsRepo = mockk(relaxed = true),
@@ -111,12 +110,16 @@ class DiModulesTest {
             notificationRepo = mockk(relaxed = true),
             authRepo = mockk(relaxed = true),
             syncMetadataRepo = mockk(relaxed = true),
-            uiRepo = mockk(relaxed = true),
-            torrentServiceHelper = mockk(relaxed = true),
-            torrentSearchManager = mockk(relaxed = true),
-            alarmScheduler = mockk(relaxed = true)
+            uiRepo = mockk(relaxed = true)
+        )
+        val calendarRepo = CalendarRepository(
+            calendarDao = calendarDao,
+            watchlistDao = watchlistDao,
+            itemDownloadSettingsDao = itemDownloadSettingsDao,
+            mediaStatusResolver = mediaStatusResolver
         )
 
-        assertNotNull(repository)
+        assertNotNull(userRepo)
+        assertNotNull(calendarRepo)
     }
 }

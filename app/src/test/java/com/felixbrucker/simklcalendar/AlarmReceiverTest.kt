@@ -8,7 +8,8 @@ import android.util.Log
 import com.felixbrucker.simklcalendar.data.database.*
 import com.felixbrucker.simklcalendar.data.model.*
 import com.felixbrucker.simklcalendar.data.preferences.*
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
+import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager as AppNotificationManager
@@ -32,7 +33,8 @@ class AlarmReceiverTest {
     private lateinit var androidNotificationManager: AndroidNotificationManager
     private lateinit var torrentServiceHelper: TorrentServiceHelper
     private lateinit var notificationManager: AppNotificationManager
-    private lateinit var repositoryMock: SimklRepository
+    private lateinit var repositoryMock: CalendarRepository
+    private lateinit var downloadRepositoryMock: DownloadRepository
 
     private lateinit var autoDownloadRepo: AutoDownloadRepository
     private lateinit var notificationRepo: NotificationRepository
@@ -43,7 +45,6 @@ class AlarmReceiverTest {
         mockkConstructor(TpbProvider::class)
         coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(PaginatedSearchResult(results = emptyList(), page = 1, hasNextPage = false))
 
-
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
@@ -53,10 +54,14 @@ class AlarmReceiverTest {
         coEvery { notificationManager.showNotification(any()) } returns Unit
         coEvery { notificationManager.updateNotification(any()) } returns Unit
 
+        repositoryMock = mockk(relaxed = true)
+        downloadRepositoryMock = mockk(relaxed = true)
+
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.alarm.AlarmReceiver_GeneratedInjector>(relaxed = true)
         every { mockInjector.injectAlarmReceiver(any()) } answers {
             val rec = firstArg<AlarmReceiver>()
             rec.repo = repositoryMock
+            rec.downloadRepository = downloadRepositoryMock
             rec.calendarItemDao = calendarDao
             rec.notificationSettingDao = settingDao
             rec.itemDownloadSettingsDao = itemDownloadSettingsDao
@@ -88,15 +93,12 @@ class AlarmReceiverTest {
 
         every { context.getSystemService(Context.NOTIFICATION_SERVICE) } returns androidNotificationManager
 
-        repositoryMock = mockk(relaxed = true)
-        mockkConstructor(SimklRepository::class)
-
         autoDownloadRepo = mockk(relaxed = true)
         notificationRepo = mockk(relaxed = true)
 
-        coEvery { anyConstructed<SimklRepository>().updateItemAiredStatus(any()) } returns Unit
-        coEvery { anyConstructed<SimklRepository>().searchAndDownloadEpisode(any()) } returns Result.success("taskId")
-        coEvery { anyConstructed<SimklRepository>().searchAndDownloadSeason(any(), any()) } returns Unit
+        coEvery { repositoryMock.updateItemAiredStatus(any()) } returns Unit
+        coEvery { downloadRepositoryMock.searchAndDownloadEpisode(any()) } returns Result.success("taskId")
+        coEvery { downloadRepositoryMock.searchAndDownloadSeason(any(), any()) } returns Unit
 
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
         every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences())
@@ -106,7 +108,6 @@ class AlarmReceiverTest {
     fun tearDown() {
         unmockkConstructor(TpbProvider::class)
         unmockkStatic(Log::class)
-        unmockkConstructor(SimklRepository::class)
     }
 
     @Test
@@ -353,7 +354,7 @@ class AlarmReceiverTest {
 
         receiver.onReceive(context, intent)
 
-        coVerify(timeout = 3000) { repositoryMock.searchAndDownloadSeason(100, 1) }
+        coVerify(timeout = 3000) { downloadRepositoryMock.searchAndDownloadSeason(100, 1) }
     }
 
     @Test

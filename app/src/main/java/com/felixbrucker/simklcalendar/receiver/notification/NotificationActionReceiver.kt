@@ -7,7 +7,9 @@ import timber.log.Timber
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
+import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
+import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -21,7 +23,13 @@ class NotificationActionReceiver: BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Inject
-    lateinit var repo: SimklRepository
+    lateinit var repo: CalendarRepository
+
+    @Inject
+    lateinit var downloadRepository: DownloadRepository
+
+    @Inject
+    lateinit var watchHistoryRepository: WatchHistoryRepository
 
     @Inject
     lateinit var calendarItemDao: CalendarItemDao
@@ -85,9 +93,9 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 
                 val result = if (item.type == MediaType.MOVIE) {
-                    repo.markMovieWatched(simklId = item.simklId)
+                    watchHistoryRepository.markMovieWatched(simklId = item.simklId)
                 } else {
-                    repo.markEpisodeWatched(
+                    watchHistoryRepository.markEpisodeWatched(
                         simklId = item.simklId,
                         season = item.season,
                         episodeNumber = item.episodeNumber ?: 1,
@@ -123,7 +131,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
         scope.launch {
             try {
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
-                val result = repo.markSeasonWatched(
+                val result = watchHistoryRepository.markSeasonWatched(
                     simklId = item.simklId,
                     season = item.season ?: 1,
                     mediaType = item.type,
@@ -166,7 +174,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
                 // Trigger search and download
                 try {
-                    repo.searchAndDownloadEpisode(updatedItem)
+                    downloadRepository.searchAndDownloadEpisode(updatedItem)
                 } finally {
                     torrentServiceHelper.unbind()
                 }
@@ -219,7 +227,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
                 // Trigger batch search and download for all WANTED items
                 try {
-                    repo.searchAndDownloadWantedItems()
+                    downloadRepository.searchAndDownloadWantedItems()
                 } finally {
                     torrentServiceHelper.unbind()
                 }

@@ -12,7 +12,8 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
+import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -29,7 +30,10 @@ class AlarmReceiver: BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Inject
-    lateinit var repo: SimklRepository
+    lateinit var repo: CalendarRepository
+
+    @Inject
+    lateinit var downloadRepository: DownloadRepository
 
     @Inject
     lateinit var calendarItemDao: CalendarItemDao
@@ -106,7 +110,7 @@ class AlarmReceiver: BroadcastReceiver() {
             val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return
             if (updatedItem.mediaStatus == MediaStatus.WANTED) {
                 Timber.tag(TAG).d("Searching and downloading WANTED episode for '${item.title}'")
-                repo.searchAndDownloadEpisode(updatedItem)
+                downloadRepository.searchAndDownloadEpisode(updatedItem)
                 didSearchAndDownload = true
             }
 
@@ -121,7 +125,7 @@ class AlarmReceiver: BroadcastReceiver() {
                 }
                 if (isDownloadSeasonUnwatchedEnabled) {
                     Timber.tag(TAG).d("Season finale aired for '${item.title}', downloading unwatched season ${calendarItem.season}")
-                    repo.searchAndDownloadSeason(item.simklId, calendarItem.season)
+                    downloadRepository.searchAndDownloadSeason(item.simklId, calendarItem.season)
                     didSearchAndDownload = true
                 }
             }

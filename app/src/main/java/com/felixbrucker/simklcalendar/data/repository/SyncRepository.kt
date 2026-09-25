@@ -1,450 +1,69 @@
 package com.felixbrucker.simklcalendar.data.repository
 
-import android.content.Context
-import android.content.Intent
 import timber.log.Timber
-import com.felixbrucker.simklcalendar.BuildConfig
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
-import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
-import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
-import com.felixbrucker.simklcalendar.data.database.CustomSearchLinkDao
-import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
-import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisode
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
-import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.network.AuthenticatedSimklApiService
-import com.felixbrucker.simklcalendar.data.network.OAuthRevokeRequest
-import com.felixbrucker.simklcalendar.data.network.OAuthTokenRequest
 import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
-import com.felixbrucker.simklcalendar.data.network.SimklIds
-import com.felixbrucker.simklcalendar.data.network.SyncHistoryEpisodeItem
-import com.felixbrucker.simklcalendar.data.network.SyncHistoryMovieItem
-import com.felixbrucker.simklcalendar.data.network.SyncHistoryRequest
-import com.felixbrucker.simklcalendar.data.network.SyncHistorySeasonItem
-import com.felixbrucker.simklcalendar.data.network.SyncHistoryShowItem
 import com.felixbrucker.simklcalendar.data.network.SyncMovieItem
 import com.felixbrucker.simklcalendar.data.network.SyncSeasonItem
 import com.felixbrucker.simklcalendar.data.network.SyncShowItem
+import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
+import com.felixbrucker.simklcalendar.data.preferences.SyncMetadataRepository
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.data.util.PkceUtil
-import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
-import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
-import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
-import com.felixbrucker.torrent_search_api.SearchResultItem
+import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
+import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import java.net.URLEncoder
 import java.time.Instant
-import com.felixbrucker.simklcalendar.data.preferences.*
-import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
-import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.delay
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
+
+data class SyncResult(
+    val hasWatchlistItemChanges: Boolean = false,
+    val hasCalendarItemChanges: Boolean = false,
+    val hasWantedItems: Boolean = false,
+)
 
 @Singleton
-class SimklRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+class SyncRepository @Inject constructor(
     private val tokenDao: UserTokenDao,
     private val calendarDao: CalendarItemDao,
     private val settingDao: NotificationSettingDao,
     private val watchlistDao: WatchlistDao,
     private val watchedDao: WatchedEpisodeDao,
-    private val searchLinkDao: CustomSearchLinkDao,
     private val itemDownloadSettingsDao: ItemDownloadSettingsDao,
     private val publicSimklApiService: PublicSimklApiService,
     private val authenticatedSimklApiService: AuthenticatedSimklApiService,
-    private val appSettingsRepo: AppSettingsRepository,
-    private val autoDownloadRepo: AutoDownloadRepository,
     private val notificationRepo: NotificationRepository,
-    private val authRepo: AuthRepository,
     private val syncMetadataRepo: SyncMetadataRepository,
-    private val uiRepo: UiRepository,
-    private val torrentServiceHelper: TorrentServiceHelper,
-    private val torrentSearchManager: TorrentSearchManager,
+    private val downloadRepository: DownloadRepository,
+    private val mediaStatusResolver: MediaStatusResolver,
     private val alarmScheduler: AlarmScheduler,
 ) {
-    val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
-    val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()
-    val notificationSettings: Flow<List<NotificationSetting>> = settingDao.getAllSettings()
-    val watchedEpisodes: Flow<List<WatchedEpisode>> = watchedDao.getAllWatchedEpisodesFlow()
-    val customSearchLinks: Flow<List<CustomSearchLink>> = searchLinkDao.getAllSearchLinks()
-    val watchlistItems: Flow<List<TrackedWatchlistItem>> = watchlistDao.getAllTrackedItemsFlow()
-
-    suspend fun saveItemDownloadSettings(settings: ItemDownloadSettings) = withContext(Dispatchers.IO) {
-        itemDownloadSettingsDao.insertOrUpdate(settings)
-    }
-
-    fun getItemDownloadSettingsFlow(simklId: Int): Flow<ItemDownloadSettings?> {
-        return itemDownloadSettingsDao.getSettingsFlow(simklId)
-    }
-
-    suspend fun searchTorrents(item: CalendarItemWithWatchlist): List<SearchResultItem> {
-        return torrentSearchManager.search(item)
-    }
-
-    suspend fun insertSearchLink(link: CustomSearchLink): Long = withContext(Dispatchers.IO) {
-        searchLinkDao.insertSearchLink(link)
-    }
-
-    suspend fun updateSearchLink(link: CustomSearchLink) = withContext(Dispatchers.IO) {
-        searchLinkDao.updateSearchLink(link)
-    }
-
-    suspend fun updateSearchLinks(links: List<CustomSearchLink>) = withContext(Dispatchers.IO) {
-        searchLinkDao.updateSearchLinks(links)
-    }
-
-    suspend fun deleteSearchLink(link: CustomSearchLink) = withContext(Dispatchers.IO) {
-        searchLinkDao.deleteSearchLink(link)
-    }
-
-    suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus) = withContext(Dispatchers.IO) {
-        calendarDao.updateMediaStatus(primaryKey, status)
-    }
-
-    suspend fun updateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus) = withContext(Dispatchers.IO) {
-        calendarDao.updateSeasonMediaStatus(simklId, season, status, Instant.now())
-    }
-
-    suspend fun updateDownloadTaskId(primaryKey: String, taskId: String?, status: MediaStatus) = withContext(Dispatchers.IO) {
-        calendarDao.updateDownloadTaskId(primaryKey, taskId, status)
-    }
-
-    suspend fun searchAndDownloadSeason(simklId: Int, season: Int) = withContext(Dispatchers.IO) {
-        val unwatchedItems = calendarDao.getUnwatchedDownloadableSeasonItems(simklId, season)
-        unwatchedItems.forEach { item ->
-            updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
-        }
-        unwatchedItems.forEach { item ->
-            val updatedItem = calendarDao.findItem(item.primaryKey) ?: item
-            searchAndDownloadEpisode(updatedItem)
-        }
-    }
-
-    suspend fun updateItemAiredStatus(item: CalendarItemWithWatchlist) = withContext(Dispatchers.IO) {
-        val calendarItem = item.calendarItem
-        if (item.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext
-
-        val settings = itemDownloadSettingsDao.getSettings(item.simklId)
-
-        val newStatus = determineStatus(
-            airDate = calendarItem.date,
-            settings = settings,
-            mediaType = item.type,
-            isTheaterRelease = calendarItem.movieReleaseType == MovieReleaseType.THEATER,
-            isWatched = item.isWatched,
-        )
-        updateMediaStatus(calendarItem.primaryKey, newStatus)
-    }
-
-    suspend fun determineStatus(
-        airDate: Instant,
-        settings: ItemDownloadSettings?,
-        mediaType: MediaType,
-        isTheaterRelease: Boolean,
-        isWatched: Boolean,
-    ): MediaStatus {
-        if (airDate.isAfter(Instant.now())) return MediaStatus.NOT_AIRED_YET
-        if (isTheaterRelease || isWatched) return MediaStatus.IGNORED
-
-        val autoDownloadSettings = autoDownloadRepo.preferencesFlow.first()
-        val globalIsAutoDownloadUnwatched = when (mediaType) {
-            MediaType.TV -> autoDownloadSettings.autoDownloadUnwatchedTv
-            MediaType.ANIME -> autoDownloadSettings.autoDownloadUnwatchedAnime
-            MediaType.MOVIE -> autoDownloadSettings.autoDownloadUnwatchedMovie
-        }
-
-        val isAutoDownloadUnwatched = settings?.downloadUnwatched ?: globalIsAutoDownloadUnwatched
-        return if (isAutoDownloadUnwatched) MediaStatus.WANTED else MediaStatus.IGNORED
-    }
-
-    fun generateCompletionIntentUri(primaryKey: String): String {
-        val intent = Intent(DownloadCompletedReceiver.ACTION_DOWNLOAD_COMPLETED).apply {
-            setClassName(context.packageName, DownloadCompletedReceiver::class.java.name)
-            putExtra(DownloadCompletedReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
-        }
-        return intent.toUri(Intent.URI_INTENT_SCHEME)
-    }
-
-    suspend fun searchAndDownloadEpisode(
-        item: CalendarItemWithWatchlist
-    ): Result<String> = withContext(Dispatchers.IO) {
-        // 1. Set status to WANTED (if not already)
-        if (item.mediaStatus != MediaStatus.WANTED) {
-            updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
-        }
-
-        // 2. Search torrents
-        val results = try {
-            searchTorrents(item)
-        } catch (e: Exception) {
-            return@withContext Result.failure(e)
-        }
-
-        if (results.isEmpty()) {
-            return@withContext Result.failure(Exception("No torrent results found for this episode."))
-        }
-
-        // 3. Select first result and start download
-        val firstResult = results.first()
-        val completionUri = generateCompletionIntentUri(item.primaryKey)
-
-        val result = torrentServiceHelper.addTorrent(
-            uri = firstResult.uri.toString(),
-            name = firstResult.name,
-            destinationSubdirectory = item.destinationSubdirectory(),
-            createSubfolderByName = false,
-            notifyOnCompletion = true,
-            fileSelectionMode = "BIGGEST",
-            onCompletionIntentUri = completionUri,
-        )
-
-        result.onSuccess { taskId ->
-            // 4. Update status to DOWNLOADING with taskId
-            updateDownloadTaskId(item.primaryKey, taskId, MediaStatus.DOWNLOADING)
-        }
-
-        result
-    }
-
-    suspend fun searchAndDownloadWantedItems(
-        withDelay: Duration = 50.milliseconds,
-        onProgress: (current: Int, total: Int, itemTitle: String, success: Boolean) -> Unit = { _, _, _, _ -> }
-    ) = withContext(Dispatchers.IO) {
-        val items = calendarItems.first()
-        val wantedItems = items.filter { it.mediaStatus == MediaStatus.WANTED }
-
-        if (wantedItems.isEmpty()) return@withContext
-
-        wantedItems.forEachIndexed { index, item ->
-            val result = searchAndDownloadEpisode(item)
-            onProgress(index + 1, wantedItems.size, item.title, result.isSuccess)
-            delay(withDelay) // Artificial delay to prevent flicker and show progress
-        }
-    }
-
-
-    // Check if client ID is configured in BuildConfig
-    fun isRealApiConfigured(): Boolean {
-        return BuildConfig.SIMKL_CLIENT_ID.isNotEmpty()
-    }
-
-    /**
-     * Prepares PKCE authorization URL with state and stores code_verifier & state in SharedPreferences
-     * for CSRF protection and verification during the OAuth redirect callback.
-     */
-    fun createAuthorizationUrl(redirectUri: String = "simklcalendar://auth"): String? {
-        val clientId = BuildConfig.SIMKL_CLIENT_ID.ifEmpty { return null }
-        val codeVerifier = PkceUtil.generateCodeVerifier()
-        val codeChallenge = PkceUtil.generateCodeChallenge(codeVerifier)
-        val state = PkceUtil.generateState()
-
-        runBlocking {
-            authRepo.setPkceParams(codeVerifier, redirectUri, state)
-        }
-
-        val params = mapOf(
-            "response_type" to "code",
-            "client_id" to clientId,
-            "redirect_uri" to redirectUri,
-            "scope" to "media:read media:write",
-            "state" to state,
-            "code_challenge" to codeChallenge,
-            "code_challenge_method" to "S256"
-        )
-
-        val queryString = params.entries.joinToString("&") { (key, value) ->
-            "$key=${URLEncoder.encode(value, "UTF-8")}"
-        }
-
-        return "https://simkl.com/oauth2/authorize?$queryString"
-    }
-
-    /**
-     * Clears only the active user token to prompt re-authentication without clearing any user data or preferences.
-     */
-    private suspend fun clearUserTokenOnly(isV1Upgrade: Boolean = false) = withContext(Dispatchers.IO) {
-        Timber.tag("SimklRepository").w("Clearing active user token (isV1Upgrade=$isV1Upgrade) while retaining all local user data and preferences.")
-        tokenDao.clearUserToken()
-        if (isV1Upgrade) {
-            authRepo.setShowAuthV2UpgradeHint(true)
-        }
-    }
-
-    /**
-     * Resets active user authentication if legacy Auth V1 token or an expired refresh token is detected.
-     * 1) Legacy Auth V1 token (not prefixed with "simkl_at_" or missing a refresh token): clears user token and sets Auth V2 upgrade hint flag.
-     * 2) Expired refresh token (after 180 days): clears user token.
-     */
-    suspend fun resetAuthIfNeeded(): Unit = withContext(Dispatchers.IO) {
-        val userToken = tokenDao.getActiveToken() ?: return@withContext
-
-        if (!userToken.accessToken.startsWith("simkl_at_") || userToken.refreshToken.isEmpty()) {
-            Timber.tag("SimklRepository").w("Detected legacy or migrated Auth V1 token. Transitioning user to Auth V2 login while retaining data.")
-            clearUserTokenOnly(isV1Upgrade = true)
-            return@withContext
-        }
-
-        if (userToken.isRefreshTokenExpired) {
-            Timber.tag("SimklRepository").w("Refresh token has expired after 180 days. Transitioning user to login while retaining user data.")
-            clearUserTokenOnly(isV1Upgrade = false)
-            return@withContext
-        }
-    }
-
-    suspend fun logout() = withContext(Dispatchers.IO) {
-        val userToken = tokenDao.getActiveToken()
-        if (userToken != null) {
-            val revokeTarget = userToken.refreshToken
-            if (revokeTarget.isNotEmpty()) {
-                try {
-                    publicSimklApiService.revokeToken(OAuthRevokeRequest(clientId = BuildConfig.SIMKL_CLIENT_ID, token = revokeTarget))
-                } catch (e: Exception) {
-                    Timber.tag("SimklRepository").w(e, "Failed to revoke token on logout")
-                }
-            }
-        }
-        tokenDao.clearUserToken()
-        calendarDao.clearCalendarItems()
-        watchlistDao.clearAll()
-        watchedDao.clearAll()
-
-        appSettingsRepo.clear()
-        notificationRepo.clear()
-        autoDownloadRepo.clear()
-        authRepo.clear()
-        syncMetadataRepo.clear()
-        uiRepo.clear()
-    }
-
-    suspend fun exchangeOAuthCode(
-        code: String,
-        state: String? = null,
-        redirectUri: String? = null
-    ): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val authPrefs = authRepo.preferencesFlow.first()
-            val savedState = authPrefs.pkceState
-            if (!savedState.isNullOrEmpty()) {
-                if (state == null || state != savedState) {
-                    Timber.tag("SimklRepository").e("OAuth state mismatch or missing! CSRF verification failed.")
-                    return@withContext false
-                }
-            }
-
-            val codeVerifier = authPrefs.pkceCodeVerifier
-            val savedRedirectUri = authPrefs.pkceRedirectUri ?: "simklcalendar://auth"
-            val effectiveRedirectUri = redirectUri ?: savedRedirectUri
-
-            if (codeVerifier.isNullOrEmpty()) {
-                Timber.tag("SimklRepository").e("PKCE code_verifier is missing from local storage")
-                return@withContext false
-            }
-
-            // 1. Exchange code for access token via POST /oauth2/token using PKCE flow
-            val response = publicSimklApiService.getAccessToken(
-                request = OAuthTokenRequest(
-                    code = code,
-                    clientId = BuildConfig.SIMKL_CLIENT_ID,
-                    codeVerifier = codeVerifier,
-                    redirectUri = effectiveRedirectUri,
-                    grantType = "authorization_code"
-                )
-            )
-            val accessToken = response.accessToken
-            if (!accessToken.startsWith("simkl_at_")) {
-                Timber.tag("SimklRepository").e("OAuth returned invalid V2 access token prefix")
-                return@withContext false
-            }
-
-            val refreshToken = response.refreshToken
-            val accessTokenExpiresAt = Instant.now().plusSeconds(response.expiresIn)
-            val refreshTokenExpiresAt = Instant.now().plus(180, ChronoUnit.DAYS)
-
-            // Successfully received token: clear stored PKCE parameters and upgrade hint
-            authRepo.clearPkceParams()
-            authRepo.setShowAuthV2UpgradeHint(false)
-
-            // 2. Insert user token into database so @Authenticated interceptor can retrieve it
-            tokenDao.insertUserToken(
-                UserToken(
-                    accessToken = accessToken,
-                    username = "",
-                    refreshToken = refreshToken,
-                    accessTokenExpiresAt = accessTokenExpiresAt,
-                    refreshTokenExpiresAt = refreshTokenExpiresAt
-                )
-            )
-
-            // 3. Fetch user profile from POST /users/settings to update the user's name
-            val username = try {
-                val userResponse = authenticatedSimklApiService.getUserSettings()
-                userResponse.user.name
-            } catch (e: Exception) {
-                Timber.tag("SimklRepository").e(e, "Could not fetch user profile details, using empty string fallback")
-                ""
-            }
-
-            if (username.isNotEmpty()) {
-                tokenDao.insertUserToken(
-                    UserToken(
-                        accessToken = accessToken,
-                        username = username,
-                        refreshToken = refreshToken,
-                        accessTokenExpiresAt = accessTokenExpiresAt,
-                        refreshTokenExpiresAt = refreshTokenExpiresAt
-                    )
-                )
-            }
-            true
-        } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "OAuth Code exchange failed")
-            false
-        }
-    }
-
-    suspend fun toggleNotificationSetting(simklId: Int, notifyEveryEpisode: Boolean, notifyAiredLastEpisode: Boolean) = withContext(Dispatchers.IO) {
-        settingDao.saveSetting(
-            NotificationSetting(
-                simklId = simklId,
-                notifyEveryEpisode = notifyEveryEpisode,
-                notifyAiredLastEpisode = notifyAiredLastEpisode
-            )
-        )
-    }
-
-    suspend fun getActiveUserToken(): UserToken? = withContext(Dispatchers.IO) {
-        tokenDao.getActiveToken()
-    }
-
     suspend fun syncCalendar(force: Boolean = false) = withContext(Dispatchers.IO) {
         val token = tokenDao.getActiveToken()
         if (token == null || token.accessToken.isEmpty()) {
-            Timber.tag("SimklRepository").d("Skipping syncCalendar: user is not authenticated")
+            Timber.tag("SyncRepository").d("Skipping syncCalendar: user is not authenticated")
             return@withContext
         }
         val watchlistSyncResult = syncWatchlist(forceFullSync = force)
@@ -454,7 +73,7 @@ class SimklRepository @Inject constructor(
         // Backfill missing past episodes if month changed and > 1 day since last sync
         val backfillSyncResult = backfillPastEpisodes(lastSyncTimestamp = if (force) 0L else lastJsonSyncTimestamp)
         if (watchlistSyncResult.hasWantedItems || calendarJsonSyncResult.hasWantedItems || backfillSyncResult.hasWantedItems) {
-            searchAndDownloadWantedItems()
+            downloadRepository.searchAndDownloadWantedItems()
         }
         if (watchlistSyncResult.hasCalendarItemChanges || calendarJsonSyncResult.hasCalendarItemChanges || backfillSyncResult.hasCalendarItemChanges) {
             alarmScheduler.scheduleAllItemsAiredAlarms()
@@ -487,11 +106,11 @@ class SimklRepository @Inject constructor(
 
         // Logic: Sync when month changed AND more than 1 day since last sync
         if (sameMonth || !moreThanOneDayAgo) {
-            Timber.tag("SimklRepository").d("Backfill skipped: same month or < 1 day since last sync")
+            Timber.tag("SyncRepository").d("Backfill skipped: same month or < 1 day since last sync")
             return@withContext SyncResult()
         }
 
-        Timber.tag("SimklRepository").d("Starting backfill for past episodes...")
+        Timber.tag("SyncRepository").d("Starting backfill for past episodes...")
 
         val trackedShows = watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME))
         if (trackedShows.isEmpty()) return@withContext SyncResult()
@@ -535,7 +154,7 @@ class SimklRepository @Inject constructor(
                         }
                         show to episodes
                     } catch (e: Exception) {
-                        Timber.tag("SimklRepository").e(e, "Failed backfill for ${show.simklId}")
+                        Timber.tag("SyncRepository").e(e, "Failed backfill for ${show.simklId}")
                         show to null
                     }
                 }
@@ -575,7 +194,7 @@ class SimklRepository @Inject constructor(
                         continue
                     }
 
-                    val status = determineStatus(
+                    val status = mediaStatusResolver.resolve(
                         airDate = instant,
                         settings = settingsMap[show.simklId],
                         mediaType = show.type,
@@ -613,7 +232,7 @@ class SimklRepository @Inject constructor(
             calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
         }
 
-        Timber.tag("SimklRepository").d("Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
+        Timber.tag("SyncRepository").d("Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         val hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }
 
         SyncResult(
@@ -631,11 +250,11 @@ class SimklRepository @Inject constructor(
             val cutoff = Instant.now().minus(cutoffDays, ChronoUnit.DAYS)
             val deletedCount = calendarDao.deleteWatchedItemsOlderThan(cutoff)
             if (deletedCount > 0) {
-                Timber.tag("SimklRepository").d("Cleaned up $deletedCount old watched calendar items (watched over $cutoffDays days ago)")
+                Timber.tag("SyncRepository").d("Cleaned up $deletedCount old watched calendar items (watched over $cutoffDays days ago)")
             }
             deletedCount
         } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Error cleaning up old watched calendar items")
+            Timber.tag("SyncRepository").e(e, "Error cleaning up old watched calendar items")
             0
         }
     }
@@ -648,7 +267,7 @@ class SimklRepository @Inject constructor(
     suspend fun syncWatchlist(forceFullSync: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
         val token = tokenDao.getActiveToken()
         if (token == null || token.accessToken.isEmpty()) {
-            Timber.tag("SimklRepository").d("Skipping syncWatchlist: user is not authenticated")
+            Timber.tag("SyncRepository").d("Skipping syncWatchlist: user is not authenticated")
             return@withContext SyncResult()
         }
         var changesDetected = false
@@ -663,7 +282,7 @@ class SimklRepository @Inject constructor(
             val shouldFetchDeltas = savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
 
             if (shouldFetchDeltas) {
-                Timber.tag("SimklRepository").d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
+                Timber.tag("SyncRepository").d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
                 val syncResponse = authenticatedSimklApiService.getSyncAllItems(
                     dateFrom = savedTimestamp,
@@ -758,12 +377,12 @@ class SimklRepository @Inject constructor(
                     for (simklId in trackedToDelete) {
                         watchlistDao.deleteItem(simklId)
                     }
-                    Timber.tag("SimklRepository").d("Deleted ${trackedToDelete.size} untracked watchlist items from DB")
+                    Timber.tag("SyncRepository").d("Deleted ${trackedToDelete.size} untracked watchlist items from DB")
                 }
 
                 if (trackedToInsert.isNotEmpty()) {
                     watchlistDao.insertItems(trackedToInsert.values.toList())
-                    Timber.tag("SimklRepository").d("Inserted ${trackedToInsert.size} new tracked watchlist items into DB")
+                    Timber.tag("SyncRepository").d("Inserted ${trackedToInsert.size} new tracked watchlist items into DB")
 
                     // Initialize default notification settings for newly inserted shows
                     try {
@@ -783,12 +402,12 @@ class SimklRepository @Inject constructor(
                         }
                         settingDao.insertSettings(newSettings)
                     } catch (e: Exception) {
-                        Timber.tag("SimklRepository").e(e, "Error initializing default notification settings")
+                        Timber.tag("SyncRepository").e(e, "Error initializing default notification settings")
                     }
                 }
                 if (trackedToUpdate.isNotEmpty()) {
                     watchlistDao.updateItems(trackedToUpdate.values.toList())
-                    Timber.tag("SimklRepository").d("Updated ${trackedToUpdate.size} changed tracked watchlist items in DB")
+                    Timber.tag("SyncRepository").d("Updated ${trackedToUpdate.size} changed tracked watchlist items in DB")
                 }
 
                 if (savedTimestamp == null) {
@@ -819,7 +438,7 @@ class SimklRepository @Inject constructor(
                                 watchedAt = null
                             )
                         }
-                        Timber.tag("SimklRepository").d("Removed ${allWatchedToRemove.size} WatchedEpisode entities not present in API response")
+                        Timber.tag("SyncRepository").d("Removed ${allWatchedToRemove.size} WatchedEpisode entities not present in API response")
                     }
                 }
 
@@ -840,10 +459,10 @@ class SimklRepository @Inject constructor(
                 }
                 changesDetected = true
             } else {
-                Timber.tag("SimklRepository").d("Watchlist Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
+                Timber.tag("SyncRepository").d("Watchlist Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
             }
         } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Error during watchlist sync")
+            Timber.tag("SyncRepository").e(e, "Error during watchlist sync")
         }
 
         // Automatic cleanup of old watched calendar items (> 30 days)
@@ -863,7 +482,7 @@ class SimklRepository @Inject constructor(
         // Load local tracked items (IDs only for filtering)
         val allTrackedIds = watchlistDao.getAllTrackedIds().toSet()
         if (allTrackedIds.isEmpty()) {
-            Timber.tag("SimklRepository").d("No tracked items in watchlist, skipping calendar json sync.")
+            Timber.tag("SyncRepository").d("No tracked items in watchlist, skipping calendar json sync.")
             return@withContext SyncResult()
         }
 
@@ -950,13 +569,13 @@ class SimklRepository @Inject constructor(
                     )
 
                     if (response.code() == 304) {
-                        Timber.tag("SimklRepository").d("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
+                        Timber.tag("SyncRepository").d("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
                         syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, nowMillis)
                         continue
                     }
 
                     if (!response.isSuccessful) {
-                        Timber.tag("SimklRepository").w("HTTP ${response.code()} for calendar JSON $year/$month/$endpointType")
+                        Timber.tag("SyncRepository").w("HTTP ${response.code()} for calendar JSON $year/$month/$endpointType")
                         continue
                     }
 
@@ -1001,7 +620,7 @@ class SimklRepository @Inject constructor(
                         if (defaultType == MediaType.MOVIE) {
                             // 1. Process Theater Release
                             DateUtil.parseToInstant(entry.date)?.let { theaterInstant ->
-                                val status = determineStatus(
+                                val status = mediaStatusResolver.resolve(
                                     airDate = theaterInstant,
                                     settings = currentSettingsMap[simklId],
                                     mediaType = MediaType.MOVIE,
@@ -1028,7 +647,7 @@ class SimklRepository @Inject constructor(
                             // 2. Process Digital / DVD Release from metadata if available
                             meta?.dvdDate?.takeIf { it.isNotBlank() }?.let { dvdDateStr ->
                                 DateUtil.parseToInstant(dvdDateStr)?.let { dvdInstant ->
-                                    val status = determineStatus(
+                                    val status = mediaStatusResolver.resolve(
                                         airDate = dvdInstant,
                                         settings = currentSettingsMap[simklId],
                                         mediaType = MediaType.MOVIE,
@@ -1081,7 +700,7 @@ class SimklRepository @Inject constructor(
                                 continue
                             }
 
-                            val status = determineStatus(
+                            val status = mediaStatusResolver.resolve(
                                 airDate = instant,
                                 settings = currentSettingsMap[simklId],
                                 mediaType = defaultType,
@@ -1108,7 +727,7 @@ class SimklRepository @Inject constructor(
                         }
                     }
                 } catch (e: Exception) {
-                    Timber.tag("SimklRepository").e(e, "Failed fetching CDN v2 calendar for $year/$month/$endpointType")
+                    Timber.tag("SyncRepository").e(e, "Failed fetching CDN v2 calendar for $year/$month/$endpointType")
                 }
             }
         }
@@ -1128,7 +747,7 @@ class SimklRepository @Inject constructor(
         }
 
         if (moviesNeedingDetails.isNotEmpty()) {
-            Timber.tag("SimklRepository").d("Fetching details for ${moviesNeedingDetails.size} movies missing release dates")
+            Timber.tag("SyncRepository").d("Fetching details for ${moviesNeedingDetails.size} movies missing release dates")
             for (movieId in moviesNeedingDetails) {
                 try {
                     val movieDetail = publicSimklApiService.getMovieDetails(
@@ -1147,7 +766,7 @@ class SimklRepository @Inject constructor(
                     // 1. Process Theatrical release date from regular released property
                     movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
                         DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
-                            val status = determineStatus(
+                            val status = mediaStatusResolver.resolve(
                                 airDate = theaterInstant,
                                 settings = movieSettingsMap[movieId],
                                 mediaType = MediaType.MOVIE,
@@ -1175,7 +794,7 @@ class SimklRepository @Inject constructor(
                     // 2. Extract Digital / DVD release date from release_dates timeline
                     movieDetail.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
                         DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
-                            val status = determineStatus(
+                            val status = mediaStatusResolver.resolve(
                                 airDate = digitalInstant,
                                 settings = movieSettingsMap[movieId],
                                 mediaType = MediaType.MOVIE,
@@ -1200,14 +819,14 @@ class SimklRepository @Inject constructor(
                         }
                     }
                 } catch (e: Exception) {
-                    Timber.tag("SimklRepository").e(e, "Failed fetching movie details for movieId $movieId")
+                    Timber.tag("SyncRepository").e(e, "Failed fetching movie details for movieId $movieId")
                 }
             }
         }
 
         if (trackedToUpdate.isNotEmpty()) {
             watchlistDao.updateItems(trackedToUpdate.values.toList())
-            Timber.tag("SimklRepository").d("Updated ${trackedToUpdate.size} changed tracked watchlist items with metadata in DB")
+            Timber.tag("SyncRepository").d("Updated ${trackedToUpdate.size} changed tracked watchlist items with metadata in DB")
         }
 
         if (itemsToInsert.isNotEmpty()) {
@@ -1224,9 +843,9 @@ class SimklRepository @Inject constructor(
 
         val totalCalendarItemDbChanges = itemsToInsert.size + itemsToUpdate.size
         if (totalCalendarItemDbChanges == 0) {
-            Timber.tag("SimklRepository").d("Calendar sync complete: no changes detected, skipped DB writes")
+            Timber.tag("SyncRepository").d("Calendar sync complete: no changes detected, skipped DB writes")
         } else {
-            Timber.tag("SimklRepository").d("Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
+            Timber.tag("SyncRepository").d("Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         }
 
         syncMetadataRepo.setLastCalendarJsonSync(nowMillis)
@@ -1236,363 +855,7 @@ class SimklRepository @Inject constructor(
             hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED },
         )
     }
-
-    suspend fun markEpisodeWatched(
-        simklId: Int,
-        season: Int?,
-        episodeNumber: Int,
-        mediaType: MediaType
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val effectiveSeason = season ?: 1
-
-            val request = if (mediaType == MediaType.ANIME) {
-                SyncHistoryRequest(
-                    anime = listOf(
-                        SyncHistoryShowItem(
-                            ids = SimklIds(simkl = simklId),
-                            seasons = listOf(
-                                SyncHistorySeasonItem(
-                                    number = effectiveSeason,
-                                    episodes = listOf(
-                                        SyncHistoryEpisodeItem(number = episodeNumber)
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
-            } else {
-                SyncHistoryRequest(
-                    shows = listOf(
-                        SyncHistoryShowItem(
-                            ids = SimklIds(simkl = simklId),
-                            seasons = listOf(
-                                SyncHistorySeasonItem(
-                                    number = effectiveSeason,
-                                    episodes = listOf(
-                                        SyncHistoryEpisodeItem(number = episodeNumber)
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
-            }
-
-            authenticatedSimklApiService.markHistoryWatched(
-                request = request
-            )
-
-            // Update local database immediately
-            val now = Instant.now()
-            watchedDao.insertWatchedEpisodes(
-                listOf(
-                    WatchedEpisode(
-                        simklId = simklId,
-                        season = effectiveSeason,
-                        episodeNumber = episodeNumber,
-                        watchedAt = now
-                    )
-                )
-            )
-            calendarDao.markEpisodeWatched(
-                simklId = simklId,
-                season = season,
-                episodeNumber = episodeNumber,
-                watchedAt = now
-            )
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Failed to mark episode S${season}E${episodeNumber} as watched for simklId $simklId")
-            Result.failure(e)
-        }
-    }
-
-    suspend fun markSeasonWatched(
-        simklId: Int,
-        season: Int,
-        mediaType: MediaType
-    ): Result<Boolean> = withContext(Dispatchers.IO) {
-        try {
-
-            // Determine if show should be marked as "completed"
-            val showCalendarItems = calendarDao.getItemsForSimklId(simklId)
-            val showWatchedItems = watchedDao.getWatchedEpisodesForShow(simklId)
-
-            val seasonsSet = mutableSetOf<Int>()
-            showCalendarItems.forEach { item -> item.season?.let { if (it > 0) seasonsSet.add(it) } }
-            showWatchedItems.forEach { w -> if (w.season > 0) seasonsSet.add(w.season) }
-            seasonsSet.add(season)
-            val sortedSeasons = seasonsSet.sorted()
-            val isLastSeason = sortedSeasons.isNotEmpty() && season == sortedSeasons.last()
-            val prevSeasons = sortedSeasons.filter { it < season }
-            val allPrevWatched = prevSeasons.all { sNum ->
-                val epInSeason = showCalendarItems.filter { (it.season ?: 1) == sNum }
-                val watchedInSeason = showWatchedItems.filter { it.season == sNum }
-                if (epInSeason.isNotEmpty()) {
-                    epInSeason.all { it.isWatched }
-                } else {
-                    watchedInSeason.isNotEmpty()
-                }
-            }
-            val shouldMarkCompleted = isLastSeason && allPrevWatched
-
-            val statusValue = if (shouldMarkCompleted) "completed" else null
-            Timber.tag("SimklRepository").d("Marking season $season as watched for simklId $simklId (isCompleted=$shouldMarkCompleted, status=$statusValue)")
-
-            val request = if (mediaType == MediaType.ANIME) {
-                SyncHistoryRequest(
-                    anime = listOf(
-                        SyncHistoryShowItem(
-                            ids = SimklIds(simkl = simklId),
-                            status = statusValue,
-                            seasons = listOf(
-                                SyncHistorySeasonItem(
-                                    number = season
-                                )
-                            )
-                        )
-                    )
-                )
-            } else {
-                SyncHistoryRequest(
-                    shows = listOf(
-                        SyncHistoryShowItem(
-                            ids = SimklIds(simkl = simklId),
-                            status = statusValue,
-                            seasons = listOf(
-                                SyncHistorySeasonItem(
-                                    number = season
-                                )
-                            )
-                        )
-                    )
-                )
-            }
-
-            authenticatedSimklApiService.markHistoryWatched(
-                request = request
-            )
-
-            // Update local database immediately
-            val now = Instant.now()
-            val seasonEpisodes = showCalendarItems.filter { (it.season ?: 1) == season }
-
-            if (seasonEpisodes.isNotEmpty()) {
-                val newWatched = seasonEpisodes.mapNotNull { item ->
-                    item.episodeNumber?.let { epNum ->
-                        WatchedEpisode(
-                            simklId = simklId,
-                            season = season,
-                            episodeNumber = epNum,
-                            watchedAt = now
-                        )
-                    }
-                }
-                if (newWatched.isNotEmpty()) {
-                    watchedDao.insertWatchedEpisodes(newWatched)
-                }
-            }
-
-            calendarDao.markSeasonWatched(
-                simklId = simklId,
-                season = season,
-                watchedAt = now
-            )
-
-            Result.success(shouldMarkCompleted)
-        } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Failed to mark season $season as watched for simklId $simklId")
-            Result.failure(e)
-        }
-    }
-
-    suspend fun markMovieWatched(
-        simklId: Int
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-
-            val request = SyncHistoryRequest(
-                movies = listOf(
-                    SyncHistoryMovieItem(
-                        ids = SimklIds(simkl = simklId)
-                    )
-                )
-            )
-
-            authenticatedSimklApiService.markHistoryWatched(
-                request = request
-            )
-
-            val now = Instant.now()
-            calendarDao.markMovieWatched(simklId = simklId, watchedAt = now)
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Failed to mark movie as watched for simklId $simklId")
-            Result.failure(e)
-        }
-    }
-
-    suspend fun markEpisodeUnwatched(
-        simklId: Int,
-        season: Int?,
-        episodeNumber: Int,
-        mediaType: MediaType
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val effectiveSeason = season ?: 1
-
-            val request = if (mediaType == MediaType.ANIME) {
-                SyncHistoryRequest(
-                    anime = listOf(
-                        SyncHistoryShowItem(
-                            ids = SimklIds(simkl = simklId),
-                            seasons = listOf(
-                                SyncHistorySeasonItem(
-                                    number = effectiveSeason,
-                                    episodes = listOf(
-                                        SyncHistoryEpisodeItem(number = episodeNumber)
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
-            } else {
-                SyncHistoryRequest(
-                    shows = listOf(
-                        SyncHistoryShowItem(
-                            ids = SimklIds(simkl = simklId),
-                            seasons = listOf(
-                                SyncHistorySeasonItem(
-                                    number = effectiveSeason,
-                                    episodes = listOf(
-                                        SyncHistoryEpisodeItem(number = episodeNumber)
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
-            }
-
-            authenticatedSimklApiService.markHistoryUnwatched(
-                request = request
-            )
-
-            // Revert local changes immediately
-            watchedDao.deleteWatchedEpisode(
-                simklId = simklId,
-                season = effectiveSeason,
-                episodeNumber = episodeNumber
-            )
-            calendarDao.markEpisodeWatched(
-                simklId = simklId,
-                season = season,
-                episodeNumber = episodeNumber,
-                watchedAt = null
-            )
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Failed to mark episode S${season}E${episodeNumber} as unwatched for simklId $simklId")
-            Result.failure(e)
-        }
-    }
-
-    suspend fun markSeasonUnwatched(
-        simklId: Int,
-        season: Int,
-        mediaType: MediaType
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-
-            val request = if (mediaType == MediaType.ANIME) {
-                SyncHistoryRequest(
-                    anime = listOf(
-                        SyncHistoryShowItem(
-                            ids = SimklIds(simkl = simklId),
-                            seasons = listOf(
-                                SyncHistorySeasonItem(
-                                    number = season
-                                )
-                            )
-                        )
-                    )
-                )
-            } else {
-                SyncHistoryRequest(
-                    shows = listOf(
-                        SyncHistoryShowItem(
-                            ids = SimklIds(simkl = simklId),
-                            seasons = listOf(
-                                SyncHistorySeasonItem(
-                                    number = season
-                                )
-                            )
-                        )
-                    )
-                )
-            }
-
-            authenticatedSimklApiService.markHistoryUnwatched(
-                request = request
-            )
-
-            // Revert local changes immediately
-            watchedDao.deleteWatchedSeason(
-                simklId = simklId,
-                season = season
-            )
-
-            calendarDao.markSeasonWatched(
-                simklId = simklId,
-                season = season,
-                watchedAt = null
-            )
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Failed to mark season $season as unwatched for simklId $simklId")
-            Result.failure(e)
-        }
-    }
-
-    suspend fun markMovieUnwatched(
-        simklId: Int
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-
-            val request = SyncHistoryRequest(
-                movies = listOf(
-                    SyncHistoryMovieItem(
-                        ids = SimklIds(simkl = simklId)
-                    )
-                )
-            )
-
-            authenticatedSimklApiService.markHistoryUnwatched(
-                request = request
-            )
-
-            calendarDao.markMovieWatched(simklId = simklId, watchedAt = null)
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.tag("SimklRepository").e(e, "Failed to mark movie as unwatched for simklId $simklId")
-            Result.failure(e)
-        }
-    }
 }
-
-data class SyncResult(
-    val hasWatchlistItemChanges: Boolean = false,
-    val hasCalendarItemChanges: Boolean = false,
-    val hasWantedItems: Boolean = false,
-)
 
 fun TrackedWatchlistItem.Companion.fromShowItem(item: SyncShowItem, type: MediaType): TrackedWatchlistItem {
     val media = item.show

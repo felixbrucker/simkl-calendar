@@ -13,7 +13,7 @@ import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import io.mockk.coEvery
@@ -33,7 +33,7 @@ import java.time.Instant
 class DownloadCompletedReceiverTest {
 
     private lateinit var context: Context
-    private lateinit var repositoryMock: SimklRepository
+    private lateinit var repositoryMock: CalendarRepository
     private lateinit var notificationManagerMock: NotificationManager
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var tokenDao: UserTokenDao

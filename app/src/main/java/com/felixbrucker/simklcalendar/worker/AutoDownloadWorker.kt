@@ -12,7 +12,7 @@ import androidx.work.WorkerParameters
 import androidx.hilt.work.HiltWorker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import com.felixbrucker.simklcalendar.data.repository.SimklRepository
+import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import java.util.concurrent.TimeUnit
 
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 class AutoDownloadWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    private val repository: SimklRepository,
+    private val downloadRepository: DownloadRepository,
     private val torrentServiceHelper: TorrentServiceHelper
 ) : CoroutineWorker(appContext, workerParams) {
 
@@ -33,7 +33,7 @@ class AutoDownloadWorker @AssistedInject constructor(
         }
 
         try {
-            repository.searchAndDownloadWantedItems()
+            downloadRepository.searchAndDownloadWantedItems()
             return Result.success()
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "AutoDownloadWorker encountered an error")

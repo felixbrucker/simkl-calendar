@@ -27,14 +27,13 @@ class CalendarViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var application: Application
-    private lateinit var userTokenDao: UserTokenDao
-    private lateinit var calendarDao: CalendarItemDao
-    private lateinit var settingDao: NotificationSettingDao
-    private lateinit var watchlistDao: WatchlistDao
-    private lateinit var watchedDao: WatchedEpisodeDao
-    private lateinit var searchLinkDao: CustomSearchLinkDao
-    private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
-    private lateinit var repositoryMock: SimklRepository
+    private lateinit var userRepositoryMock: UserRepository
+    private lateinit var calendarRepositoryMock: CalendarRepository
+    private lateinit var syncRepositoryMock: SyncRepository
+    private lateinit var watchHistoryRepositoryMock: WatchHistoryRepository
+    private lateinit var downloadRepositoryMock: DownloadRepository
+    private lateinit var customSearchLinkRepositoryMock: CustomSearchLinkRepository
+    private lateinit var notificationSettingRepositoryMock: NotificationSettingRepository
 
     private val calendarItemsFlow = MutableStateFlow<List<CalendarItemWithWatchlist>>(emptyList())
     private val userTokenFlow = MutableStateFlow<UserToken?>(null)
@@ -72,7 +71,13 @@ class CalendarViewModelTest {
         authPreferencesFlow.value = AuthPreferences()
 
         application = mockk(relaxed = true)
-        repositoryMock = mockk(relaxed = true)
+        userRepositoryMock = mockk(relaxed = true)
+        calendarRepositoryMock = mockk(relaxed = true)
+        syncRepositoryMock = mockk(relaxed = true)
+        watchHistoryRepositoryMock = mockk(relaxed = true)
+        downloadRepositoryMock = mockk(relaxed = true)
+        customSearchLinkRepositoryMock = mockk(relaxed = true)
+        notificationSettingRepositoryMock = mockk(relaxed = true)
 
         uiRepo = mockk(relaxed = true)
         notificationRepo = mockk(relaxed = true)
@@ -87,43 +92,34 @@ class CalendarViewModelTest {
         every { authRepo.preferencesFlow } returns authPreferencesFlow
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
 
-        coEvery { repositoryMock.syncCalendar(any()) } returns Unit
-        coEvery { repositoryMock.syncCalendar() } returns Unit
-        coEvery { repositoryMock.getActiveUserToken() } returns null
+        coEvery { syncRepositoryMock.syncCalendar(any()) } returns Unit
+        coEvery { syncRepositoryMock.syncCalendar() } returns Unit
+        coEvery { userRepositoryMock.getActiveUserToken() } returns null
 
         every { application.applicationContext } returns application
 
-        userTokenDao = mockk(relaxed = true)
-        calendarDao = mockk(relaxed = true)
-        settingDao = mockk(relaxed = true)
-        watchlistDao = mockk(relaxed = true)
-        watchedDao = mockk(relaxed = true)
-        searchLinkDao = mockk(relaxed = true)
-        itemDownloadSettingsDao = mockk(relaxed = true)
-
-        every { userTokenDao.getUserToken() } returns userTokenFlow
-        every { calendarDao.getAllCalendarItems() } returns calendarItemsFlow
-        every { settingDao.getAllSettings() } returns flowOf(emptyList())
-        every { watchedDao.getAllWatchedEpisodesFlow() } returns flowOf(emptyList())
-        every { searchLinkDao.getAllSearchLinks() } returns customSearchLinksFlow
-        every { watchlistDao.getAllTrackedItemsFlow() } returns watchlistItemsFlow
-
-        every { repositoryMock.calendarItems } returns calendarItemsFlow
-        every { repositoryMock.activeUserToken } returns userTokenFlow
-        every { repositoryMock.watchlistItems } returns watchlistItemsFlow
-        every { repositoryMock.customSearchLinks } returns customSearchLinksFlow
-        every { repositoryMock.notificationSettings } returns flowOf(emptyList())
-        every { repositoryMock.watchedEpisodes } returns flowOf(emptyList())
+        every { calendarRepositoryMock.calendarItems } returns calendarItemsFlow
+        every { userRepositoryMock.activeUserToken } returns userTokenFlow
+        every { calendarRepositoryMock.watchlistItems } returns watchlistItemsFlow
+        every { customSearchLinkRepositoryMock.customSearchLinks } returns customSearchLinksFlow
+        every { notificationSettingRepositoryMock.notificationSettings } returns flowOf(emptyList())
+        every { watchHistoryRepositoryMock.watchedEpisodes } returns flowOf(emptyList())
         every { torrentServiceHelper.downloads } returns MutableStateFlow(emptyMap())
         every { torrentServiceHelper.isBound } returns MutableStateFlow(false)
         every { torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
-        coEvery { repositoryMock.searchAndDownloadEpisode(any()) } returns Result.failure(Exception("No torrents"))
+        coEvery { downloadRepositoryMock.searchAndDownloadEpisode(any()) } returns Result.failure(Exception("No torrents"))
     }
 
     private fun createViewModel(): CalendarViewModel {
         userTokenFlow.value = null
         return CalendarViewModel(
-            repository = repositoryMock,
+            userRepository = userRepositoryMock,
+            calendarRepository = calendarRepositoryMock,
+            syncRepository = syncRepositoryMock,
+            watchHistoryRepository = watchHistoryRepositoryMock,
+            downloadRepository = downloadRepositoryMock,
+            customSearchLinkRepository = customSearchLinkRepositoryMock,
+            notificationSettingRepository = notificationSettingRepositoryMock,
             appSettingsRepo = appSettingsRepo,
             autoDownloadRepo = autoDownloadRepo,
             notificationRepo = notificationRepo,
@@ -226,14 +222,14 @@ class CalendarViewModelTest {
     fun testItemDownloadSettings() = runTest {
         val viewModel = createViewModel()
         val settings = ItemDownloadSettings(simklId = 10, qualityOverride = "1080p")
-        every { repositoryMock.getItemDownloadSettingsFlow(10) } returns flowOf(settings)
+        every { downloadRepositoryMock.getItemDownloadSettingsFlow(10) } returns flowOf(settings)
 
         viewModel.saveItemDownloadSettings(settings)
         advanceUntilIdle()
         val retrievedFlow = viewModel.getItemDownloadSettingsFlow(10)
         val retrievedSettings = retrievedFlow.first()
 
-        coVerify { repositoryMock.saveItemDownloadSettings(settings) }
+        coVerify { downloadRepositoryMock.saveItemDownloadSettings(settings) }
         assertEquals("1080p", retrievedSettings?.qualityOverride)
     }
 
@@ -251,7 +247,7 @@ class CalendarViewModelTest {
     @Test
     fun testMarkEpisodeWatchedSuccessAndFailure() = runTest {
         val viewModel = createViewModel()
-        coEvery { repositoryMock.markEpisodeWatched(1, 1, 2, MediaType.TV) } returns Result.success(Unit)
+        coEvery { watchHistoryRepositoryMock.markEpisodeWatched(1, 1, 2, MediaType.TV) } returns Result.success(Unit)
 
         var successCalled = false
         var successMsg = ""
@@ -270,7 +266,7 @@ class CalendarViewModelTest {
 
         var failureCalled = true
         var failureMsg = ""
-        coEvery { repositoryMock.markEpisodeWatched(1, 1, 2, MediaType.TV) } returns Result.failure(Exception("Failed to mark episode as watched"))
+        coEvery { watchHistoryRepositoryMock.markEpisodeWatched(1, 1, 2, MediaType.TV) } returns Result.failure(Exception("Failed to mark episode as watched"))
         viewModel.markEpisodeWatched(
             simklId = 1,
             season = 1,
@@ -293,7 +289,7 @@ class CalendarViewModelTest {
     @Test
     fun testMarkSeasonWatchedSuccessAndFailure() = runTest {
         val viewModel = createViewModel()
-        coEvery { repositoryMock.markSeasonWatched(1, 1, MediaType.TV) } returns Result.success(false)
+        coEvery { watchHistoryRepositoryMock.markSeasonWatched(1, 1, MediaType.TV) } returns Result.success(false)
 
         var successCalled = false
         var successMsg = ""
@@ -310,7 +306,7 @@ class CalendarViewModelTest {
 
         var failureCalled = true
         var failureMsg = ""
-        coEvery { repositoryMock.markSeasonWatched(1, 1, MediaType.TV) } returns Result.failure(Exception("Failed to mark season as watched"))
+        coEvery { watchHistoryRepositoryMock.markSeasonWatched(1, 1, MediaType.TV) } returns Result.failure(Exception("Failed to mark season as watched"))
         viewModel.markSeasonWatched(
             simklId = 1,
             season = 1,
@@ -331,7 +327,7 @@ class CalendarViewModelTest {
     @Test
     fun testMarkMovieWatchedSuccessAndFailure() = runTest {
         val viewModel = createViewModel()
-        coEvery { repositoryMock.markMovieWatched(1) } returns Result.success(Unit)
+        coEvery { watchHistoryRepositoryMock.markMovieWatched(1) } returns Result.success(Unit)
 
         var successCalled = false
         var successMsg = ""
@@ -347,7 +343,7 @@ class CalendarViewModelTest {
 
         var failureCalled = true
         var failureMsg = ""
-        coEvery { repositoryMock.markMovieWatched(1) } returns Result.failure(Exception("Failed to mark movie as watched"))
+        coEvery { watchHistoryRepositoryMock.markMovieWatched(1) } returns Result.failure(Exception("Failed to mark movie as watched"))
         viewModel.markMovieWatched(
             simklId = 1,
             primaryKey = "v2_1_theater",
@@ -367,7 +363,7 @@ class CalendarViewModelTest {
     @Test
     fun testMarkEpisodeUnwatchedSuccessAndFailure() = runTest {
         val viewModel = createViewModel()
-        coEvery { repositoryMock.markEpisodeUnwatched(1, 1, 2, MediaType.TV) } returns Result.success(Unit)
+        coEvery { watchHistoryRepositoryMock.markEpisodeUnwatched(1, 1, 2, MediaType.TV) } returns Result.success(Unit)
 
         var successCalled = false
         var successMsg = ""
@@ -386,7 +382,7 @@ class CalendarViewModelTest {
 
         var failureCalled = true
         var failureMsg = ""
-        coEvery { repositoryMock.markEpisodeUnwatched(1, 1, 2, MediaType.TV) } returns Result.failure(Exception("Failed to mark episode as unwatched"))
+        coEvery { watchHistoryRepositoryMock.markEpisodeUnwatched(1, 1, 2, MediaType.TV) } returns Result.failure(Exception("Failed to mark episode as unwatched"))
         viewModel.markEpisodeUnwatched(
             simklId = 1,
             season = 1,
@@ -409,7 +405,7 @@ class CalendarViewModelTest {
     @Test
     fun testMarkSeasonUnwatchedSuccessAndFailure() = runTest {
         val viewModel = createViewModel()
-        coEvery { repositoryMock.markSeasonUnwatched(1, 1, MediaType.TV) } returns Result.success(Unit)
+        coEvery { watchHistoryRepositoryMock.markSeasonUnwatched(1, 1, MediaType.TV) } returns Result.success(Unit)
 
         var successCalled = false
         var successMsg = ""
@@ -426,7 +422,7 @@ class CalendarViewModelTest {
 
         var failureCalled = true
         var failureMsg = ""
-        coEvery { repositoryMock.markSeasonUnwatched(1, 1, MediaType.TV) } returns Result.failure(Exception("Failed to mark season as unwatched"))
+        coEvery { watchHistoryRepositoryMock.markSeasonUnwatched(1, 1, MediaType.TV) } returns Result.failure(Exception("Failed to mark season as unwatched"))
         viewModel.markSeasonUnwatched(
             simklId = 1,
             season = 1,
@@ -447,7 +443,7 @@ class CalendarViewModelTest {
     @Test
     fun testMarkMovieUnwatchedSuccessAndFailure() = runTest {
         val viewModel = createViewModel()
-        coEvery { repositoryMock.markMovieUnwatched(1) } returns Result.success(Unit)
+        coEvery { watchHistoryRepositoryMock.markMovieUnwatched(1) } returns Result.success(Unit)
 
         var successCalled = false
         var successMsg = ""
@@ -463,7 +459,7 @@ class CalendarViewModelTest {
 
         var failureCalled = true
         var failureMsg = ""
-        coEvery { repositoryMock.markMovieUnwatched(1) } returns Result.failure(Exception("Failed to mark movie as unwatched"))
+        coEvery { watchHistoryRepositoryMock.markMovieUnwatched(1) } returns Result.failure(Exception("Failed to mark movie as unwatched"))
         viewModel.markMovieUnwatched(
             simklId = 1,
             primaryKey = "v2_1_theater",
@@ -483,7 +479,7 @@ class CalendarViewModelTest {
     @Test
     fun testSyncLocalCalendarNoToken() = runTest {
         val viewModel = createViewModel()
-        coEvery { repositoryMock.getActiveUserToken() } returns null
+        coEvery { userRepositoryMock.getActiveUserToken() } returns null
 
         viewModel.syncLocalCalendar()
         advanceUntilIdle()
@@ -526,9 +522,9 @@ class CalendarViewModelTest {
         viewModel.updateSeasonMediaStatus(1, 1, MediaStatus.IGNORED)
         advanceUntilIdle()
 
-        coVerify { repositoryMock.updateMediaStatus("v2_1_1_1", MediaStatus.WANTED) }
-        coVerify { repositoryMock.updateSeasonMediaStatus(1, 1, MediaStatus.WANTED) }
-        coVerify { repositoryMock.updateSeasonMediaStatus(1, 1, MediaStatus.IGNORED) }
+        coVerify { calendarRepositoryMock.updateMediaStatus("v2_1_1_1", MediaStatus.WANTED) }
+        coVerify { calendarRepositoryMock.updateSeasonMediaStatus(1, 1, MediaStatus.WANTED) }
+        coVerify { calendarRepositoryMock.updateSeasonMediaStatus(1, 1, MediaStatus.IGNORED) }
     }
 
     @Test
@@ -558,7 +554,7 @@ class CalendarViewModelTest {
             downloadSettings = null
         )
         calendarItemsFlow.value = listOf(itemWithWatchlist)
-        coEvery { repositoryMock.searchAndDownloadEpisode(itemWithWatchlist) } returns Result.failure(Exception("No torrent results found"))
+        coEvery { downloadRepositoryMock.searchAndDownloadEpisode(itemWithWatchlist) } returns Result.failure(Exception("No torrent results found"))
 
         var episodeResultOk = true
         var episodeResultMsg = ""
@@ -597,7 +593,7 @@ class CalendarViewModelTest {
         viewModel.runAutoDownloadManual()
         advanceUntilIdle()
 
-        coVerify { repositoryMock.searchAndDownloadWantedItems(any(), any()) }
+        coVerify { downloadRepositoryMock.searchAndDownloadWantedItems(any(), any()) }
     }
 
     @Test
@@ -607,7 +603,7 @@ class CalendarViewModelTest {
         viewModel.toggleNotification(1, notifyEpisode = true, notifySeasonFinished = false)
         advanceUntilIdle()
 
-        coVerify { repositoryMock.toggleNotificationSetting(1, true, false) }
+        coVerify { notificationSettingRepositoryMock.toggleNotificationSetting(1, true, false) }
     }
 
     @Test
