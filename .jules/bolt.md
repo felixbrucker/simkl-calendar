@@ -27,3 +27,9 @@
 **Learning:** Calling `preferencesFlow.first()` inside tight item-processing loops during background sync tasks triggers repeated DataStore flow collections and coroutine machinery for every individual item. Pre-fetching preferences once prior to looping and passing the pre-fetched model into resolution helpers reduces DataStore lookups from $O(N)$ to $O(1)$, avoiding redundant suspend call overhead during bulk processing.
 
 **Action:** Pre-fetch DataStore flow preferences once before entering hot processing loops or bulk sync operations.
+
+## 2026-11-12 - Hoisting Instant.now() Outside Batch Processing Loops in Status Resolution
+
+**Learning:** Invoking `Instant.now()` repeatedly inside batch calendar synchronization loops over thousands of episodes incurs repeated system clock JNI overhead and `Instant` object heap allocations. Adding an optional `now: Instant = Instant.now()` parameter to resolution helpers (`MediaStatusResolver.resolve`) and passing a pre-captured `now` timestamp from the outer sync scope eliminates $N$ redundant clock queries and `Instant` heap object allocations per sync run.
+
+**Action:** Pass pre-captured `now: Instant` timestamps into item evaluation and resolution helpers inside batch processing loops.
