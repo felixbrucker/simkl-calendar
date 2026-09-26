@@ -21,3 +21,9 @@
 **Learning:** Pruning chronologically ordered log entries with `entries.filter { it.timestamp >= cutoff }.takeLast(maxEntries)` performs an $O(N)$ list traversal and allocates two intermediate `ArrayList` copies. Leveraging monotonic timestamp order via `indexOfFirst` and `subList(startIndex, entries.size)` eliminates intermediate list allocations during pruning. Additionally, using `BufferedWriter` for JSON log persistence avoids allocating large `StringBuilder` heap strings containing all log lines before writing to disk.
 
 **Action:** Use `indexOfFirst` and `subList` when pruning chronologically ordered log collections and stream JSON log files directly with `BufferedWriter`.
+
+## 2026-10-28 - Pre-Fetching Flow Preferences Before Hot Loops in Synchronization Operations
+
+**Learning:** Calling `preferencesFlow.first()` inside tight item-processing loops during background sync tasks triggers repeated DataStore flow collections and coroutine machinery for every individual item. Pre-fetching preferences once prior to looping and passing the pre-fetched model into resolution helpers reduces DataStore lookups from $O(N)$ to $O(1)$, avoiding redundant suspend call overhead during bulk processing.
+
+**Action:** Pre-fetch DataStore flow preferences once before entering hot processing loops or bulk sync operations.
