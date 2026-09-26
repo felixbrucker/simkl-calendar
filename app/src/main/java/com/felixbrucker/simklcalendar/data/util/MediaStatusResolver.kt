@@ -18,7 +18,8 @@ class MediaStatusResolver @Inject constructor(
 ) {
     suspend fun resolve(
         item: CalendarItemWithWatchlist,
-        autoDownloadSettings: AutoDownloadPreferences? = null
+        autoDownloadSettings: AutoDownloadPreferences? = null,
+        now: Instant = Instant.now(),
     ): MediaStatus {
         return resolve(
             airDate = item.date,
@@ -27,6 +28,7 @@ class MediaStatusResolver @Inject constructor(
             isTheaterRelease = item.movieReleaseType == MovieReleaseType.THEATER,
             isWatched = item.isWatched,
             autoDownloadSettings = autoDownloadSettings,
+            now = now,
         )
     }
 
@@ -37,8 +39,9 @@ class MediaStatusResolver @Inject constructor(
         isTheaterRelease: Boolean,
         isWatched: Boolean,
         autoDownloadSettings: AutoDownloadPreferences? = null,
+        now: Instant = Instant.now(),
     ): MediaStatus {
-        if (airDate.isAfter(Instant.now())) return MediaStatus.NOT_AIRED_YET
+        if (airDate.isAfter(now)) return MediaStatus.NOT_AIRED_YET
         if (isTheaterRelease || isWatched) return MediaStatus.IGNORED
 
         val autoPrefs = autoDownloadSettings ?: autoDownloadRepo.preferencesFlow.first()

@@ -348,7 +348,8 @@ class SyncRepository @Inject constructor(
 
         val sixHoursMillis = 6 * 60 * 60 * 1000L
         val nowMillis = System.currentTimeMillis()
-        val oneMonthAgo = Instant.now().minus(30, ChronoUnit.DAYS)
+        val nowInstant = Instant.ofEpochMilli(nowMillis)
+        val oneMonthAgo = nowInstant.minus(30, ChronoUnit.DAYS)
         val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
 
         // 2. Fetch CDN Calendars for current month plus next 3 months (0..3) (TV, Anime, Movies) from data.simkl.in
@@ -451,6 +452,7 @@ class SyncRepository @Inject constructor(
                                     isTheaterRelease = true,
                                     isWatched = false,
                                     autoDownloadSettings = autoDownloadPrefs,
+                                    now = nowInstant,
                                 )
                                 processCalendarItem(
                                     CalendarItem(
@@ -479,6 +481,7 @@ class SyncRepository @Inject constructor(
                                         isTheaterRelease = false,
                                         isWatched = false,
                                         autoDownloadSettings = autoDownloadPrefs,
+                                        now = nowInstant,
                                     )
                                     processCalendarItem(
                                         CalendarItem(
@@ -533,6 +536,7 @@ class SyncRepository @Inject constructor(
                                 isTheaterRelease = false,
                                 isWatched = epWatchedTimestamp != null,
                                 autoDownloadSettings = autoDownloadPrefs,
+                                now = nowInstant,
                             )
 
                             processCalendarItem(
@@ -600,6 +604,7 @@ class SyncRepository @Inject constructor(
                                 isTheaterRelease = true,
                                 isWatched = false,
                                 autoDownloadSettings = autoDownloadPrefs,
+                                now = nowInstant,
                             )
                             processCalendarItem(
                                 CalendarItem(
@@ -629,6 +634,7 @@ class SyncRepository @Inject constructor(
                                 isTheaterRelease = false,
                                 isWatched = false,
                                 autoDownloadSettings = autoDownloadPrefs,
+                                now = nowInstant,
                             )
                             processCalendarItem(
                                 CalendarItem(
@@ -767,7 +773,7 @@ class SyncRepository @Inject constructor(
             }
 
             val results = deferred.awaitAll()
-            val oneMonthAgo = Instant.now().minus(30, ChronoUnit.DAYS)
+            val oneMonthAgo = now.minus(30, ChronoUnit.DAYS)
 
             for ((show, episodes) in results) {
                 if (episodes == null) continue
@@ -807,6 +813,7 @@ class SyncRepository @Inject constructor(
                         isTheaterRelease = false,
                         isWatched = epWatchedTimestamp != null,
                         autoDownloadSettings = autoDownloadPrefs,
+                        now = now,
                     )
 
                     val maxEp = maxEpPerSeason[seasonNum]
