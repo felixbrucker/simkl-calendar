@@ -10,6 +10,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.hilt.work.HiltWorker
+import androidx.work.OneTimeWorkRequestBuilder
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
@@ -25,10 +26,10 @@ class AutoDownloadWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        Timber.tag(TAG).d("Starting periodic background torrent search for WANTED items")
+        Timber.tag(TAG).d("Starting background torrent search for WANTED items")
 
         if (!torrentServiceHelper.isServiceInstalled()) {
-            Timber.tag(TAG).d("Torrent Downloader service not installed. Skipping periodic search.")
+            Timber.tag(TAG).d("Torrent Downloader service not installed. Skipping search.")
             return Result.success()
         }
 
@@ -38,6 +39,8 @@ class AutoDownloadWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "AutoDownloadWorker encountered an error")
             return Result.retry()
+        } finally {
+            torrentServiceHelper.unbind()
         }
     }
 
@@ -63,5 +66,17 @@ class AutoDownloadWorker @AssistedInject constructor(
             Timber.tag(TAG).d("Enqueued $effectiveInterval-hour periodic background torrent search work")
         }
 
+        fun enqueueSearchOnce(context: Context) {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            val searchRequest = OneTimeWorkRequestBuilder<AutoDownloadWorker>()
+                .setConstraints(constraints)
+                .build()
+
+            WorkManager.getInstance(context).enqueue(searchRequest)
+            Timber.tag(TAG).d("Enqueued background torrent search work")
+        }
     }
 }
