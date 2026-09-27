@@ -146,21 +146,21 @@ private fun List<SearchResultItem>.excluding(keywords: List<Keyword>): List<Sear
 // 3. "[SubsPlease] One Piece 1234" (1 match, second preferred keyword)
 // 4. "[AWS] One Piece 1234 HEVC" (1 match, third preferred keyword)
 private fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<Keyword>): List<SearchResultItem> {
-    return sortedWith(
-        compareByDescending<SearchResultItem> { item ->
-            preferredKeywords.count { keyword ->
-                item.name.contains(keyword)
+    if (preferredKeywords.isEmpty() || isEmpty()) return this
+    val totalKeywords = preferredKeywords.size
+    // Single-pass scoring with packed Long key avoids repeated string matching and List allocations during sorting
+    return sortedByDescending { item ->
+        var count = 0
+        var weightedSum = 0
+        for (i in 0 until totalKeywords) {
+            val keyword = preferredKeywords[i]
+            if (item.name.contains(keyword)) {
+                count++
+                weightedSum += (totalKeywords - i)
             }
-        }.thenByDescending { item ->
-            preferredKeywords.mapIndexed { index, keyword ->
-                if (item.name.contains(keyword)) {
-                    preferredKeywords.size - index
-                } else {
-                    0
-                }
-            }.sum()
         }
-    )
+        (count.toLong() shl 32) or (weightedSum.toLong() and 0xFFFFFFFFL)
+    }
 }
 
 private fun String.contains(keyword: Keyword): Boolean {

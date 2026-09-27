@@ -33,3 +33,9 @@
 **Learning:** Invoking `Instant.now()` repeatedly inside batch calendar synchronization loops over thousands of episodes incurs repeated system clock JNI overhead and `Instant` object heap allocations. Adding an optional `now: Instant = Instant.now()` parameter to resolution helpers (`MediaStatusResolver.resolve`) and passing a pre-captured `now` timestamp from the outer sync scope eliminates $N$ redundant clock queries and `Instant` heap object allocations per sync run.
 
 **Action:** Pass pre-captured `now: Instant` timestamps into item evaluation and resolution helpers inside batch processing loops.
+
+## 2026-11-25 - Single-Pass Bit-Packed Key Sorting for Multi-Criterion Collection Ranking
+
+**Learning:** Chaining comparators with `compareByDescending` and `thenByDescending` that execute collection operations (e.g., `mapIndexed().sum()`) inside comparator callbacks triggers $O(N \log N)$ repeated string searches and intermediate `List` heap allocations on every comparison step. Calculating a 64-bit primitive `Long` composite key (`(primaryScore shl 32) or secondaryScore`) in a single pass per element reduces key extraction to $O(N)$ and eliminates intermediate `List` heap allocations during sorting.
+
+**Action:** Use primitive bit-packed composite keys (`(count.toLong() shl 32) or weightedSum.toLong()`) with `sortedByDescending` when sorting collections by multiple integer criteria.
