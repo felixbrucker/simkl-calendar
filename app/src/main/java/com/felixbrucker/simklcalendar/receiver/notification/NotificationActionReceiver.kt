@@ -11,6 +11,7 @@ import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
 import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
 import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +73,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
             }
 
             ACTION_DOWNLOAD_SEASON_MISSING_EPISODES -> {
-                handleDownloadSeasonMissingEpisodes(intent)
+                handleDownloadSeasonMissingEpisodes(intent, context)
                 return
             }
 
@@ -207,7 +208,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
         }
     }
 
-    private fun handleDownloadSeasonMissingEpisodes(intent: Intent) {
+    private fun handleDownloadSeasonMissingEpisodes(intent: Intent, context: Context) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         Timber.tag(TAG).d("Handling download season missing episodes action for key=$itemPrimaryKey")
 
@@ -217,26 +218,19 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
                 val season = item.season ?: 1
 
-                val seasonItems =
-                    calendarItemDao.getItemsInSeasonOrRelatedItems(item.simklId, season)
+                val seasonItems = calendarItemDao.getItemsInSeasonOrRelatedItems(
+                    simklId = item.simklId,
+                    season = season
+                )
                 val ignoredItems = seasonItems.filter { it.mediaStatus == MediaStatus.IGNORED }
 
                 for (ignored in ignoredItems) {
                     calendarRepository.updateMediaStatus(ignored.primaryKey, MediaStatus.WANTED)
                 }
 
-                // Trigger batch search and download for all WANTED items
-                try {
-                    downloadRepository.searchAndDownloadWantedItems()
-                } finally {
-                    torrentServiceHelper.unbind()
-                }
-
-                // Update the notification that triggered this to reflect new season aggregate status
-                val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
-                notificationManager.updateNotification(
-                    item = updatedItem
-                )
+                // Trigger batch search and download for all WANTED items in the background, as this
+                // can take longer than the 10-second limit for receivers
+                AutoDownloadWorker.enqueueSearchOnce(context)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error starting season download from notification action")
             } finally {
