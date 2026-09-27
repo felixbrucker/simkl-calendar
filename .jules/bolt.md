@@ -33,3 +33,9 @@
 **Learning:** Invoking `Instant.now()` repeatedly inside batch calendar synchronization loops over thousands of episodes incurs repeated system clock JNI overhead and `Instant` object heap allocations. Adding an optional `now: Instant = Instant.now()` parameter to resolution helpers (`MediaStatusResolver.resolve`) and passing a pre-captured `now` timestamp from the outer sync scope eliminates $N$ redundant clock queries and `Instant` heap object allocations per sync run.
 
 **Action:** Pass pre-captured `now: Instant` timestamps into item evaluation and resolution helpers inside batch processing loops.
+
+## 2026-11-25 - Bit-Packed Key Sorting in Torrent Search Manager (Rejected as Micro-Optimization)
+
+**Learning:** Optimizing multi-criterion collection sorting in `TorrentSearchManager.sortedUsing` via bit-packed `Long` composite keys was rejected as a micro-optimization. Torrent search result lists are small in size, so optimizing sorting comparators on cold search execution paths offers no perceptible user-facing performance gain and adds unnecessary bit-shifting complexity.
+
+**Action:** Avoid micro-optimizations on small collection sorting in cold execution paths (such as torrent search API responses); focus only on hot paths and measurable bottlenecks.
