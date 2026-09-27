@@ -11,6 +11,7 @@ import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
+import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -29,6 +30,7 @@ class DownloadRepository @Inject constructor(
     private val itemDownloadSettingsDao: ItemDownloadSettingsDao,
     private val torrentSearchManager: TorrentSearchManager,
     private val torrentServiceHelper: TorrentServiceHelper,
+    private val notificationManager: NotificationManager,
 ) {
     suspend fun saveItemDownloadSettings(settings: ItemDownloadSettings) = withContext(Dispatchers.IO) {
         itemDownloadSettingsDao.insertOrUpdate(settings)
@@ -101,7 +103,13 @@ class DownloadRepository @Inject constructor(
 
         wantedItems.forEachIndexed { index, item ->
             val result = searchAndDownloadEpisode(item)
+
             onProgress(index + 1, wantedItems.size, item.title, result.isSuccess)
+
+            // Update the notification for this item, if it has one
+            val updatedItem = calendarDao.findItem(item.primaryKey) ?: return@forEachIndexed
+            notificationManager.updateNotification(item = updatedItem)
+
             delay(withDelay) // Artificial delay to prevent flicker and show progress
         }
     }
