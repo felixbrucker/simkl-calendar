@@ -34,6 +34,7 @@ timber = "5.0.1"
 datastorePreferences = "1.2.1"
 sentryAndroid = "8.58.0"
 sentryAndroidGradle = "6.23.0"
+glance = "1.2.0"
 
 [libraries]
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
@@ -73,6 +74,8 @@ sentry-android = { group = "io.sentry", name = "sentry-android", version.ref = "
 sentry-android-sqlite = { group = "io.sentry", name = "sentry-android-sqlite", version.ref = "sentryAndroid" }
 sentry-timber = { group = "io.sentry", name = "sentry-android-timber", version.ref = "sentryAndroid" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
+androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
 androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWork" }

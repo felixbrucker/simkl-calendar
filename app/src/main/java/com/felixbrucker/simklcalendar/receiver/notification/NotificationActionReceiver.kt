@@ -93,6 +93,11 @@ class NotificationActionReceiver: BroadcastReceiver() {
             try {
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 
+                notificationManager.updateNotification(
+                    item = item,
+                    loadingAction = ACTION_MARK_ITEM_WATCHED
+                )
+
                 val result = if (item.type == MediaType.MOVIE) {
                     watchHistoryRepository.markMovieWatched(simklId = item.simklId)
                 } else {
@@ -107,17 +112,13 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val err = result.exceptionOrNull()
                 if (err != null) {
                     Timber.tag(TAG).e(err, "Error marking item as watched from notification action")
-                    val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
-                    notificationManager.updateNotification(
-                        item = updatedItem
-                    )
+                    updateNotification(itemPrimaryKey)
                 } else {
-                    notificationManager.dismissNotification(
-                        item = item
-                    )
+                    notificationManager.dismissNotification(item = item)
                 }
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error marking episode as watched from notification action")
+                updateNotification(itemPrimaryKey)
             } finally {
                 pendingResult.finish()
             }
@@ -132,6 +133,12 @@ class NotificationActionReceiver: BroadcastReceiver() {
         scope.launch {
             try {
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
+
+                notificationManager.updateNotification(
+                    item = item,
+                    loadingAction = ACTION_MARK_SEASON_WATCHED
+                )
+
                 val result = watchHistoryRepository.markSeasonWatched(
                     simklId = item.simklId,
                     season = item.season ?: 1,
@@ -141,17 +148,13 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 val err = result.exceptionOrNull()
                 if (err != null) {
                     Timber.tag(TAG).e(err, "Error marking season as watched from notification action")
-                    val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
-                    notificationManager.updateNotification(
-                        item = updatedItem
-                    )
+                    updateNotification(itemPrimaryKey)
                 } else {
-                    notificationManager.dismissNotification(
-                        item = item
-                    )
+                    notificationManager.dismissNotification(item = item)
                 }
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error marking season as watched from notification action")
+                updateNotification(itemPrimaryKey)
             } finally {
                 pendingResult.finish()
             }
@@ -167,26 +170,23 @@ class NotificationActionReceiver: BroadcastReceiver() {
             try {
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 
-                // Update status to WANTED first
-                calendarRepository.updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
-
-                // Refresh item from DB
-                val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
+                notificationManager.updateNotification(
+                    item = item,
+                    loadingAction = ACTION_DOWNLOAD_ITEM
+                )
 
                 // Trigger search and download
                 try {
-                    downloadRepository.searchAndDownloadEpisode(updatedItem)
+                    downloadRepository.searchAndDownloadEpisode(item)
                 } finally {
                     torrentServiceHelper.unbind()
                 }
 
                 // Refetch again to reflect intermediate state change (WANTED -> DOWNLOADING / IGNORED)
-                val finalItem = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
-                notificationManager.updateNotification(
-                    item = finalItem
-                )
+                updateNotification(itemPrimaryKey)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error starting download from notification action")
+                updateNotification(itemPrimaryKey)
             } finally {
                 pendingResult.finish()
             }
@@ -216,6 +216,12 @@ class NotificationActionReceiver: BroadcastReceiver() {
         scope.launch {
             try {
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
+
+                notificationManager.updateNotification(
+                    item = item,
+                    loadingAction = ACTION_DOWNLOAD_SEASON_MISSING_EPISODES
+                )
+
                 val season = item.season ?: 1
 
                 val seasonItems = calendarItemDao.getItemsInSeasonOrRelatedItems(
@@ -228,14 +234,27 @@ class NotificationActionReceiver: BroadcastReceiver() {
                     calendarRepository.updateMediaStatus(ignored.primaryKey, MediaStatus.WANTED)
                 }
 
+                // Update after all episodes are now at least WANTED
+                updateNotification(
+                    itemPrimaryKey,
+                    loadingAction = ACTION_DOWNLOAD_SEASON_MISSING_EPISODES
+                )
+
                 // Trigger batch search and download for all WANTED items in the background, as this
-                // can take longer than the 10-second limit for receivers
+                // can take longer than the 10-second limit for receivers. Updating the notification
+                // is done in the repository.
                 AutoDownloadWorker.enqueueSearchOnce(context)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error starting season download from notification action")
+                updateNotification(itemPrimaryKey)
             } finally {
                 pendingResult.finish()
             }
         }
+    }
+
+    private suspend fun updateNotification(itemPrimaryKey: String, loadingAction: String? = null) {
+        val item = calendarItemDao.findItem(itemPrimaryKey) ?: return
+        notificationManager.updateNotification(item = item, loadingAction = loadingAction)
     }
 }

@@ -195,12 +195,13 @@ class MainActivity : ComponentActivity() {
     }
 
     internal suspend fun handleNotificationNavigation(intent: Intent?) {
-        if (intent?.data != "simklcalendar://release_detail".toUri()) return
+        val uri = intent?.data
+        if (uri == null || uri.scheme != "simklcalendar" || uri.host != "release_detail") return
 
         val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
         if (!itemKey.isNullOrEmpty()) {
             setPendingReleaseDetailKey(itemKey)
-            notificationManager.removeActiveNotification(itemKey)
+            notificationManager.dismissNotification(itemKey)
         }
     }
 

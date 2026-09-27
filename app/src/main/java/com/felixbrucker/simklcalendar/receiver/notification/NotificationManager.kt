@@ -1,5 +1,6 @@
 package com.felixbrucker.simklcalendar.receiver.notification
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager as SystemNotificationManager
@@ -51,13 +52,16 @@ class NotificationManager @Inject constructor(
         private const val TAG = "NotificationManager"
     }
 
-    suspend fun showNotification(item: CalendarItemWithWatchlist) {
+    suspend fun showNotification(
+        item: CalendarItemWithWatchlist,
+        loadingAction: String? = null,
+    ) {
         createNotificationChannel()
         val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
         if (!isNotificationPermissionGranted) {
             return
         }
-        val notification = buildNotification(item)
+        val notification = buildNotification(item, loadingAction)
         val notificationId = item.notificationId
         try {
             context.getSystemNotificationManager().notify(notificationId, notification)
@@ -70,6 +74,7 @@ class NotificationManager @Inject constructor(
 
     suspend fun updateNotification(
         item: CalendarItemWithWatchlist,
+        loadingAction: String? = null,
     ) {
         createNotificationChannel()
         val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
@@ -86,13 +91,18 @@ class NotificationManager @Inject constructor(
             return
         }
 
-        val notification = buildNotificationForUpdate(item)
+        val notification = buildNotificationForUpdate(item, loadingAction)
         try {
             systemNotificationManager.notify(notificationId, notification)
             Timber.tag(TAG).d("Successfully updated notification id=$notificationId")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error updating notification")
         }
+    }
+
+    suspend fun dismissNotification(itemPrimaryKey: String) {
+        val item = calendarItemDao.findItem(itemPrimaryKey) ?: return
+        dismissNotification(item = item)
     }
 
     suspend fun dismissNotification(item: CalendarItemWithWatchlist) {
@@ -180,16 +190,23 @@ class NotificationManager @Inject constructor(
         context.getSystemNotificationManager().createNotificationChannel(channel)
     }
 
-    private suspend fun buildNotification(item: CalendarItemWithWatchlist): Notification {
-        return makeConfiguredNotificationBuilder(item).build()
+    private suspend fun buildNotification(
+        item: CalendarItemWithWatchlist,
+        loadingAction: String? = null,
+    ): Notification {
+        return makeConfiguredNotificationBuilder(item, loadingAction).build()
     }
 
-    private suspend fun makeConfiguredNotificationBuilder(item: CalendarItemWithWatchlist): NotificationCompat.Builder {
+    private suspend fun makeConfiguredNotificationBuilder(
+        item: CalendarItemWithWatchlist,
+        loadingAction: String?,
+    ): NotificationCompat.Builder {
         val itemsInSeasonOrRelatedItems = calendarItemDao
             .getItemsInSeasonOrRelatedItems(item.simklId, item.season)
         val totalEpisodesInSeason = itemsInSeasonOrRelatedItems.maxOfOrNull { it.episodeNumber ?: 1 } ?: 1
         val (title, message) = item.formatNotificationContent(totalEpisodesInSeason)
-        val openIntent = item.makeOpenReleaseDetailViewIntent(context)
+        val openPendingIntent = item.makeOpenReleaseDetailViewIntent(context)
+        val openActivityIntent = item.makeOpenReleaseDetailViewActivityIntent(context)
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -199,7 +216,7 @@ class NotificationManager @Inject constructor(
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setContentIntent(openIntent)
+            .setContentIntent(openPendingIntent)
             .setDeleteIntent(item.makeDismissNotificationIntent(context))
             .setAutoCancel(true)
 
@@ -241,11 +258,6 @@ class NotificationManager @Inject constructor(
 
         if (subText.isNotEmpty()) {
             builder.setSubText(subText)
-            builder.setStyle(
-                NotificationCompat.BigTextStyle().bigText(message).setSummaryText(subText)
-            )
-        } else {
-            builder.setStyle(NotificationCompat.BigTextStyle().bigText(message))
         }
 
         val posterBitmap = loadPosterBitmap(item.poster)
@@ -253,19 +265,28 @@ class NotificationManager @Inject constructor(
             builder.setLargeIcon(posterBitmap)
         }
 
-        // Add notification action buttons
+        val actions = mutableListOf<NotificationActionInfo>()
+
         if (!isWatched) {
             if (item.isSeasonFinale) {
-                builder.addAction(
-                    R.drawable.ic_done_all,
-                    "Mark Season as Watched",
-                    item.makeMarkSeasonWatchedIntent(context)
+                actions.add(
+                    NotificationActionInfo(
+                        action = NotificationActionReceiver.ACTION_MARK_SEASON_WATCHED,
+                        label = "Mark Season as Watched",
+                        loadingLabel = "Marking Season as Watched ..",
+                        iconResId = R.drawable.ic_done_all,
+                        intent = item.makeMarkSeasonWatchedBroadcastIntent(context)
+                    )
                 )
             } else {
-                builder.addAction(
-                    R.drawable.ic_check,
-                    "Mark as Watched",
-                    item.makeMarkWatchedIntent(context)
+                actions.add(
+                    NotificationActionInfo(
+                        action = NotificationActionReceiver.ACTION_MARK_ITEM_WATCHED,
+                        label = "Mark as Watched",
+                        loadingLabel = "Marking as Watched ..",
+                        iconResId = R.drawable.ic_check,
+                        intent = item.makeMarkWatchedBroadcastIntent(context)
+                    )
                 )
             }
         }
@@ -277,38 +298,73 @@ class NotificationManager @Inject constructor(
                 val digitalRelease =
                     itemsInSeasonOrRelatedItems.find { it.movieReleaseType == MovieReleaseType.DIGITAL }
                 if (digitalRelease != null && (digitalRelease.mediaStatus == MediaStatus.IGNORED || digitalRelease.mediaStatus == MediaStatus.WANTED)) {
-                    builder.addAction(
-                        R.drawable.ic_download,
-                        "Download",
-                        digitalRelease.makeDownloadItemIntent(context)
+                    actions.add(
+                        NotificationActionInfo(
+                            action = NotificationActionReceiver.ACTION_DOWNLOAD_ITEM,
+                            label = "Download",
+                            loadingLabel = "Searching ..",
+                            iconResId = R.drawable.ic_download,
+                            intent = digitalRelease.makeDownloadItemBroadcastIntent(context)
+                        )
                     )
                 }
             } else {
-                val hasDownloadableEpisodes =
-                    itemsInSeasonOrRelatedItems.any { it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED }
+                val hasDownloadableEpisodes = itemsInSeasonOrRelatedItems.any {
+                    it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED
+                }
                 if (hasDownloadableEpisodes) {
                     if (item.isSeasonFinale) {
-                        builder.addAction(
-                            R.drawable.ic_download,
-                            "Download missing episodes",
-                            item.makeDownloadSeasonMissingEpisodesIntent(context)
+                        actions.add(
+                            NotificationActionInfo(
+                                action = NotificationActionReceiver.ACTION_DOWNLOAD_SEASON_MISSING_EPISODES,
+                                label = "Download missing episodes",
+                                loadingLabel = "Searching missing episodes ..",
+                                iconResId = R.drawable.ic_download,
+                                intent = item.makeDownloadSeasonMissingEpisodesBroadcastIntent(context)
+                            )
                         )
                     } else if (item.mediaStatus == MediaStatus.IGNORED || item.mediaStatus == MediaStatus.WANTED) {
-                        builder.addAction(
-                            R.drawable.ic_download,
-                            "Download",
-                            item.makeDownloadItemIntent(context)
+                        actions.add(
+                            NotificationActionInfo(
+                                action = NotificationActionReceiver.ACTION_DOWNLOAD_ITEM,
+                                label = "Download",
+                                loadingLabel = "Searching ..",
+                                iconResId = R.drawable.ic_download,
+                                intent = item.makeDownloadItemBroadcastIntent(context)
+                            )
                         )
                     }
                 }
             }
         }
 
+        val collapsedRemoteViews = NotificationGlanceHelper.buildCollapsedRemoteViews(
+            context = context,
+            title = title,
+            message = message,
+            openIntent = openActivityIntent
+        )
+        val expandedRemoteViews = NotificationGlanceHelper.buildExpandedRemoteViews(
+            context = context,
+            title = title,
+            message = message,
+            openIntent = openActivityIntent,
+            actions = actions,
+            loadingAction = loadingAction
+        )
+
+        builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
+        builder.setCustomContentView(collapsedRemoteViews)
+        builder.setCustomBigContentView(expandedRemoteViews)
+
         return builder
     }
 
-    private suspend fun buildNotificationForUpdate(item: CalendarItemWithWatchlist): Notification {
-        return makeConfiguredNotificationBuilder(item)
+    private suspend fun buildNotificationForUpdate(
+        item: CalendarItemWithWatchlist,
+        loadingAction: String?,
+    ): Notification {
+        return makeConfiguredNotificationBuilder(item, loadingAction)
             .setOnlyAlertOnce(true)
             .build()
     }
@@ -317,7 +373,7 @@ class NotificationManager @Inject constructor(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     context,
-                    android.Manifest.permission.POST_NOTIFICATIONS
+                    Manifest.permission.POST_NOTIFICATIONS
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 Timber.tag(TAG).w("POST_NOTIFICATIONS permission not granted. Cannot display notification.")
@@ -357,13 +413,16 @@ fun Context.getSystemNotificationManager(): SystemNotificationManager {
     return getSystemService(Context.NOTIFICATION_SERVICE) as SystemNotificationManager
 }
 
-fun CalendarItemWithWatchlist.makeOpenReleaseDetailViewIntent(context: Context): PendingIntent {
-    val openIntent = Intent(context, MainActivity::class.java).apply {
+fun CalendarItemWithWatchlist.makeOpenReleaseDetailViewActivityIntent(context: Context): Intent {
+    return Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         putExtra(MainActivity.EXTRA_ITEM_KEY, primaryKey)
-        data = "simklcalendar://release_detail".toUri()
+        data = "simklcalendar://release_detail/$primaryKey".toUri() // enforces uniqueness
     }
+}
 
+fun CalendarItemWithWatchlist.makeOpenReleaseDetailViewIntent(context: Context): PendingIntent {
+    val openIntent = makeOpenReleaseDetailViewActivityIntent(context)
     return PendingIntent.getActivity(
         context,
         notificationId,
@@ -372,23 +431,18 @@ fun CalendarItemWithWatchlist.makeOpenReleaseDetailViewIntent(context: Context):
     )
 }
 
-fun CalendarItemWithWatchlist.makeMarkWatchedIntent(context: Context): PendingIntent {
-    val markWatchedIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+fun CalendarItemWithWatchlist.makeMarkWatchedBroadcastIntent(context: Context): Intent {
+    return Intent(context, NotificationActionReceiver::class.java).apply {
         action = NotificationActionReceiver.ACTION_MARK_ITEM_WATCHED
+        data = "simklcalendar://item/$primaryKey".toUri() // enforces uniqueness
         putExtra(NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
     }
-
-    return PendingIntent.getBroadcast(
-        context,
-        notificationId * 10 + 1,
-        markWatchedIntent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
 }
 
 fun CalendarItemWithWatchlist.makeDismissNotificationIntent(context: Context): PendingIntent {
     val dismissIntent = Intent(context, NotificationActionReceiver::class.java).apply {
         action = NotificationActionReceiver.ACTION_NOTIFICATION_DISMISSED
+        data = "simklcalendar://item/$primaryKey".toUri() // enforces uniqueness
         putExtra(NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
     }
 
@@ -400,18 +454,12 @@ fun CalendarItemWithWatchlist.makeDismissNotificationIntent(context: Context): P
     )
 }
 
-fun CalendarItemWithWatchlist.makeMarkSeasonWatchedIntent(context: Context): PendingIntent {
-    val markSeasonWatchedIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+fun CalendarItemWithWatchlist.makeMarkSeasonWatchedBroadcastIntent(context: Context): Intent {
+    return Intent(context, NotificationActionReceiver::class.java).apply {
         action = NotificationActionReceiver.ACTION_MARK_SEASON_WATCHED
+        data = "simklcalendar://item/$primaryKey".toUri() // enforces uniqueness
         putExtra(NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
     }
-
-    return PendingIntent.getBroadcast(
-        context,
-        notificationId * 10 + 2,
-        markSeasonWatchedIntent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
 }
 
 fun CalendarItemWithWatchlist.formatNotificationContent(totalEpisodesInSeason: Int): Pair<String, String> {
@@ -427,31 +475,18 @@ fun CalendarItemWithWatchlist.formatNotificationContent(totalEpisodesInSeason: I
     )
 }
 
-fun CalendarItemWithWatchlist.makeDownloadItemIntent(context: Context): PendingIntent {
-    val downloadIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+fun CalendarItemWithWatchlist.makeDownloadItemBroadcastIntent(context: Context): Intent {
+    return Intent(context, NotificationActionReceiver::class.java).apply {
         action = NotificationActionReceiver.ACTION_DOWNLOAD_ITEM
+        data = "simklcalendar://item/$primaryKey".toUri() // enforces uniqueness
         putExtra(NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
     }
-
-    return PendingIntent.getBroadcast(
-        context,
-        notificationId * 10 + 3,
-        downloadIntent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
 }
 
-fun CalendarItemWithWatchlist.makeDownloadSeasonMissingEpisodesIntent(context: Context): PendingIntent {
-    val downloadIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+fun CalendarItemWithWatchlist.makeDownloadSeasonMissingEpisodesBroadcastIntent(context: Context): Intent {
+    return Intent(context, NotificationActionReceiver::class.java).apply {
         action = NotificationActionReceiver.ACTION_DOWNLOAD_SEASON_MISSING_EPISODES
+        data = "simklcalendar://item/$primaryKey".toUri() // enforces uniqueness
         putExtra(NotificationActionReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
     }
-
-    return PendingIntent.getBroadcast(
-        context,
-        notificationId * 10 + 4,
-        downloadIntent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
 }
-

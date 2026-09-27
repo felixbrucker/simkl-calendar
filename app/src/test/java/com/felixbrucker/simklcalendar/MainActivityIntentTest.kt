@@ -115,7 +115,7 @@ class MainActivityIntentTest {
         verify { anyConstructed<Intent>().data = capture(uriSlot) }
         val capturedUriString = uriSlot.captured.toString()
 
-        assertEquals("simklcalendar://release_detail", capturedUriString)
+        assertEquals("simklcalendar://release_detail/v2_100_1_1", capturedUriString)
         verify { anyConstructed<Intent>().putExtra(MainActivity.EXTRA_ITEM_KEY, "v2_100_1_1") }
     }
 
@@ -138,7 +138,7 @@ class MainActivityIntentTest {
 
         mainActivity.handleNotificationNavigation(intent)
 
-        coVerify { notificationManager.removeActiveNotification("v2_100_1_1") }
+        coVerify { notificationManager.dismissNotification("v2_100_1_1") }
         assertEquals(mainActivity.pendingReleaseDetailKey.value, "v2_100_1_1")
     }
 

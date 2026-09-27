@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import android.widget.RemoteViews
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -30,20 +31,20 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.receiver.notification.NotificationActionReceiver
+import com.felixbrucker.simklcalendar.receiver.notification.NotificationGlanceHelper
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import com.felixbrucker.simklcalendar.receiver.notification.formatNotificationContent
-import com.felixbrucker.simklcalendar.receiver.notification.makeDownloadItemIntent
-import com.felixbrucker.simklcalendar.receiver.notification.makeDownloadSeasonMissingEpisodesIntent
-import com.felixbrucker.simklcalendar.receiver.notification.makeMarkSeasonWatchedIntent
-import com.felixbrucker.simklcalendar.receiver.notification.makeMarkWatchedIntent
 import com.felixbrucker.simklcalendar.receiver.notification.makeOpenReleaseDetailViewIntent
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkConstructor
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkConstructor
+import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -101,6 +102,11 @@ class NotificationManagerFullTest {
         mockkConstructor(NotificationCompat.Builder::class)
         every { anyConstructed<NotificationCompat.Builder>().build() } returns mockk(relaxed = true)
 
+        mockkObject(NotificationGlanceHelper)
+        val mockRemoteViews = mockk<RemoteViews>(relaxed = true)
+        coEvery { NotificationGlanceHelper.buildCollapsedRemoteViews(any(), any(), any(), any()) } returns mockRemoteViews
+        coEvery { NotificationGlanceHelper.buildExpandedRemoteViews(any(), any(), any(), any(), any(), any()) } returns mockRemoteViews
+
         context = mockk(relaxed = true)
         packageManager = mockk(relaxed = true)
         androidNotificationManager = mockk(relaxed = true)
@@ -143,6 +149,7 @@ class NotificationManagerFullTest {
 
     @After
     fun tearDown() {
+        unmockkObject(NotificationGlanceHelper)
         unmockkConstructor(NotificationCompat.Builder::class)
         unmockkStatic(PendingIntent::class)
         unmockkStatic(Uri::class)
@@ -159,18 +166,10 @@ class NotificationManagerFullTest {
 
         val (title, msg) = item.formatNotificationContent(10)
         val openIntent = item.makeOpenReleaseDetailViewIntent(context)
-        val markWatchedIntent = item.makeMarkWatchedIntent(context)
-        val markSeasonWatchedIntent = item.makeMarkSeasonWatchedIntent(context)
-        val downloadItemIntent = item.makeDownloadItemIntent(context)
-        val downloadSeasonIntent = item.makeDownloadSeasonMissingEpisodesIntent(context)
 
         assertEquals("New Episode Released", title)
         assertNotNull(msg)
         assertNotNull(openIntent)
-        assertNotNull(markWatchedIntent)
-        assertNotNull(markSeasonWatchedIntent)
-        assertNotNull(downloadItemIntent)
-        assertNotNull(downloadSeasonIntent)
     }
 
     @Test
@@ -327,7 +326,20 @@ class NotificationManagerFullTest {
         verify { androidNotificationManager.notify(movieDigitalItem.notificationId, any()) }
         verify { androidNotificationManager.notify(episodeItem.notificationId, any()) }
         verify { androidNotificationManager.notify(finaleItem.notificationId, any()) }
-        verify { anyConstructed<NotificationCompat.Builder>().addAction(R.drawable.ic_download, "Download", any()) }
-        verify { anyConstructed<NotificationCompat.Builder>().addAction(R.drawable.ic_download, "Download missing episodes", any()) }
+        verify { anyConstructed<NotificationCompat.Builder>().setStyle(any<NotificationCompat.DecoratedCustomViewStyle>()) }
+        verify { anyConstructed<NotificationCompat.Builder>().setCustomContentView(any()) }
+        verify { anyConstructed<NotificationCompat.Builder>().setCustomBigContentView(any()) }
+    }
+
+    @Test
+    fun testNotificationWithLoadingAction() = runTest {
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
+
+        notificationManager.showNotification(item, loadingAction = NotificationActionReceiver.ACTION_MARK_ITEM_WATCHED)
+
+        verify { androidNotificationManager.notify(item.notificationId, any()) }
+        verify { anyConstructed<NotificationCompat.Builder>().setCustomBigContentView(any()) }
     }
 }

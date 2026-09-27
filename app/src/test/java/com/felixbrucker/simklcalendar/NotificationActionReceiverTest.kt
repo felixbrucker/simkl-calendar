@@ -267,7 +267,7 @@ class NotificationActionReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { repositoryMock.updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
+        coVerify(timeout = 3000) { downloadRepositoryMock.searchAndDownloadEpisode(item) }
         verify(timeout = 3000) { torrentServiceHelper.unbind() }
     }
 
