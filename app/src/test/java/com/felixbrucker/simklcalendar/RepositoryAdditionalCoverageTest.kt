@@ -48,7 +48,8 @@ class RepositoryAdditionalCoverageTest {
             calendarDao = calendarDao,
             itemDownloadSettingsDao = itemDownloadSettingsDao,
             torrentSearchManager = mockk(relaxed = true),
-            torrentServiceHelper = mockk(relaxed = true)
+            torrentServiceHelper = mockk(relaxed = true),
+            notificationManager = mockk(relaxed = true),
         )
 
         customSearchLinkRepository = CustomSearchLinkRepository(searchLinkDao)

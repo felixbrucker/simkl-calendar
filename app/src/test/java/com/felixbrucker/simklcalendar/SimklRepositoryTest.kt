@@ -12,6 +12,7 @@ import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.data.network.*
 import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -38,6 +39,7 @@ class SimklRepositoryTest {
     private lateinit var publicApiService: PublicSimklApiService
     private lateinit var authenticatedApiService: AuthenticatedSimklApiService
     private lateinit var torrentServiceHelper: TorrentServiceHelper
+    private lateinit var notificationManager: NotificationManager
 
     private lateinit var appSettingsRepo: AppSettingsRepository
     private lateinit var autoDownloadRepo: AutoDownloadRepository
@@ -59,6 +61,7 @@ class SimklRepositoryTest {
         publicApiService = mockk(relaxed = true)
         authenticatedApiService = mockk(relaxed = true)
         torrentServiceHelper = mockk(relaxed = true)
+        notificationManager = mockk(relaxed = true)
 
         appSettingsRepo = mockk(relaxed = true)
         autoDownloadRepo = mockk(relaxed = true)
@@ -106,6 +109,7 @@ class SimklRepositoryTest {
             itemDownloadSettingsDao = itemDownloadSettingsDao,
             torrentSearchManager = TorrentSearchManager(itemDownloadSettingsDao, autoDownloadRepo),
             torrentServiceHelper = torrentServiceHelper,
+            notificationManager = notificationManager,
         )
 
         coEvery { torrentServiceHelper.addTorrent(any(), any(), any(), any(), any(), any(), any()) } returns Result.success("taskId")

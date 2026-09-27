@@ -25,12 +25,15 @@ import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationActionReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
+import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.spyk
+import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import org.junit.After
@@ -68,6 +71,9 @@ class NotificationActionReceiverTest {
         mockkStatic(Toast::class)
         val toastMock = mockk<Toast>(relaxed = true)
         every { Toast.makeText(any(), any<CharSequence>(), any()) } returns toastMock
+
+        mockkObject(AutoDownloadWorker.Companion)
+        every { AutoDownloadWorker.enqueueSearchOnce(any()) } returns Unit
 
         notificationManagerMock = mockk(relaxed = true)
         coEvery { notificationManagerMock.updateNotification(any()) } returns Unit
@@ -129,6 +135,7 @@ class NotificationActionReceiverTest {
     fun tearDown() {
         unmockkStatic(Toast::class)
         unmockkStatic(Log::class)
+        unmockkObject(AutoDownloadWorker.Companion)
     }
 
     @Test
@@ -297,6 +304,6 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { repositoryMock.updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
-        verify(timeout = 3000) { torrentServiceHelper.unbind() }
+        verify(timeout = 3000) { AutoDownloadWorker.enqueueSearchOnce(context) }
     }
 }
