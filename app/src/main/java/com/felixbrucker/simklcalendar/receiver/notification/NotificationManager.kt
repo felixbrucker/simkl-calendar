@@ -83,7 +83,6 @@ class NotificationManager @Inject constructor(
         // Only update if the notification is currently active/visible
         val isActive = systemNotificationManager.activeNotifications.any { it.id == notificationId }
         if (!isActive) {
-            Timber.tag(TAG).d("Notification id=$notificationId is not active, skipping update.")
             return
         }
 

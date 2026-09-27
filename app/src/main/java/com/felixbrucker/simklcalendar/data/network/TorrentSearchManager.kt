@@ -31,7 +31,6 @@ class TorrentSearchManager @Inject constructor(
     private val tpbProvider = TpbProvider()
 
     suspend fun search(item: CalendarItemWithWatchlist): List<SearchResultItem> {
-        Timber.tag(TAG).d("Initiating torrent search for '${item.title}' (simklId=${item.simklId})")
         val simklId = item.simklId
         val season = item.season ?: 1
 
