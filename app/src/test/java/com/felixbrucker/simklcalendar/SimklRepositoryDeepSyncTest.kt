@@ -27,6 +27,7 @@ class SimklRepositoryDeepSyncTest {
     private lateinit var settingDao: NotificationSettingDao
     private lateinit var watchlistDao: WatchlistDao
     private lateinit var watchedDao: WatchedEpisodeDao
+    private lateinit var customSearchLinkDao: CustomSearchLinkDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var publicApiService: PublicSimklApiService
     private lateinit var authenticatedApiService: AuthenticatedSimklApiService
@@ -51,6 +52,7 @@ class SimklRepositoryDeepSyncTest {
         settingDao = mockk(relaxed = true)
         watchlistDao = mockk(relaxed = true)
         watchedDao = mockk(relaxed = true)
+        customSearchLinkDao = mockk(relaxed = true)
         itemDownloadSettingsDao = mockk(relaxed = true)
         publicApiService = mockk(relaxed = true)
         authenticatedApiService = mockk(relaxed = true)
@@ -66,9 +68,8 @@ class SimklRepositoryDeepSyncTest {
 
         userRepository = UserRepository(
             tokenDao = tokenDao,
-            calendarDao = calendarDao,
             watchlistDao = watchlistDao,
-            watchedDao = watchedDao,
+            customSearchLinkDao = customSearchLinkDao,
             publicSimklApiService = publicApiService,
             authenticatedSimklApiService = authenticatedApiService,
             appSettingsRepo = appSettingsRepo,

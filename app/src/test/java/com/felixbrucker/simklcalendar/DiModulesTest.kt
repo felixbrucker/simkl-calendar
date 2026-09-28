@@ -100,9 +100,8 @@ class DiModulesTest {
         val mediaStatusResolver = MediaStatusResolver(autoDownloadRepo)
         val userRepo = UserRepository(
             tokenDao = tokenDao,
-            calendarDao = calendarDao,
             watchlistDao = watchlistDao,
-            watchedDao = watchedDao,
+            customSearchLinkDao = searchLinkDao,
             publicSimklApiService = mockk(relaxed = true),
             authenticatedSimklApiService = mockk(relaxed = true),
             appSettingsRepo = mockk(relaxed = true),

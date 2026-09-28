@@ -34,7 +34,7 @@ class SimklRepositoryTest {
     private lateinit var calendarDao: CalendarItemDao
     private lateinit var settingDao: NotificationSettingDao
     private lateinit var watchlistDao: WatchlistDao
-    private lateinit var watchedDao: WatchedEpisodeDao
+    private lateinit var customSearchLinkDao: CustomSearchLinkDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var publicApiService: PublicSimklApiService
     private lateinit var authenticatedApiService: AuthenticatedSimklApiService
@@ -56,7 +56,7 @@ class SimklRepositoryTest {
         calendarDao = mockk(relaxed = true)
         settingDao = mockk(relaxed = true)
         watchlistDao = mockk(relaxed = true)
-        watchedDao = mockk(relaxed = true)
+        customSearchLinkDao = mockk(relaxed = true)
         itemDownloadSettingsDao = mockk(relaxed = true)
         publicApiService = mockk(relaxed = true)
         authenticatedApiService = mockk(relaxed = true)
@@ -90,9 +90,8 @@ class SimklRepositoryTest {
 
         userRepository = UserRepository(
             tokenDao = tokenDao,
-            calendarDao = calendarDao,
             watchlistDao = watchlistDao,
-            watchedDao = watchedDao,
+            customSearchLinkDao = customSearchLinkDao,
             publicSimklApiService = publicApiService,
             authenticatedSimklApiService = authenticatedApiService,
             appSettingsRepo = appSettingsRepo,
@@ -194,9 +193,8 @@ class SimklRepositoryTest {
 
         assertNotNull(token)
         assertEquals("token123", token?.accessToken)
-        coVerify { tokenDao.clearUserToken() }
-        coVerify { calendarDao.clearCalendarItems() }
+        coVerify { customSearchLinkDao.clearAll() }
         coVerify { watchlistDao.clearAll() }
-        coVerify { watchedDao.clearAll() }
+        coVerify { tokenDao.clearUserToken() }
     }
 }

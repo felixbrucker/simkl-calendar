@@ -2,10 +2,9 @@ package com.felixbrucker.simklcalendar.data.repository
 
 import timber.log.Timber
 import com.felixbrucker.simklcalendar.BuildConfig
-import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
+import com.felixbrucker.simklcalendar.data.database.CustomSearchLinkDao
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
-import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.network.AuthenticatedSimklApiService
 import com.felixbrucker.simklcalendar.data.network.OAuthRevokeRequest
@@ -32,9 +31,8 @@ import javax.inject.Singleton
 @Singleton
 class UserRepository @Inject constructor(
     private val tokenDao: UserTokenDao,
-    private val calendarDao: CalendarItemDao,
     private val watchlistDao: WatchlistDao,
-    private val watchedDao: WatchedEpisodeDao,
+    private val customSearchLinkDao: CustomSearchLinkDao,
     private val publicSimklApiService: PublicSimklApiService,
     private val authenticatedSimklApiService: AuthenticatedSimklApiService,
     private val appSettingsRepo: AppSettingsRepository,
@@ -133,10 +131,9 @@ class UserRepository @Inject constructor(
                 }
             }
         }
-
-        calendarDao.clearCalendarItems()
+        customSearchLinkDao.clearAll()
+        // Will clear all other tables automatically through FK
         watchlistDao.clearAll()
-        watchedDao.clearAll()
 
         appSettingsRepo.clear()
         notificationRepo.clear()

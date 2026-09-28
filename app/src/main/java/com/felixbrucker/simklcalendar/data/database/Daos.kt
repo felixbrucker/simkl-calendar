@@ -69,9 +69,6 @@ interface CalendarItemDao {
     @Delete
     suspend fun deleteCalendarItems(items: List<CalendarItem>)
 
-    @Query("DELETE FROM calendar_items")
-    suspend fun clearCalendarItems()
-
     @Transaction
     @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
     suspend fun findItem(primaryKey: String): CalendarItemWithWatchlist?
@@ -286,6 +283,9 @@ interface CustomSearchLinkDao {
 
     @Query("DELETE FROM custom_search_links WHERE id = :id")
     suspend fun deleteSearchLinkById(id: Long)
+
+    @Query("DELETE FROM custom_search_links")
+    suspend fun clearAll()
 }
 
 @Dao
