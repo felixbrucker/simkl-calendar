@@ -83,7 +83,7 @@ class AlarmReceiver: BroadcastReceiver() {
     }
 
     private suspend fun onItemAired(itemPrimaryKey: String) {
-        val item = calendarItemDao.findItem(itemPrimaryKey)
+        var item = calendarItemDao.findItem(itemPrimaryKey)
         if (item == null) {
             Timber.tag(TAG).w("Item for key=$itemPrimaryKey not found in database")
             return
@@ -93,6 +93,9 @@ class AlarmReceiver: BroadcastReceiver() {
 
         // First, ensure the item's media status is correctly set after it aired
         calendarRepository.updateItemAiredStatus(item)
+
+        // Refetch for status change
+        item = calendarItemDao.findItem(itemPrimaryKey) ?: return
 
         // Second, check if we should post a notification for this item
         val shouldPostNotification = shouldPostNotificationForItem(item)
@@ -107,10 +110,9 @@ class AlarmReceiver: BroadcastReceiver() {
         var didSearchAndDownload = false
         // Lastly, search and download torrents if configured
         try {
-            val updatedItem = calendarItemDao.findItem(itemPrimaryKey) ?: return
-            if (updatedItem.mediaStatus == MediaStatus.WANTED) {
+            if (item.mediaStatus == MediaStatus.WANTED) {
                 Timber.tag(TAG).d("Searching and downloading WANTED episode for '${item.title}'")
-                downloadRepository.searchAndDownloadEpisode(updatedItem)
+                downloadRepository.searchAndDownloadEpisode(item)
                 didSearchAndDownload = true
             }
 
