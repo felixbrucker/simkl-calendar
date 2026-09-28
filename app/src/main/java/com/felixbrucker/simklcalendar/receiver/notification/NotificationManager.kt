@@ -272,8 +272,8 @@ class NotificationManager @Inject constructor(
                 actions.add(
                     NotificationActionInfo(
                         action = NotificationActionReceiver.ACTION_MARK_SEASON_WATCHED,
-                        label = "Mark Season as Watched",
-                        loadingLabel = "Marking Season as Watched ..",
+                        label = "Mark Season Watched",
+                        loadingLabel = "Marking Season Watched ..",
                         iconResId = R.drawable.ic_done_all,
                         intent = item.makeMarkSeasonWatchedBroadcastIntent(context)
                     )
@@ -282,8 +282,8 @@ class NotificationManager @Inject constructor(
                 actions.add(
                     NotificationActionInfo(
                         action = NotificationActionReceiver.ACTION_MARK_ITEM_WATCHED,
-                        label = "Mark as Watched",
-                        loadingLabel = "Marking as Watched ..",
+                        label = "Mark Watched",
+                        loadingLabel = "Marking Watched ..",
                         iconResId = R.drawable.ic_check,
                         intent = item.makeMarkWatchedBroadcastIntent(context)
                     )
@@ -317,8 +317,8 @@ class NotificationManager @Inject constructor(
                         actions.add(
                             NotificationActionInfo(
                                 action = NotificationActionReceiver.ACTION_DOWNLOAD_SEASON_MISSING_EPISODES,
-                                label = "Download missing episodes",
-                                loadingLabel = "Searching missing episodes ..",
+                                label = "Download episodes",
+                                loadingLabel = "Searching episodes ..",
                                 iconResId = R.drawable.ic_download,
                                 intent = item.makeDownloadSeasonMissingEpisodesBroadcastIntent(context)
                             )

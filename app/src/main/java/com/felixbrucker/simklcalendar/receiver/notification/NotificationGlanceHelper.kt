@@ -327,7 +327,7 @@ object NotificationGlanceHelper {
 
         val estimatedWidthDp = if (screenWidthDp >= 600) {
             // Tablets / Large Foldables / Landscape: SystemUI caps panel width around ~480dp
-            480
+            480 - (32 + 32 + 24 + 24 + 16)
         } else {
             // Screen width minus system margins
             // Outer System Shade Margins
