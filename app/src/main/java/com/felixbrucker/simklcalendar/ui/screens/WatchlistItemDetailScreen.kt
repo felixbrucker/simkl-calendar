@@ -377,8 +377,8 @@ fun WatchlistItemSummaryStats(
     if (item == null) return
 
     val commonStatus = remember(episodes) {
-        val statuses = episodes.map { it.mediaStatus }.distinct()
-        if (statuses.size == 1) statuses.first() else null
+        val first = episodes.firstOrNull()?.mediaStatus
+        if (first != null && episodes.all { it.mediaStatus == first }) first else null
     }
 
     BoxWithConstraints(
@@ -568,8 +568,8 @@ fun SeasonSectionHeader(
     onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit
 ) {
     val commonStatus = remember(episodes) {
-        val statuses = episodes.map { it.mediaStatus }.distinct()
-        if (statuses.size == 1) statuses.first() else null
+        val first = episodes.firstOrNull()?.mediaStatus
+        if (first != null && episodes.all { it.mediaStatus == first }) first else null
     }
 
     Row(
