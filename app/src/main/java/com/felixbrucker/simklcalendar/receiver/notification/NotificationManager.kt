@@ -233,11 +233,10 @@ class NotificationManager @Inject constructor(
             itemsInSeasonOrRelatedItems.firstOrNull { it.movieReleaseType == MovieReleaseType.DIGITAL }?.mediaStatus
                 ?: item.mediaStatus
         } else if (item.isSeasonFinale) {
-            val statuses = itemsInSeasonOrRelatedItems.map { it.mediaStatus }
             when {
-                statuses.all { it == MediaStatus.DOWNLOADED } -> MediaStatus.DOWNLOADED
-                statuses.any { it == MediaStatus.DOWNLOADING } -> MediaStatus.DOWNLOADING
-                statuses.any { it == MediaStatus.WANTED } -> MediaStatus.WANTED
+                itemsInSeasonOrRelatedItems.isNotEmpty() && itemsInSeasonOrRelatedItems.all { it.mediaStatus == MediaStatus.DOWNLOADED } -> MediaStatus.DOWNLOADED
+                itemsInSeasonOrRelatedItems.any { it.mediaStatus == MediaStatus.DOWNLOADING } -> MediaStatus.DOWNLOADING
+                itemsInSeasonOrRelatedItems.any { it.mediaStatus == MediaStatus.WANTED } -> MediaStatus.WANTED
                 else -> MediaStatus.IGNORED
             }
         } else {

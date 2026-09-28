@@ -39,3 +39,9 @@
 **Learning:** Optimizing multi-criterion collection sorting in `TorrentSearchManager.sortedUsing` via bit-packed `Long` composite keys was rejected as a micro-optimization. Torrent search result lists are small in size, so optimizing sorting comparators on cold search execution paths offers no perceptible user-facing performance gain and adds unnecessary bit-shifting complexity.
 
 **Action:** Avoid micro-optimizations on small collection sorting in cold execution paths (such as torrent search API responses); focus only on hot paths and measurable bottlenecks.
+
+## 2026-12-14 - Zero-Allocation Status Aggregation Over Episode Collections
+
+**Learning:** Computing common media status or aggregate status using `episodes.map { it.mediaStatus }.distinct()` allocates an intermediate `ArrayList` and `HashSet` for every recomposition pass and iterates over the collection multiple times. Inspecting `episodes.firstOrNull()?.mediaStatus` and evaluating `.all { it.mediaStatus == first }` or evaluating predicates (`.all`, `.any`) directly on the source collection eliminates intermediate collection allocations entirely and enables immediate short-circuiting on the first non-matching element.
+
+**Action:** Evaluate common properties or predicates directly on source collections with `.firstOrNull()` and `.all`/`.any` short-circuiting instead of intermediate `.map { ... }.distinct()` collection transformations.
