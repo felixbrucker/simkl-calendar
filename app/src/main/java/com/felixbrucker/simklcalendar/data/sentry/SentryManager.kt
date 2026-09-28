@@ -47,8 +47,8 @@ class SentryManager @Inject constructor(
                 // Enable logs to be sent to Sentry
                 options.addIntegration(
                     SentryTimberIntegration(
-                        minEventLevel = SentryLevel.ERROR,
-                        minBreadcrumbLevel = SentryLevel.INFO
+                        minEventLevel = SentryLevel.FATAL,
+                        minBreadcrumbLevel = SentryLevel.DEBUG
                     )
                 )
 
