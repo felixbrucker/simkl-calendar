@@ -887,6 +887,9 @@ class CalendarViewModel @Inject constructor(
                             launch(Dispatchers.IO) {
                                 val taskId = item.downloadTaskId ?: return@launch
                                 try {
+                                    if (!isTorrentServiceBound.value) {
+                                        return@launch
+                                    }
                                     val stats = torrentServiceHelper.getProgress(taskId)
                                     if (stats != null) {
                                         torrentServiceHelper.updateDownloadProgress(taskId, stats)
