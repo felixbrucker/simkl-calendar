@@ -47,6 +47,7 @@ class SimklRepositoryTest {
     private lateinit var authRepo: AuthRepository
     private lateinit var syncMetadataRepo: SyncMetadataRepository
     private lateinit var uiRepo: UiRepository
+    private val testScope = TestScope()
 
     @Before
     fun setUp() {
@@ -100,6 +101,7 @@ class SimklRepositoryTest {
             authRepo = authRepo,
             syncMetadataRepo = syncMetadataRepo,
             uiRepo = uiRepo,
+            appScope = testScope,
         )
 
         downloadRepository = DownloadRepository(
@@ -185,12 +187,13 @@ class SimklRepositoryTest {
     }
 
     @Test
-    fun testLogoutAndTokenManagement() = runTest {
+    fun testLogoutAndTokenManagement() = testScope.runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token123", "User")
 
         val token = userRepository.getActiveUserToken()
         userRepository.logout()
 
+        advanceUntilIdle()
         assertNotNull(token)
         assertEquals("token123", token?.accessToken)
         coVerify { customSearchLinkDao.clearAll() }

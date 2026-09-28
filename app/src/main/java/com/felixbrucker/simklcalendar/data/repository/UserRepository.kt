@@ -17,9 +17,12 @@ import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
 import com.felixbrucker.simklcalendar.data.preferences.SyncMetadataRepository
 import com.felixbrucker.simklcalendar.data.preferences.UiRepository
 import com.felixbrucker.simklcalendar.data.util.PkceUtil
+import com.felixbrucker.simklcalendar.di.ApplicationScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.net.URLEncoder
@@ -41,6 +44,7 @@ class UserRepository @Inject constructor(
     private val authRepo: AuthRepository,
     private val syncMetadataRepo: SyncMetadataRepository,
     private val uiRepo: UiRepository,
+    @ApplicationScope private val appScope: CoroutineScope
 ) {
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
 
@@ -116,33 +120,34 @@ class UserRepository @Inject constructor(
         }
     }
 
-    suspend fun logout() = withContext(Dispatchers.IO) {
-        val userToken = tokenDao.getActiveToken()
-        if (userToken != null) {
-            val revokeTarget = userToken.refreshToken
-            if (revokeTarget.isNotEmpty()) {
-                try {
-                    publicSimklApiService.revokeToken(OAuthRevokeRequest(
-                        clientId = BuildConfig.SIMKL_CLIENT_ID,
-                        token = revokeTarget
-                    ))
-                } catch (e: Exception) {
-                    Timber.tag("UserRepository").w(e, "Failed to revoke token on logout")
+    fun logout() {
+        appScope.launch(Dispatchers.IO) {
+            val userToken = tokenDao.getActiveToken()
+            if (userToken != null) {
+                val revokeTarget = userToken.refreshToken
+                if (revokeTarget.isNotEmpty()) {
+                    try {
+                        publicSimklApiService.revokeToken(OAuthRevokeRequest(
+                            clientId = BuildConfig.SIMKL_CLIENT_ID,
+                            token = revokeTarget
+                        ))
+                    } catch (e: Exception) {
+                        Timber.tag("UserRepository").w(e, "Failed to revoke token on logout")
+                    }
                 }
             }
+            tokenDao.clearUserToken()
+            customSearchLinkDao.clearAll()
+            // Will clear all other tables automatically through FK
+            watchlistDao.clearAll()
+
+            appSettingsRepo.clear()
+            notificationRepo.clear()
+            autoDownloadRepo.clear()
+            authRepo.clear()
+            syncMetadataRepo.clear()
+            uiRepo.clear()
         }
-        customSearchLinkDao.clearAll()
-        // Will clear all other tables automatically through FK
-        watchlistDao.clearAll()
-
-        appSettingsRepo.clear()
-        notificationRepo.clear()
-        autoDownloadRepo.clear()
-        authRepo.clear()
-        syncMetadataRepo.clear()
-        uiRepo.clear()
-
-        tokenDao.clearUserToken()
     }
 
     suspend fun exchangeOAuthCode(

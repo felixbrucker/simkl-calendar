@@ -60,9 +60,7 @@ class SettingsViewModel @Inject constructor(
     val isForceSyncing: StateFlow<Boolean> = _isForceSyncing.asStateFlow()
 
     fun logoutUser() {
-        viewModelScope.launch {
-            userRepository.logout()
-        }
+        userRepository.logout()
     }
 
     fun updateSyncInterval(hours: Int) {

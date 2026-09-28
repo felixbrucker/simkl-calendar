@@ -19,6 +19,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
+import kotlinx.coroutines.test.TestScope
 import org.junit.After
 import org.junit.Assert.assertNotNull
 import org.junit.Before
@@ -36,6 +37,7 @@ class DiModulesTest {
     private lateinit var searchLinkDao: CustomSearchLinkDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var autoDownloadRepo: AutoDownloadRepository
+    private val testScope = TestScope()
 
     @Before
     fun setUp() {
@@ -109,7 +111,8 @@ class DiModulesTest {
             notificationRepo = mockk(relaxed = true),
             authRepo = mockk(relaxed = true),
             syncMetadataRepo = mockk(relaxed = true),
-            uiRepo = mockk(relaxed = true)
+            uiRepo = mockk(relaxed = true),
+            appScope = testScope,
         )
         val calendarRepo = CalendarRepository(
             calendarDao = calendarDao,

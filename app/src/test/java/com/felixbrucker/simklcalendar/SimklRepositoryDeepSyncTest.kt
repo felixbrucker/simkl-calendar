@@ -10,6 +10,7 @@ import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -41,6 +42,7 @@ class SimklRepositoryDeepSyncTest {
     private lateinit var authRepo: AuthRepository
     private lateinit var syncMetadataRepo: SyncMetadataRepository
     private lateinit var uiRepo: UiRepository
+    private val testScope = TestScope()
 
     @Before
     fun setUp() {
@@ -78,6 +80,7 @@ class SimklRepositoryDeepSyncTest {
             authRepo = authRepo,
             syncMetadataRepo = syncMetadataRepo,
             uiRepo = uiRepo,
+            appScope = testScope,
         )
 
         syncRepository = SyncRepository(
