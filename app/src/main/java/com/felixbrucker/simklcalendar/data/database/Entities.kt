@@ -11,6 +11,7 @@ import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
 import java.time.Instant
 import androidx.compose.runtime.Immutable
 import androidx.core.net.toUri
@@ -263,7 +264,7 @@ data class CustomSearchLink(
         val seasonSlugStr = if (type == MediaType.MOVIE) {
             ""
         } else if (season != null && season > 0) {
-            String.format(java.util.Locale.US, "S%02d", season)
+            "S${formatTwoDigits(season)}"
         } else {
             ""
         }
@@ -271,9 +272,9 @@ data class CustomSearchLink(
         val episodeSlugStr = if (type == MediaType.MOVIE) {
             ""
         } else if (season != null && episode != null) {
-            String.format(java.util.Locale.US, "S%02dE%02d", season, episode)
+            "S${formatTwoDigits(season)}E${formatTwoDigits(episode)}"
         } else if (episode != null) {
-            String.format(java.util.Locale.US, "E%02d", episode)
+            "E${formatTwoDigits(episode)}"
         } else {
             ""
         }

@@ -5,6 +5,7 @@ import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
+import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
 import com.felixbrucker.simklcalendar.extensions.ensureAdded
 import com.felixbrucker.torrent_search_api.Category
 import com.felixbrucker.torrent_search_api.NyaaProvider
@@ -13,7 +14,6 @@ import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.felixbrucker.torrent_search_api.TpbProvider
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
-import java.util.Locale
 
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -63,8 +63,8 @@ class TorrentSearchManager @Inject constructor(
 
         val searchStyle = itemSettings?.episodeSearchStyle ?: item.type.defaultEpisodeSearchStyle
 
-        val seasonAndEpisodeTerm = String.format(Locale.US, "S%02dE%02d", searchSeason, episode ?: 1)
-        val episodeTerm = String.format(Locale.US, "%02d", episode ?: 1)
+        val seasonAndEpisodeTerm = "S${formatTwoDigits(searchSeason)}E${formatTwoDigits(episode ?: 1)}"
+        val episodeTerm = formatTwoDigits(episode ?: 1)
         val episodeSearchTerm = when(item.type) {
             MediaType.MOVIE -> ""
             else -> when (searchStyle) {
