@@ -10,6 +10,24 @@ import org.junit.Test
 class MediaFormatterTest {
 
     @Test
+    fun testFormatTwoDigits() {
+        val singleDigitInput = 5
+        val doubleDigitInput = 12
+        val tripleDigitInput = 100
+        val zeroInput = 0
+
+        val resultSingle = formatTwoDigits(singleDigitInput)
+        val resultDouble = formatTwoDigits(doubleDigitInput)
+        val resultTriple = formatTwoDigits(tripleDigitInput)
+        val resultZero = formatTwoDigits(zeroInput)
+
+        assertEquals("05", resultSingle)
+        assertEquals("12", resultDouble)
+        assertEquals("100", resultTriple)
+        assertEquals("00", resultZero)
+    }
+
+    @Test
     fun testIsAnimeSeasonOne() {
         assertTrue(MediaFormatter.isAnimeSeasonOne(MediaType.ANIME, 1))
         assertFalse(MediaFormatter.isAnimeSeasonOne(MediaType.ANIME, 2))
