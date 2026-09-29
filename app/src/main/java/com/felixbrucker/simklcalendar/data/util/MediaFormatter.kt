@@ -28,10 +28,10 @@ object MediaFormatter {
     ): String {
         val epNum = episodeNumber ?: 1
         return if (isAnimeSeasonOne(mediaType, season)) {
-            String.format(Locale.US, "E%02d", epNum)
+            "E${formatTwoDigits(epNum)}"
         } else {
             val sNum = season ?: 1
-            String.format(Locale.US, "S%02dE%02d", sNum, epNum)
+            "S${formatTwoDigits(sNum)}E${formatTwoDigits(epNum)}"
         }
     }
 
@@ -45,10 +45,10 @@ object MediaFormatter {
     ): String {
         val epNum = episodeNumber ?: 1
         return if (isAnimeSeasonOne(mediaType, season)) {
-            String.format(Locale.US, "E%02d", epNum)
+            "E${formatTwoDigits(epNum)}"
         } else {
             val sNum = season ?: 1
-            String.format(Locale.US, "S%02d • E%02d", sNum, epNum)
+            "S${formatTwoDigits(sNum)} • E${formatTwoDigits(epNum)}"
         }
     }
 
@@ -206,8 +206,8 @@ object MediaFormatter {
 
             val finaleTag = when {
                 isAnimeSeasonOne(type, season) -> if (episodeCountStr != null) ": $episodeCountStr" else ""
-                season != null && episodeCountStr != null -> String.format(Locale.US, " S%02d: %s", season, episodeCountStr)
-                season != null -> String.format(Locale.US, " S%02d", season)
+                season != null && episodeCountStr != null -> " S${formatTwoDigits(season)}: $episodeCountStr"
+                season != null -> " S${formatTwoDigits(season)}"
                 episodeCountStr != null -> ": $episodeCountStr"
                 else -> ""
             }
@@ -239,3 +239,8 @@ val CalendarItemWithWatchlist.formattedSeasonLabel: String
 
 val CalendarItemWithWatchlist.formattedEpisodeSlugHeader: String
     get() = MediaFormatter.formatEpisodeSlugHeader(type, season)
+
+// Fast 2-digit zero-padding helper avoiding java.util.Formatter, primitive boxing, and Object[] varargs allocations
+internal fun formatTwoDigits(number: Int): String {
+    return if (number in 0..9) "0$number" else number.toString()
+}
