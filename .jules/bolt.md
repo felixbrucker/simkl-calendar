@@ -45,3 +45,9 @@
 **Learning:** Computing common media status or aggregate status using `episodes.map { it.mediaStatus }.distinct()` allocates an intermediate `ArrayList` and `HashSet` for every recomposition pass and iterates over the collection multiple times. Inspecting `episodes.firstOrNull()?.mediaStatus` and evaluating `.all { it.mediaStatus == first }` or evaluating predicates (`.all`, `.any`) directly on the source collection eliminates intermediate collection allocations entirely and enables immediate short-circuiting on the first non-matching element.
 
 **Action:** Evaluate common properties or predicates directly on source collections with `.firstOrNull()` and `.all`/`.any` short-circuiting instead of intermediate `.map { ... }.distinct()` collection transformations.
+
+## 2027-01-18 - Hoisting Sorted Map Key Derivation in Compose Screen Components
+
+**Learning:** Invoking `.keys.sorted()` on a grouped map (`episodes.groupBy { ... }`) directly inside a `LazyColumn` item composition scope re-executes TimSort and allocates a new `List<Int>` on every recomposition or scroll event. Moving `.keys.sorted()` into the same `remember(episodes)` block where `groupBy` is computed (`val (seasons, sortedSeasons) = remember(episodes) { ... }`) ensures keys are sorted only when source data changes, preventing redundant heap allocations during UI rendering and list scrolling.
+
+**Action:** Always compute derived sorted map keys inside `remember` blocks alongside map grouping operations in Compose screen components.
