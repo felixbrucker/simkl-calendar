@@ -26,10 +26,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -44,10 +46,20 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import com.felixbrucker.simklcalendar.ui.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-import com.felixbrucker.simklcalendar.data.util.PermissionUtil
+
+enum class SettingsCategory(
+    val title: String,
+    val icon: ImageVector
+) {
+    GENERAL("General", Icons.Default.Settings),
+    NOTIFICATIONS("Notifications", Icons.Default.Notifications),
+    DOWNLOADS("Downloads", Icons.Default.Download),
+    DEBUG("Debug", Icons.Default.BugReport)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,8 +70,10 @@ fun SettingsScreen(
     onNavigateToLogViewer: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val userToken by viewModel.userToken.collectAsState()
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
 
+    val userToken by viewModel.userToken.collectAsState()
     val notificationPrefs by viewModel.notificationPreferences.collectAsState()
     val appSettings by viewModel.appSettingsPreferences.collectAsState()
     val autoDownloadPrefs by viewModel.autoDownloadPreferences.collectAsState()
@@ -104,6 +118,7 @@ fun SettingsScreen(
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
 
     var localLinks by remember(customSearchLinks) { mutableStateOf(customSearchLinks) }
+    var selectedCategory by remember { mutableStateOf(SettingsCategory.GENERAL) }
 
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingLink by remember { mutableStateOf<CustomSearchLink?>(null) }
@@ -138,6 +153,8 @@ fun SettingsScreen(
         showAddEditDialog = true
     }
 
+    val isDownloaderInstalled = remember { viewModel.isTorrentServiceInstalled() }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -154,141 +171,139 @@ fun SettingsScreen(
         },
         containerColor = Color(0xFF1C1B1F)
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // User Segment
-            SettingsUserSessionCard(
-                username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
-                onLogout = {
-                    viewModel.logoutUser()
-                    onNavigateBack()
-                }
-            )
-
-            // Background Sync Interval Configuration Card
-            SettingsSyncIntervalCard(
-                syncIntervalHours = syncIntervalHours,
-                onSyncIntervalChange = { syncIntervalHours = it },
-                onSyncIntervalChangeFinished = {
-                    val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
-                    viewModel.updateSyncInterval(roundedHours)
-                }
-            )
-
-            // Notification Setup Defaults Card
-            SettingsDefaultAlertsCard(
-                enableDefaultAiring = notificationPrefs.defaultNotifyAiring,
-                enableDefaultSeasonFinished = notificationPrefs.defaultNotifySeasonFinished,
-                enableDefaultMovieTheater = notificationPrefs.defaultNotifyMovieTheater,
-                enableDefaultMovieDigital = notificationPrefs.defaultNotifyMovieDigital,
-                onUpdateDefaultNotifyAiring = {
-                    viewModel.updateDefaultNotifyAiring(it)
-                    if (it) checkAndRequestPermission()
-                },
-                onUpdateDefaultNotifySeasonFinished = {
-                    viewModel.updateDefaultNotifySeasonFinished(it)
-                    if (it) checkAndRequestPermission()
-                },
-                onUpdateDefaultNotifyMovieTheater = {
-                    viewModel.updateDefaultNotifyMovieTheater(it)
-                    if (it) checkAndRequestPermission()
-                },
-                onUpdateDefaultNotifyMovieDigital = {
-                    viewModel.updateDefaultNotifyMovieDigital(it)
-                    if (it) checkAndRequestPermission()
-                }
-            )
-
-            // Battery Optimization Card
-            SettingsBatteryOptimizationCard(
-                useExactAlarms = notificationPrefs.useExactAlarms,
-                hasExactAlarmPermission = hasExactAlarmPermission,
-                onUpdateUseExactAlarms = {
-                    viewModel.updateUseExactAlarms(it)
-                    if (it) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
-                            alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
+        if (isTablet) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    when (selectedCategory) {
+                        SettingsCategory.GENERAL -> {
+                            SettingsGeneralCategorySection(
+                                username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
+                                syncIntervalHours = syncIntervalHours,
+                                localLinks = localLinks,
+                                onLogout = {
+                                    viewModel.logoutUser()
+                                    onNavigateBack()
+                                },
+                                onSyncIntervalChange = { syncIntervalHours = it },
+                                onSyncIntervalChangeFinished = {
+                                    val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
+                                    viewModel.updateSyncInterval(roundedHours)
+                                },
+                                onOpenAddDialog = { openAddDialog() },
+                                onOpenEditDialog = { openEditDialog(it) },
+                                onDeleteLink = { deleteConfirmLink = it },
+                                onReorderLinks = { updated ->
+                                    localLinks = updated
+                                    viewModel.updateSearchLinksOrder(updated)
+                                }
+                            )
                         }
-                    }
-                    viewModel.scheduleAllItemsAiredAlarms()
-                },
-                onGrantExactAlarmPermission = {
-                    alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
-                }
-            )
-
-            // Automatic Downloads Card
-            val isDownloaderInstalled = remember { viewModel.isTorrentServiceInstalled() }
-            SettingsAutomaticDownloadsCard(
-                isDownloaderInstalled = isDownloaderInstalled,
-                autoQuality = autoDownloadPrefs.quality,
-                autoPreferHevc = autoDownloadPrefs.preferHevc,
-                autoDownloadUnwatchedTv = autoDownloadPrefs.autoDownloadUnwatchedTv,
-                autoDownloadUnwatchedAnime = autoDownloadPrefs.autoDownloadUnwatchedAnime,
-                autoDownloadUnwatchedMovie = autoDownloadPrefs.autoDownloadUnwatchedMovie,
-                autoDownloadSeasonUnwatchedTv = autoDownloadPrefs.autoDownloadSeasonUnwatchedTv,
-                autoDownloadSeasonUnwatchedAnime = autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime,
-                searchIntervalHours = searchIntervalHours,
-                autoPreferredKeywords = autoDownloadPrefs.preferredKeywords,
-                autoIgnoreKeywords = autoDownloadPrefs.ignoreKeywords,
-                onUpdateAutoDownloadQuality = { viewModel.updateAutoDownloadQuality(it) },
-                onUpdateAutoDownloadPreferHevc = { viewModel.updateAutoDownloadPreferHevc(it) },
-                onUpdateAutoDownloadUnwatchedTv = { viewModel.updateAutoDownloadUnwatchedTv(it) },
-                onUpdateAutoDownloadUnwatchedAnime = { viewModel.updateAutoDownloadUnwatchedAnime(it) },
-                onUpdateAutoDownloadUnwatchedMovie = { viewModel.updateAutoDownloadUnwatchedMovie(it) },
-                onUpdateAutoDownloadSeasonUnwatchedTv = { viewModel.updateAutoDownloadSeasonUnwatchedTv(it) },
-                onUpdateAutoDownloadSeasonUnwatchedAnime = { viewModel.updateAutoDownloadSeasonUnwatchedAnime(it) },
-                onSearchIntervalHoursChange = { searchIntervalHours = it },
-                onSearchIntervalHoursChangeFinished = {
-                    val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
-                    viewModel.updateSearchInterval(roundedHours)
-                },
-                onAddPreferredKeyword = { viewModel.addPreferredKeyword(it) },
-                onRemovePreferredKeyword = { viewModel.removePreferredKeyword(it) },
-                onReorderPreferredKeywords = { viewModel.updatePreferredKeywordsOrder(it) },
-                onAddIgnoreKeyword = { viewModel.addIgnoreKeyword(it) },
-                onRemoveIgnoreKeyword = { viewModel.removeIgnoreKeyword(it) },
-                onReorderIgnoreKeywords = { viewModel.updateIgnoreKeywordsOrder(it) }
-            )
-
-            // Custom Search Links Management Card
-            SettingsCustomSearchLinksCard(
-                localLinks = localLinks,
-                onOpenAddDialog = { openAddDialog() },
-                onOpenEditDialog = { openEditDialog(it) },
-                onDeleteLink = { deleteConfirmLink = it },
-                onReorderLinks = { updated ->
-                    localLinks = updated
-                    viewModel.updateSearchLinksOrder(updated)
-                }
-            )
-
-            // Force Watchlist Re-Sync Card
-            SettingsWatchlistResyncCard(
-                isForceSyncing = isForceSyncing,
-                onForceSync = {
-                    viewModel.forceWatchlistResync { _, message ->
-                        scope.launch {
-                            snackbarHostState.showSnackbar(message)
+                        SettingsCategory.NOTIFICATIONS -> {
+                            SettingsNotificationsCategorySection(
+                                notificationPrefs = notificationPrefs,
+                                hasExactAlarmPermission = hasExactAlarmPermission,
+                                alarmPermissionLauncher = alarmPermissionLauncher,
+                                context = context,
+                                checkAndRequestPermission = { checkAndRequestPermission() },
+                                viewModel = viewModel
+                            )
+                        }
+                        SettingsCategory.DOWNLOADS -> {
+                            SettingsDownloadsCategorySection(
+                                isDownloaderInstalled = isDownloaderInstalled,
+                                autoDownloadPrefs = autoDownloadPrefs,
+                                searchIntervalHours = searchIntervalHours,
+                                onSearchIntervalChange = { searchIntervalHours = it },
+                                viewModel = viewModel
+                            )
+                        }
+                        SettingsCategory.DEBUG -> {
+                            SettingsDebugCategorySection(
+                                isForceSyncing = isForceSyncing,
+                                appSettings = appSettings,
+                                viewModel = viewModel,
+                                scope = scope,
+                                snackbarHostState = snackbarHostState,
+                                onNavigateToLogViewer = onNavigateToLogViewer
+                            )
                         }
                     }
                 }
-            )
 
-            // App Logs & Diagnostics Card
-            SettingsAppLogsDiagnosticsCard(
-                sentryEnabled = appSettings.isSentryEnabled,
-                isSentryConfigured = viewModel.isSentryConfigured,
-                isSentryRunning = viewModel.isSentryRunning,
-                onUpdateSentryEnabled = { viewModel.updateSentryEnabled(it) },
-                onNavigateToLogViewer = onNavigateToLogViewer
-            )
+                SettingsCategorySelector(
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = { selectedCategory = it },
+                    modifier = Modifier.width(220.dp)
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                SettingsGeneralCategorySection(
+                    username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
+                    syncIntervalHours = syncIntervalHours,
+                    localLinks = localLinks,
+                    onLogout = {
+                        viewModel.logoutUser()
+                        onNavigateBack()
+                    },
+                    onSyncIntervalChange = { syncIntervalHours = it },
+                    onSyncIntervalChangeFinished = {
+                        val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
+                        viewModel.updateSyncInterval(roundedHours)
+                    },
+                    onOpenAddDialog = { openAddDialog() },
+                    onOpenEditDialog = { openEditDialog(it) },
+                    onDeleteLink = { deleteConfirmLink = it },
+                    onReorderLinks = { updated ->
+                        localLinks = updated
+                        viewModel.updateSearchLinksOrder(updated)
+                    }
+                )
+
+                SettingsNotificationsCategorySection(
+                    notificationPrefs = notificationPrefs,
+                    hasExactAlarmPermission = hasExactAlarmPermission,
+                    alarmPermissionLauncher = alarmPermissionLauncher,
+                    context = context,
+                    checkAndRequestPermission = { checkAndRequestPermission() },
+                    viewModel = viewModel
+                )
+
+                SettingsDownloadsCategorySection(
+                    isDownloaderInstalled = isDownloaderInstalled,
+                    autoDownloadPrefs = autoDownloadPrefs,
+                    searchIntervalHours = searchIntervalHours,
+                    onSearchIntervalChange = { searchIntervalHours = it },
+                    viewModel = viewModel
+                )
+
+                SettingsDebugCategorySection(
+                    isForceSyncing = isForceSyncing,
+                    appSettings = appSettings,
+                    viewModel = viewModel,
+                    scope = scope,
+                    snackbarHostState = snackbarHostState,
+                    onNavigateToLogViewer = onNavigateToLogViewer
+                )
+            }
         }
     }
 
@@ -346,6 +361,253 @@ fun SettingsScreen(
                 }
             },
             onDismiss = { deleteConfirmLink = null }
+        )
+    }
+}
+
+@Composable
+fun SettingsCategorySelector(
+    selectedCategory: SettingsCategory,
+    onCategorySelected: (SettingsCategory) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(8.dp)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Categories",
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFCAC4D0),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+            SettingsCategory.entries.forEach { category ->
+                SettingsCategoryItem(
+                    category = category,
+                    isSelected = category == selectedCategory,
+                    onClick = { onCategorySelected(category) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsCategoryItem(
+    category: SettingsCategory,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(8.dp),
+        color = if (isSelected) Color(0xFF4F378B) else Color.Transparent,
+        contentColor = if (isSelected) Color(0xFFEADDFF) else Color(0xFFCAC4D0),
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("settings_category_${category.name.lowercase()}")
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = category.icon,
+                contentDescription = null,
+                tint = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF938F99),
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = category.title,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsGeneralCategorySection(
+    username: String,
+    syncIntervalHours: Float,
+    localLinks: List<CustomSearchLink>,
+    onLogout: () -> Unit,
+    onSyncIntervalChange: (Float) -> Unit,
+    onSyncIntervalChangeFinished: () -> Unit,
+    onOpenAddDialog: () -> Unit,
+    onOpenEditDialog: (CustomSearchLink) -> Unit,
+    onDeleteLink: (CustomSearchLink) -> Unit,
+    onReorderLinks: (List<CustomSearchLink>) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        SettingsUserSessionCard(
+            username = username,
+            onLogout = onLogout
+        )
+        SettingsSyncIntervalCard(
+            syncIntervalHours = syncIntervalHours,
+            onSyncIntervalChange = onSyncIntervalChange,
+            onSyncIntervalChangeFinished = onSyncIntervalChangeFinished
+        )
+        SettingsCustomSearchLinksCard(
+            localLinks = localLinks,
+            onOpenAddDialog = onOpenAddDialog,
+            onOpenEditDialog = onOpenEditDialog,
+            onDeleteLink = onDeleteLink,
+            onReorderLinks = onReorderLinks
+        )
+    }
+}
+
+@Composable
+fun SettingsNotificationsCategorySection(
+    notificationPrefs: com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences,
+    hasExactAlarmPermission: Boolean,
+    alarmPermissionLauncher: androidx.activity.result.ActivityResultLauncher<android.content.Intent>,
+    context: android.content.Context,
+    checkAndRequestPermission: () -> Unit,
+    viewModel: SettingsViewModel,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        SettingsDefaultAlertsCard(
+            enableDefaultAiring = notificationPrefs.defaultNotifyAiring,
+            enableDefaultSeasonFinished = notificationPrefs.defaultNotifySeasonFinished,
+            enableDefaultMovieTheater = notificationPrefs.defaultNotifyMovieTheater,
+            enableDefaultMovieDigital = notificationPrefs.defaultNotifyMovieDigital,
+            onUpdateDefaultNotifyAiring = {
+                viewModel.updateDefaultNotifyAiring(it)
+                if (it) checkAndRequestPermission()
+            },
+            onUpdateDefaultNotifySeasonFinished = {
+                viewModel.updateDefaultNotifySeasonFinished(it)
+                if (it) checkAndRequestPermission()
+            },
+            onUpdateDefaultNotifyMovieTheater = {
+                viewModel.updateDefaultNotifyMovieTheater(it)
+                if (it) checkAndRequestPermission()
+            },
+            onUpdateDefaultNotifyMovieDigital = {
+                viewModel.updateDefaultNotifyMovieDigital(it)
+                if (it) checkAndRequestPermission()
+            }
+        )
+        SettingsBatteryOptimizationCard(
+            useExactAlarms = notificationPrefs.useExactAlarms,
+            hasExactAlarmPermission = hasExactAlarmPermission,
+            onUpdateUseExactAlarms = {
+                viewModel.updateUseExactAlarms(it)
+                if (it) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
+                        alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
+                    }
+                }
+                viewModel.scheduleAllItemsAiredAlarms()
+            },
+            onGrantExactAlarmPermission = {
+                alarmPermissionLauncher.launch(PermissionUtil.getExactAlarmPermissionIntent(context))
+            }
+        )
+    }
+}
+
+@Composable
+fun SettingsDownloadsCategorySection(
+    isDownloaderInstalled: Boolean,
+    autoDownloadPrefs: com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences,
+    searchIntervalHours: Float,
+    onSearchIntervalChange: (Float) -> Unit,
+    viewModel: SettingsViewModel,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        SettingsAutomaticDownloadsCard(
+            isDownloaderInstalled = isDownloaderInstalled,
+            autoQuality = autoDownloadPrefs.quality,
+            autoPreferHevc = autoDownloadPrefs.preferHevc,
+            autoDownloadUnwatchedTv = autoDownloadPrefs.autoDownloadUnwatchedTv,
+            autoDownloadUnwatchedAnime = autoDownloadPrefs.autoDownloadUnwatchedAnime,
+            autoDownloadUnwatchedMovie = autoDownloadPrefs.autoDownloadUnwatchedMovie,
+            autoDownloadSeasonUnwatchedTv = autoDownloadPrefs.autoDownloadSeasonUnwatchedTv,
+            autoDownloadSeasonUnwatchedAnime = autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime,
+            searchIntervalHours = searchIntervalHours,
+            autoPreferredKeywords = autoDownloadPrefs.preferredKeywords,
+            autoIgnoreKeywords = autoDownloadPrefs.ignoreKeywords,
+            onUpdateAutoDownloadQuality = { viewModel.updateAutoDownloadQuality(it) },
+            onUpdateAutoDownloadPreferHevc = { viewModel.updateAutoDownloadPreferHevc(it) },
+            onUpdateAutoDownloadUnwatchedTv = { viewModel.updateAutoDownloadUnwatchedTv(it) },
+            onUpdateAutoDownloadUnwatchedAnime = { viewModel.updateAutoDownloadUnwatchedAnime(it) },
+            onUpdateAutoDownloadUnwatchedMovie = { viewModel.updateAutoDownloadUnwatchedMovie(it) },
+            onUpdateAutoDownloadSeasonUnwatchedTv = { viewModel.updateAutoDownloadSeasonUnwatchedTv(it) },
+            onUpdateAutoDownloadSeasonUnwatchedAnime = { viewModel.updateAutoDownloadSeasonUnwatchedAnime(it) },
+            onSearchIntervalHoursChange = onSearchIntervalChange,
+            onSearchIntervalHoursChangeFinished = {
+                val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
+                viewModel.updateSearchInterval(roundedHours)
+            },
+            onAddPreferredKeyword = { viewModel.addPreferredKeyword(it) },
+            onRemovePreferredKeyword = { viewModel.removePreferredKeyword(it) },
+            onReorderPreferredKeywords = { viewModel.updatePreferredKeywordsOrder(it) },
+            onAddIgnoreKeyword = { viewModel.addIgnoreKeyword(it) },
+            onRemoveIgnoreKeyword = { viewModel.removeIgnoreKeyword(it) },
+            onReorderIgnoreKeywords = { viewModel.updateIgnoreKeywordsOrder(it) }
+        )
+    }
+}
+
+@Composable
+fun SettingsDebugCategorySection(
+    isForceSyncing: Boolean,
+    appSettings: com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences,
+    viewModel: SettingsViewModel,
+    scope: kotlinx.coroutines.CoroutineScope,
+    snackbarHostState: SnackbarHostState,
+    onNavigateToLogViewer: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        SettingsWatchlistResyncCard(
+            isForceSyncing = isForceSyncing,
+            onForceSync = {
+                viewModel.forceWatchlistResync { _, message ->
+                    scope.launch {
+                        snackbarHostState.showSnackbar(message)
+                    }
+                }
+            }
+        )
+        SettingsAppLogsDiagnosticsCard(
+            sentryEnabled = appSettings.isSentryEnabled,
+            isSentryConfigured = viewModel.isSentryConfigured,
+            isSentryRunning = viewModel.isSentryRunning,
+            onUpdateSentryEnabled = { viewModel.updateSentryEnabled(it) },
+            onNavigateToLogViewer = onNavigateToLogViewer
         )
     }
 }
