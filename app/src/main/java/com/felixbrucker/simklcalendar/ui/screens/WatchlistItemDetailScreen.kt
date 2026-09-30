@@ -102,8 +102,10 @@ fun WatchlistItemDetailScreen(
                 .thenBy { it.date })
     }
 
-    val seasons = remember(episodes) {
-        episodes.groupBy { it.season ?: 1 }
+    val (seasons, sortedSeasons) = remember(episodes) {
+        val grouped = episodes.groupBy { it.season ?: 1 }
+        val keys = grouped.keys.sorted()
+        grouped to keys
     }
 
     val isMovie = watchlistItem?.type == MediaType.MOVIE
@@ -238,7 +240,6 @@ fun WatchlistItemDetailScreen(
                                 )
                             } else {
                                 val showSeasonHeaders = !isAnimeSeasonOneOnly
-                                val sortedSeasons = seasons.keys.sorted()
                                 sortedSeasons.forEach { season ->
                                     val seasonEpisodes = seasons[season] ?: emptyList()
                                     if (showSeasonHeaders) {
