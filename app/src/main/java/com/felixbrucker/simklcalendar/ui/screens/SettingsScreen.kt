@@ -225,7 +225,7 @@ fun SettingsScreen(
                             viewModel.updateSearchLinksOrder(updated)
                         },
                         modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.GENERAL] = coordinates.positionInParent().y + leftScrollState.value
+                            sectionYPositions[SettingsCategory.GENERAL] = coordinates.positionInParent().y
                         }
                     )
 
@@ -237,7 +237,7 @@ fun SettingsScreen(
                         checkAndRequestPermission = { checkAndRequestPermission() },
                         viewModel = viewModel,
                         modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.NOTIFICATIONS] = coordinates.positionInParent().y + leftScrollState.value
+                            sectionYPositions[SettingsCategory.NOTIFICATIONS] = coordinates.positionInParent().y
                         }
                     )
 
@@ -248,7 +248,7 @@ fun SettingsScreen(
                         onSearchIntervalChange = { searchIntervalHours = it },
                         viewModel = viewModel,
                         modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.DOWNLOADS] = coordinates.positionInParent().y + leftScrollState.value
+                            sectionYPositions[SettingsCategory.DOWNLOADS] = coordinates.positionInParent().y
                         }
                     )
 
@@ -260,7 +260,7 @@ fun SettingsScreen(
                         snackbarHostState = snackbarHostState,
                         onNavigateToLogViewer = onNavigateToLogViewer,
                         modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.DEBUG] = coordinates.positionInParent().y + leftScrollState.value
+                            sectionYPositions[SettingsCategory.DEBUG] = coordinates.positionInParent().y
                         }
                     )
                 }
