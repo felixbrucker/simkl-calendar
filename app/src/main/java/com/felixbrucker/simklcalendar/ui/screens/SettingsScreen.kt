@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -21,7 +22,6 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -34,6 +34,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -121,7 +122,6 @@ fun SettingsScreen(
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
 
     var localLinks by remember(customSearchLinks) { mutableStateOf(customSearchLinks) }
-    var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.GENERAL) }
 
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingLink by remember { mutableStateOf<CustomSearchLink?>(null) }
@@ -158,6 +158,20 @@ fun SettingsScreen(
 
     val isDownloaderInstalled = remember { viewModel.isTorrentServiceInstalled() }
 
+    val leftScrollState = rememberScrollState()
+    val sectionYPositions = remember { mutableStateMapOf<SettingsCategory, Float>() }
+
+    val activeCategory by remember {
+        derivedStateOf {
+            val currentScroll = leftScrollState.value.toFloat()
+            val threshold = currentScroll + 120f
+            SettingsCategory.entries.lastOrNull { category ->
+                val posY = sectionYPositions[category] ?: Float.MAX_VALUE
+                posY <= threshold
+            } ?: SettingsCategory.GENERAL
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -183,84 +197,82 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
+                Column(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(leftScrollState),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    AnimatedContent(
-                        targetState = selectedCategory,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(220)) + slideInVertically(animationSpec = tween(220)) { it / 6 } togetherWith
-                                    fadeOut(animationSpec = tween(180))
+                    SettingsGeneralCategorySection(
+                        username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
+                        syncIntervalHours = syncIntervalHours,
+                        localLinks = localLinks,
+                        onLogout = {
+                            viewModel.logoutUser()
+                            onNavigateBack()
                         },
-                        label = "SettingsCategoryTransition"
-                    ) { targetCategory ->
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            when (targetCategory) {
-                                SettingsCategory.GENERAL -> {
-                                    SettingsGeneralCategorySection(
-                                        username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
-                                        syncIntervalHours = syncIntervalHours,
-                                        localLinks = localLinks,
-                                        onLogout = {
-                                            viewModel.logoutUser()
-                                            onNavigateBack()
-                                        },
-                                        onSyncIntervalChange = { syncIntervalHours = it },
-                                        onSyncIntervalChangeFinished = {
-                                            val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
-                                            viewModel.updateSyncInterval(roundedHours)
-                                        },
-                                        onOpenAddDialog = { openAddDialog() },
-                                        onOpenEditDialog = { openEditDialog(it) },
-                                        onDeleteLink = { deleteConfirmLink = it },
-                                        onReorderLinks = { updated ->
-                                            localLinks = updated
-                                            viewModel.updateSearchLinksOrder(updated)
-                                        }
-                                    )
-                                }
-                                SettingsCategory.NOTIFICATIONS -> {
-                                    SettingsNotificationsCategorySection(
-                                        notificationPrefs = notificationPrefs,
-                                        hasExactAlarmPermission = hasExactAlarmPermission,
-                                        alarmPermissionLauncher = alarmPermissionLauncher,
-                                        context = context,
-                                        checkAndRequestPermission = { checkAndRequestPermission() },
-                                        viewModel = viewModel
-                                    )
-                                }
-                                SettingsCategory.DOWNLOADS -> {
-                                    SettingsDownloadsCategorySection(
-                                        isDownloaderInstalled = isDownloaderInstalled,
-                                        autoDownloadPrefs = autoDownloadPrefs,
-                                        searchIntervalHours = searchIntervalHours,
-                                        onSearchIntervalChange = { searchIntervalHours = it },
-                                        viewModel = viewModel
-                                    )
-                                }
-                                SettingsCategory.DEBUG -> {
-                                    SettingsDebugCategorySection(
-                                        isForceSyncing = isForceSyncing,
-                                        appSettings = appSettings,
-                                        viewModel = viewModel,
-                                        scope = scope,
-                                        snackbarHostState = snackbarHostState,
-                                        onNavigateToLogViewer = onNavigateToLogViewer
-                                    )
-                                }
-                            }
+                        onSyncIntervalChange = { syncIntervalHours = it },
+                        onSyncIntervalChangeFinished = {
+                            val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
+                            viewModel.updateSyncInterval(roundedHours)
+                        },
+                        onOpenAddDialog = { openAddDialog() },
+                        onOpenEditDialog = { openEditDialog(it) },
+                        onDeleteLink = { deleteConfirmLink = it },
+                        onReorderLinks = { updated ->
+                            localLinks = updated
+                            viewModel.updateSearchLinksOrder(updated)
+                        },
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            sectionYPositions[SettingsCategory.GENERAL] = coordinates.positionInParent().y
                         }
-                    }
+                    )
+
+                    SettingsNotificationsCategorySection(
+                        notificationPrefs = notificationPrefs,
+                        hasExactAlarmPermission = hasExactAlarmPermission,
+                        alarmPermissionLauncher = alarmPermissionLauncher,
+                        context = context,
+                        checkAndRequestPermission = { checkAndRequestPermission() },
+                        viewModel = viewModel,
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            sectionYPositions[SettingsCategory.NOTIFICATIONS] = coordinates.positionInParent().y
+                        }
+                    )
+
+                    SettingsDownloadsCategorySection(
+                        isDownloaderInstalled = isDownloaderInstalled,
+                        autoDownloadPrefs = autoDownloadPrefs,
+                        searchIntervalHours = searchIntervalHours,
+                        onSearchIntervalChange = { searchIntervalHours = it },
+                        viewModel = viewModel,
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            sectionYPositions[SettingsCategory.DOWNLOADS] = coordinates.positionInParent().y
+                        }
+                    )
+
+                    SettingsDebugCategorySection(
+                        isForceSyncing = isForceSyncing,
+                        appSettings = appSettings,
+                        viewModel = viewModel,
+                        scope = scope,
+                        snackbarHostState = snackbarHostState,
+                        onNavigateToLogViewer = onNavigateToLogViewer,
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            sectionYPositions[SettingsCategory.DEBUG] = coordinates.positionInParent().y
+                        }
+                    )
                 }
 
                 SettingsCategorySelector(
-                    selectedCategory = selectedCategory,
-                    onCategorySelected = { selectedCategory = it },
+                    selectedCategory = activeCategory,
+                    onCategorySelected = { targetCategory ->
+                        val targetY = sectionYPositions[targetCategory] ?: 0f
+                        scope.launch {
+                            leftScrollState.animateScrollTo(targetY.roundToInt())
+                        }
+                    },
                     modifier = Modifier.width(220.dp)
                 )
             }
@@ -388,6 +400,10 @@ fun SettingsCategorySelector(
     onCategorySelected: (SettingsCategory) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var itemHeightPx by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+    val selectedIndex = SettingsCategory.entries.indexOf(selectedCategory)
+
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
@@ -407,12 +423,43 @@ fun SettingsCategorySelector(
                 fontSize = 12.sp,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
             )
-            SettingsCategory.entries.forEach { category ->
-                SettingsCategoryItem(
-                    category = category,
-                    isSelected = category == selectedCategory,
-                    onClick = { onCategorySelected(category) }
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                val effectiveItemHeightDp = if (itemHeightPx > 0f) with(density) { itemHeightPx.toDp() } else 40.dp
+                val spacingDp = 4.dp
+                val targetOffsetDp = (effectiveItemHeightDp + spacingDp) * selectedIndex
+                val animatedOffsetDp by animateDpAsState(
+                    targetValue = targetOffsetDp,
+                    animationSpec = tween(250),
+                    label = "category_indicator_offset"
                 )
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF4F378B),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(effectiveItemHeightDp)
+                        .offset(y = animatedOffsetDp)
+                ) {}
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SettingsCategory.entries.forEach { category ->
+                        SettingsCategoryItem(
+                            category = category,
+                            isSelected = category == selectedCategory,
+                            onClick = { onCategorySelected(category) },
+                            onMeasuredHeight = { heightPx ->
+                                if (itemHeightPx == 0f && heightPx > 0f) {
+                                    itemHeightPx = heightPx
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -423,13 +470,9 @@ fun SettingsCategoryItem(
     category: SettingsCategory,
     isSelected: Boolean,
     onClick: () -> Unit,
+    onMeasuredHeight: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val animatedBgColor by animateColorAsState(
-        targetValue = if (isSelected) Color(0xFF4F378B) else Color.Transparent,
-        animationSpec = tween(200),
-        label = "category_bg_color"
-    )
     val animatedContentColor by animateColorAsState(
         targetValue = if (isSelected) Color(0xFFEADDFF) else Color(0xFFCAC4D0),
         animationSpec = tween(200),
@@ -444,10 +487,13 @@ fun SettingsCategoryItem(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
-        color = animatedBgColor,
+        color = Color.Transparent,
         contentColor = animatedContentColor,
         modifier = modifier
             .fillMaxWidth()
+            .onGloballyPositioned { coordinates ->
+                onMeasuredHeight(coordinates.size.height.toFloat())
+            }
             .testTag("settings_category_${category.name.lowercase()}")
     ) {
         Row(
