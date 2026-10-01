@@ -51,3 +51,9 @@
 **Learning:** Invoking `.keys.sorted()` on a grouped map (`episodes.groupBy { ... }`) directly inside a `LazyColumn` item composition scope re-executes TimSort and allocates a new `List<Int>` on every recomposition or scroll event. Moving `.keys.sorted()` into the same `remember(episodes)` block where `groupBy` is computed (`val (seasons, sortedSeasons) = remember(episodes) { ... }`) ensures keys are sorted only when source data changes, preventing redundant heap allocations during UI rendering and list scrolling.
 
 **Action:** Always compute derived sorted map keys inside `remember` blocks alongside map grouping operations in Compose screen components.
+
+## 2027-02-10 - Adding Indices and Leveraging Room AutoMigrations for SQL-Offloaded Sorting
+
+**Learning:** When offloading in-memory collection sorting from ViewModel transformations to Room SQL queries (`ORDER BY`), ensure the SQL query orders by the exact matching relational property. Do not avoid adding database indices on frequently sorted or queried columns due to perceived migration complexity; Room's `AutoMigration` mechanism handles index additions seamlessly without adding manual migration code or runtime complexity.
+
+**Action:** Add database indices on columns used for query sorting or filtering and configure Room `AutoMigration` rather than avoiding schema updates or reverting to in-memory sorting.
