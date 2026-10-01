@@ -163,12 +163,18 @@ fun SettingsScreen(
 
     val activeCategory by remember {
         derivedStateOf {
-            val currentScrollFloat = leftScrollState.value.toFloat()
-            val threshold = currentScrollFloat + 120f
-            SettingsCategory.entries.lastOrNull { category ->
-                val posY = sectionYPositions[category] ?: Float.MAX_VALUE
-                posY <= threshold
-            } ?: SettingsCategory.GENERAL
+            val currentScroll = leftScrollState.value
+            val maxScroll = leftScrollState.maxValue
+            if (maxScroll > 0 && currentScroll >= maxScroll - 20) {
+                SettingsCategory.entries.last()
+            } else {
+                val currentScrollFloat = currentScroll.toFloat()
+                val threshold = currentScrollFloat + 120f
+                SettingsCategory.entries.lastOrNull { category ->
+                    val posY = sectionYPositions[category] ?: Float.MAX_VALUE
+                    posY <= threshold
+                } ?: SettingsCategory.GENERAL
+            }
         }
     }
 
