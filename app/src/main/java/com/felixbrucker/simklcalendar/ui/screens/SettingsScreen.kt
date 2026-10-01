@@ -5,7 +5,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -177,66 +179,80 @@ fun SettingsScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
+                Box(
                     modifier = Modifier
                         .weight(1f)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    when (selectedCategory) {
-                        SettingsCategory.GENERAL -> {
-                            SettingsGeneralCategorySection(
-                                username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
-                                syncIntervalHours = syncIntervalHours,
-                                localLinks = localLinks,
-                                onLogout = {
-                                    viewModel.logoutUser()
-                                    onNavigateBack()
-                                },
-                                onSyncIntervalChange = { syncIntervalHours = it },
-                                onSyncIntervalChangeFinished = {
-                                    val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
-                                    viewModel.updateSyncInterval(roundedHours)
-                                },
-                                onOpenAddDialog = { openAddDialog() },
-                                onOpenEditDialog = { openEditDialog(it) },
-                                onDeleteLink = { deleteConfirmLink = it },
-                                onReorderLinks = { updated ->
-                                    localLinks = updated
-                                    viewModel.updateSearchLinksOrder(updated)
+                    AnimatedContent(
+                        targetState = selectedCategory,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(220)) + slideInVertically(animationSpec = tween(220)) { it / 6 } togetherWith
+                                    fadeOut(animationSpec = tween(180))
+                        },
+                        label = "SettingsCategoryTransition"
+                    ) { targetCategory ->
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            when (targetCategory) {
+                                SettingsCategory.GENERAL -> {
+                                    SettingsGeneralCategorySection(
+                                        username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
+                                        syncIntervalHours = syncIntervalHours,
+                                        localLinks = localLinks,
+                                        onLogout = {
+                                            viewModel.logoutUser()
+                                            onNavigateBack()
+                                        },
+                                        onSyncIntervalChange = { syncIntervalHours = it },
+                                        onSyncIntervalChangeFinished = {
+                                            val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
+                                            viewModel.updateSyncInterval(roundedHours)
+                                        },
+                                        onOpenAddDialog = { openAddDialog() },
+                                        onOpenEditDialog = { openEditDialog(it) },
+                                        onDeleteLink = { deleteConfirmLink = it },
+                                        onReorderLinks = { updated ->
+                                            localLinks = updated
+                                            viewModel.updateSearchLinksOrder(updated)
+                                        }
+                                    )
                                 }
-                            )
-                        }
-                        SettingsCategory.NOTIFICATIONS -> {
-                            SettingsNotificationsCategorySection(
-                                notificationPrefs = notificationPrefs,
-                                hasExactAlarmPermission = hasExactAlarmPermission,
-                                alarmPermissionLauncher = alarmPermissionLauncher,
-                                context = context,
-                                checkAndRequestPermission = { checkAndRequestPermission() },
-                                viewModel = viewModel
-                            )
-                        }
-                        SettingsCategory.DOWNLOADS -> {
-                            SettingsDownloadsCategorySection(
-                                isDownloaderInstalled = isDownloaderInstalled,
-                                autoDownloadPrefs = autoDownloadPrefs,
-                                searchIntervalHours = searchIntervalHours,
-                                onSearchIntervalChange = { searchIntervalHours = it },
-                                viewModel = viewModel
-                            )
-                        }
-                        SettingsCategory.DEBUG -> {
-                            SettingsDebugCategorySection(
-                                isForceSyncing = isForceSyncing,
-                                appSettings = appSettings,
-                                viewModel = viewModel,
-                                scope = scope,
-                                snackbarHostState = snackbarHostState,
-                                onNavigateToLogViewer = onNavigateToLogViewer
-                            )
+                                SettingsCategory.NOTIFICATIONS -> {
+                                    SettingsNotificationsCategorySection(
+                                        notificationPrefs = notificationPrefs,
+                                        hasExactAlarmPermission = hasExactAlarmPermission,
+                                        alarmPermissionLauncher = alarmPermissionLauncher,
+                                        context = context,
+                                        checkAndRequestPermission = { checkAndRequestPermission() },
+                                        viewModel = viewModel
+                                    )
+                                }
+                                SettingsCategory.DOWNLOADS -> {
+                                    SettingsDownloadsCategorySection(
+                                        isDownloaderInstalled = isDownloaderInstalled,
+                                        autoDownloadPrefs = autoDownloadPrefs,
+                                        searchIntervalHours = searchIntervalHours,
+                                        onSearchIntervalChange = { searchIntervalHours = it },
+                                        viewModel = viewModel
+                                    )
+                                }
+                                SettingsCategory.DEBUG -> {
+                                    SettingsDebugCategorySection(
+                                        isForceSyncing = isForceSyncing,
+                                        appSettings = appSettings,
+                                        viewModel = viewModel,
+                                        scope = scope,
+                                        snackbarHostState = snackbarHostState,
+                                        onNavigateToLogViewer = onNavigateToLogViewer
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -408,11 +424,27 @@ fun SettingsCategoryItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val animatedBgColor by animateColorAsState(
+        targetValue = if (isSelected) Color(0xFF4F378B) else Color.Transparent,
+        animationSpec = tween(200),
+        label = "category_bg_color"
+    )
+    val animatedContentColor by animateColorAsState(
+        targetValue = if (isSelected) Color(0xFFEADDFF) else Color(0xFFCAC4D0),
+        animationSpec = tween(200),
+        label = "category_content_color"
+    )
+    val animatedIconColor by animateColorAsState(
+        targetValue = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF938F99),
+        animationSpec = tween(200),
+        label = "category_icon_color"
+    )
+
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
-        color = if (isSelected) Color(0xFF4F378B) else Color.Transparent,
-        contentColor = if (isSelected) Color(0xFFEADDFF) else Color(0xFFCAC4D0),
+        color = animatedBgColor,
+        contentColor = animatedContentColor,
         modifier = modifier
             .fillMaxWidth()
             .testTag("settings_category_${category.name.lowercase()}")
@@ -427,7 +459,7 @@ fun SettingsCategoryItem(
             Icon(
                 imageVector = category.icon,
                 contentDescription = null,
-                tint = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF938F99),
+                tint = animatedIconColor,
                 modifier = Modifier.size(20.dp)
             )
             Text(
