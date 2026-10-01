@@ -26,8 +26,8 @@ interface CalendarItemDao {
     @Transaction
     @Query("""
         SELECT ci.* FROM calendar_items ci
-        LEFT JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
-        ORDER BY ci.date ASC, COALESCE(twi.title, 'Untitled') ASC
+        INNER JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
+        ORDER BY ci.date ASC, twi.title ASC
     """)
     fun getAllCalendarItems(): Flow<List<CalendarItemWithWatchlist>>
 
@@ -37,8 +37,8 @@ interface CalendarItemDao {
     @Transaction
     @Query("""
         SELECT ci.* FROM calendar_items ci
-        LEFT JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
-        ORDER BY ci.date ASC, COALESCE(twi.title, 'Untitled') ASC
+        INNER JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
+        ORDER BY ci.date ASC, twi.title ASC
     """)
     suspend fun getAllCalendarItemsList(): List<CalendarItemWithWatchlist>
 
