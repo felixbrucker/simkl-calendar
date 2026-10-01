@@ -24,14 +24,14 @@ interface UserTokenDao {
 @Dao
 interface CalendarItemDao {
     @Transaction
-    @Query("SELECT * FROM calendar_items ORDER BY date ASC")
+    @Query("SELECT * FROM calendar_items ORDER BY date ASC, simklId ASC")
     fun getAllCalendarItems(): Flow<List<CalendarItemWithWatchlist>>
 
     @Query("SELECT * FROM calendar_items")
     fun getAllCalendarEntitiesFlow(): Flow<List<CalendarItem>>
 
     @Transaction
-    @Query("SELECT * FROM calendar_items ORDER BY date ASC")
+    @Query("SELECT * FROM calendar_items ORDER BY date ASC, simklId ASC")
     suspend fun getAllCalendarItemsList(): List<CalendarItemWithWatchlist>
 
     @Transaction

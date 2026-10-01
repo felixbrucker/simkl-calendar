@@ -51,3 +51,9 @@
 **Learning:** Invoking `.keys.sorted()` on a grouped map (`episodes.groupBy { ... }`) directly inside a `LazyColumn` item composition scope re-executes TimSort and allocates a new `List<Int>` on every recomposition or scroll event. Moving `.keys.sorted()` into the same `remember(episodes)` block where `groupBy` is computed (`val (seasons, sortedSeasons) = remember(episodes) { ... }`) ensures keys are sorted only when source data changes, preventing redundant heap allocations during UI rendering and list scrolling.
 
 **Action:** Always compute derived sorted map keys inside `remember` blocks alongside map grouping operations in Compose screen components.
+
+## 2027-02-10 - Offloading Secondary Sort Criteria to Room DAO Queries
+
+**Learning:** Re-sorting collection flows in Kotlin ViewModels via `.sortedWith(...)` after stable filter operations (`.filter { ... }`) re-executes TimSort, allocates `Comparator` instances, and performs $O(N \log N)$ comparisons on every reactive update (e.g. search query or filter toggles). Including secondary sorting columns (`ORDER BY date ASC, simklId ASC`) directly in Room `@Query` annotations allows SQLite's native C B-Tree index to deliver pre-sorted records, enabling order-preserving Kotlin `.filter` operations to output pre-sorted lists with zero sorting overhead.
+
+**Action:** Specify all primary and secondary sort columns in Room DAO SQL queries rather than re-sorting reactive collections with `.sortedWith` in ViewModel Flow transformations.
