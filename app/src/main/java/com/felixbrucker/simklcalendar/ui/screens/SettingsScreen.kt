@@ -231,7 +231,7 @@ fun SettingsScreen(
                             viewModel.updateSearchLinksOrder(updated)
                         },
                         modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.GENERAL] = coordinates.positionInParent().y
+                            sectionYPositions[SettingsCategory.GENERAL] = coordinates.positionInParent().y + leftScrollState.value
                         }
                     )
 
@@ -243,7 +243,7 @@ fun SettingsScreen(
                         checkAndRequestPermission = { checkAndRequestPermission() },
                         viewModel = viewModel,
                         modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.NOTIFICATIONS] = coordinates.positionInParent().y
+                            sectionYPositions[SettingsCategory.NOTIFICATIONS] = coordinates.positionInParent().y + leftScrollState.value
                         }
                     )
 
@@ -254,7 +254,7 @@ fun SettingsScreen(
                         onSearchIntervalChange = { searchIntervalHours = it },
                         viewModel = viewModel,
                         modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.DOWNLOADS] = coordinates.positionInParent().y
+                            sectionYPositions[SettingsCategory.DOWNLOADS] = coordinates.positionInParent().y + leftScrollState.value
                         }
                     )
 
@@ -266,7 +266,7 @@ fun SettingsScreen(
                         snackbarHostState = snackbarHostState,
                         onNavigateToLogViewer = onNavigateToLogViewer,
                         modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.DEBUG] = coordinates.positionInParent().y
+                            sectionYPositions[SettingsCategory.DEBUG] = coordinates.positionInParent().y + leftScrollState.value
                         }
                     )
                 }
@@ -279,7 +279,7 @@ fun SettingsScreen(
                             leftScrollState.animateScrollTo(targetY.roundToInt())
                         }
                     },
-                    modifier = Modifier.width(220.dp)
+                    modifier = Modifier.width(IntrinsicSize.Max)
                 )
             }
         } else {
@@ -430,7 +430,7 @@ fun SettingsCategorySelector(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
             )
 
-            Box(modifier = Modifier.fillMaxWidth()) {
+            Box(modifier = Modifier.width(IntrinsicSize.Max)) {
                 val effectiveItemHeightDp = if (itemHeightPx > 0f) with(density) { itemHeightPx.toDp() } else 40.dp
                 val spacingDp = 4.dp
                 val targetOffsetDp = (effectiveItemHeightDp + spacingDp) * selectedIndex
@@ -451,7 +451,7 @@ fun SettingsCategorySelector(
 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.width(IntrinsicSize.Max)
                 ) {
                     SettingsCategory.entries.forEach { category ->
                         SettingsCategoryItem(
