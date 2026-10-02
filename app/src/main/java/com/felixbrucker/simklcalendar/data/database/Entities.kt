@@ -280,20 +280,41 @@ data class CustomSearchLink(
             ""
         }
 
-        var result = urlTemplate
+        // Fast single-pass token replacement using StringBuilder to avoid multiple Regex allocations
+        val sb = StringBuilder(urlTemplate.length + 32)
+        var i = 0
+        val len = urlTemplate.length
 
-        // Replace supported {CAPSLOCK PLACEHOLDER} tokens (case-insensitive for user convenience)
-        // More specific / longer tokens are replaced first to prevent partial matches
-        result = result.replace("{TITLE}", title, ignoreCase = true)
-        result = result.replace("{TITLE_URL_ENCODED}", encodedTitle, ignoreCase = true)
-        result = result.replace("{TITLE_ROMAJI}", rawRomajiTitle, ignoreCase = true)
-        result = result.replace("{TITLE_ROMAJI_URL_ENCODED}", encodedRomajiTitle, ignoreCase = true)
-        result = result.replace("{EPISODE_SLUG}", episodeSlugStr, ignoreCase = true)
-        result = result.replace("{SEASON_SLUG}", seasonSlugStr, ignoreCase = true)
-        result = result.replace("{SEASON}", seasonNumStr, ignoreCase = true)
-        result = result.replace("{EPISODE}", episodeNumStr, ignoreCase = true)
+        while (i < len) {
+            val braceIndex = urlTemplate.indexOf('{', i)
+            if (braceIndex == -1) {
+                sb.append(urlTemplate, i, len)
+                break
+            }
 
-        val trimmed = result.trim()
+            sb.append(urlTemplate, i, braceIndex)
+            val closeBraceIndex = urlTemplate.indexOf('}', braceIndex + 1)
+            if (closeBraceIndex == -1) {
+                sb.append(urlTemplate, braceIndex, len)
+                break
+            }
+
+            val placeholder = urlTemplate.substring(braceIndex + 1, closeBraceIndex)
+            when (placeholder.uppercase()) {
+                "TITLE_ROMAJI_URL_ENCODED" -> sb.append(encodedRomajiTitle)
+                "TITLE_URL_ENCODED" -> sb.append(encodedTitle)
+                "TITLE_ROMAJI" -> sb.append(rawRomajiTitle)
+                "TITLE" -> sb.append(title)
+                "EPISODE_SLUG" -> sb.append(episodeSlugStr)
+                "SEASON_SLUG" -> sb.append(seasonSlugStr)
+                "SEASON" -> sb.append(seasonNumStr)
+                "EPISODE" -> sb.append(episodeNumStr)
+                else -> sb.append(urlTemplate, braceIndex, closeBraceIndex + 1)
+            }
+            i = closeBraceIndex + 1
+        }
+
+        val trimmed = sb.toString().trim()
         return if (!trimmed.startsWith("http://", ignoreCase = true) && !trimmed.startsWith("https://", ignoreCase = true)) {
             "https://$trimmed"
         } else {
