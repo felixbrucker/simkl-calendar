@@ -216,6 +216,7 @@ fun ReleaseDetailScreen(
                     type = activeItem.type,
                     title = activeItem.title,
                     poster = activeItem.poster,
+                    rating = activeItem.rating,
                     titleRomaji = activeItem.titleRomaji,
                     onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId) }
                 )

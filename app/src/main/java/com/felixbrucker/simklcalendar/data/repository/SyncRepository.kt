@@ -74,6 +74,8 @@ class SyncRepository @Inject constructor(
         val calendarJsonSyncResult = syncCalendarJsons(forceFullSync = force)
         // Backfill missing past episodes if month changed and > 1 day since last sync
         val backfillSyncResult = backfillPastEpisodes(lastSyncTimestamp = if (force) 0L else lastJsonSyncTimestamp)
+        populateRatings()
+        updateRatings()
         if (watchlistSyncResult.hasWantedItems || calendarJsonSyncResult.hasWantedItems || backfillSyncResult.hasWantedItems) {
             downloadRepository.searchAndDownloadWantedItems()
         }
@@ -853,6 +855,64 @@ class SyncRepository @Inject constructor(
             hasCalendarItemChanges = itemsToInsert.isNotEmpty() || itemsToUpdate.isNotEmpty(),
             hasWantedItems = hasWantedItems,
         )
+    }
+
+    private suspend fun fetchRating(item: TrackedWatchlistItem): Double? {
+        return try {
+            when (item.type) {
+                MediaType.MOVIE -> publicSimklApiService.getMovieDetails(item.simklId).ratings?.simkl?.rating
+                MediaType.TV -> publicSimklApiService.getTvDetails(item.simklId).ratings?.simkl?.rating
+                MediaType.ANIME -> publicSimklApiService.getAnimeDetails(item.simklId).ratings?.simkl?.rating
+            }
+        } catch (e: Exception) {
+            Timber.tag("SyncRepository").e(e, "Failed to fetch rating for ${item.type} ${item.simklId}")
+            null
+        }
+    }
+
+    private suspend fun populateRatings() = withContext(Dispatchers.IO) {
+        val unratedItems = watchlistDao.getItemsWithoutRating()
+        if (unratedItems.isEmpty()) return@withContext
+
+        val updatedItems = mutableListOf<TrackedWatchlistItem>()
+        for (item in unratedItems) {
+            val rating = fetchRating(item)
+            if (rating != null) {
+                updatedItems.add(item.copy(rating = rating))
+            }
+        }
+
+        if (updatedItems.isNotEmpty()) {
+            watchlistDao.updateItems(updatedItems)
+            Timber.tag("SyncRepository").d("Populated ratings for ${updatedItems.size} watchlist items")
+        }
+    }
+
+    private suspend fun updateRatings() = withContext(Dispatchers.IO) {
+        val sevenDaysMillis = 7 * 24 * 60 * 60 * 1000L
+        val nowMillis = System.currentTimeMillis()
+        val lastUpdate = syncMetadataRepo.preferencesFlow.first().lastRatingsUpdate
+
+        if (nowMillis - lastUpdate < sevenDaysMillis) {
+            return@withContext
+        }
+
+        val allItems = watchlistDao.getAllTrackedItems()
+        if (allItems.isEmpty()) return@withContext
+
+        val updatedItems = mutableListOf<TrackedWatchlistItem>()
+        for (item in allItems) {
+            val rating = fetchRating(item)
+            if (rating != null && rating != item.rating) {
+                updatedItems.add(item.copy(rating = rating))
+            }
+        }
+
+        if (updatedItems.isNotEmpty()) {
+            watchlistDao.updateItems(updatedItems)
+            Timber.tag("SyncRepository").d("Updated ratings for ${updatedItems.size} watchlist items")
+        }
+        syncMetadataRepo.setLastRatingsUpdate(nowMillis)
     }
 
     /**

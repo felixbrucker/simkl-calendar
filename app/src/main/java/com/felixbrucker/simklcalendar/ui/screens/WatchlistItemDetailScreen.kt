@@ -163,6 +163,7 @@ fun WatchlistItemDetailScreen(
                         type = watchlistItem.type,
                         title = watchlistItem.title,
                         poster = watchlistItem.poster,
+                        rating = watchlistItem.rating,
                         titleRomaji = watchlistItem.titleRomaji
                     )
                 }

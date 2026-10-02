@@ -220,6 +220,9 @@ interface WatchlistDao {
     @Query("SELECT * FROM tracked_watchlist_items WHERE type = :type")
     suspend fun getTrackedItemsByType(type: MediaType): List<TrackedWatchlistItem>
 
+    @Query("SELECT * FROM tracked_watchlist_items WHERE rating IS NULL")
+    suspend fun getItemsWithoutRating(): List<TrackedWatchlistItem>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItems(items: List<TrackedWatchlistItem>)
 
