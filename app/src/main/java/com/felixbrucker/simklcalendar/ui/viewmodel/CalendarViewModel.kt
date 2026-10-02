@@ -705,7 +705,7 @@ class CalendarViewModel @Inject constructor(
             }
 
             true
-        }.sortedWith(compareBy<CalendarItemWithWatchlist> { it.date }.thenBy { it.title })
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Calendar sync and status tracking

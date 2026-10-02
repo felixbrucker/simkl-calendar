@@ -120,7 +120,8 @@ data class NotificationSetting(
 @Entity(
     tableName = "tracked_watchlist_items",
     indices = [
-        Index(value = ["type"])
+        Index(value = ["type"]),
+        Index(value = ["title"])
     ]
 )
 data class TrackedWatchlistItem(
