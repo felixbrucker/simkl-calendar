@@ -129,7 +129,8 @@ data class TrackedWatchlistItem(
     val type: MediaType,
     val title: String,
     val titleRomaji: String? = null, // Romaji title for anime
-    val poster: String? = null // URL for show poster image
+    val poster: String? = null, // URL for show poster image
+    val rating: Double? = null // Simkl rating (e.g. 8.2)
 ) {
     companion object
 
@@ -137,12 +138,14 @@ data class TrackedWatchlistItem(
         val newTitle = newItem.title.ifBlank { this.title }
         val newRomaji = if (!newItem.titleRomaji.isNullOrBlank()) newItem.titleRomaji else this.titleRomaji
         val newPoster = if (!newItem.poster.isNullOrBlank()) newItem.poster else this.poster
+        val newRating = newItem.rating ?: this.rating
 
         return this.copy(
             type = newItem.type,
             title = newTitle,
             titleRomaji = newRomaji,
-            poster = newPoster
+            poster = newPoster,
+            rating = newRating
         )
     }
 }
@@ -174,6 +177,7 @@ data class CalendarItemWithWatchlist(
     val title: String get() = watchlistItem?.title ?: "Untitled"
     val titleRomaji: String? get() = watchlistItem?.titleRomaji
     val poster: String? get() = watchlistItem?.poster
+    val rating: Double? get() = watchlistItem?.rating
     val type: MediaType get() = watchlistItem?.type ?: MediaType.TV
     val episodeTitle: String? get() = calendarItem.episodeTitle
     val season: Int? get() = calendarItem.season

@@ -23,9 +23,18 @@ interface PublicSimklApiService {
 
     @GET("movies/{id}")
     suspend fun getMovieDetails(
-        @Path("id") movieId: Int,
-        @Query("extended") extended: String = "full"
+        @Path("id") movieId: Int
     ): SimklMovieDetailResponse
+
+    @GET("tv/{id}")
+    suspend fun getTvDetails(
+        @Path("id") id: Int
+    ): SimklTvDetailResponse
+
+    @GET("anime/{id}")
+    suspend fun getAnimeDetails(
+        @Path("id") id: Int
+    ): SimklAnimeDetailResponse
 
     @GET("tv/episodes/{id}")
     suspend fun getTvEpisodes(

@@ -412,6 +412,7 @@ fun DetailHeader(
     title: String,
     poster: String?,
     modifier: Modifier = Modifier,
+    rating: Double? = null,
     titleRomaji: String? = null,
     onTitleClick: () -> Unit = {},
 ) {
@@ -442,6 +443,36 @@ fun DetailHeader(
                     )
                 )
         )
+
+        // Rating Badge on top right of poster
+        if (rating != null) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = Color.Black.copy(alpha = 0.75f),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "Rating",
+                        tint = Color(0xFFFFC107),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = String.format(java.util.Locale.US, "%.1f", rating),
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+        }
 
         // Overlay Title metadata
         Column(

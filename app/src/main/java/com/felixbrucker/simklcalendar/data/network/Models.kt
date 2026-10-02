@@ -144,11 +144,22 @@ data class SimklMovieReleaseDateCountry(
 )
 
 @JsonClass(generateAdapter = true)
+data class SimklRating(
+    @Json(name = "rating") val rating: Double? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklRatings(
+    @Json(name = "simkl") val simkl: SimklRating? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class SimklMovieDetailResponse(
     @Json(name = "title") val title: String,
     @Json(name = "poster") val poster: String? = null,
     @Json(name = "released") val released: String? = null,
     @Json(name = "release_dates") val releaseDates: List<SimklMovieReleaseDateCountry>? = null,
+    @Json(name = "ratings") val ratings: SimklRatings? = null,
     @Json(name = "ids") val ids: SimklIds
 ) {
     /**
@@ -178,6 +189,22 @@ data class SimklMovieDetailResponse(
         return anyDate
     }
 }
+
+@JsonClass(generateAdapter = true)
+data class SimklTvDetailResponse(
+    @Json(name = "title") val title: String,
+    @Json(name = "poster") val poster: String? = null,
+    @Json(name = "ratings") val ratings: SimklRatings? = null,
+    @Json(name = "ids") val ids: SimklIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklAnimeDetailResponse(
+    @Json(name = "title") val title: String,
+    @Json(name = "poster") val poster: String? = null,
+    @Json(name = "ratings") val ratings: SimklRatings? = null,
+    @Json(name = "ids") val ids: SimklIds
+)
 
 // POST /sync/history models
 @JsonClass(generateAdapter = true)
