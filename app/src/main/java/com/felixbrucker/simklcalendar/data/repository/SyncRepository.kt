@@ -32,6 +32,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -874,12 +876,16 @@ class SyncRepository @Inject constructor(
         val unratedItems = watchlistDao.getItemsWithoutRating()
         if (unratedItems.isEmpty()) return@withContext
 
-        val updatedItems = mutableListOf<TrackedWatchlistItem>()
-        for (item in unratedItems) {
-            val rating = fetchRating(item)
-            if (rating != null) {
-                updatedItems.add(item.copy(rating = rating))
-            }
+        val semaphore = Semaphore(16)
+        val updatedItems = coroutineScope {
+            unratedItems.map { item ->
+                async {
+                    semaphore.withPermit {
+                        val rating = fetchRating(item)
+                        if (rating != null) item.copy(rating = rating) else null
+                    }
+                }
+            }.awaitAll().filterNotNull()
         }
 
         if (updatedItems.isNotEmpty()) {
@@ -900,12 +906,16 @@ class SyncRepository @Inject constructor(
         val allItems = watchlistDao.getAllTrackedItems()
         if (allItems.isEmpty()) return@withContext
 
-        val updatedItems = mutableListOf<TrackedWatchlistItem>()
-        for (item in allItems) {
-            val rating = fetchRating(item)
-            if (rating != null && rating != item.rating) {
-                updatedItems.add(item.copy(rating = rating))
-            }
+        val semaphore = Semaphore(16)
+        val updatedItems = coroutineScope {
+            allItems.map { item ->
+                async {
+                    semaphore.withPermit {
+                        val rating = fetchRating(item)
+                        if (rating != null && rating != item.rating) item.copy(rating = rating) else null
+                    }
+                }
+            }.awaitAll().filterNotNull()
         }
 
         if (updatedItems.isNotEmpty()) {
