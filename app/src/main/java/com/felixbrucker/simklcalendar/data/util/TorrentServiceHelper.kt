@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -123,17 +124,21 @@ class TorrentServiceHelper @Inject constructor(
 
     fun updateDownloadProgress(taskId: String, stats: TorrentProgressStats) {
         val uri = taskIdToUri[taskId]
-        _downloads.value += (taskId to DownloadProgress(
-                    taskId = taskId,
-                    uri = uri,
-                    bytesDownloaded = stats.bytesDownloaded,
-                    totalBytes = stats.totalBytes,
-                    downloadSpeed = stats.downloadSpeed
-                ))
+        val newProgress = DownloadProgress(
+            taskId = taskId,
+            uri = uri,
+            bytesDownloaded = stats.bytesDownloaded,
+            totalBytes = stats.totalBytes,
+            downloadSpeed = stats.downloadSpeed
+        )
+        // Avoid map reallocation and StateFlow emission if progress has not changed
+        _downloads.update { current ->
+            if (current[taskId] == newProgress) current else current + (taskId to newProgress)
+        }
     }
 
     fun clearDownload(taskId: String) {
-        _downloads.value -= taskId
+        _downloads.update { it - taskId }
         taskIdToUri.remove(taskId)
     }
 
