@@ -201,7 +201,7 @@ fun LogViewerScreen(
                         .fillMaxSize()
                         .testTag("log_entries_list")
                 ) {
-                    items(filteredLogs) { entry ->
+                    items(filteredLogs, key = { "${it.timestamp}_${it.priority}_${it.tag}_${it.message.hashCode()}" }) { entry ->
                         LogEntryCard(entry = entry)
                     }
                 }
