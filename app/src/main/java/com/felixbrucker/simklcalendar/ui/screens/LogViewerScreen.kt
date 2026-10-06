@@ -23,7 +23,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -32,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.felixbrucker.simklcalendar.data.logging.LogEntry
 import com.felixbrucker.simklcalendar.ui.viewmodel.LogViewerViewModel
@@ -60,22 +67,31 @@ fun LogViewerScreen(
     var selectedPriority by remember { mutableIntStateOf(-1) } // -1 means All
     var showClearDialog by remember { mutableStateOf(false) }
 
-    var isTopSectionVisible by remember { mutableStateOf(true) }
-    var previousIndex by remember { mutableIntStateOf(0) }
-    var previousScrollOffset by remember { mutableIntStateOf(0) }
+    var topControlsHeightPx by remember { mutableFloatStateOf(0f) }
+    var topControlsOffsetPx by remember { mutableFloatStateOf(0f) }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                if (topControlsHeightPx <= 0f) return Offset.Zero
+
+                val oldOffset = topControlsOffsetPx
+                val newOffset = (oldOffset + delta).coerceIn(-topControlsHeightPx, 0f)
+                val consumedY = newOffset - oldOffset
+                topControlsOffsetPx = newOffset
+
+                return Offset(0f, consumedY)
+            }
+        }
+    }
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .collect { (currentIndex, currentOffset) ->
                 if (currentIndex == 0 && currentOffset == 0) {
-                    isTopSectionVisible = true
-                } else if (currentIndex > previousIndex || (currentIndex == previousIndex && currentOffset > previousScrollOffset + 15)) {
-                    isTopSectionVisible = false
-                } else if (currentIndex < previousIndex || (currentOffset < previousScrollOffset - 15)) {
-                    isTopSectionVisible = true
+                    topControlsOffsetPx = 0f
                 }
-                previousIndex = currentIndex
-                previousScrollOffset = currentOffset
             }
     }
 
@@ -150,10 +166,10 @@ fun LogViewerScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
+                .nestedScroll(nestedScrollConnection)
         ) {
             // Collapsible Top Controls Section
             LogViewerTopControls(
-                isVisible = isTopSectionVisible,
                 searchQuery = searchQuery,
                 onSearchQueryChange = { searchQuery = it },
                 selectedPriority = selectedPriority,
@@ -166,7 +182,23 @@ fun LogViewerScreen(
                             listState.animateScrollToItem(filteredLogs.size - 1)
                         }
                     }
-                }
+                },
+                modifier = Modifier
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val measuredHeight = placeable.height
+                        if (measuredHeight > 0 && topControlsHeightPx != measuredHeight.toFloat()) {
+                            topControlsHeightPx = measuredHeight.toFloat()
+                            topControlsOffsetPx = topControlsOffsetPx.coerceIn(-topControlsHeightPx, 0f)
+                        }
+
+                        val layoutHeight = (measuredHeight + topControlsOffsetPx.roundToInt()).coerceAtLeast(0)
+
+                        layout(placeable.width, layoutHeight) {
+                            placeable.placeRelative(0, topControlsOffsetPx.roundToInt())
+                        }
+                    }
+                    .clipToBounds()
             )
 
             // Log Entries List
@@ -240,7 +272,6 @@ fun LogViewerScreen(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LogViewerTopControls(
-    isVisible: Boolean,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     selectedPriority: Int,
@@ -252,18 +283,12 @@ fun LogViewerTopControls(
 ) {
     val focusManager = LocalFocusManager.current
 
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(220)),
-        exit = shrinkVertically(animationSpec = tween(220)) + fadeOut(animationSpec = tween(220)),
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
     ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 6.dp)
-        ) {
             // Search Input Field
             OutlinedTextField(
                 value = searchQuery,
@@ -348,7 +373,6 @@ fun LogViewerTopControls(
                     }
                 }
             }
-        }
     }
 }
 
