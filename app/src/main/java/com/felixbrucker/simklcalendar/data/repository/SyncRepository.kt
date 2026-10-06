@@ -584,83 +584,94 @@ class SyncRepository @Inject constructor(
 
         if (moviesNeedingDetails.isNotEmpty()) {
             Timber.tag("SyncRepository").d("Fetching details for ${moviesNeedingDetails.size} movies missing release dates")
-            for (movieId in moviesNeedingDetails) {
-                try {
-                    val movieDetail = publicSimklApiService.getMovieDetails(
-                        movieId = movieId
-                    )
-                    processTrackedItem(
-                        TrackedWatchlistItem(
-                            simklId = movieId,
-                            type = MediaType.MOVIE,
-                            title = movieDetail.title,
-                            poster = movieDetail.poster,
-                            rating = movieDetail.ratings?.simkl?.rating
-                        ),
-                        movieTrackedItemMap
-                    )
-
-                    // 1. Process Theatrical release date from regular released property
-                    movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
-                        DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
-                            val status = mediaStatusResolver.resolve(
-                                airDate = theaterInstant,
-                                settings = movieSettingsMap[movieId],
-                                mediaType = MediaType.MOVIE,
-                                isTheaterRelease = true,
-                                isWatched = false,
-                                autoDownloadSettings = autoDownloadPrefs,
-                                now = nowInstant,
-                            )
-                            processCalendarItem(
-                                CalendarItem(
-                                    primaryKey = "v2_${movieId}_theater",
-                                    simklId = movieId,
-                                    episodeTitle = null,
-                                    season = null,
-                                    episodeNumber = null,
-                                    date = theaterInstant,
-                                    movieReleaseType = MovieReleaseType.THEATER,
-                                    isSeasonPremiere = false,
-                                    isSeasonFinale = false,
-                                ),
-                                initialStatus = status,
-                                movieExistingItemsMap
-                            )
+            val semaphore = Semaphore(16)
+            val movieDetailsResults = coroutineScope {
+                moviesNeedingDetails.map { movieId ->
+                    async {
+                        semaphore.withPermit {
+                            try {
+                                val movieDetail = publicSimklApiService.getMovieDetails(movieId = movieId)
+                                movieId to movieDetail
+                            } catch (e: Exception) {
+                                Timber.tag("SyncRepository").e(e, "Failed fetching movie details for movieId $movieId")
+                                movieId to null
+                            }
                         }
                     }
+                }.awaitAll()
+            }
 
-                    // 2. Extract Digital / DVD release date from release_dates timeline
-                    movieDetail.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
-                        DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
-                            val status = mediaStatusResolver.resolve(
-                                airDate = digitalInstant,
-                                settings = movieSettingsMap[movieId],
-                                mediaType = MediaType.MOVIE,
-                                isTheaterRelease = false,
-                                isWatched = false,
-                                autoDownloadSettings = autoDownloadPrefs,
-                                now = nowInstant,
-                            )
-                            processCalendarItem(
-                                CalendarItem(
-                                    primaryKey = "v2_${movieId}_digital",
-                                    simklId = movieId,
-                                    episodeTitle = null,
-                                    season = null,
-                                    episodeNumber = null,
-                                    date = digitalInstant,
-                                    movieReleaseType = MovieReleaseType.DIGITAL,
-                                    isSeasonPremiere = false,
-                                    isSeasonFinale = false,
-                                ),
-                                initialStatus = status,
-                                movieExistingItemsMap
-                            )
-                        }
+            for ((movieId, movieDetail) in movieDetailsResults) {
+                if (movieDetail == null) continue
+                processTrackedItem(
+                    TrackedWatchlistItem(
+                        simklId = movieId,
+                        type = MediaType.MOVIE,
+                        title = movieDetail.title,
+                        poster = movieDetail.poster,
+                        rating = movieDetail.ratings?.simkl?.rating
+                    ),
+                    movieTrackedItemMap
+                )
+
+                // 1. Process Theatrical release date from regular released property
+                movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
+                    DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
+                        val status = mediaStatusResolver.resolve(
+                            airDate = theaterInstant,
+                            settings = movieSettingsMap[movieId],
+                            mediaType = MediaType.MOVIE,
+                            isTheaterRelease = true,
+                            isWatched = false,
+                            autoDownloadSettings = autoDownloadPrefs,
+                            now = nowInstant,
+                        )
+                        processCalendarItem(
+                            CalendarItem(
+                                primaryKey = "v2_${movieId}_theater",
+                                simklId = movieId,
+                                episodeTitle = null,
+                                season = null,
+                                episodeNumber = null,
+                                date = theaterInstant,
+                                movieReleaseType = MovieReleaseType.THEATER,
+                                isSeasonPremiere = false,
+                                isSeasonFinale = false,
+                            ),
+                            initialStatus = status,
+                            movieExistingItemsMap
+                        )
                     }
-                } catch (e: Exception) {
-                    Timber.tag("SyncRepository").e(e, "Failed fetching movie details for movieId $movieId")
+                }
+
+                // 2. Extract Digital / DVD release date from release_dates timeline
+                movieDetail.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
+                    DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
+                        val status = mediaStatusResolver.resolve(
+                            airDate = digitalInstant,
+                            settings = movieSettingsMap[movieId],
+                            mediaType = MediaType.MOVIE,
+                            isTheaterRelease = false,
+                            isWatched = false,
+                            autoDownloadSettings = autoDownloadPrefs,
+                            now = nowInstant,
+                        )
+                        processCalendarItem(
+                            CalendarItem(
+                                primaryKey = "v2_${movieId}_digital",
+                                simklId = movieId,
+                                episodeTitle = null,
+                                season = null,
+                                episodeNumber = null,
+                                date = digitalInstant,
+                                movieReleaseType = MovieReleaseType.DIGITAL,
+                                isSeasonPremiere = false,
+                                isSeasonFinale = false,
+                            ),
+                            initialStatus = status,
+                            movieExistingItemsMap
+                        )
+                    }
                 }
             }
         }
@@ -989,81 +1000,94 @@ class SyncRepository @Inject constructor(
             }
         }
 
-        for (movieId in candidateMovieIds) {
-            try {
-                val movieDetail = publicSimklApiService.getMovieDetails(movieId)
-                processTrackedItem(
-                    TrackedWatchlistItem(
-                        simklId = movieId,
-                        type = MediaType.MOVIE,
-                        title = movieDetail.title,
-                        poster = movieDetail.poster,
-                        rating = movieDetail.ratings?.simkl?.rating
-                    ),
-                    movieTrackedItemMap
-                )
-
-                // 1. Process Theatrical release date from regular released property
-                movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
-                    DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
-                        val status = mediaStatusResolver.resolve(
-                            airDate = theaterInstant,
-                            settings = movieSettingsMap[movieId],
-                            mediaType = MediaType.MOVIE,
-                            isTheaterRelease = true,
-                            isWatched = false,
-                            autoDownloadSettings = autoDownloadPrefs,
-                            now = nowInstant,
-                        )
-                        processCalendarItem(
-                            CalendarItem(
-                                primaryKey = "v2_${movieId}_theater",
-                                simklId = movieId,
-                                episodeTitle = null,
-                                season = null,
-                                episodeNumber = null,
-                                date = theaterInstant,
-                                movieReleaseType = MovieReleaseType.THEATER,
-                                isSeasonPremiere = false,
-                                isSeasonFinale = false,
-                            ),
-                            initialStatus = status,
-                            movieExistingItemsMap
-                        )
+        val semaphore = Semaphore(16)
+        val movieDetailsResults = coroutineScope {
+            candidateMovieIds.map { movieId ->
+                async {
+                    semaphore.withPermit {
+                        try {
+                            val movieDetail = publicSimklApiService.getMovieDetails(movieId)
+                            movieId to movieDetail
+                        } catch (e: Exception) {
+                            Timber.tag("SyncRepository").e(e, "Failed fetching movie details in updateMovieDetails for movieId $movieId")
+                            movieId to null
+                        }
                     }
                 }
+            }.awaitAll()
+        }
 
-                // 2. Extract Digital / DVD release date from release_dates timeline
-                movieDetail.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
-                    DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
-                        val status = mediaStatusResolver.resolve(
-                            airDate = digitalInstant,
-                            settings = movieSettingsMap[movieId],
-                            mediaType = MediaType.MOVIE,
-                            isTheaterRelease = false,
-                            isWatched = false,
-                            autoDownloadSettings = autoDownloadPrefs,
-                            now = nowInstant,
-                        )
-                        processCalendarItem(
-                            CalendarItem(
-                                primaryKey = "v2_${movieId}_digital",
-                                simklId = movieId,
-                                episodeTitle = null,
-                                season = null,
-                                episodeNumber = null,
-                                date = digitalInstant,
-                                movieReleaseType = MovieReleaseType.DIGITAL,
-                                isSeasonPremiere = false,
-                                isSeasonFinale = false,
-                            ),
-                            initialStatus = status,
-                            movieExistingItemsMap
-                        )
-                    }
+        for ((movieId, movieDetail) in movieDetailsResults) {
+            if (movieDetail == null) continue
+            processTrackedItem(
+                TrackedWatchlistItem(
+                    simklId = movieId,
+                    type = MediaType.MOVIE,
+                    title = movieDetail.title,
+                    poster = movieDetail.poster,
+                    rating = movieDetail.ratings?.simkl?.rating
+                ),
+                movieTrackedItemMap
+            )
+
+            // 1. Process Theatrical release date from regular released property
+            movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
+                DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
+                    val status = mediaStatusResolver.resolve(
+                        airDate = theaterInstant,
+                        settings = movieSettingsMap[movieId],
+                        mediaType = MediaType.MOVIE,
+                        isTheaterRelease = true,
+                        isWatched = false,
+                        autoDownloadSettings = autoDownloadPrefs,
+                        now = nowInstant,
+                    )
+                    processCalendarItem(
+                        CalendarItem(
+                            primaryKey = "v2_${movieId}_theater",
+                            simklId = movieId,
+                            episodeTitle = null,
+                            season = null,
+                            episodeNumber = null,
+                            date = theaterInstant,
+                            movieReleaseType = MovieReleaseType.THEATER,
+                            isSeasonPremiere = false,
+                            isSeasonFinale = false,
+                        ),
+                        initialStatus = status,
+                        movieExistingItemsMap
+                    )
                 }
-            } catch (e: Exception) {
-                Timber.tag("SyncRepository").e(e, "Failed fetching movie details in updateMovieDetails for movieId $movieId")
+            }
+
+            // 2. Extract Digital / DVD release date from release_dates timeline
+            movieDetail.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
+                DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
+                    val status = mediaStatusResolver.resolve(
+                        airDate = digitalInstant,
+                        settings = movieSettingsMap[movieId],
+                        mediaType = MediaType.MOVIE,
+                        isTheaterRelease = false,
+                        isWatched = false,
+                        autoDownloadSettings = autoDownloadPrefs,
+                        now = nowInstant,
+                    )
+                    processCalendarItem(
+                        CalendarItem(
+                            primaryKey = "v2_${movieId}_digital",
+                            simklId = movieId,
+                            episodeTitle = null,
+                            season = null,
+                            episodeNumber = null,
+                            date = digitalInstant,
+                            movieReleaseType = MovieReleaseType.DIGITAL,
+                            isSeasonPremiere = false,
+                            isSeasonFinale = false,
+                        ),
+                        initialStatus = status,
+                        movieExistingItemsMap
+                    )
+                }
             }
         }
 

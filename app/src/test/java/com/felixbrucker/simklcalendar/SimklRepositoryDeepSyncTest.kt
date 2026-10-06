@@ -326,4 +326,41 @@ class SimklRepositoryDeepSyncTest {
 
         coVerify(exactly = 0) { publicApiService.getMovieDetails(303) }
     }
+
+    @Test
+    fun testParallelMovieDetailsFetching() = runTest {
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303, 304)
+        val existingTracked = listOf(
+            TrackedWatchlistItem(simklId = 303, type = MediaType.MOVIE, title = "Movie A", poster = "a.jpg", rating = 7.0),
+            TrackedWatchlistItem(simklId = 304, type = MediaType.MOVIE, title = "Movie B", poster = "b.jpg", rating = 8.0)
+        )
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(303, 304)) } returns existingTracked
+        val movieDetail303 = SimklMovieDetailResponse(
+            title = "Movie A Updated",
+            poster = "a_new.jpg",
+            released = "2026-03-01",
+            ratings = SimklRatings(simkl = SimklRating(rating = 8.1)),
+            ids = SimklIds(simkl = 303)
+        )
+        val movieDetail304 = SimklMovieDetailResponse(
+            title = "Movie B Updated",
+            poster = "b_new.jpg",
+            released = "2026-04-01",
+            ratings = SimklRatings(simkl = SimklRating(rating = 8.2)),
+            ids = SimklIds(simkl = 304)
+        )
+        coEvery { publicApiService.getMovieDetails(303) } returns movieDetail303
+        coEvery { publicApiService.getMovieDetails(304) } returns movieDetail304
+        val updatedTrackedSlot = slot<List<TrackedWatchlistItem>>()
+        coEvery { watchlistDao.updateItems(capture(updatedTrackedSlot)) } returns Unit
+
+        syncRepository.syncCalendar(force = true)
+        val updatedTrackedList = updatedTrackedSlot.captured
+        val size = updatedTrackedList.size
+
+        coVerify { publicApiService.getMovieDetails(303) }
+        coVerify { publicApiService.getMovieDetails(304) }
+        assertEquals(2, size)
+    }
 }
