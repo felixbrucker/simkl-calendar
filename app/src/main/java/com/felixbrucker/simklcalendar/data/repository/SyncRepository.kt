@@ -594,15 +594,14 @@ class SyncRepository @Inject constructor(
                                 movieId to movieDetail
                             } catch (e: Exception) {
                                 Timber.tag("SyncRepository").e(e, "Failed fetching movie details for movieId $movieId")
-                                movieId to null
+                                null
                             }
                         }
                     }
-                }.awaitAll()
+                }.awaitAll().filterNotNull()
             }
 
             for ((movieId, movieDetail) in movieDetailsResults) {
-                if (movieDetail == null) continue
                 processTrackedItem(
                     TrackedWatchlistItem(
                         simklId = movieId,
@@ -1010,15 +1009,14 @@ class SyncRepository @Inject constructor(
                             movieId to movieDetail
                         } catch (e: Exception) {
                             Timber.tag("SyncRepository").e(e, "Failed fetching movie details in updateMovieDetails for movieId $movieId")
-                            movieId to null
+                            null
                         }
                     }
                 }
-            }.awaitAll()
+            }.awaitAll().filterNotNull()
         }
 
         for ((movieId, movieDetail) in movieDetailsResults) {
-            if (movieDetail == null) continue
             processTrackedItem(
                 TrackedWatchlistItem(
                     simklId = movieId,
