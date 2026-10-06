@@ -20,6 +20,7 @@ class LogViewerViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        LogRepository.ioDispatcher = testDispatcher
         LogRepository.clearLogs()
     }
 
@@ -38,7 +39,10 @@ class LogViewerViewModelTest {
         viewModel.clearLogs()
         val logsAfterClear = viewModel.allLogs.value
 
-        assertEquals(1, logsBeforeClear.size)
-        assertEquals(0, logsAfterClear.size)
+        val sizeBefore = logsBeforeClear.size
+        val sizeAfter = logsAfterClear.size
+
+        assertEquals(1, sizeBefore)
+        assertEquals(0, sizeAfter)
     }
 }

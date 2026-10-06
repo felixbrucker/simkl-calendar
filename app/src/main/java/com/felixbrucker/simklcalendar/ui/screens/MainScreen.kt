@@ -26,11 +26,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -44,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
@@ -88,24 +95,31 @@ fun MainScreen(
     val tableListState = rememberLazyListState()
     val activeListState = if (viewMode == ViewMode.CALENDAR) calendarListState else tableListState
 
-    var isFilterBarVisible by remember { mutableStateOf(true) }
-    var previousIndex by remember { mutableIntStateOf(0) }
-    var previousScrollOffset by remember { mutableIntStateOf(0) }
+    var filterBarHeightPx by remember { mutableFloatStateOf(0f) }
+    var filterBarOffsetPx by remember { mutableFloatStateOf(0f) }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                if (filterBarHeightPx <= 0f) return Offset.Zero
+
+                val oldOffset = filterBarOffsetPx
+                val newOffset = (oldOffset + delta).coerceIn(-filterBarHeightPx, 0f)
+                val consumedY = newOffset - oldOffset
+                filterBarOffsetPx = newOffset
+
+                return Offset(0f, consumedY)
+            }
+        }
+    }
 
     LaunchedEffect(activeListState) {
-        previousIndex = activeListState.firstVisibleItemIndex
-        previousScrollOffset = activeListState.firstVisibleItemScrollOffset
         snapshotFlow { activeListState.firstVisibleItemIndex to activeListState.firstVisibleItemScrollOffset }
             .collect { (currentIndex, currentOffset) ->
                 if (currentIndex == 0 && currentOffset == 0) {
-                    isFilterBarVisible = true
-                } else if (currentIndex > previousIndex || (currentIndex == previousIndex && currentOffset > previousScrollOffset + 15)) {
-                    isFilterBarVisible = false
-                } else if (currentIndex < previousIndex || (currentOffset < previousScrollOffset - 15)) {
-                    isFilterBarVisible = true
+                    filterBarOffsetPx = 0f
                 }
-                previousIndex = currentIndex
-                previousScrollOffset = currentOffset
             }
     }
 
@@ -292,11 +306,12 @@ fun MainScreen(
             val digitalDvdOnly = uiPreferences.filterOnlyDigitalDvd
 
             Column(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(nestedScrollConnection)
             ) {
                 // Toggles / Chip Filtering Bar (Shown in both views)
                 MainFilterBar(
-                    isVisible = isFilterBarVisible,
                     viewMode = viewMode,
                     tvFilter = tvFilter,
                     animeFilter = animeFilter,
@@ -311,7 +326,23 @@ fun MainScreen(
                     onToggleShowOnlyUnwatchedReleased = { viewModel.toggleShowOnlyUnwatchedReleased() },
                     onToggleOnlySeasonPremieres = { viewModel.toggleOnlySeasonPremieres() },
                     onToggleOnlySeasonFinales = { viewModel.toggleOnlySeasonFinales() },
-                    onToggleOnlyDigitalDvd = { viewModel.toggleOnlyDigitalDvd() }
+                    onToggleOnlyDigitalDvd = { viewModel.toggleOnlyDigitalDvd() },
+                    modifier = Modifier
+                        .layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints)
+                            val measuredHeight = placeable.height
+                            if (measuredHeight > 0 && filterBarHeightPx != measuredHeight.toFloat()) {
+                                filterBarHeightPx = measuredHeight.toFloat()
+                                filterBarOffsetPx = filterBarOffsetPx.coerceIn(-filterBarHeightPx, 0f)
+                            }
+
+                            val layoutHeight = (measuredHeight + filterBarOffsetPx.roundToInt()).coerceAtLeast(0)
+
+                            layout(placeable.width, layoutHeight) {
+                                placeable.placeRelative(0, filterBarOffsetPx.roundToInt())
+                            }
+                        }
+                        .clipToBounds()
                 )
 
                 // Search Results Status Pill (when searching)
@@ -708,7 +739,6 @@ private fun MainMobileViewModeToggle(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainFilterBar(
-    isVisible: Boolean,
     viewMode: ViewMode,
     tvFilter: Boolean,
     animeFilter: Boolean,
@@ -726,20 +756,14 @@ fun MainFilterBar(
     onToggleOnlyDigitalDvd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(220)),
-        exit = shrinkVertically(animationSpec = tween(220)) + fadeOut(animationSpec = tween(220)),
+    FlowRow(
         modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-        FlowRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
             // TV Toggle
             FilterChip(
                 selected = tvFilter,
@@ -849,7 +873,6 @@ fun MainFilterBar(
                     )
                 )
             }
-        }
     }
 }
 
