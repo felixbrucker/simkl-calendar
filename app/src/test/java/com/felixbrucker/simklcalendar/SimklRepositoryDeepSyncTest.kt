@@ -12,6 +12,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -274,5 +275,92 @@ class SimklRepositoryDeepSyncTest {
         assertFalse(s1e1.isSeasonFinale)
         assertTrue(s1e2.isSeasonFinale)
         assertFalse(s2e1.isSeasonFinale)
+    }
+
+    @Test
+    fun testSyncCalendarUpdatesMovieDetailsAndReleaseDates() = runTest {
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303)
+        val existingTracked = listOf(TrackedWatchlistItem(simklId = 303, type = MediaType.MOVIE, title = "Old Title", poster = "old.jpg", rating = 7.0))
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(303)) } returns existingTracked
+        val movieDetail = SimklMovieDetailResponse(
+            title = "New Movie Title",
+            poster = "new_poster.jpg",
+            released = "2026-03-01",
+            releaseDates = listOf(
+                SimklMovieReleaseDateCountry(
+                    iso31661 = "US",
+                    results = listOf(SimklMovieReleaseResult(type = 4, releaseDate = "2026-05-01"))
+                )
+            ),
+            ratings = SimklRatings(simkl = SimklRating(rating = 8.5)),
+            ids = SimklIds(simkl = 303)
+        )
+        coEvery { publicApiService.getMovieDetails(303) } returns movieDetail
+        val updatedTrackedSlot = slot<List<TrackedWatchlistItem>>()
+        coEvery { watchlistDao.updateItems(capture(updatedTrackedSlot)) } returns Unit
+
+        syncRepository.syncCalendar(force = true)
+        val updatedTrackedList = updatedTrackedSlot.captured
+        val updatedMovie = updatedTrackedList.firstOrNull { it.simklId == 303 }
+        val updatedTitle = updatedMovie?.title
+        val updatedPoster = updatedMovie?.poster
+        val updatedRating = updatedMovie?.rating
+
+        coVerify { syncMetadataRepo.setLastMovieDetailsUpdate(any()) }
+        coVerify { calendarDao.insertCalendarItems(any()) }
+        assertEquals("New Movie Title", updatedTitle)
+        assertEquals("new_poster.jpg", updatedPoster)
+        assertEquals(8.5, updatedRating!!, 0.01)
+    }
+
+    @Test
+    fun testUpdateMovieDetailsThrottledByWeeklyTimestamp() = runTest {
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+        val nowMillis = System.currentTimeMillis()
+        val recentTimestamp = nowMillis - (2 * 24 * 60 * 60 * 1000L)
+        every { syncMetadataRepo.preferencesFlow } returns flowOf(SyncMetadataPreferences(lastMovieDetailsUpdate = recentTimestamp))
+        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303)
+
+        syncRepository.syncCalendar(force = false)
+
+        coVerify(exactly = 0) { publicApiService.getMovieDetails(303) }
+    }
+
+    @Test
+    fun testParallelMovieDetailsFetching() = runTest {
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303, 304)
+        val existingTracked = listOf(
+            TrackedWatchlistItem(simklId = 303, type = MediaType.MOVIE, title = "Movie A", poster = "a.jpg", rating = 7.0),
+            TrackedWatchlistItem(simklId = 304, type = MediaType.MOVIE, title = "Movie B", poster = "b.jpg", rating = 8.0)
+        )
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(303, 304)) } returns existingTracked
+        val movieDetail303 = SimklMovieDetailResponse(
+            title = "Movie A Updated",
+            poster = "a_new.jpg",
+            released = "2026-03-01",
+            ratings = SimklRatings(simkl = SimklRating(rating = 8.1)),
+            ids = SimklIds(simkl = 303)
+        )
+        val movieDetail304 = SimklMovieDetailResponse(
+            title = "Movie B Updated",
+            poster = "b_new.jpg",
+            released = "2026-04-01",
+            ratings = SimklRatings(simkl = SimklRating(rating = 8.2)),
+            ids = SimklIds(simkl = 304)
+        )
+        coEvery { publicApiService.getMovieDetails(303) } returns movieDetail303
+        coEvery { publicApiService.getMovieDetails(304) } returns movieDetail304
+        val updatedTrackedSlot = slot<List<TrackedWatchlistItem>>()
+        coEvery { watchlistDao.updateItems(capture(updatedTrackedSlot)) } returns Unit
+
+        syncRepository.syncCalendar(force = true)
+        val updatedTrackedList = updatedTrackedSlot.captured
+        val size = updatedTrackedList.size
+
+        coVerify { publicApiService.getMovieDetails(303) }
+        coVerify { publicApiService.getMovieDetails(304) }
+        assertEquals(2, size)
     }
 }
