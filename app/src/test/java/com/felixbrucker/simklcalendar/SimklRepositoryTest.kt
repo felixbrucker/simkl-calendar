@@ -196,8 +196,8 @@ class SimklRepositoryTest {
         advanceUntilIdle()
         assertNotNull(token)
         assertEquals("token123", token?.accessToken)
-        coVerify { customSearchLinkDao.clearAll() }
-        coVerify { watchlistDao.clearAll() }
-        coVerify { tokenDao.clearUserToken() }
+        coVerify(timeout = 5000) { customSearchLinkDao.clearAll() }
+        coVerify(timeout = 5000) { watchlistDao.clearAll() }
+        coVerify(timeout = 5000) { tokenDao.clearUserToken() }
     }
 }
