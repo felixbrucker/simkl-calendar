@@ -47,7 +47,7 @@ internal data class SyncResult(
     val hasWantedItems: Boolean = false,
 )
 
-private data class SyncDetailItemResult(
+private data class SyncItemDetailResult(
     val newItem: TrackedWatchlistItem? = null,
     val calendarItems: List<Pair<CalendarItem, MediaStatus>> = emptyList()
 )
@@ -823,7 +823,7 @@ class SyncRepository @Inject constructor(
                                             poster = details.poster,
                                             rating = details.ratings?.simkl?.rating
                                         )
-                                        SyncDetailItemResult(newItem = newItem)
+                                        SyncItemDetailResult(newItem = newItem)
                                     }
                                     MediaType.ANIME -> {
                                         val details = publicSimklApiService.getAnimeDetails(id)
@@ -836,7 +836,7 @@ class SyncRepository @Inject constructor(
                                             poster = details.poster,
                                             rating = details.ratings?.simkl?.rating
                                         )
-                                        SyncDetailItemResult(newItem = newItem)
+                                        SyncItemDetailResult(newItem = newItem)
                                     }
                                     MediaType.MOVIE -> {
                                         val details = publicSimklApiService.getMovieDetails(id)
@@ -906,12 +906,12 @@ class SyncRepository @Inject constructor(
                                             }
                                         }
 
-                                        SyncDetailItemResult(newItem = newItem, calendarItems = calItems)
+                                        SyncItemDetailResult(newItem = newItem, calendarItems = calItems)
                                     }
                                 }
                             } catch (e: Exception) {
                                 Timber.tag("SyncRepository").e(e, "Failed fetching details for $type $id")
-                                SyncDetailItemResult()
+                                SyncItemDetailResult()
                             }
                         }
                     }

@@ -121,7 +121,8 @@ data class NotificationSetting(
     tableName = "tracked_watchlist_items",
     indices = [
         Index(value = ["type"]),
-        Index(value = ["title"])
+        Index(value = ["title"]),
+        Index(value = ["lastSyncedAt"])
     ]
 )
 data class TrackedWatchlistItem(

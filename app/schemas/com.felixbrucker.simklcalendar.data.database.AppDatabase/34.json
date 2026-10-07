@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 34,
-    "identityHash": "3c47a445e580c95ee912be847c9d781a",
+    "identityHash": "334173ad176d20b41dc8f19788446664",
     "entities": [
       {
         "tableName": "user_token",
@@ -277,6 +277,15 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_tracked_watchlist_items_title` ON `${TABLE_NAME}` (`title`)"
+          },
+          {
+            "name": "index_tracked_watchlist_items_lastSyncedAt",
+            "unique": false,
+            "columnNames": [
+              "lastSyncedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tracked_watchlist_items_lastSyncedAt` ON `${TABLE_NAME}` (`lastSyncedAt`)"
           }
         ]
       },
@@ -548,7 +557,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3c47a445e580c95ee912be847c9d781a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '334173ad176d20b41dc8f19788446664')"
     ]
   }
 }
