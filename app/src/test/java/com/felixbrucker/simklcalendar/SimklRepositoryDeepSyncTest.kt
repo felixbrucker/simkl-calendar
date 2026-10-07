@@ -298,7 +298,7 @@ class SimklRepositoryDeepSyncTest {
     @Test
     fun testUpdateMovieDetailsThrottledWhenNoCandidatesNeedingSync() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
-        coEvery { watchlistDao.getCandidateIdsByType(any(), any()) } returns emptyList()
+        coEvery { watchlistDao.getItemIdsNeedingSync(any(), any()) } returns emptyList()
 
         syncRepository.syncCalendar(force = false)
 

@@ -132,9 +132,9 @@ class RatingsSyncTest {
 
     @Test
     fun testSyncWatchlistItemDetailsFetchesCandidatesAndUpdatesDetails() = runTest {
-        coEvery { watchlistDao.getCandidateIdsByType(MediaType.MOVIE, any()) } returns listOf(10)
-        coEvery { watchlistDao.getCandidateIdsByType(MediaType.TV, any()) } returns listOf(20)
-        coEvery { watchlistDao.getCandidateIdsByType(MediaType.ANIME, any()) } returns listOf(30)
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.MOVIE, any()) } returns listOf(10)
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.TV, any()) } returns listOf(20)
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.ANIME, any()) } returns listOf(30)
         val movieItem = TrackedWatchlistItem(simklId = 10, type = MediaType.MOVIE, title = "Movie", rating = null)
         val tvItem = TrackedWatchlistItem(simklId = 20, type = MediaType.TV, title = "TV Show", rating = null)
         val animeItem = TrackedWatchlistItem(simklId = 30, type = MediaType.ANIME, title = "Anime", rating = null)
@@ -177,9 +177,9 @@ class RatingsSyncTest {
 
     @Test
     fun testSyncWatchlistItemDetailsForAnimeWithEnTitle() = runTest {
-        coEvery { watchlistDao.getCandidateIdsByType(MediaType.TV, any()) } returns emptyList()
-        coEvery { watchlistDao.getCandidateIdsByType(MediaType.ANIME, any()) } returns listOf(30)
-        coEvery { watchlistDao.getCandidateIdsByType(MediaType.MOVIE, any()) } returns emptyList()
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.TV, any()) } returns emptyList()
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.ANIME, any()) } returns listOf(30)
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.MOVIE, any()) } returns emptyList()
         val animeItem = TrackedWatchlistItem(simklId = 30, type = MediaType.ANIME, title = "Shingeki no Kyojin", rating = null)
         coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(30)) } returns listOf(animeItem)
         coEvery { publicApiService.getAnimeDetails(30) } returns SimklAnimeDetailResponse(
@@ -207,7 +207,7 @@ class RatingsSyncTest {
 
     @Test
     fun testSyncWatchlistItemDetailsThrottledWhenNoCandidates() = runTest {
-        coEvery { watchlistDao.getCandidateIdsByType(any(), any()) } returns emptyList()
+        coEvery { watchlistDao.getItemIdsNeedingSync(any(), any()) } returns emptyList()
 
         val syncResult = syncRepository.syncWatchlistItemDetails(force = false)
 
