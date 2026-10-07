@@ -220,8 +220,11 @@ interface WatchlistDao {
     @Query("SELECT * FROM tracked_watchlist_items WHERE type = :type")
     suspend fun getTrackedItemsByType(type: MediaType): List<TrackedWatchlistItem>
 
-    @Query("SELECT * FROM tracked_watchlist_items WHERE rating IS NULL")
-    suspend fun getItemsWithoutRating(): List<TrackedWatchlistItem>
+    @Query("SELECT * FROM tracked_watchlist_items WHERE lastSyncedAt IS NULL OR lastSyncedAt < :cutoff")
+    suspend fun getItemsNeedingSync(cutoff: Instant): List<TrackedWatchlistItem>
+
+    @Query("UPDATE tracked_watchlist_items SET lastSyncedAt = :lastSyncedAt WHERE simklId IN (:simklIds)")
+    suspend fun updateLastSyncedAt(simklIds: List<Int>, lastSyncedAt: Instant)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItems(items: List<TrackedWatchlistItem>)
