@@ -136,6 +136,9 @@ data class TrackedWatchlistItem(
 ) {
     companion object
 
+    val hasUniqueTitleRomaji: Boolean
+        get() = !titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true)
+
     fun updatedWith(newItem: TrackedWatchlistItem): TrackedWatchlistItem {
         val newTitle = newItem.title.ifBlank { this.title }
         val newRomaji = if (!newItem.titleRomaji.isNullOrBlank()) newItem.titleRomaji else this.titleRomaji
@@ -180,6 +183,8 @@ data class CalendarItemWithWatchlist(
     val simklId: Int get() = calendarItem.simklId
     val title: String get() = watchlistItem?.title ?: "Untitled"
     val titleRomaji: String? get() = watchlistItem?.titleRomaji
+    val hasUniqueTitleRomaji: Boolean
+        get() = watchlistItem?.hasUniqueTitleRomaji ?: (!titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true))
     val poster: String? get() = watchlistItem?.poster
     val rating: Double? get() = watchlistItem?.rating
     val type: MediaType get() = watchlistItem?.type ?: MediaType.TV

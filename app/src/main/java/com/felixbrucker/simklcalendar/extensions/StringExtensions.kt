@@ -32,3 +32,28 @@ fun String.cleanedForUseAsPath(): String {
 
     return result
 }
+
+fun String?.decodeHtmlEntities(): String? {
+    if (this == null) return null
+    if (!contains('&')) return this
+    var result = this
+        .replace("&#039;", "'")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        .replace("&quot;", "\"")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+
+    if (result.contains("&#")) {
+        result = Regex("&#([0-9]+);").replace(result) { match ->
+            val code = match.groupValues[1].toIntOrNull()
+            if (code != null) Character.toString(code) else match.value
+        }
+        result = Regex("&#x([0-9a-fA-F]+);").replace(result) { match ->
+            val code = match.groupValues[1].toIntOrNull(16)
+            if (code != null) Character.toString(code) else match.value
+        }
+    }
+    return result
+}
