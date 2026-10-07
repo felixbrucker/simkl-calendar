@@ -322,6 +322,12 @@ class SyncRepository @Inject constructor(
         val localStatesToInsert = mutableListOf<LocalItemState>()
         val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
 
+        val sixHoursMillis = 6 * 60 * 60 * 1000L
+        val nowMillis = System.currentTimeMillis()
+        val nowInstant = Instant.ofEpochMilli(nowMillis)
+        val oneMonthAgo = nowInstant.minus(30, ChronoUnit.DAYS)
+        val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
+
         fun processCalendarItem(
             newItem: CalendarItem,
             initialStatus: MediaStatus,
@@ -350,15 +356,16 @@ class SyncRepository @Inject constructor(
             val base = trackedToUpdate[newItem.simklId] ?: existing
             val updated = base.updatedWith(newItem)
             if (updated != base) {
-                trackedToUpdate[newItem.simklId] = updated
+                // Set lastSyncedAt to now when adding to trackedToUpdate for TV shows and Anime because their metadata update is complete from the calendar response.
+                // Movies are excluded because they require additional handling (digital/DVD release date timeline logic) in syncWatchlistItemDetails.
+                val itemToUpdate = if (newItem.type != MediaType.MOVIE) {
+                    updated.copy(lastSyncedAt = nowInstant)
+                } else {
+                    updated
+                }
+                trackedToUpdate[newItem.simklId] = itemToUpdate
             }
         }
-
-        val sixHoursMillis = 6 * 60 * 60 * 1000L
-        val nowMillis = System.currentTimeMillis()
-        val nowInstant = Instant.ofEpochMilli(nowMillis)
-        val oneMonthAgo = nowInstant.minus(30, ChronoUnit.DAYS)
-        val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
 
         // 2. Fetch CDN Calendars for current month plus next 3 months (0..3) (TV, Anime, Movies) from data.simkl.in
         val currentCal = Calendar.getInstance()
