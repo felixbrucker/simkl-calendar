@@ -218,6 +218,28 @@ class RatingsSyncTest {
     }
 
     @Test
+    fun testSyncWatchlistItemDetailsDoesNotUpdateLastSyncedAtOnException() = runTest {
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.TV, any()) } returns listOf(20, 21)
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.ANIME, any()) } returns emptyList()
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.MOVIE, any()) } returns emptyList()
+        val tvItem1 = TrackedWatchlistItem(simklId = 20, type = MediaType.TV, title = "TV Show 1", rating = null)
+        val tvItem2 = TrackedWatchlistItem(simklId = 21, type = MediaType.TV, title = "TV Show 2", rating = null)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(20, 21)) } returns listOf(tvItem1, tvItem2)
+        coEvery { publicApiService.getTvDetails(20) } returns SimklTvDetailResponse(
+            title = "TV Show 1 Updated",
+            ratings = SimklRatings(simkl = SimklRating(rating = 8.0)),
+            ids = SimklIds(simkl = 20)
+        )
+        coEvery { publicApiService.getTvDetails(21) } throws RuntimeException("Network Error")
+
+        val syncResult = syncRepository.syncWatchlistItemDetails(force = false)
+
+        val hasChanges = syncResult.hasWatchlistItemChanges
+        assertEquals(true, hasChanges)
+        coVerify { watchlistDao.updateLastSyncedAt(listOf(20), any()) }
+    }
+
+    @Test
     fun testMoshiParsesSimklRatings() {
         val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
         val adapter = moshi.adapter(SimklMovieDetailResponse::class.java)

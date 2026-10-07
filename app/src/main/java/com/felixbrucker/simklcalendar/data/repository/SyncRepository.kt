@@ -48,6 +48,8 @@ internal data class SyncResult(
 )
 
 private data class SyncItemDetailResult(
+    val simklId: Int,
+    val isSuccess: Boolean = false,
     val newItem: TrackedWatchlistItem? = null,
     val calendarItems: List<Pair<CalendarItem, MediaStatus>> = emptyList()
 )
@@ -795,6 +797,7 @@ class SyncRepository @Inject constructor(
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
         val localStatesToInsert = mutableListOf<LocalItemState>()
+        val successfullySyncedIds = mutableListOf<Int>()
 
         for ((type, ids) in candidateIdsByType) {
             if (ids.isEmpty()) continue
@@ -823,7 +826,7 @@ class SyncRepository @Inject constructor(
                                             poster = details.poster,
                                             rating = details.ratings?.simkl?.rating
                                         )
-                                        SyncItemDetailResult(newItem = newItem)
+                                        SyncItemDetailResult(simklId = id, isSuccess = true, newItem = newItem)
                                     }
                                     MediaType.ANIME -> {
                                         val details = publicSimklApiService.getAnimeDetails(id)
@@ -836,7 +839,7 @@ class SyncRepository @Inject constructor(
                                             poster = details.poster,
                                             rating = details.ratings?.simkl?.rating
                                         )
-                                        SyncItemDetailResult(newItem = newItem)
+                                        SyncItemDetailResult(simklId = id, isSuccess = true, newItem = newItem)
                                     }
                                     MediaType.MOVIE -> {
                                         val details = publicSimklApiService.getMovieDetails(id)
@@ -906,12 +909,12 @@ class SyncRepository @Inject constructor(
                                             }
                                         }
 
-                                        SyncItemDetailResult(newItem = newItem, calendarItems = calItems)
+                                        SyncItemDetailResult(simklId = id, isSuccess = true, newItem = newItem, calendarItems = calItems)
                                     }
                                 }
                             } catch (e: Exception) {
                                 Timber.tag("SyncRepository").e(e, "Failed fetching details for $type $id")
-                                SyncItemDetailResult()
+                                SyncItemDetailResult(simklId = id, isSuccess = false)
                             }
                         }
                     }
@@ -919,11 +922,14 @@ class SyncRepository @Inject constructor(
             }
 
             for (res in results) {
-                res.newItem?.let { newItem ->
-                    processTrackedItem(newItem, currentTrackedMap, trackedToUpdate)
-                }
-                for ((calItem, status) in res.calendarItems) {
-                    processCalendarItem(calItem, status, movieExistingItemsMap, itemsToInsert, itemsToUpdate, localStatesToInsert)
+                if (res.isSuccess) {
+                    successfullySyncedIds.add(res.simklId)
+                    res.newItem?.let { newItem ->
+                        processTrackedItem(newItem, currentTrackedMap, trackedToUpdate)
+                    }
+                    for ((calItem, status) in res.calendarItems) {
+                        processCalendarItem(calItem, status, movieExistingItemsMap, itemsToInsert, itemsToUpdate, localStatesToInsert)
+                    }
                 }
             }
         }
@@ -942,7 +948,9 @@ class SyncRepository @Inject constructor(
             calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
         }
 
-        watchlistDao.updateLastSyncedAt(allCandidateIds, now)
+        if (successfullySyncedIds.isNotEmpty()) {
+            watchlistDao.updateLastSyncedAt(successfullySyncedIds, now)
+        }
 
         val hasCalendarItemChanges = itemsToInsert.isNotEmpty() || itemsToUpdate.isNotEmpty()
         val hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }
