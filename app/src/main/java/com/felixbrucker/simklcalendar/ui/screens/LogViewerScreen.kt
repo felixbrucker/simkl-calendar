@@ -6,6 +6,7 @@ import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,11 +27,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.AlertDialog
@@ -461,7 +465,10 @@ fun LogEntryHeader(
     entry: LogEntry,
     formattedTime: String,
     badgeBg: Color,
-    badgeFg: Color
+    badgeFg: Color,
+    isLong: Boolean,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -480,111 +487,89 @@ fun LogEntryHeader(
                 fontSize = 12.sp
             )
         }
-        Text(
-            text = formattedTime,
-            color = Color(0xFF938F99),
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = formattedTime,
+                color = Color(0xFF938F99),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            if (isLong) {
+                IconButton(
+                    onClick = onToggleExpand,
+                    modifier = Modifier.size(24.dp).padding(start = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = Color(0xFFCAC4D0)
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
 fun LogEntryMessage(
     message: String,
+    isExpanded: Boolean,
     modifier: Modifier = Modifier
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
     val isLong = remember(message) { message.length > 300 || message.count { it == '\n' } > 5 }
+    val displayText = remember(message, isExpanded, isLong) {
+        if (!isExpanded && isLong) message.take(300) + "…" else message
+    }
 
-    Column(modifier = modifier) {
-        if (!isExpanded && isLong) {
-            Text(
-                text = message.take(300) + "…",
-                color = Color(0xFFE6E1E5),
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace,
-                lineHeight = 16.sp
-            )
-            TextButton(
-                onClick = { isExpanded = true },
-                contentPadding = PaddingValues(0.dp),
-                modifier = Modifier.height(24.dp)
-            ) {
-                Text("Show full message (${message.length} chars)", fontSize = 11.sp, color = Color(0xFFD0BCFF))
-            }
-        } else {
-            Text(
-                text = message,
-                color = Color(0xFFE6E1E5),
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace,
-                lineHeight = 16.sp
-            )
-            if (isLong) {
-                TextButton(
-                    onClick = { isExpanded = false },
-                    contentPadding = PaddingValues(0.dp),
-                    modifier = Modifier.height(24.dp)
-                ) {
-                    Text("Show less", fontSize = 11.sp, color = Color(0xFFD0BCFF))
-                }
-            }
-        }
+    SelectionContainer(modifier = modifier) {
+        Text(
+            text = displayText,
+            color = Color(0xFFE6E1E5),
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            lineHeight = 16.sp
+        )
     }
 }
 
 @Composable
 fun LogEntryStackTrace(
     stackTrace: String,
+    isExpanded: Boolean,
     modifier: Modifier = Modifier
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
     val isLong = remember(stackTrace) { stackTrace.length > 300 || stackTrace.count { it == '\n' } > 5 }
+    val displayText = remember(stackTrace, isExpanded, isLong) {
+        if (!isExpanded && isLong) stackTrace.take(300) + "…" else stackTrace
+    }
 
     Surface(
         shape = RoundedCornerShape(4.dp),
         color = Color(0xFF1C1B1F),
         modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
     ) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            if (!isExpanded && isLong) {
-                Text(
-                    text = stackTrace.take(300) + "…",
-                    color = Color(0xFFF2B8B5),
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                TextButton(
-                    onClick = { isExpanded = true },
-                    contentPadding = PaddingValues(0.dp),
-                    modifier = Modifier.height(24.dp)
-                ) {
-                    Text("Show full stack trace (${stackTrace.length} chars)", fontSize = 11.sp, color = Color(0xFFF2B8B5))
-                }
-            } else {
-                Text(
-                    text = stackTrace,
-                    color = Color(0xFFF2B8B5),
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                if (isLong) {
-                    TextButton(
-                        onClick = { isExpanded = false },
-                        contentPadding = PaddingValues(0.dp),
-                        modifier = Modifier.height(24.dp)
-                    ) {
-                        Text("Show less", fontSize = 11.sp, color = Color(0xFFF2B8B5))
-                    }
-                }
-            }
+        SelectionContainer(modifier = Modifier.padding(8.dp)) {
+            Text(
+                text = displayText,
+                color = Color(0xFFF2B8B5),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
         }
     }
 }
 
 @Composable
 fun LogEntryCard(entry: LogEntry) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    val isLong = remember(entry.message, entry.throwableStackTrace) {
+        entry.message.length > 300 ||
+                entry.message.count { it == '\n' } > 5 ||
+                (entry.throwableStackTrace != null &&
+                        (entry.throwableStackTrace.length > 300 || entry.throwableStackTrace.count { it == '\n' } > 5))
+    }
+
     val (badgeBg, badgeFg) = remember(entry.priority) {
         when (entry.priority) {
             Log.ERROR -> Color(0xFF601410) to Color(0xFFF2B8B5)
@@ -607,15 +592,31 @@ fun LogEntryCard(entry: LogEntry) {
         shape = RoundedCornerShape(8.dp),
         color = Color(0xFF2B2930),
         border = BorderStroke(1.dp, Color(0xFF3B383E)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isLong) {
+                    Modifier.clickable { isExpanded = !isExpanded }
+                } else {
+                    Modifier
+                }
+            )
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
-            LogEntryHeader(entry = entry, formattedTime = formattedTime, badgeBg = badgeBg, badgeFg = badgeFg)
+            LogEntryHeader(
+                entry = entry,
+                formattedTime = formattedTime,
+                badgeBg = badgeBg,
+                badgeFg = badgeFg,
+                isLong = isLong,
+                isExpanded = isExpanded,
+                onToggleExpand = { isExpanded = !isExpanded }
+            )
             Spacer(modifier = Modifier.height(6.dp))
-            LogEntryMessage(message = entry.message)
+            LogEntryMessage(message = entry.message, isExpanded = isExpanded)
             if (!entry.throwableStackTrace.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
-                LogEntryStackTrace(stackTrace = entry.throwableStackTrace)
+                LogEntryStackTrace(stackTrace = entry.throwableStackTrace, isExpanded = isExpanded)
             }
         }
     }
