@@ -5,11 +5,22 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,9 +28,38 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,7 +78,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.felixbrucker.simklcalendar.data.logging.LogEntry
 import com.felixbrucker.simklcalendar.ui.viewmodel.LogViewerViewModel
@@ -46,11 +85,11 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 
 private val logTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
     .withZone(ZoneId.systemDefault())
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogViewerScreen(
     modifier: Modifier = Modifier,
@@ -62,11 +101,11 @@ fun LogViewerScreen(
     val listState = rememberLazyListState()
 
     val allLogs by viewModel.allLogs.collectAsState()
+    val filteredLogs by viewModel.filteredLogs.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val selectedPriority by viewModel.selectedPriority.collectAsState()
 
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedPriority by remember { mutableIntStateOf(-1) } // -1 means All
     var showClearDialog by remember { mutableStateOf(false) }
-
     var topControlsHeightPx by remember { mutableFloatStateOf(0f) }
     var topControlsOffsetPx by remember { mutableFloatStateOf(0f) }
 
@@ -93,17 +132,6 @@ fun LogViewerScreen(
                     topControlsOffsetPx = 0f
                 }
             }
-    }
-
-    val filteredLogs = remember(allLogs, searchQuery, selectedPriority) {
-        allLogs.filter { entry ->
-            val matchesPriority = selectedPriority == -1 || entry.priority == selectedPriority
-            val matchesSearch = searchQuery.isBlank() ||
-                    (entry.tag?.contains(searchQuery, ignoreCase = true) == true) ||
-                    entry.message.contains(searchQuery, ignoreCase = true) ||
-                    (entry.throwableStackTrace?.contains(searchQuery, ignoreCase = true) == true)
-            matchesPriority && matchesSearch
-        }
     }
 
     fun copyLogsToClipboard() {
@@ -135,28 +163,10 @@ fun LogViewerScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = { Text("App Log Viewer", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFFE6E1E5))
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { copyLogsToClipboard() },
-                        modifier = Modifier.testTag("copy_logs_button")
-                    ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy Logs", tint = Color(0xFFD0BCFF))
-                    }
-                    IconButton(
-                        onClick = { showClearDialog = true },
-                        modifier = Modifier.testTag("clear_logs_button")
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Clear Logs", tint = Color(0xFFF2B8B5))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C1B1F))
+            LogViewerTopBar(
+                onNavigateBack = onNavigateBack,
+                onCopyLogs = { copyLogsToClipboard() },
+                onClearLogs = { showClearDialog = true }
             )
         },
         containerColor = Color(0xFF1C1B1F)
@@ -168,12 +178,11 @@ fun LogViewerScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .nestedScroll(nestedScrollConnection)
         ) {
-            // Collapsible Top Controls Section
             LogViewerTopControls(
                 searchQuery = searchQuery,
-                onSearchQueryChange = { searchQuery = it },
+                onSearchQueryChange = { viewModel.setSearchQuery(it) },
                 selectedPriority = selectedPriority,
-                onSelectPriority = { selectedPriority = it },
+                onSelectPriority = { viewModel.setSelectedPriority(it) },
                 filteredLogsCount = filteredLogs.size,
                 totalLogsCount = allLogs.size,
                 onJumpToBottom = {
@@ -201,75 +210,168 @@ fun LogViewerScreen(
                     .clipToBounds()
             )
 
-            // Log Entries List
             if (filteredLogs.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Terminal,
-                            contentDescription = null,
-                            tint = Color(0xFF79747E),
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = if (allLogs.isEmpty()) "No log entries recorded yet" else "No matching log entries found",
-                            color = Color(0xFFCAC4D0),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
+                LogEmptyView(isLogsEmpty = allLogs.isEmpty())
             } else {
-                LazyColumn(
-                    state = listState,
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .testTag("log_entries_list")
-                ) {
-                    items(filteredLogs, key = { "${it.timestamp}_${it.priority}_${it.tag}_${it.message.hashCode()}" }) { entry ->
-                        LogEntryCard(entry = entry)
-                    }
-                }
+                LogViewerList(
+                    filteredLogs = filteredLogs,
+                    listState = listState,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
     }
 
     if (showClearDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearDialog = false },
-            title = { Text("Clear All Logs", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to delete all stored diagnostic logs? This action cannot be undone.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.clearLogs()
-                        showClearDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    )
-                ) {
-                    Text("Clear")
-                }
+        ClearLogsDialog(
+            onConfirm = {
+                viewModel.clearLogs()
+                showClearDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { showClearDialog = false }
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LogViewerTopBar(
+    onNavigateBack: () -> Unit,
+    onCopyLogs: () -> Unit,
+    onClearLogs: () -> Unit
+) {
+    TopAppBar(
+        title = { Text("App Log Viewer", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFFE6E1E5))
+            }
+        },
+        actions = {
+            IconButton(onClick = onCopyLogs, modifier = Modifier.testTag("copy_logs_button")) {
+                Icon(Icons.Default.ContentCopy, contentDescription = "Copy Logs", tint = Color(0xFFD0BCFF))
+            }
+            IconButton(onClick = onClearLogs, modifier = Modifier.testTag("clear_logs_button")) {
+                Icon(Icons.Default.Delete, contentDescription = "Clear Logs", tint = Color(0xFFF2B8B5))
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C1B1F))
+    )
+}
+
+@Composable
+fun LogViewerSearchInput(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    OutlinedTextField(
+        value = searchQuery,
+        onValueChange = onSearchQueryChange,
+        placeholder = { Text("Filter logs by tag or text...", fontSize = 13.sp) },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFCAC4D0)) },
+        trailingIcon = {
+            if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { onSearchQueryChange("") }) {
+                    Icon(Icons.Default.Close, contentDescription = "Clear search", tint = Color(0xFFCAC4D0))
+                }
+            }
+        },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+        modifier = Modifier.fillMaxWidth().testTag("log_search_input"),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Color(0xFFD0BCFF),
+            unfocusedBorderColor = Color(0xFF49454F),
+            focusedContainerColor = Color(0xFF2B2930),
+            unfocusedContainerColor = Color(0xFF2B2930),
+            focusedTextColor = Color(0xFFE6E1E5),
+            unfocusedTextColor = Color(0xFFE6E1E5)
+        )
+    )
+}
+
+@Composable
+fun LogViewerPriorityFilterChip(
+    priorityVal: Int,
+    label: String,
+    isSelected: Boolean,
+    onSelectPriority: (Int) -> Unit
+) {
+    FilterChip(
+        selected = isSelected,
+        onClick = { onSelectPriority(priorityVal) },
+        label = { Text(label, fontSize = 12.sp) },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = Color(0xFFD0BCFF),
+            selectedLabelColor = Color(0xFF381E72),
+            containerColor = Color(0xFF2B2930),
+            labelColor = Color(0xFFCAC4D0)
+        )
+    )
+}
+
 @OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun LogViewerPriorityChips(
+    selectedPriority: Int,
+    onSelectPriority: (Int) -> Unit
+) {
+    val priorities = remember {
+        listOf(
+            -1 to "All",
+            Log.VERBOSE to "Verbose",
+            Log.DEBUG to "Debug",
+            Log.INFO to "Info",
+            Log.WARN to "Warn",
+            Log.ERROR to "Error"
+        )
+    }
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        priorities.forEach { (priorityVal, label) ->
+            LogViewerPriorityFilterChip(
+                priorityVal = priorityVal,
+                label = label,
+                isSelected = selectedPriority == priorityVal,
+                onSelectPriority = onSelectPriority
+            )
+        }
+    }
+}
+
+@Composable
+fun LogViewerCountHeader(
+    filteredLogsCount: Int,
+    totalLogsCount: Int,
+    onJumpToBottom: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Showing $filteredLogsCount of $totalLogsCount log entries",
+            color = Color(0xFFCAC4D0),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium
+        )
+        if (filteredLogsCount > 0) {
+            TextButton(
+                onClick = onJumpToBottom,
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text("Jump to Bottom", fontSize = 11.sp, color = Color(0xFFD0BCFF))
+            }
+        }
+    }
+}
+
 @Composable
 fun LogViewerTopControls(
     searchQuery: String,
@@ -281,109 +383,216 @@ fun LogViewerTopControls(
     onJumpToBottom: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val focusManager = LocalFocusManager.current
-
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 6.dp)
+        modifier = modifier.fillMaxWidth().padding(bottom = 6.dp)
     ) {
-            // Search Input Field
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = { Text("Filter logs by tag or text...", fontSize = 13.sp) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFCAC4D0)) },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search", tint = Color(0xFFCAC4D0))
-                        }
-                    }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("log_search_input"),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFD0BCFF),
-                    unfocusedBorderColor = Color(0xFF49454F),
-                    focusedContainerColor = Color(0xFF2B2930),
-                    unfocusedContainerColor = Color(0xFF2B2930),
-                    focusedTextColor = Color(0xFFE6E1E5),
-                    unfocusedTextColor = Color(0xFFE6E1E5)
-                )
+        LogViewerSearchInput(searchQuery = searchQuery, onSearchQueryChange = onSearchQueryChange)
+        LogViewerPriorityChips(selectedPriority = selectedPriority, onSelectPriority = onSelectPriority)
+        LogViewerCountHeader(
+            filteredLogsCount = filteredLogsCount,
+            totalLogsCount = totalLogsCount,
+            onJumpToBottom = onJumpToBottom
+        )
+    }
+}
+
+@Composable
+fun LogEmptyView(isLogsEmpty: Boolean) {
+    Box(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Default.Terminal, contentDescription = null, tint = Color(0xFF79747E), modifier = Modifier.size(48.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = if (isLogsEmpty) "No log entries recorded yet" else "No matching log entries found",
+                color = Color(0xFFCAC4D0),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
             )
+        }
+    }
+}
 
-            // Priority Filter Chips
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+@Composable
+fun LogViewerList(
+    filteredLogs: List<LogEntry>,
+    listState: LazyListState,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        state = listState,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier.testTag("log_entries_list")
+    ) {
+        items(
+            items = filteredLogs,
+            key = { "${it.timestamp}_${it.priority}_${it.tag}_${it.message.take(100).hashCode()}" }
+        ) { entry ->
+            LogEntryCard(entry = entry)
+        }
+    }
+}
+
+@Composable
+fun LogBadge(
+    priorityLabel: String,
+    badgeBg: Color,
+    badgeFg: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = badgeBg
+    ) {
+        Text(
+            text = priorityLabel,
+            color = badgeFg,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
+fun LogEntryHeader(
+    entry: LogEntry,
+    formattedTime: String,
+    badgeBg: Color,
+    badgeFg: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            LogBadge(priorityLabel = entry.priorityLabel(), badgeBg = badgeBg, badgeFg = badgeFg)
+            Text(
+                text = entry.tag ?: "SimklCalendar",
+                color = Color(0xFFE6E1E5),
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+        }
+        Text(
+            text = formattedTime,
+            color = Color(0xFF938F99),
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+@Composable
+fun LogEntryMessage(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val isLong = remember(message) { message.length > 300 || message.count { it == '\n' } > 5 }
+
+    Column(modifier = modifier) {
+        if (!isExpanded && isLong) {
+            Text(
+                text = message.take(300) + "…",
+                color = Color(0xFFE6E1E5),
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                lineHeight = 16.sp
+            )
+            TextButton(
+                onClick = { isExpanded = true },
+                contentPadding = PaddingValues(0.dp),
+                modifier = Modifier.height(24.dp)
             ) {
-                val priorities = listOf(
-                    -1 to "All",
-                    Log.VERBOSE to "Verbose",
-                    Log.DEBUG to "Debug",
-                    Log.INFO to "Info",
-                    Log.WARN to "Warn",
-                    Log.ERROR to "Error"
-                )
-
-                priorities.forEach { (priorityVal, label) ->
-                    val isSelected = selectedPriority == priorityVal
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onSelectPriority(priorityVal) },
-                        label = { Text(label, fontSize = 12.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFD0BCFF),
-                            selectedLabelColor = Color(0xFF381E72),
-                            containerColor = Color(0xFF2B2930),
-                            labelColor = Color(0xFFCAC4D0)
-                        )
-                    )
+                Text("Show full message (${message.length} chars)", fontSize = 11.sp, color = Color(0xFFD0BCFF))
+            }
+        } else {
+            Text(
+                text = message,
+                color = Color(0xFFE6E1E5),
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                lineHeight = 16.sp
+            )
+            if (isLong) {
+                TextButton(
+                    onClick = { isExpanded = false },
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier.height(24.dp)
+                ) {
+                    Text("Show less", fontSize = 11.sp, color = Color(0xFFD0BCFF))
                 }
             }
+        }
+    }
+}
 
-            // Log Count Status Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+@Composable
+fun LogEntryStackTrace(
+    stackTrace: String,
+    modifier: Modifier = Modifier
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val isLong = remember(stackTrace) { stackTrace.length > 300 || stackTrace.count { it == '\n' } > 5 }
+
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = Color(0xFF1C1B1F),
+        modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            if (!isExpanded && isLong) {
                 Text(
-                    text = "Showing $filteredLogsCount of $totalLogsCount log entries",
-                    color = Color(0xFFCAC4D0),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                    text = stackTrace.take(300) + "…",
+                    color = Color(0xFFF2B8B5),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
                 )
-
-                if (filteredLogsCount > 0) {
+                TextButton(
+                    onClick = { isExpanded = true },
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier.height(24.dp)
+                ) {
+                    Text("Show full stack trace (${stackTrace.length} chars)", fontSize = 11.sp, color = Color(0xFFF2B8B5))
+                }
+            } else {
+                Text(
+                    text = stackTrace,
+                    color = Color(0xFFF2B8B5),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (isLong) {
                     TextButton(
-                        onClick = onJumpToBottom,
-                        contentPadding = PaddingValues(0.dp)
+                        onClick = { isExpanded = false },
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.height(24.dp)
                     ) {
-                        Text("Jump to Bottom", fontSize = 11.sp, color = Color(0xFFD0BCFF))
+                        Text("Show less", fontSize = 11.sp, color = Color(0xFFF2B8B5))
                     }
                 }
             }
+        }
     }
 }
 
 @Composable
 fun LogEntryCard(entry: LogEntry) {
-    val (badgeBg, badgeFg) = when (entry.priority) {
-        Log.ERROR -> Color(0xFF601410) to Color(0xFFF2B8B5)
-        Log.WARN -> Color(0xFF4A3800) to Color(0xFFFFDDB3)
-        Log.INFO -> Color(0xFF00382B) to Color(0xFF7CE49F)
-        Log.DEBUG -> Color(0xFF1D192B) to Color(0xFFD0BCFF)
-        else -> Color(0xFF313033) to Color(0xFFCAC4D0)
+    val (badgeBg, badgeFg) = remember(entry.priority) {
+        when (entry.priority) {
+            Log.ERROR -> Color(0xFF601410) to Color(0xFFF2B8B5)
+            Log.WARN -> Color(0xFF4A3800) to Color(0xFFFFDDB3)
+            Log.INFO -> Color(0xFF00382B) to Color(0xFF7CE49F)
+            Log.DEBUG -> Color(0xFF1D192B) to Color(0xFFD0BCFF)
+            else -> Color(0xFF313033) to Color(0xFFCAC4D0)
+        }
     }
 
     val formattedTime = remember(entry.timestamp) {
@@ -401,70 +610,41 @@ fun LogEntryCard(entry: LogEntry) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = badgeBg
-                    ) {
-                        Text(
-                            text = entry.priorityLabel(),
-                            color = badgeFg,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-
-                    Text(
-                        text = entry.tag ?: "SimklCalendar",
-                        color = Color(0xFFE6E1E5),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
-
-                Text(
-                    text = formattedTime,
-                    color = Color(0xFF938F99),
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
+            LogEntryHeader(entry = entry, formattedTime = formattedTime, badgeBg = badgeBg, badgeFg = badgeFg)
             Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = entry.message,
-                color = Color(0xFFE6E1E5),
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace,
-                lineHeight = 16.sp
-            )
-
+            LogEntryMessage(message = entry.message)
             if (!entry.throwableStackTrace.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = Color(0xFF1C1B1F),
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
-                ) {
-                    Text(
-                        text = entry.throwableStackTrace,
-                        color = Color(0xFFF2B8B5),
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
+                LogEntryStackTrace(stackTrace = entry.throwableStackTrace)
             }
         }
     }
+}
+
+@Composable
+fun ClearLogsDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Clear All Logs", fontWeight = FontWeight.Bold) },
+        text = { Text("Are you sure you want to delete all stored diagnostic logs? This action cannot be undone.") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            ) {
+                Text("Clear")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
