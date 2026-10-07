@@ -439,7 +439,8 @@ class SyncRepository @Inject constructor(
                                     type = defaultType,
                                     title = meta.title,
                                     titleRomaji = meta.titleRomaji,
-                                    poster = meta.poster
+                                    poster = meta.poster,
+                                    rating = meta.ratings?.simkl?.rating
                                 ),
                                 currentTrackedItemMap
                             )
@@ -765,181 +766,157 @@ class SyncRepository @Inject constructor(
     /**
      * Synchronizes details (ratings, poster, title, movie release dates) for all tracked watchlist items
      * that haven't been synced in the last week (or all items if force = true).
+     * Processes each media type sequentially to avoid loading all items into memory at once.
      */
     internal suspend fun syncWatchlistItemDetails(force: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
         val now = Instant.now()
         val cutoff = now.minus(7, ChronoUnit.DAYS)
 
-        val candidates = if (force) {
-            watchlistDao.getAllTrackedItems()
-        } else {
-            watchlistDao.getItemsNeedingSync(cutoff)
+        val candidateIdsByType = MediaType.entries.associateWith { type ->
+            if (force) {
+                watchlistDao.getTrackedIdsByTypes(listOf(type))
+            } else {
+                watchlistDao.getCandidateIdsByType(type, cutoff)
+            }
         }
 
-        if (candidates.isEmpty()) {
+        val allCandidateIds = candidateIdsByType.values.flatten()
+        if (allCandidateIds.isEmpty()) {
             return@withContext SyncResult()
         }
 
-        val candidateMovieIds = candidates.filter { it.type == MediaType.MOVIE }.map { it.simklId }
-        val movieExistingItemsMap = if (candidateMovieIds.isNotEmpty()) {
-            calendarDao.getCalendarEntitiesForSimklIds(candidateMovieIds).associateBy { it.primaryKey }
-        } else emptyMap()
-        val movieSettingsMap = if (candidateMovieIds.isNotEmpty()) {
-            itemDownloadSettingsDao.getSettingsBySimklIds(candidateMovieIds).associateBy { it.simklId }
-        } else emptyMap()
-
         val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
-
+        val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
         val localStatesToInsert = mutableListOf<LocalItemState>()
-        val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
 
-        fun processCalendarItem(
-            newItem: CalendarItem,
-            initialStatus: MediaStatus,
-            existingItemsMap: Map<String, CalendarItem>
-        ) {
-            val existing = existingItemsMap[newItem.primaryKey]
-            if (existing == null) {
-                val currentInsert = itemsToInsert[newItem.primaryKey]
-                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
-                localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
-                return
-            }
+        for ((type, ids) in candidateIdsByType) {
+            if (ids.isEmpty()) continue
 
-            val base = itemsToUpdate[newItem.primaryKey] ?: existing
-            val updated = base.updatedWith(newItem)
-            if (updated != base) {
-                itemsToUpdate[newItem.primaryKey] = updated
-            }
-        }
+            val currentTrackedMap = watchlistDao.getTrackedItemsBySimklIds(ids).associateBy { it.simklId }
+            val movieExistingItemsMap = if (type == MediaType.MOVIE) {
+                calendarDao.getCalendarEntitiesForSimklIds(ids).associateBy { it.primaryKey }
+            } else emptyMap()
+            val movieSettingsMap = if (type == MediaType.MOVIE) {
+                itemDownloadSettingsDao.getSettingsBySimklIds(ids).associateBy { it.simklId }
+            } else emptyMap()
 
-        val semaphore = Semaphore(16)
-        coroutineScope {
-            candidates.map { item ->
-                async {
-                    semaphore.withPermit {
-                        try {
-                            when (item.type) {
-                                MediaType.TV -> {
-                                    val details = publicSimklApiService.getTvDetails(item.simklId)
-                                    val newDetailsItem = TrackedWatchlistItem(
-                                        simklId = item.simklId,
-                                        type = MediaType.TV,
-                                        title = details.title,
-                                        poster = details.poster,
-                                        rating = details.ratings?.simkl?.rating
-                                    )
-                                    val updatedItem = item.updatedWith(newDetailsItem)
-                                    if (updatedItem != item) {
-                                        synchronized(trackedToUpdate) {
-                                            trackedToUpdate[item.simklId] = updatedItem
-                                        }
+            val semaphore = Semaphore(16)
+            coroutineScope {
+                ids.map { id ->
+                    async {
+                        semaphore.withPermit {
+                            try {
+                                val newDetailsItem = when (type) {
+                                    MediaType.TV -> {
+                                        val details = publicSimklApiService.getTvDetails(id)
+                                        TrackedWatchlistItem(
+                                            simklId = id,
+                                            type = MediaType.TV,
+                                            title = details.title,
+                                            poster = details.poster,
+                                            rating = details.ratings?.simkl?.rating
+                                        )
                                     }
-                                }
-                                MediaType.ANIME -> {
-                                    val details = publicSimklApiService.getAnimeDetails(item.simklId)
-                                    val newDetailsItem = TrackedWatchlistItem(
-                                        simklId = item.simklId,
-                                        type = MediaType.ANIME,
-                                        title = details.title,
-                                        poster = details.poster,
-                                        rating = details.ratings?.simkl?.rating
-                                    )
-                                    val updatedItem = item.updatedWith(newDetailsItem)
-                                    if (updatedItem != item) {
-                                        synchronized(trackedToUpdate) {
-                                            trackedToUpdate[item.simklId] = updatedItem
-                                        }
+                                    MediaType.ANIME -> {
+                                        val details = publicSimklApiService.getAnimeDetails(id)
+                                        val titleToUse = details.enTitle?.takeIf { it.isNotBlank() } ?: details.title
+                                        TrackedWatchlistItem(
+                                            simklId = id,
+                                            type = MediaType.ANIME,
+                                            title = titleToUse,
+                                            titleRomaji = details.title,
+                                            poster = details.poster,
+                                            rating = details.ratings?.simkl?.rating
+                                        )
                                     }
-                                }
-                                MediaType.MOVIE -> {
-                                    val details = publicSimklApiService.getMovieDetails(item.simklId)
-                                    val newDetailsItem = TrackedWatchlistItem(
-                                        simklId = item.simklId,
-                                        type = MediaType.MOVIE,
-                                        title = details.title,
-                                        poster = details.poster,
-                                        rating = details.ratings?.simkl?.rating
-                                    )
-                                    val updatedItem = item.updatedWith(newDetailsItem)
-                                    if (updatedItem != item) {
-                                        synchronized(trackedToUpdate) {
-                                            trackedToUpdate[item.simklId] = updatedItem
-                                        }
-                                    }
+                                    MediaType.MOVIE -> {
+                                        val details = publicSimklApiService.getMovieDetails(id)
 
-                                    // 1. Process Theatrical release date
-                                    val theaterRelease = details.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
-                                        DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
-                                            val status = mediaStatusResolver.resolve(
-                                                airDate = theaterInstant,
-                                                settings = movieSettingsMap[item.simklId],
-                                                mediaType = MediaType.MOVIE,
-                                                isTheaterRelease = true,
-                                                isWatched = false,
-                                                autoDownloadSettings = autoDownloadPrefs,
-                                                now = now,
-                                            )
-                                            CalendarItem(
-                                                primaryKey = "v2_${item.simklId}_theater",
-                                                simklId = item.simklId,
-                                                episodeTitle = null,
-                                                season = null,
-                                                episodeNumber = null,
-                                                date = theaterInstant,
-                                                movieReleaseType = MovieReleaseType.THEATER,
-                                                isSeasonPremiere = false,
-                                                isSeasonFinale = false,
-                                            ) to status
-                                        }
-                                    }
-
-                                    // 2. Extract Digital / DVD release date from release_dates timeline
-                                    val digitalRelease = details.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
-                                        DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
-                                            val status = mediaStatusResolver.resolve(
-                                                airDate = digitalInstant,
-                                                settings = movieSettingsMap[item.simklId],
-                                                mediaType = MediaType.MOVIE,
-                                                isTheaterRelease = false,
-                                                isWatched = false,
-                                                autoDownloadSettings = autoDownloadPrefs,
-                                                now = now,
-                                            )
-                                            CalendarItem(
-                                                primaryKey = "v2_${item.simklId}_digital",
-                                                simklId = item.simklId,
-                                                episodeTitle = null,
-                                                season = null,
-                                                episodeNumber = null,
-                                                date = digitalInstant,
-                                                movieReleaseType = MovieReleaseType.DIGITAL,
-                                                isSeasonPremiere = false,
-                                                isSeasonFinale = false,
-                                            ) to status
-                                        }
-                                    }
-
-                                    if (theaterRelease != null || digitalRelease != null) {
-                                        synchronized(itemsToInsert) {
-                                            theaterRelease?.let { (calItem, status) ->
-                                                processCalendarItem(calItem, status, movieExistingItemsMap)
-                                            }
-                                            digitalRelease?.let { (calItem, status) ->
-                                                processCalendarItem(calItem, status, movieExistingItemsMap)
+                                        // 1. Process Theatrical release date
+                                        val theaterRelease = details.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
+                                            DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
+                                                val status = mediaStatusResolver.resolve(
+                                                    airDate = theaterInstant,
+                                                    settings = movieSettingsMap[id],
+                                                    mediaType = MediaType.MOVIE,
+                                                    isTheaterRelease = true,
+                                                    isWatched = false,
+                                                    autoDownloadSettings = autoDownloadPrefs,
+                                                    now = now,
+                                                )
+                                                CalendarItem(
+                                                    primaryKey = "v2_${id}_theater",
+                                                    simklId = id,
+                                                    episodeTitle = null,
+                                                    season = null,
+                                                    episodeNumber = null,
+                                                    date = theaterInstant,
+                                                    movieReleaseType = MovieReleaseType.THEATER,
+                                                    isSeasonPremiere = false,
+                                                    isSeasonFinale = false,
+                                                ) to status
                                             }
                                         }
+
+                                        // 2. Extract Digital / DVD release date from release_dates timeline
+                                        val digitalRelease = details.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
+                                            DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
+                                                val status = mediaStatusResolver.resolve(
+                                                    airDate = digitalInstant,
+                                                    settings = movieSettingsMap[id],
+                                                    mediaType = MediaType.MOVIE,
+                                                    isTheaterRelease = false,
+                                                    isWatched = false,
+                                                    autoDownloadSettings = autoDownloadPrefs,
+                                                    now = now,
+                                                )
+                                                CalendarItem(
+                                                    primaryKey = "v2_${id}_digital",
+                                                    simklId = id,
+                                                    episodeTitle = null,
+                                                    season = null,
+                                                    episodeNumber = null,
+                                                    date = digitalInstant,
+                                                    movieReleaseType = MovieReleaseType.DIGITAL,
+                                                    isSeasonPremiere = false,
+                                                    isSeasonFinale = false,
+                                                ) to status
+                                            }
+                                        }
+
+                                        if (theaterRelease != null || digitalRelease != null) {
+                                            synchronized(itemsToInsert) {
+                                                theaterRelease?.let { (calItem, status) ->
+                                                    processCalendarItem(calItem, status, movieExistingItemsMap, itemsToInsert, itemsToUpdate, localStatesToInsert)
+                                                }
+                                                digitalRelease?.let { (calItem, status) ->
+                                                    processCalendarItem(calItem, status, movieExistingItemsMap, itemsToInsert, itemsToUpdate, localStatesToInsert)
+                                                }
+                                            }
+                                        }
+
+                                        TrackedWatchlistItem(
+                                            simklId = id,
+                                            type = MediaType.MOVIE,
+                                            title = details.title,
+                                            poster = details.poster,
+                                            rating = details.ratings?.simkl?.rating
+                                        )
                                     }
                                 }
+
+                                synchronized(trackedToUpdate) {
+                                    processTrackedItem(newDetailsItem, currentTrackedMap, trackedToUpdate)
+                                }
+                            } catch (e: Exception) {
+                                Timber.tag("SyncRepository").e(e, "Failed fetching details for $type $id")
                             }
-                        } catch (e: Exception) {
-                            Timber.tag("SyncRepository").e(e, "Failed fetching details for ${item.type} ${item.simklId}")
                         }
                     }
-                }
-            }.awaitAll()
+                }.awaitAll()
+            }
         }
 
         if (trackedToUpdate.isNotEmpty()) {
@@ -956,8 +933,7 @@ class SyncRepository @Inject constructor(
             calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
         }
 
-        val candidateIds = candidates.map { it.simklId }
-        watchlistDao.updateLastSyncedAt(candidateIds, now)
+        watchlistDao.updateLastSyncedAt(allCandidateIds, now)
 
         val hasCalendarItemChanges = itemsToInsert.isNotEmpty() || itemsToUpdate.isNotEmpty()
         val hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }
@@ -967,6 +943,42 @@ class SyncRepository @Inject constructor(
             hasCalendarItemChanges = hasCalendarItemChanges,
             hasWantedItems = hasWantedItems,
         )
+    }
+
+    private fun processCalendarItem(
+        newItem: CalendarItem,
+        initialStatus: MediaStatus,
+        existingItemsMap: Map<String, CalendarItem>,
+        itemsToInsert: MutableMap<String, CalendarItem>,
+        itemsToUpdate: MutableMap<String, CalendarItem>,
+        localStatesToInsert: MutableList<LocalItemState>
+    ) {
+        val existing = existingItemsMap[newItem.primaryKey]
+        if (existing == null) {
+            val currentInsert = itemsToInsert[newItem.primaryKey]
+            itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+            localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
+            return
+        }
+
+        val base = itemsToUpdate[newItem.primaryKey] ?: existing
+        val updated = base.updatedWith(newItem)
+        if (updated != base) {
+            itemsToUpdate[newItem.primaryKey] = updated
+        }
+    }
+
+    private fun processTrackedItem(
+        newItem: TrackedWatchlistItem,
+        trackedItemMap: Map<Int, TrackedWatchlistItem>,
+        trackedToUpdate: MutableMap<Int, TrackedWatchlistItem>
+    ) {
+        val existing = trackedItemMap[newItem.simklId] ?: return
+        val base = trackedToUpdate[newItem.simklId] ?: existing
+        val updated = base.updatedWith(newItem)
+        if (updated != base) {
+            trackedToUpdate[newItem.simklId] = updated
+        }
     }
 
     /**

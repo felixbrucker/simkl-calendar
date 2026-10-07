@@ -223,6 +223,9 @@ interface WatchlistDao {
     @Query("SELECT * FROM tracked_watchlist_items WHERE lastSyncedAt IS NULL OR lastSyncedAt < :cutoff")
     suspend fun getItemsNeedingSync(cutoff: Instant): List<TrackedWatchlistItem>
 
+    @Query("SELECT simklId FROM tracked_watchlist_items WHERE type = :type AND (lastSyncedAt IS NULL OR lastSyncedAt < :cutoff)")
+    suspend fun getCandidateIdsByType(type: MediaType, cutoff: Instant): List<Int>
+
     @Query("UPDATE tracked_watchlist_items SET lastSyncedAt = :lastSyncedAt WHERE simklId IN (:simklIds)")
     suspend fun updateLastSyncedAt(simklIds: List<Int>, lastSyncedAt: Instant)
 

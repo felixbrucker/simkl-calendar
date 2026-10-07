@@ -132,10 +132,15 @@ class RatingsSyncTest {
 
     @Test
     fun testSyncWatchlistItemDetailsFetchesCandidatesAndUpdatesDetails() = runTest {
+        coEvery { watchlistDao.getCandidateIdsByType(MediaType.MOVIE, any()) } returns listOf(10)
+        coEvery { watchlistDao.getCandidateIdsByType(MediaType.TV, any()) } returns listOf(20)
+        coEvery { watchlistDao.getCandidateIdsByType(MediaType.ANIME, any()) } returns listOf(30)
         val movieItem = TrackedWatchlistItem(simklId = 10, type = MediaType.MOVIE, title = "Movie", rating = null)
         val tvItem = TrackedWatchlistItem(simklId = 20, type = MediaType.TV, title = "TV Show", rating = null)
         val animeItem = TrackedWatchlistItem(simklId = 30, type = MediaType.ANIME, title = "Anime", rating = null)
-        coEvery { watchlistDao.getItemsNeedingSync(any()) } returns listOf(movieItem, tvItem, animeItem)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(10)) } returns listOf(movieItem)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(20)) } returns listOf(tvItem)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(30)) } returns listOf(animeItem)
         coEvery { publicApiService.getMovieDetails(10) } returns SimklMovieDetailResponse(
             title = "Movie Updated",
             ratings = SimklRatings(simkl = SimklRating(rating = 8.4)),
@@ -167,12 +172,42 @@ class RatingsSyncTest {
         assertEquals(9.1, tvRating!!, 0.01)
         assertEquals(7.8, animeRating!!, 0.01)
         assertEquals(true, hasChanges)
-        coVerify { watchlistDao.updateLastSyncedAt(listOf(10, 20, 30), any()) }
+        coVerify { watchlistDao.updateLastSyncedAt(listOf(20, 30, 10), any()) }
+    }
+
+    @Test
+    fun testSyncWatchlistItemDetailsForAnimeWithEnTitle() = runTest {
+        coEvery { watchlistDao.getCandidateIdsByType(MediaType.TV, any()) } returns emptyList()
+        coEvery { watchlistDao.getCandidateIdsByType(MediaType.ANIME, any()) } returns listOf(30)
+        coEvery { watchlistDao.getCandidateIdsByType(MediaType.MOVIE, any()) } returns emptyList()
+        val animeItem = TrackedWatchlistItem(simklId = 30, type = MediaType.ANIME, title = "Shingeki no Kyojin", rating = null)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(30)) } returns listOf(animeItem)
+        coEvery { publicApiService.getAnimeDetails(30) } returns SimklAnimeDetailResponse(
+            title = "Shingeki no Kyojin",
+            enTitle = "Attack on Titan",
+            ratings = SimklRatings(simkl = SimklRating(rating = 9.0)),
+            ids = SimklIds(simkl = 30)
+        )
+        val updatedSlot = slot<List<TrackedWatchlistItem>>()
+        coEvery { watchlistDao.updateItems(capture(updatedSlot)) } returns Unit
+
+        val syncResult = syncRepository.syncWatchlistItemDetails(force = false)
+
+        val updatedList = updatedSlot.captured
+        val updatedAnime = updatedList.first()
+        val title = updatedAnime.title
+        val titleRomaji = updatedAnime.titleRomaji
+        val rating = updatedAnime.rating
+        val hasChanges = syncResult.hasWatchlistItemChanges
+        assertEquals("Attack on Titan", title)
+        assertEquals("Shingeki no Kyojin", titleRomaji)
+        assertEquals(9.0, rating!!, 0.01)
+        assertEquals(true, hasChanges)
     }
 
     @Test
     fun testSyncWatchlistItemDetailsThrottledWhenNoCandidates() = runTest {
-        coEvery { watchlistDao.getItemsNeedingSync(any()) } returns emptyList()
+        coEvery { watchlistDao.getCandidateIdsByType(any(), any()) } returns emptyList()
 
         val syncResult = syncRepository.syncWatchlistItemDetails(force = false)
 

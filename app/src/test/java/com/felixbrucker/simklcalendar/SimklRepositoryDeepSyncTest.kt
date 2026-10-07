@@ -262,7 +262,8 @@ class SimklRepositoryDeepSyncTest {
     fun testSyncCalendarUpdatesMovieDetailsAndReleaseDates() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
         val existingTracked = listOf(TrackedWatchlistItem(simklId = 303, type = MediaType.MOVIE, title = "Old Title", poster = "old.jpg", rating = 7.0))
-        coEvery { watchlistDao.getAllTrackedItems() } returns existingTracked
+        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(303)) } returns existingTracked
         val movieDetail = SimklMovieDetailResponse(
             title = "New Movie Title",
             poster = "new_poster.jpg",
@@ -297,7 +298,7 @@ class SimklRepositoryDeepSyncTest {
     @Test
     fun testUpdateMovieDetailsThrottledWhenNoCandidatesNeedingSync() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
-        coEvery { watchlistDao.getItemsNeedingSync(any()) } returns emptyList()
+        coEvery { watchlistDao.getCandidateIdsByType(any(), any()) } returns emptyList()
 
         syncRepository.syncCalendar(force = false)
 
@@ -311,7 +312,8 @@ class SimklRepositoryDeepSyncTest {
             TrackedWatchlistItem(simklId = 303, type = MediaType.MOVIE, title = "Movie A", poster = "a.jpg", rating = 7.0),
             TrackedWatchlistItem(simklId = 304, type = MediaType.MOVIE, title = "Movie B", poster = "b.jpg", rating = 8.0)
         )
-        coEvery { watchlistDao.getAllTrackedItems() } returns existingTracked
+        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303, 304)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(303, 304)) } returns existingTracked
         val movieDetail303 = SimklMovieDetailResponse(
             title = "Movie A Updated",
             poster = "a_new.jpg",
