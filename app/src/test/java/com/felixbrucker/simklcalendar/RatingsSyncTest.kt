@@ -131,57 +131,111 @@ class RatingsSyncTest {
     }
 
     @Test
-    fun testSyncCalendarPopulatesUnratedItems() = runTest {
-        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+    fun testSyncWatchlistItemDetailsFetchesCandidatesAndUpdatesDetails() = runTest {
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.MOVIE, any()) } returns listOf(10)
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.TV, any()) } returns listOf(20)
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.ANIME, any()) } returns listOf(30)
         val movieItem = TrackedWatchlistItem(simklId = 10, type = MediaType.MOVIE, title = "Movie", rating = null)
         val tvItem = TrackedWatchlistItem(simklId = 20, type = MediaType.TV, title = "TV Show", rating = null)
         val animeItem = TrackedWatchlistItem(simklId = 30, type = MediaType.ANIME, title = "Anime", rating = null)
-        coEvery { watchlistDao.getItemsWithoutRating() } returns listOf(movieItem, tvItem, animeItem)
-
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(10)) } returns listOf(movieItem)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(20)) } returns listOf(tvItem)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(30)) } returns listOf(animeItem)
         coEvery { publicApiService.getMovieDetails(10) } returns SimklMovieDetailResponse(
-            title = "Movie",
+            title = "Movie Updated",
             ratings = SimklRatings(simkl = SimklRating(rating = 8.4)),
             ids = SimklIds(simkl = 10)
         )
         coEvery { publicApiService.getTvDetails(20) } returns SimklTvDetailResponse(
-            title = "TV Show",
+            title = "TV Show Updated",
             ratings = SimklRatings(simkl = SimklRating(rating = 9.1)),
             ids = SimklIds(simkl = 20)
         )
         coEvery { publicApiService.getAnimeDetails(30) } returns SimklAnimeDetailResponse(
-            title = "Anime",
+            title = "Anime Updated",
             ratings = SimklRatings(simkl = SimklRating(rating = 7.8)),
             ids = SimklIds(simkl = 30)
         )
-
         val updatedSlot = slot<List<TrackedWatchlistItem>>()
         coEvery { watchlistDao.updateItems(capture(updatedSlot)) } returns Unit
 
-        syncRepository.syncCalendar(force = false)
+        val syncResult = syncRepository.syncWatchlistItemDetails(force = false)
 
         val updatedList = updatedSlot.captured
         val size = updatedList.size
         val movieRating = updatedList.find { it.simklId == 10 }?.rating
         val tvRating = updatedList.find { it.simklId == 20 }?.rating
         val animeRating = updatedList.find { it.simklId == 30 }?.rating
-
+        val hasChanges = syncResult.hasWatchlistItemChanges
         assertEquals(3, size)
         assertEquals(8.4, movieRating!!, 0.01)
         assertEquals(9.1, tvRating!!, 0.01)
         assertEquals(7.8, animeRating!!, 0.01)
+        assertEquals(true, hasChanges)
+        coVerify { watchlistDao.updateLastSyncedAt(listOf(20, 30, 10), any()) }
     }
 
     @Test
-    fun testUpdateRatingsThrottledByWeeklyTimestamp() = runTest {
-        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
-        val nowMillis = System.currentTimeMillis()
-        val recentTimestamp = nowMillis - (2 * 24 * 60 * 60 * 1000L)
-        every { syncMetadataRepo.preferencesFlow } returns flowOf(SyncMetadataPreferences(lastRatingsUpdate = recentTimestamp))
-        coEvery { watchlistDao.getItemsWithoutRating() } returns emptyList()
+    fun testSyncWatchlistItemDetailsForAnimePreservesExistingTitleAndSetsRomajiTitle() = runTest {
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.TV, any()) } returns emptyList()
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.ANIME, any()) } returns listOf(30)
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.MOVIE, any()) } returns emptyList()
+        val animeItem = TrackedWatchlistItem(simklId = 30, type = MediaType.ANIME, title = "Attack on Titan", rating = null)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(30)) } returns listOf(animeItem)
+        coEvery { publicApiService.getAnimeDetails(30) } returns SimklAnimeDetailResponse(
+            title = "Shingeki no Kyojin",
+            ratings = SimklRatings(simkl = SimklRating(rating = 9.0)),
+            ids = SimklIds(simkl = 30)
+        )
+        val updatedSlot = slot<List<TrackedWatchlistItem>>()
+        coEvery { watchlistDao.updateItems(capture(updatedSlot)) } returns Unit
 
-        syncRepository.syncCalendar(force = false)
+        val syncResult = syncRepository.syncWatchlistItemDetails(force = false)
 
-        coVerify(exactly = 0) { syncMetadataRepo.setLastRatingsUpdate(any()) }
+        val updatedList = updatedSlot.captured
+        val updatedAnime = updatedList.first()
+        val title = updatedAnime.title
+        val titleRomaji = updatedAnime.titleRomaji
+        val rating = updatedAnime.rating
+        val hasChanges = syncResult.hasWatchlistItemChanges
+        assertEquals("Attack on Titan", title)
+        assertEquals("Shingeki no Kyojin", titleRomaji)
+        assertEquals(9.0, rating!!, 0.01)
+        assertEquals(true, hasChanges)
+    }
+
+    @Test
+    fun testSyncWatchlistItemDetailsThrottledWhenNoCandidates() = runTest {
+        coEvery { watchlistDao.getItemIdsNeedingSync(any(), any()) } returns emptyList()
+
+        val syncResult = syncRepository.syncWatchlistItemDetails(force = false)
+
+        val hasChanges = syncResult.hasWatchlistItemChanges
+        assertEquals(false, hasChanges)
+        coVerify(exactly = 0) { watchlistDao.updateItems(any()) }
+        coVerify(exactly = 0) { watchlistDao.updateLastSyncedAt(any(), any()) }
+    }
+
+    @Test
+    fun testSyncWatchlistItemDetailsDoesNotUpdateLastSyncedAtOnException() = runTest {
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.TV, any()) } returns listOf(20, 21)
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.ANIME, any()) } returns emptyList()
+        coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.MOVIE, any()) } returns emptyList()
+        val tvItem1 = TrackedWatchlistItem(simklId = 20, type = MediaType.TV, title = "TV Show 1", rating = null)
+        val tvItem2 = TrackedWatchlistItem(simklId = 21, type = MediaType.TV, title = "TV Show 2", rating = null)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(20, 21)) } returns listOf(tvItem1, tvItem2)
+        coEvery { publicApiService.getTvDetails(20) } returns SimklTvDetailResponse(
+            title = "TV Show 1 Updated",
+            ratings = SimklRatings(simkl = SimklRating(rating = 8.0)),
+            ids = SimklIds(simkl = 20)
+        )
+        coEvery { publicApiService.getTvDetails(21) } throws RuntimeException("Network Error")
+
+        val syncResult = syncRepository.syncWatchlistItemDetails(force = false)
+
+        val hasChanges = syncResult.hasWatchlistItemChanges
+        assertEquals(true, hasChanges)
+        coVerify { watchlistDao.updateLastSyncedAt(listOf(20), any()) }
     }
 
     @Test

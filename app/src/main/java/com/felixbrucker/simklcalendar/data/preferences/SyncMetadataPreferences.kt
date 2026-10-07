@@ -22,8 +22,6 @@ val Context.syncMetadataDataStore: DataStore<Preferences> by preferencesDataStor
 data class SyncMetadataPreferences(
     val lastCalendarJsonSync: Long = 0L,
     val lastActivitiesAll: String? = null,
-    val lastRatingsUpdate: Long = 0L,
-    val lastMovieDetailsUpdate: Long = 0L,
     val calendarLastModifiedAt: Map<String, Long> = emptyMap(),
     val calendarLastModifiedHeader: Map<String, String> = emptyMap()
 )
@@ -37,8 +35,6 @@ class SyncMetadataRepository @Inject constructor(
     companion object {
         private val KEY_LAST_CALENDAR_JSON_SYNC = longPreferencesKey("last_calendar_json_sync")
         private val KEY_LAST_ACTIVITIES_ALL = stringPreferencesKey("last_activities_all")
-        private val KEY_LAST_RATINGS_UPDATE = longPreferencesKey("last_ratings_update")
-        private val KEY_LAST_MOVIE_DETAILS_UPDATE = longPreferencesKey("last_movie_details_update")
     }
 
     val preferencesFlow: Flow<SyncMetadataPreferences> = dataStore.data.map { preferences ->
@@ -56,8 +52,6 @@ class SyncMetadataRepository @Inject constructor(
         SyncMetadataPreferences(
             lastCalendarJsonSync = preferences[KEY_LAST_CALENDAR_JSON_SYNC] ?: 0L,
             lastActivitiesAll = preferences[KEY_LAST_ACTIVITIES_ALL],
-            lastRatingsUpdate = preferences[KEY_LAST_RATINGS_UPDATE] ?: 0L,
-            lastMovieDetailsUpdate = preferences[KEY_LAST_MOVIE_DETAILS_UPDATE] ?: 0L,
             calendarLastModifiedAt = calendarLastModifiedAt,
             calendarLastModifiedHeader = calendarLastModifiedHeader
         )
@@ -65,14 +59,6 @@ class SyncMetadataRepository @Inject constructor(
 
     suspend fun setLastCalendarJsonSync(timestamp: Long) {
         dataStore.edit { it[KEY_LAST_CALENDAR_JSON_SYNC] = timestamp }
-    }
-
-    suspend fun setLastRatingsUpdate(timestamp: Long) {
-        dataStore.edit { it[KEY_LAST_RATINGS_UPDATE] = timestamp }
-    }
-
-    suspend fun setLastMovieDetailsUpdate(timestamp: Long) {
-        dataStore.edit { it[KEY_LAST_MOVIE_DETAILS_UPDATE] = timestamp }
     }
 
     suspend fun setLastActivitiesAll(timestamp: String?) {

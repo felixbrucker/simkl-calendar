@@ -414,6 +414,7 @@ fun DetailHeader(
     modifier: Modifier = Modifier,
     rating: Double? = null,
     titleRomaji: String? = null,
+    hasUniqueTitleRomaji: Boolean = !titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true),
     onTitleClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -512,10 +513,10 @@ fun DetailHeader(
                 modifier = Modifier.clickable(onClick = onTitleClick)
             )
 
-            if (type == MediaType.ANIME && !titleRomaji.isNullOrBlank()) {
+            if (hasUniqueTitleRomaji) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = titleRomaji,
+                    text = titleRomaji!!,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
                     color = Color(0xFFCAC4D0)

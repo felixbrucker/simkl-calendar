@@ -121,7 +121,8 @@ data class NotificationSetting(
     tableName = "tracked_watchlist_items",
     indices = [
         Index(value = ["type"]),
-        Index(value = ["title"])
+        Index(value = ["title"]),
+        Index(value = ["lastSyncedAt"])
     ]
 )
 data class TrackedWatchlistItem(
@@ -130,22 +131,28 @@ data class TrackedWatchlistItem(
     val title: String,
     val titleRomaji: String? = null, // Romaji title for anime
     val poster: String? = null, // URL for show poster image
-    val rating: Double? = null // Simkl rating (e.g. 8.2)
+    val rating: Double? = null, // Simkl rating (e.g. 8.2)
+    val lastSyncedAt: Instant? = null
 ) {
     companion object
+
+    val hasUniqueTitleRomaji: Boolean
+        get() = !titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true)
 
     fun updatedWith(newItem: TrackedWatchlistItem): TrackedWatchlistItem {
         val newTitle = newItem.title.ifBlank { this.title }
         val newRomaji = if (!newItem.titleRomaji.isNullOrBlank()) newItem.titleRomaji else this.titleRomaji
         val newPoster = if (!newItem.poster.isNullOrBlank()) newItem.poster else this.poster
         val newRating = newItem.rating ?: this.rating
+        val newLastSyncedAt = newItem.lastSyncedAt ?: this.lastSyncedAt
 
         return this.copy(
             type = newItem.type,
             title = newTitle,
             titleRomaji = newRomaji,
             poster = newPoster,
-            rating = newRating
+            rating = newRating,
+            lastSyncedAt = newLastSyncedAt
         )
     }
 }
@@ -176,6 +183,8 @@ data class CalendarItemWithWatchlist(
     val simklId: Int get() = calendarItem.simklId
     val title: String get() = watchlistItem?.title ?: "Untitled"
     val titleRomaji: String? get() = watchlistItem?.titleRomaji
+    val hasUniqueTitleRomaji: Boolean
+        get() = watchlistItem?.hasUniqueTitleRomaji ?: (!titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true))
     val poster: String? get() = watchlistItem?.poster
     val rating: Double? get() = watchlistItem?.rating
     val type: MediaType get() = watchlistItem?.type ?: MediaType.TV

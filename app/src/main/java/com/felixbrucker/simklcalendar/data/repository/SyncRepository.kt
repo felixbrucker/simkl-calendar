@@ -47,6 +47,11 @@ internal data class SyncResult(
     val hasWantedItems: Boolean = false,
 )
 
+private data class SyncItemDetailResult(
+    val newItem: TrackedWatchlistItem,
+    val calendarItems: List<Pair<CalendarItem, MediaStatus>> = emptyList()
+)
+
 @Singleton
 class SyncRepository @Inject constructor(
     private val tokenDao: UserTokenDao,
@@ -71,18 +76,16 @@ class SyncRepository @Inject constructor(
             return@withContext
         }
         val watchlistSyncResult = syncWatchlist(forceFullSync = force)
+        val detailsSyncResult = syncWatchlistItemDetails(force = force)
         val lastJsonSyncTimestamp = syncMetadataRepo.preferencesFlow.first().lastCalendarJsonSync
         // If calendar jsons haven't been synced in >6h, sync calendar jsons
         val calendarJsonSyncResult = syncCalendarJsons(forceFullSync = force)
         // Backfill missing past episodes if month changed and > 1 day since last sync
         val backfillSyncResult = backfillPastEpisodes(lastSyncTimestamp = if (force) 0L else lastJsonSyncTimestamp)
-        populateRatings()
-        updateRatings()
-        val movieDetailsSyncResult = updateMovieDetails(force = force)
-        if (watchlistSyncResult.hasWantedItems || calendarJsonSyncResult.hasWantedItems || backfillSyncResult.hasWantedItems || movieDetailsSyncResult.hasWantedItems) {
+        if (watchlistSyncResult.hasWantedItems || detailsSyncResult.hasWantedItems || calendarJsonSyncResult.hasWantedItems || backfillSyncResult.hasWantedItems) {
             downloadRepository.searchAndDownloadWantedItems()
         }
-        if (watchlistSyncResult.hasCalendarItemChanges || calendarJsonSyncResult.hasCalendarItemChanges || backfillSyncResult.hasCalendarItemChanges || movieDetailsSyncResult.hasCalendarItemChanges) {
+        if (watchlistSyncResult.hasCalendarItemChanges || detailsSyncResult.hasCalendarItemChanges || calendarJsonSyncResult.hasCalendarItemChanges || backfillSyncResult.hasCalendarItemChanges) {
             alarmScheduler.scheduleAllItemsAiredAlarms()
         }
     }
@@ -319,6 +322,12 @@ class SyncRepository @Inject constructor(
         val localStatesToInsert = mutableListOf<LocalItemState>()
         val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
 
+        val sixHoursMillis = 6 * 60 * 60 * 1000L
+        val nowMillis = System.currentTimeMillis()
+        val nowInstant = Instant.ofEpochMilli(nowMillis)
+        val oneMonthAgo = nowInstant.minus(30, ChronoUnit.DAYS)
+        val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
+
         fun processCalendarItem(
             newItem: CalendarItem,
             initialStatus: MediaStatus,
@@ -347,15 +356,16 @@ class SyncRepository @Inject constructor(
             val base = trackedToUpdate[newItem.simklId] ?: existing
             val updated = base.updatedWith(newItem)
             if (updated != base) {
-                trackedToUpdate[newItem.simklId] = updated
+                // Set lastSyncedAt to now when adding to trackedToUpdate for TV shows and Anime because their metadata update is complete from the calendar response.
+                // Movies are excluded because they require additional handling (digital/DVD release date timeline logic) in syncWatchlistItemDetails.
+                val itemToUpdate = if (newItem.type != MediaType.MOVIE) {
+                    updated.copy(lastSyncedAt = nowInstant)
+                } else {
+                    updated
+                }
+                trackedToUpdate[newItem.simklId] = itemToUpdate
             }
         }
-
-        val sixHoursMillis = 6 * 60 * 60 * 1000L
-        val nowMillis = System.currentTimeMillis()
-        val nowInstant = Instant.ofEpochMilli(nowMillis)
-        val oneMonthAgo = nowInstant.minus(30, ChronoUnit.DAYS)
-        val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
 
         // 2. Fetch CDN Calendars for current month plus next 3 months (0..3) (TV, Anime, Movies) from data.simkl.in
         val currentCal = Calendar.getInstance()
@@ -441,7 +451,8 @@ class SyncRepository @Inject constructor(
                                     type = defaultType,
                                     title = meta.title,
                                     titleRomaji = meta.titleRomaji,
-                                    poster = meta.poster
+                                    poster = meta.poster,
+                                    rating = meta.ratings?.simkl?.rating
                                 ),
                                 currentTrackedItemMap
                             )
@@ -564,113 +575,6 @@ class SyncRepository @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.tag("SyncRepository").e(e, "Failed fetching CDN v2 calendar for $year/$month/$endpointType")
-                }
-            }
-        }
-
-        // Fetch movie details for all tracked movies missing either theatrical or DVD/digital release dates
-        val candidateMovieIds = watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE))
-
-        // Targeted fetch for movie details backfill
-        val movieExistingItemsMap = calendarDao.getCalendarEntitiesForSimklIds(candidateMovieIds).associateBy { it.primaryKey }
-        val movieSettingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(candidateMovieIds).associateBy { it.simklId }
-        val movieTrackedItemMap = watchlistDao.getTrackedItemsBySimklIds(candidateMovieIds).associateBy { it.simklId }
-
-        val moviesNeedingDetails = candidateMovieIds.filter { movieId ->
-            val hasDigital = movieExistingItemsMap.containsKey("v2_${movieId}_digital") || itemsToInsert.containsKey("v2_${movieId}_digital")
-            val hasTheater = movieExistingItemsMap.containsKey("v2_${movieId}_theater") || itemsToInsert.containsKey("v2_${movieId}_theater")
-            !hasDigital || !hasTheater
-        }
-
-        if (moviesNeedingDetails.isNotEmpty()) {
-            Timber.tag("SyncRepository").d("Fetching details for ${moviesNeedingDetails.size} movies missing release dates")
-            val semaphore = Semaphore(16)
-            val movieDetailsResults = coroutineScope {
-                moviesNeedingDetails.map { movieId ->
-                    async {
-                        semaphore.withPermit {
-                            try {
-                                val movieDetail = publicSimklApiService.getMovieDetails(movieId = movieId)
-                                movieId to movieDetail
-                            } catch (e: Exception) {
-                                Timber.tag("SyncRepository").e(e, "Failed fetching movie details for movieId $movieId")
-                                null
-                            }
-                        }
-                    }
-                }.awaitAll().filterNotNull()
-            }
-
-            for ((movieId, movieDetail) in movieDetailsResults) {
-                processTrackedItem(
-                    TrackedWatchlistItem(
-                        simklId = movieId,
-                        type = MediaType.MOVIE,
-                        title = movieDetail.title,
-                        poster = movieDetail.poster,
-                        rating = movieDetail.ratings?.simkl?.rating
-                    ),
-                    movieTrackedItemMap
-                )
-
-                // 1. Process Theatrical release date from regular released property
-                movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
-                    DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
-                        val status = mediaStatusResolver.resolve(
-                            airDate = theaterInstant,
-                            settings = movieSettingsMap[movieId],
-                            mediaType = MediaType.MOVIE,
-                            isTheaterRelease = true,
-                            isWatched = false,
-                            autoDownloadSettings = autoDownloadPrefs,
-                            now = nowInstant,
-                        )
-                        processCalendarItem(
-                            CalendarItem(
-                                primaryKey = "v2_${movieId}_theater",
-                                simklId = movieId,
-                                episodeTitle = null,
-                                season = null,
-                                episodeNumber = null,
-                                date = theaterInstant,
-                                movieReleaseType = MovieReleaseType.THEATER,
-                                isSeasonPremiere = false,
-                                isSeasonFinale = false,
-                            ),
-                            initialStatus = status,
-                            movieExistingItemsMap
-                        )
-                    }
-                }
-
-                // 2. Extract Digital / DVD release date from release_dates timeline
-                movieDetail.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
-                    DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
-                        val status = mediaStatusResolver.resolve(
-                            airDate = digitalInstant,
-                            settings = movieSettingsMap[movieId],
-                            mediaType = MediaType.MOVIE,
-                            isTheaterRelease = false,
-                            isWatched = false,
-                            autoDownloadSettings = autoDownloadPrefs,
-                            now = nowInstant,
-                        )
-                        processCalendarItem(
-                            CalendarItem(
-                                primaryKey = "v2_${movieId}_digital",
-                                simklId = movieId,
-                                episodeTitle = null,
-                                season = null,
-                                episodeNumber = null,
-                                date = digitalInstant,
-                                movieReleaseType = MovieReleaseType.DIGITAL,
-                                isSeasonPremiere = false,
-                                isSeasonFinale = false,
-                            ),
-                            initialStatus = status,
-                            movieExistingItemsMap
-                        )
-                    }
                 }
             }
         }
@@ -871,227 +775,171 @@ class SyncRepository @Inject constructor(
         )
     }
 
-    private suspend fun fetchRating(item: TrackedWatchlistItem): Double? {
-        return try {
-            when (item.type) {
-                MediaType.MOVIE -> publicSimklApiService.getMovieDetails(item.simklId).ratings?.simkl?.rating
-                MediaType.TV -> publicSimklApiService.getTvDetails(item.simklId).ratings?.simkl?.rating
-                MediaType.ANIME -> publicSimklApiService.getAnimeDetails(item.simklId).ratings?.simkl?.rating
-            }
-        } catch (e: Exception) {
-            Timber.tag("SyncRepository").e(e, "Failed to fetch rating for ${item.type} ${item.simklId}")
-            null
-        }
-    }
-
-    private suspend fun populateRatings() = withContext(Dispatchers.IO) {
-        val unratedItems = watchlistDao.getItemsWithoutRating()
-        if (unratedItems.isEmpty()) return@withContext
-
-        val semaphore = Semaphore(16)
-        val updatedItems = coroutineScope {
-            unratedItems.map { item ->
-                async {
-                    semaphore.withPermit {
-                        val rating = fetchRating(item)
-                        if (rating != null) item.copy(rating = rating) else null
-                    }
-                }
-            }.awaitAll().filterNotNull()
-        }
-
-        if (updatedItems.isNotEmpty()) {
-            watchlistDao.updateItems(updatedItems)
-            Timber.tag("SyncRepository").d("Populated ratings for ${updatedItems.size} watchlist items")
-        }
-    }
-
-    private suspend fun updateRatings() = withContext(Dispatchers.IO) {
-        val sevenDaysMillis = 7 * 24 * 60 * 60 * 1000L
-        val nowMillis = System.currentTimeMillis()
-        val lastUpdate = syncMetadataRepo.preferencesFlow.first().lastRatingsUpdate
-
-        if (nowMillis - lastUpdate < sevenDaysMillis) {
-            return@withContext
-        }
-
-        val allItems = watchlistDao.getAllTrackedItems()
-        if (allItems.isEmpty()) return@withContext
-
-        val semaphore = Semaphore(16)
-        val updatedItems = coroutineScope {
-            allItems.map { item ->
-                async {
-                    semaphore.withPermit {
-                        val rating = fetchRating(item)
-                        if (rating != null && rating != item.rating) item.copy(rating = rating) else null
-                    }
-                }
-            }.awaitAll().filterNotNull()
-        }
-
-        if (updatedItems.isNotEmpty()) {
-            watchlistDao.updateItems(updatedItems)
-            Timber.tag("SyncRepository").d("Updated ratings for ${updatedItems.size} watchlist items")
-        }
-        syncMetadataRepo.setLastRatingsUpdate(nowMillis)
-    }
-
     /**
-     * Periodically updates movie details (theatrical release, digital/DVD release dates, title, poster, rating)
-     * for all tracked movies to catch any changed release dates or metadata updates.
+     * Synchronizes details (ratings, poster, title, movie release dates) for all tracked watchlist items
+     * that haven't been synced in the last week (or all items if force = true).
+     * Processes each media type sequentially to avoid loading all items into memory at once.
      */
-    private suspend fun updateMovieDetails(force: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
-        val sevenDaysMillis = 7 * 24 * 60 * 60 * 1000L
-        val nowMillis = System.currentTimeMillis()
-        val lastUpdate = syncMetadataRepo.preferencesFlow.first().lastMovieDetailsUpdate
+    internal suspend fun syncWatchlistItemDetails(force: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
+        val now = Instant.now()
+        val cutoff = now.minus(7, ChronoUnit.DAYS)
 
-        if (!force && (nowMillis - lastUpdate < sevenDaysMillis)) {
+        val candidateIdsByType = MediaType.entries.associateWith { type ->
+            if (force) {
+                watchlistDao.getTrackedIdsByTypes(listOf(type))
+            } else {
+                watchlistDao.getItemIdsNeedingSync(type, cutoff)
+            }
+        }
+
+        val allCandidateIds = candidateIdsByType.values.flatten()
+        if (allCandidateIds.isEmpty()) {
             return@withContext SyncResult()
         }
 
-        val candidateMovieIds = watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE))
-        if (candidateMovieIds.isEmpty()) {
-            syncMetadataRepo.setLastMovieDetailsUpdate(nowMillis)
-            return@withContext SyncResult()
-        }
-
-        val movieExistingItemsMap = calendarDao.getCalendarEntitiesForSimklIds(candidateMovieIds).associateBy { it.primaryKey }
-        val movieSettingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(candidateMovieIds).associateBy { it.simklId }
-        val movieTrackedItemMap = watchlistDao.getTrackedItemsBySimklIds(candidateMovieIds).associateBy { it.simklId }
         val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
-        val nowInstant = Instant.ofEpochMilli(nowMillis)
-
+        val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
         val itemsToInsert = mutableMapOf<String, CalendarItem>()
         val itemsToUpdate = mutableMapOf<String, CalendarItem>()
         val localStatesToInsert = mutableListOf<LocalItemState>()
-        val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
+        val successfullySyncedIds = mutableListOf<Int>()
 
-        fun processCalendarItem(
-            newItem: CalendarItem,
-            initialStatus: MediaStatus,
-            existingItemsMap: Map<String, CalendarItem>
-        ) {
-            val existing = existingItemsMap[newItem.primaryKey]
-            if (existing == null) {
-                val currentInsert = itemsToInsert[newItem.primaryKey]
-                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
-                localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
-                return
-            }
+        for ((type, ids) in candidateIdsByType) {
+            if (ids.isEmpty()) continue
 
-            val base = itemsToUpdate[newItem.primaryKey] ?: existing
-            val updated = base.updatedWith(newItem)
-            if (updated != base) {
-                itemsToUpdate[newItem.primaryKey] = updated
-            }
-        }
+            val currentTrackedMap = watchlistDao.getTrackedItemsBySimklIds(ids).associateBy { it.simklId }
+            val movieExistingItemsMap = if (type == MediaType.MOVIE) {
+                calendarDao.getCalendarEntitiesForSimklIds(ids).associateBy { it.primaryKey }
+            } else emptyMap()
+            val movieSettingsMap = if (type == MediaType.MOVIE) {
+                itemDownloadSettingsDao.getSettingsBySimklIds(ids).associateBy { it.simklId }
+            } else emptyMap()
 
-        fun processTrackedItem(
-            newItem: TrackedWatchlistItem,
-            trackedItemMap: Map<Int, TrackedWatchlistItem>
-        ) {
-            val existing = trackedItemMap[newItem.simklId] ?: return
-            val base = trackedToUpdate[newItem.simklId] ?: existing
-            val updated = base.updatedWith(newItem)
-            if (updated != base) {
-                trackedToUpdate[newItem.simklId] = updated
-            }
-        }
+            val semaphore = Semaphore(16)
+            val results = coroutineScope {
+                ids.map { id ->
+                    async {
+                        semaphore.withPermit {
+                            try {
+                                when (type) {
+                                    MediaType.TV -> {
+                                        val details = publicSimklApiService.getTvDetails(id)
+                                        val newItem = TrackedWatchlistItem(
+                                            simklId = id,
+                                            type = MediaType.TV,
+                                            title = details.title,
+                                            poster = details.poster,
+                                            rating = details.ratings?.simkl?.rating
+                                        )
+                                        SyncItemDetailResult(newItem = newItem)
+                                    }
+                                    MediaType.ANIME -> {
+                                        val details = publicSimklApiService.getAnimeDetails(id)
+                                        // For anime, details.title is the Romaji title and no consistent English title is available from the detail API response.
+                                        // We preserve the existing title (from watchlist or calendar JSON metadata) and set titleRomaji = details.title.
+                                        val existingTitle = currentTrackedMap[id]?.title ?: details.title
+                                        val newItem = TrackedWatchlistItem(
+                                            simklId = id,
+                                            type = MediaType.ANIME,
+                                            title = existingTitle,
+                                            titleRomaji = details.title,
+                                            poster = details.poster,
+                                            rating = details.ratings?.simkl?.rating
+                                        )
+                                        SyncItemDetailResult(newItem = newItem)
+                                    }
+                                    MediaType.MOVIE -> {
+                                        val details = publicSimklApiService.getMovieDetails(id)
+                                        val newItem = TrackedWatchlistItem(
+                                            simklId = id,
+                                            type = MediaType.MOVIE,
+                                            title = details.title,
+                                            poster = details.poster,
+                                            rating = details.ratings?.simkl?.rating
+                                        )
 
-        val semaphore = Semaphore(16)
-        val movieDetailsResults = coroutineScope {
-            candidateMovieIds.map { movieId ->
-                async {
-                    semaphore.withPermit {
-                        try {
-                            val movieDetail = publicSimklApiService.getMovieDetails(movieId)
-                            movieId to movieDetail
-                        } catch (e: Exception) {
-                            Timber.tag("SyncRepository").e(e, "Failed fetching movie details in updateMovieDetails for movieId $movieId")
-                            null
+                                        val calItems = mutableListOf<Pair<CalendarItem, MediaStatus>>()
+
+                                        // 1. Process Theatrical release date
+                                        details.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
+                                            DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
+                                                val status = mediaStatusResolver.resolve(
+                                                    airDate = theaterInstant,
+                                                    settings = movieSettingsMap[id],
+                                                    mediaType = MediaType.MOVIE,
+                                                    isTheaterRelease = true,
+                                                    isWatched = false,
+                                                    autoDownloadSettings = autoDownloadPrefs,
+                                                    now = now,
+                                                )
+                                                calItems.add(
+                                                    CalendarItem(
+                                                        primaryKey = "v2_${id}_theater",
+                                                        simklId = id,
+                                                        episodeTitle = null,
+                                                        season = null,
+                                                        episodeNumber = null,
+                                                        date = theaterInstant,
+                                                        movieReleaseType = MovieReleaseType.THEATER,
+                                                        isSeasonPremiere = false,
+                                                        isSeasonFinale = false,
+                                                    ) to status
+                                                )
+                                            }
+                                        }
+
+                                        // 2. Extract Digital / DVD release date from release_dates timeline
+                                        details.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
+                                            DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
+                                                val status = mediaStatusResolver.resolve(
+                                                    airDate = digitalInstant,
+                                                    settings = movieSettingsMap[id],
+                                                    mediaType = MediaType.MOVIE,
+                                                    isTheaterRelease = false,
+                                                    isWatched = false,
+                                                    autoDownloadSettings = autoDownloadPrefs,
+                                                    now = now,
+                                                )
+                                                calItems.add(
+                                                    CalendarItem(
+                                                        primaryKey = "v2_${id}_digital",
+                                                        simklId = id,
+                                                        episodeTitle = null,
+                                                        season = null,
+                                                        episodeNumber = null,
+                                                        date = digitalInstant,
+                                                        movieReleaseType = MovieReleaseType.DIGITAL,
+                                                        isSeasonPremiere = false,
+                                                        isSeasonFinale = false,
+                                                    ) to status
+                                                )
+                                            }
+                                        }
+
+                                        SyncItemDetailResult(newItem = newItem, calendarItems = calItems)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Timber.tag("SyncRepository").e(e, "Failed fetching details for $type $id")
+                                null
+                            }
                         }
                     }
-                }
-            }.awaitAll().filterNotNull()
-        }
-
-        for ((movieId, movieDetail) in movieDetailsResults) {
-            processTrackedItem(
-                TrackedWatchlistItem(
-                    simklId = movieId,
-                    type = MediaType.MOVIE,
-                    title = movieDetail.title,
-                    poster = movieDetail.poster,
-                    rating = movieDetail.ratings?.simkl?.rating
-                ),
-                movieTrackedItemMap
-            )
-
-            // 1. Process Theatrical release date from regular released property
-            movieDetail.released?.takeIf { it.isNotBlank() }?.let { releasedStr ->
-                DateUtil.parseToInstant(releasedStr)?.let { theaterInstant ->
-                    val status = mediaStatusResolver.resolve(
-                        airDate = theaterInstant,
-                        settings = movieSettingsMap[movieId],
-                        mediaType = MediaType.MOVIE,
-                        isTheaterRelease = true,
-                        isWatched = false,
-                        autoDownloadSettings = autoDownloadPrefs,
-                        now = nowInstant,
-                    )
-                    processCalendarItem(
-                        CalendarItem(
-                            primaryKey = "v2_${movieId}_theater",
-                            simklId = movieId,
-                            episodeTitle = null,
-                            season = null,
-                            episodeNumber = null,
-                            date = theaterInstant,
-                            movieReleaseType = MovieReleaseType.THEATER,
-                            isSeasonPremiere = false,
-                            isSeasonFinale = false,
-                        ),
-                        initialStatus = status,
-                        movieExistingItemsMap
-                    )
-                }
+                }.awaitAll().filterNotNull()
             }
 
-            // 2. Extract Digital / DVD release date from release_dates timeline
-            movieDetail.extractDigitalOrDvdReleaseDate()?.takeIf { it.isNotBlank() }?.let { digitalStr ->
-                DateUtil.parseToInstant(digitalStr)?.let { digitalInstant ->
-                    val status = mediaStatusResolver.resolve(
-                        airDate = digitalInstant,
-                        settings = movieSettingsMap[movieId],
-                        mediaType = MediaType.MOVIE,
-                        isTheaterRelease = false,
-                        isWatched = false,
-                        autoDownloadSettings = autoDownloadPrefs,
-                        now = nowInstant,
-                    )
-                    processCalendarItem(
-                        CalendarItem(
-                            primaryKey = "v2_${movieId}_digital",
-                            simklId = movieId,
-                            episodeTitle = null,
-                            season = null,
-                            episodeNumber = null,
-                            date = digitalInstant,
-                            movieReleaseType = MovieReleaseType.DIGITAL,
-                            isSeasonPremiere = false,
-                            isSeasonFinale = false,
-                        ),
-                        initialStatus = status,
-                        movieExistingItemsMap
-                    )
+            for (res in results) {
+                successfullySyncedIds.add(res.newItem.simklId)
+                processTrackedItem(res.newItem, currentTrackedMap, trackedToUpdate)
+                for ((calItem, status) in res.calendarItems) {
+                    processCalendarItem(calItem, status, movieExistingItemsMap, itemsToInsert, itemsToUpdate, localStatesToInsert)
                 }
             }
         }
 
         if (trackedToUpdate.isNotEmpty()) {
             watchlistDao.updateItems(trackedToUpdate.values.toList())
-            Timber.tag("SyncRepository").d("Updated ${trackedToUpdate.size} changed tracked movies in DB")
+            Timber.tag("SyncRepository").d("Updated ${trackedToUpdate.size} watchlist items with details in DB")
         }
 
         if (itemsToInsert.isNotEmpty()) {
@@ -1103,7 +951,9 @@ class SyncRepository @Inject constructor(
             calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
         }
 
-        syncMetadataRepo.setLastMovieDetailsUpdate(nowMillis)
+        if (successfullySyncedIds.isNotEmpty()) {
+            watchlistDao.updateLastSyncedAt(successfullySyncedIds, now)
+        }
 
         val hasCalendarItemChanges = itemsToInsert.isNotEmpty() || itemsToUpdate.isNotEmpty()
         val hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }
@@ -1113,6 +963,42 @@ class SyncRepository @Inject constructor(
             hasCalendarItemChanges = hasCalendarItemChanges,
             hasWantedItems = hasWantedItems,
         )
+    }
+
+    private fun processCalendarItem(
+        newItem: CalendarItem,
+        initialStatus: MediaStatus,
+        existingItemsMap: Map<String, CalendarItem>,
+        itemsToInsert: MutableMap<String, CalendarItem>,
+        itemsToUpdate: MutableMap<String, CalendarItem>,
+        localStatesToInsert: MutableList<LocalItemState>
+    ) {
+        val existing = existingItemsMap[newItem.primaryKey]
+        if (existing == null) {
+            val currentInsert = itemsToInsert[newItem.primaryKey]
+            itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+            localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
+            return
+        }
+
+        val base = itemsToUpdate[newItem.primaryKey] ?: existing
+        val updated = base.updatedWith(newItem)
+        if (updated != base) {
+            itemsToUpdate[newItem.primaryKey] = updated
+        }
+    }
+
+    private fun processTrackedItem(
+        newItem: TrackedWatchlistItem,
+        trackedItemMap: Map<Int, TrackedWatchlistItem>,
+        trackedToUpdate: MutableMap<Int, TrackedWatchlistItem>
+    ) {
+        val existing = trackedItemMap[newItem.simklId] ?: return
+        val base = trackedToUpdate[newItem.simklId] ?: existing
+        val updated = base.updatedWith(newItem)
+        if (updated != base) {
+            trackedToUpdate[newItem.simklId] = updated
+        }
     }
 
     /**

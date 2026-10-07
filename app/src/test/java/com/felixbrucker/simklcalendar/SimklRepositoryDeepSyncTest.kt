@@ -185,11 +185,9 @@ class SimklRepositoryDeepSyncTest {
     }
 
     @Test
-    fun testSyncCalendarJsonsWithMovieDetails() = runTest {
+    fun testSyncCalendarJsons() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
         coEvery { watchlistDao.getAllTrackedIds() } returns listOf(101, 303)
-        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303)
-
         val v2CalendarResponse = SimklV2CalendarResponse(
             calendar = listOf(
                 SimklV2CalendarEntry(
@@ -202,29 +200,12 @@ class SimklRepositoryDeepSyncTest {
                 "101" to SimklV2Metadata(title = "TV Show 1")
             )
         )
-
         coEvery { publicApiService.getV2Calendar(any(), any(), any(), any()) } returns Response.success(v2CalendarResponse)
-
-        val movieDetail = SimklMovieDetailResponse(
-            title = "Movie 1",
-            poster = "movie_poster.jpg",
-            released = "2026-03-01",
-            releaseDates = listOf(
-                SimklMovieReleaseDateCountry(
-                    iso31661 = "US",
-                    results = listOf(
-                        SimklMovieReleaseResult(type = 4, releaseDate = "2026-04-15")
-                    )
-                )
-            ),
-            ids = SimklIds(simkl = 303)
-        )
-
-        coEvery { publicApiService.getMovieDetails(303) } returns movieDetail
 
         val result = syncRepository.syncCalendarJsons(forceFullSync = true)
 
-        assertTrue(result.hasCalendarItemChanges)
+        val hasChanges = result.hasCalendarItemChanges
+        assertTrue(hasChanges)
         coVerify { calendarDao.insertCalendarItems(any()) }
     }
 
@@ -280,8 +261,8 @@ class SimklRepositoryDeepSyncTest {
     @Test
     fun testSyncCalendarUpdatesMovieDetailsAndReleaseDates() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
-        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303)
         val existingTracked = listOf(TrackedWatchlistItem(simklId = 303, type = MediaType.MOVIE, title = "Old Title", poster = "old.jpg", rating = 7.0))
+        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303)
         coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(303)) } returns existingTracked
         val movieDetail = SimklMovieDetailResponse(
             title = "New Movie Title",
@@ -301,13 +282,13 @@ class SimklRepositoryDeepSyncTest {
         coEvery { watchlistDao.updateItems(capture(updatedTrackedSlot)) } returns Unit
 
         syncRepository.syncCalendar(force = true)
+
         val updatedTrackedList = updatedTrackedSlot.captured
         val updatedMovie = updatedTrackedList.firstOrNull { it.simklId == 303 }
         val updatedTitle = updatedMovie?.title
         val updatedPoster = updatedMovie?.poster
         val updatedRating = updatedMovie?.rating
-
-        coVerify { syncMetadataRepo.setLastMovieDetailsUpdate(any()) }
+        coVerify { watchlistDao.updateLastSyncedAt(listOf(303), any()) }
         coVerify { calendarDao.insertCalendarItems(any()) }
         assertEquals("New Movie Title", updatedTitle)
         assertEquals("new_poster.jpg", updatedPoster)
@@ -315,12 +296,9 @@ class SimklRepositoryDeepSyncTest {
     }
 
     @Test
-    fun testUpdateMovieDetailsThrottledByWeeklyTimestamp() = runTest {
+    fun testUpdateMovieDetailsThrottledWhenNoCandidatesNeedingSync() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
-        val nowMillis = System.currentTimeMillis()
-        val recentTimestamp = nowMillis - (2 * 24 * 60 * 60 * 1000L)
-        every { syncMetadataRepo.preferencesFlow } returns flowOf(SyncMetadataPreferences(lastMovieDetailsUpdate = recentTimestamp))
-        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303)
+        coEvery { watchlistDao.getItemIdsNeedingSync(any(), any()) } returns emptyList()
 
         syncRepository.syncCalendar(force = false)
 
@@ -330,11 +308,11 @@ class SimklRepositoryDeepSyncTest {
     @Test
     fun testParallelMovieDetailsFetching() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
-        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303, 304)
         val existingTracked = listOf(
             TrackedWatchlistItem(simklId = 303, type = MediaType.MOVIE, title = "Movie A", poster = "a.jpg", rating = 7.0),
             TrackedWatchlistItem(simklId = 304, type = MediaType.MOVIE, title = "Movie B", poster = "b.jpg", rating = 8.0)
         )
+        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns listOf(303, 304)
         coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(303, 304)) } returns existingTracked
         val movieDetail303 = SimklMovieDetailResponse(
             title = "Movie A Updated",
@@ -356,9 +334,9 @@ class SimklRepositoryDeepSyncTest {
         coEvery { watchlistDao.updateItems(capture(updatedTrackedSlot)) } returns Unit
 
         syncRepository.syncCalendar(force = true)
+
         val updatedTrackedList = updatedTrackedSlot.captured
         val size = updatedTrackedList.size
-
         coVerify { publicApiService.getMovieDetails(303) }
         coVerify { publicApiService.getMovieDetails(304) }
         assertEquals(2, size)
