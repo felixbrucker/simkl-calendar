@@ -466,7 +466,7 @@ fun LogEntryHeader(
     formattedTime: String,
     badgeBg: Color,
     badgeFg: Color,
-    isLong: Boolean,
+    isExpandable: Boolean,
     isExpanded: Boolean,
     onToggleExpand: () -> Unit
 ) {
@@ -494,7 +494,7 @@ fun LogEntryHeader(
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
             )
-            if (isLong) {
+            if (isExpandable) {
                 IconButton(
                     onClick = onToggleExpand,
                     modifier = Modifier.size(24.dp).padding(start = 4.dp)
@@ -513,10 +513,10 @@ fun LogEntryHeader(
 @Composable
 fun LogEntryMessage(
     message: String,
+    isLong: Boolean,
     isExpanded: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val isLong = remember(message) { message.length > 300 || message.count { it == '\n' } > 5 }
     val displayText = remember(message, isExpanded, isLong) {
         if (!isExpanded && isLong) message.take(300) + "…" else message
     }
@@ -535,10 +535,10 @@ fun LogEntryMessage(
 @Composable
 fun LogEntryStackTrace(
     stackTrace: String,
+    isLong: Boolean,
     isExpanded: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val isLong = remember(stackTrace) { stackTrace.length > 300 || stackTrace.count { it == '\n' } > 5 }
     val displayText = remember(stackTrace, isExpanded, isLong) {
         if (!isExpanded && isLong) stackTrace.take(300) + "…" else stackTrace
     }
@@ -563,12 +563,15 @@ fun LogEntryStackTrace(
 fun LogEntryCard(entry: LogEntry) {
     var isExpanded by remember { mutableStateOf(false) }
 
-    val isLong = remember(entry.message, entry.throwableStackTrace) {
-        entry.message.length > 300 ||
-                entry.message.count { it == '\n' } > 5 ||
-                (entry.throwableStackTrace != null &&
-                        (entry.throwableStackTrace.length > 300 || entry.throwableStackTrace.count { it == '\n' } > 5))
+    val isMessageLong = remember(entry.message) {
+        entry.message.length > 300 || entry.message.count { it == '\n' } > 5
     }
+
+    val isStackTraceLong = remember(entry.throwableStackTrace) {
+        entry.throwableStackTrace?.run { length > 300 || count { it == '\n' } > 5 } == true
+    }
+
+    val isExpandable = isMessageLong || isStackTraceLong
 
     val (badgeBg, badgeFg) = remember(entry.priority) {
         when (entry.priority) {
@@ -595,7 +598,7 @@ fun LogEntryCard(entry: LogEntry) {
         modifier = Modifier
             .fillMaxWidth()
             .then(
-                if (isLong) {
+                if (isExpandable) {
                     Modifier.clickable { isExpanded = !isExpanded }
                 } else {
                     Modifier
@@ -608,15 +611,23 @@ fun LogEntryCard(entry: LogEntry) {
                 formattedTime = formattedTime,
                 badgeBg = badgeBg,
                 badgeFg = badgeFg,
-                isLong = isLong,
+                isExpandable = isExpandable,
                 isExpanded = isExpanded,
                 onToggleExpand = { isExpanded = !isExpanded }
             )
             Spacer(modifier = Modifier.height(6.dp))
-            LogEntryMessage(message = entry.message, isExpanded = isExpanded)
+            LogEntryMessage(
+                message = entry.message,
+                isLong = isMessageLong,
+                isExpanded = isExpanded
+            )
             if (!entry.throwableStackTrace.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
-                LogEntryStackTrace(stackTrace = entry.throwableStackTrace, isExpanded = isExpanded)
+                LogEntryStackTrace(
+                    stackTrace = entry.throwableStackTrace,
+                    isLong = isStackTraceLong,
+                    isExpanded = isExpanded
+                )
             }
         }
     }
