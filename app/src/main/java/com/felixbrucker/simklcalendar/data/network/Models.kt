@@ -202,7 +202,6 @@ data class SimklTvDetailResponse(
 @JsonClass(generateAdapter = true)
 data class SimklAnimeDetailResponse(
     @Json(name = "title") val title: String,
-    @Json(name = "en_title") val enTitle: String? = null,
     @Json(name = "poster") val poster: String? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
     @Json(name = "ids") val ids: SimklIds

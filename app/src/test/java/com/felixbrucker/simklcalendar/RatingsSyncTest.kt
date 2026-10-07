@@ -176,15 +176,14 @@ class RatingsSyncTest {
     }
 
     @Test
-    fun testSyncWatchlistItemDetailsForAnimeWithEnTitle() = runTest {
+    fun testSyncWatchlistItemDetailsForAnimePreservesExistingTitleAndSetsRomajiTitle() = runTest {
         coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.TV, any()) } returns emptyList()
         coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.ANIME, any()) } returns listOf(30)
         coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.MOVIE, any()) } returns emptyList()
-        val animeItem = TrackedWatchlistItem(simklId = 30, type = MediaType.ANIME, title = "Shingeki no Kyojin", rating = null)
+        val animeItem = TrackedWatchlistItem(simklId = 30, type = MediaType.ANIME, title = "Attack on Titan", rating = null)
         coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(30)) } returns listOf(animeItem)
         coEvery { publicApiService.getAnimeDetails(30) } returns SimklAnimeDetailResponse(
             title = "Shingeki no Kyojin",
-            enTitle = "Attack on Titan",
             ratings = SimklRatings(simkl = SimklRating(rating = 9.0)),
             ids = SimklIds(simkl = 30)
         )

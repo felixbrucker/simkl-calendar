@@ -569,10 +569,9 @@ fun CalendarItemCard(
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    val romaji = item.titleRomaji
-                    if (item.type == MediaType.ANIME && !romaji.isNullOrBlank()) {
+                    if (item.hasUniqueTitleRomaji) {
                         Text(
-                            text = romaji,
+                            text = item.titleRomaji!!,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Normal,
                             color = Color(0xFFCAC4D0),

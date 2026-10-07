@@ -25,7 +25,6 @@ import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
 import com.felixbrucker.simklcalendar.data.preferences.SyncMetadataRepository
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.extensions.decodeHtmlEntities
 import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import kotlinx.coroutines.Dispatchers
@@ -446,14 +445,12 @@ class SyncRepository @Inject constructor(
                         val simklId = entry.simklId
                         val meta = metadataMap[simklId.toString()]
                         if (meta != null) {
-                            val metaTitle = meta.title.decodeHtmlEntities() ?: meta.title
-                            val metaRomaji = meta.titleRomaji?.decodeHtmlEntities()
                             processTrackedItem(
                                 TrackedWatchlistItem(
                                     simklId = simklId,
                                     type = defaultType,
-                                    title = metaTitle,
-                                    titleRomaji = metaRomaji,
+                                    title = meta.title,
+                                    titleRomaji = meta.titleRomaji,
                                     poster = meta.poster,
                                     rating = meta.ratings?.simkl?.rating
                                 ),
@@ -827,11 +824,10 @@ class SyncRepository @Inject constructor(
                                 when (type) {
                                     MediaType.TV -> {
                                         val details = publicSimklApiService.getTvDetails(id)
-                                        val decodedTitle = details.title.decodeHtmlEntities() ?: details.title
                                         val newItem = TrackedWatchlistItem(
                                             simklId = id,
                                             type = MediaType.TV,
-                                            title = decodedTitle,
+                                            title = details.title,
                                             poster = details.poster,
                                             rating = details.ratings?.simkl?.rating
                                         )
@@ -839,14 +835,12 @@ class SyncRepository @Inject constructor(
                                     }
                                     MediaType.ANIME -> {
                                         val details = publicSimklApiService.getAnimeDetails(id)
-                                        val rawTitle = details.enTitle?.takeIf { it.isNotBlank() } ?: details.title
-                                        val titleToUse = rawTitle.decodeHtmlEntities() ?: rawTitle
-                                        val romajiToUse = details.title.decodeHtmlEntities()
+                                        val existingTitle = currentTrackedMap[id]?.title ?: details.title
                                         val newItem = TrackedWatchlistItem(
                                             simklId = id,
                                             type = MediaType.ANIME,
-                                            title = titleToUse,
-                                            titleRomaji = romajiToUse,
+                                            title = existingTitle,
+                                            titleRomaji = details.title,
                                             poster = details.poster,
                                             rating = details.ratings?.simkl?.rating
                                         )
@@ -854,11 +848,10 @@ class SyncRepository @Inject constructor(
                                     }
                                     MediaType.MOVIE -> {
                                         val details = publicSimklApiService.getMovieDetails(id)
-                                        val decodedTitle = details.title.decodeHtmlEntities() ?: details.title
                                         val newItem = TrackedWatchlistItem(
                                             simklId = id,
                                             type = MediaType.MOVIE,
-                                            title = decodedTitle,
+                                            title = details.title,
                                             poster = details.poster,
                                             rating = details.ratings?.simkl?.rating
                                         )
@@ -1031,7 +1024,7 @@ private fun TrackedWatchlistItem.Companion.fromShowItem(item: SyncShowItem, type
     return TrackedWatchlistItem(
         simklId = media.ids.simkl,
         type = type,
-        title = media.title.decodeHtmlEntities() ?: media.title,
+        title = media.title,
         poster = media.poster
     )
 }
@@ -1042,7 +1035,7 @@ private fun TrackedWatchlistItem.Companion.fromMovieItem(item: SyncMovieItem): T
     return TrackedWatchlistItem(
         simklId = media.ids.simkl,
         type = MediaType.MOVIE,
-        title = media.title.decodeHtmlEntities() ?: media.title,
+        title = media.title,
         poster = media.poster
     )
 }

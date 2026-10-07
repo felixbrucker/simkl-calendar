@@ -513,10 +513,10 @@ fun DetailHeader(
                 modifier = Modifier.clickable(onClick = onTitleClick)
             )
 
-            if (hasUniqueTitleRomaji && !titleRomaji.isNullOrBlank()) {
+            if (hasUniqueTitleRomaji) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = titleRomaji,
+                    text = titleRomaji!!,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
                     color = Color(0xFFCAC4D0)
