@@ -835,6 +835,8 @@ class SyncRepository @Inject constructor(
                                     }
                                     MediaType.ANIME -> {
                                         val details = publicSimklApiService.getAnimeDetails(id)
+                                        // For anime, details.title is the Romaji title and no consistent English title is available from the detail API response.
+                                        // We preserve the existing title (from watchlist or calendar JSON metadata) and set titleRomaji = details.title.
                                         val existingTitle = currentTrackedMap[id]?.title ?: details.title
                                         val newItem = TrackedWatchlistItem(
                                             simklId = id,
