@@ -48,9 +48,7 @@ internal data class SyncResult(
 )
 
 private data class SyncItemDetailResult(
-    val simklId: Int,
-    val isSuccess: Boolean = false,
-    val newItem: TrackedWatchlistItem? = null,
+    val newItem: TrackedWatchlistItem,
     val calendarItems: List<Pair<CalendarItem, MediaStatus>> = emptyList()
 )
 
@@ -826,7 +824,7 @@ class SyncRepository @Inject constructor(
                                             poster = details.poster,
                                             rating = details.ratings?.simkl?.rating
                                         )
-                                        SyncItemDetailResult(simklId = id, isSuccess = true, newItem = newItem)
+                                        SyncItemDetailResult(newItem = newItem)
                                     }
                                     MediaType.ANIME -> {
                                         val details = publicSimklApiService.getAnimeDetails(id)
@@ -839,7 +837,7 @@ class SyncRepository @Inject constructor(
                                             poster = details.poster,
                                             rating = details.ratings?.simkl?.rating
                                         )
-                                        SyncItemDetailResult(simklId = id, isSuccess = true, newItem = newItem)
+                                        SyncItemDetailResult(newItem = newItem)
                                     }
                                     MediaType.MOVIE -> {
                                         val details = publicSimklApiService.getMovieDetails(id)
@@ -909,27 +907,23 @@ class SyncRepository @Inject constructor(
                                             }
                                         }
 
-                                        SyncItemDetailResult(simklId = id, isSuccess = true, newItem = newItem, calendarItems = calItems)
+                                        SyncItemDetailResult(newItem = newItem, calendarItems = calItems)
                                     }
                                 }
                             } catch (e: Exception) {
                                 Timber.tag("SyncRepository").e(e, "Failed fetching details for $type $id")
-                                SyncItemDetailResult(simklId = id, isSuccess = false)
+                                null
                             }
                         }
                     }
-                }.awaitAll()
+                }.awaitAll().filterNotNull()
             }
 
             for (res in results) {
-                if (res.isSuccess) {
-                    successfullySyncedIds.add(res.simklId)
-                    res.newItem?.let { newItem ->
-                        processTrackedItem(newItem, currentTrackedMap, trackedToUpdate)
-                    }
-                    for ((calItem, status) in res.calendarItems) {
-                        processCalendarItem(calItem, status, movieExistingItemsMap, itemsToInsert, itemsToUpdate, localStatesToInsert)
-                    }
+                successfullySyncedIds.add(res.newItem.simklId)
+                processTrackedItem(res.newItem, currentTrackedMap, trackedToUpdate)
+                for ((calItem, status) in res.calendarItems) {
+                    processCalendarItem(calItem, status, movieExistingItemsMap, itemsToInsert, itemsToUpdate, localStatesToInsert)
                 }
             }
         }
