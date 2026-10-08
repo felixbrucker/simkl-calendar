@@ -41,4 +41,8 @@ class CalendarRepository @Inject constructor(
         val newStatus = mediaStatusResolver.resolve(item)
         updateMediaStatus(calendarItem.primaryKey, newStatus)
     }
+
+    suspend fun deleteCalendarItem(primaryKey: String) = withContext(Dispatchers.IO) {
+        calendarDao.deleteCalendarItemByPrimaryKey(primaryKey)
+    }
 }

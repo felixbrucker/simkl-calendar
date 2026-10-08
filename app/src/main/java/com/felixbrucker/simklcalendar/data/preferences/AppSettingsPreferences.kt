@@ -29,7 +29,8 @@ val Context.appSettingsDataStore: DataStore<Preferences> by preferencesDataStore
 
 data class AppSettingsPreferences(
     val syncIntervalHours: Int = 12,
-    val isSentryEnabled: Boolean = true
+    val isSentryEnabled: Boolean = true,
+    val showDebugActions: Boolean = false
 )
 
 @Singleton
@@ -41,12 +42,14 @@ class AppSettingsRepository @Inject constructor(
     companion object {
         private val KEY_SYNC_INTERVAL_HOURS = intPreferencesKey("sync_interval_hours")
         private val KEY_IS_SENTRY_ENABLED = booleanPreferencesKey("is_sentry_enabled")
+        private val KEY_SHOW_DEBUG_ACTIONS = booleanPreferencesKey("show_debug_actions")
     }
 
     val preferencesFlow: Flow<AppSettingsPreferences> = dataStore.data.map { preferences ->
         AppSettingsPreferences(
             syncIntervalHours = preferences[KEY_SYNC_INTERVAL_HOURS] ?: 12,
-            isSentryEnabled = preferences[KEY_IS_SENTRY_ENABLED] ?: true
+            isSentryEnabled = preferences[KEY_IS_SENTRY_ENABLED] ?: true,
+            showDebugActions = preferences[KEY_SHOW_DEBUG_ACTIONS] ?: false
         )
     }
 
@@ -59,6 +62,12 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setIsSentryEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[KEY_IS_SENTRY_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setShowDebugActions(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[KEY_SHOW_DEBUG_ACTIONS] = enabled
         }
     }
 

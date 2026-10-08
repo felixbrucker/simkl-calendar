@@ -81,6 +81,9 @@ interface CalendarItemDao {
     @Delete
     suspend fun deleteCalendarItems(items: List<CalendarItem>)
 
+    @Query("DELETE FROM calendar_items WHERE primaryKey = :primaryKey")
+    suspend fun deleteCalendarItemByPrimaryKey(primaryKey: String)
+
     @Transaction
     @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
     suspend fun findItem(primaryKey: String): CalendarItemWithWatchlist?

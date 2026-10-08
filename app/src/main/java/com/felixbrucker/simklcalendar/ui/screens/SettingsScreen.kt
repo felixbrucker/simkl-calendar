@@ -691,7 +691,9 @@ fun SettingsDebugCategorySection(
             sentryEnabled = appSettings.isSentryEnabled,
             isSentryConfigured = viewModel.isSentryConfigured,
             isSentryRunning = viewModel.isSentryRunning,
+            showDebugActions = appSettings.showDebugActions,
             onUpdateSentryEnabled = { viewModel.updateSentryEnabled(it) },
+            onUpdateShowDebugActions = { viewModel.updateShowDebugActions(it) },
             onNavigateToLogViewer = onNavigateToLogViewer
         )
     }
@@ -1999,7 +2001,9 @@ fun SettingsAppLogsDiagnosticsCard(
     sentryEnabled: Boolean,
     isSentryConfigured: Boolean,
     isSentryRunning: Boolean,
+    showDebugActions: Boolean,
     onUpdateSentryEnabled: (Boolean) -> Unit,
+    onUpdateShowDebugActions: (Boolean) -> Unit,
     onNavigateToLogViewer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -2037,6 +2041,36 @@ fun SettingsAppLogsDiagnosticsCard(
                 isSentryRunning = isSentryRunning,
                 onUpdateSentryEnabled = onUpdateSentryEnabled
             )
+
+            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Show Debug Actions",
+                        color = Color(0xFFE6E1E5),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        "Show debug actions like manual item deletion on release detail screen",
+                        color = Color(0xFFCAC4D0),
+                        fontSize = 12.sp
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Switch(
+                    checked = showDebugActions,
+                    onCheckedChange = onUpdateShowDebugActions,
+                    modifier = Modifier.testTag("show_debug_actions_switch")
+                )
+            }
 
             HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 

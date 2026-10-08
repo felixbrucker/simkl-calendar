@@ -75,6 +75,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateShowDebugActions(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettingsRepo.setShowDebugActions(enabled)
+        }
+    }
+
     fun updateSearchInterval(hours: Int) {
         viewModelScope.launch {
             autoDownloadRepo.setSearchIntervalHours(hours)

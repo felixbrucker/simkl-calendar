@@ -83,6 +83,7 @@ class CalendarViewModel @Inject constructor(
     private val autoDownloadRepo: AutoDownloadRepository,
     notificationRepo: NotificationRepository,
     private val uiRepo: UiRepository,
+    appSettingsRepo: AppSettingsRepository,
     private val torrentServiceHelper: TorrentServiceHelper
 ) : ViewModel() {
 
@@ -99,6 +100,9 @@ class CalendarViewModel @Inject constructor(
 
     val customSearchLinks: StateFlow<List<CustomSearchLink>> = customSearchLinkRepository.customSearchLinks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val appSettingsPreferences: StateFlow<AppSettingsPreferences> = appSettingsRepo.preferencesFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettingsPreferences())
 
     val torrentDownloads: StateFlow<Map<String, DownloadProgress>> = torrentServiceHelper.downloads
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
@@ -925,6 +929,13 @@ class CalendarViewModel @Inject constructor(
                     delay(1.seconds)
                 }
             }
+        }
+    }
+
+    fun deleteCalendarItem(primaryKey: String, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            calendarRepository.deleteCalendarItem(primaryKey)
+            onComplete()
         }
     }
 }

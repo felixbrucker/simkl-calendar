@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -71,6 +72,9 @@ fun ReleaseDetailScreen(
     val autoDownloadPrefs by viewModel.autoDownloadPreferences.collectAsState()
     val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
     val availableSubdirectories by viewModel.downloadSubdirectories.collectAsState()
+    val appSettingsPrefs by viewModel.appSettingsPreferences.collectAsState()
+
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -259,44 +263,124 @@ fun ReleaseDetailScreen(
                         }
                     )
 
-                    // Watch Actions Section
-                    if (activeItem.type != MediaType.MOVIE) {
-                        val sNum = activeItem.season ?: 1
-                        val seasonLabel = activeItem.formattedSeasonLabel
-                        val (isSeasonFullyWatched, _, _) = getSeasonWatchStatus(sNum)
+                    // Dynamic Action Buttons Section (Max 2 per row)
+                    val actions = remember(activeItem, allWatchedEpisodes, isMarkingWatched, appSettingsPrefs.showDebugActions) {
+                        val list = mutableListOf<@Composable (Modifier) -> Unit>()
 
-                        SeasonWatchButton(
-                            isMarkingWatched = isMarkingWatched,
-                            isSeasonFullyWatched = isSeasonFullyWatched,
-                            seasonLabel = seasonLabel,
-                            onMarkSeasonWatched = {
-                                viewModel.markSeasonWatched(
-                                    simklId = activeItem.simklId,
-                                    season = sNum,
-                                    mediaType = activeItem.type,
-                                    showTitle = activeItem.title
-                                ) { success, msg ->
-                                    if (success) {
-                                        scope.launch {
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = msg,
-                                                actionLabel = "Revert",
-                                                duration = SnackbarDuration.Short
-                                            )
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                viewModel.markSeasonUnwatched(
-                                                    simklId = activeItem.simklId,
-                                                    season = sNum,
-                                                    mediaType = activeItem.type,
-                                                    showTitle = activeItem.title
-                                                ) { _, revertMsg ->
-                                                    scope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                        if (activeItem.type != MediaType.MOVIE) {
+                            val sNum = activeItem.season ?: 1
+                            val seasonLabel = activeItem.formattedSeasonLabel
+                            val (isSeasonFullyWatched, _, _) = getSeasonWatchStatus(sNum)
+
+                            list.add { mod ->
+                                SeasonWatchButton(
+                                    isMarkingWatched = isMarkingWatched,
+                                    isSeasonFullyWatched = isSeasonFullyWatched,
+                                    seasonLabel = seasonLabel,
+                                    onMarkSeasonWatched = {
+                                        viewModel.markSeasonWatched(
+                                            simklId = activeItem.simklId,
+                                            season = sNum,
+                                            mediaType = activeItem.type,
+                                            showTitle = activeItem.title
+                                        ) { success, msg ->
+                                            if (success) {
+                                                scope.launch {
+                                                    val result = snackbarHostState.showSnackbar(
+                                                        message = msg,
+                                                        actionLabel = "Revert",
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        viewModel.markSeasonUnwatched(
+                                                            simklId = activeItem.simklId,
+                                                            season = sNum,
+                                                            mediaType = activeItem.type,
+                                                            showTitle = activeItem.title
+                                                        ) { _, revertMsg ->
+                                                            scope.launch { snackbarHostState.showSnackbar(revertMsg) }
+                                                        }
+                                                    }
                                                 }
+                                            } else {
+                                                scope.launch { snackbarHostState.showSnackbar(msg) }
                                             }
                                         }
-                                    } else {
-                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    },
+                                    modifier = mod
+                                )
+                            }
+                        }
+
+                        if (appSettingsPrefs.showDebugActions) {
+                            list.add { mod ->
+                                Button(
+                                    onClick = { showDeleteConfirmation = true },
+                                    modifier = mod.height(48.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF601410),
+                                        contentColor = Color(0xFFF2B8B5)
+                                    ),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Delete", fontWeight = FontWeight.Bold, maxLines = 1)
+                                }
+                            }
+                        }
+
+                        list
+                    }
+
+                    if (actions.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            actions.chunked(if (isSmallScreen) 1 else 2).forEach { rowActions ->
+                                if (rowActions.size == 2) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        rowActions.forEach { action ->
+                                            action(Modifier.weight(1f))
+                                        }
                                     }
+                                } else {
+                                    rowActions.first()(Modifier.fillMaxWidth())
+                                }
+                            }
+                        }
+                    }
+
+                    if (showDeleteConfirmation) {
+                        val episodeLabel = "${activeItem.formattedEpisodeCode}: ${activeItem.episodeTitle ?: "TBA"}"
+                        AlertDialog(
+                            onDismissRequest = { showDeleteConfirmation = false },
+                            title = { Text("Delete $episodeLabel", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5)) },
+                            text = { Text("Are you sure you want to delete this item? This action cannot be undone.", color = Color(0xFFCAC4D0)) },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        showDeleteConfirmation = false
+                                        viewModel.deleteCalendarItem(activeItem.primaryKey) {
+                                            onNavigateBack()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF8C1D40),
+                                        contentColor = Color(0xFFF2B8B5)
+                                    )
+                                ) {
+                                    Text("Delete")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showDeleteConfirmation = false }) {
+                                    Text("Cancel")
                                 }
                             }
                         )
@@ -773,7 +857,7 @@ fun SeasonWatchButton(
     Button(
         onClick = onMarkSeasonWatched,
         enabled = !isMarkingWatched && !isSeasonFullyWatched,
-        modifier = modifier.fillMaxWidth().height(48.dp),
+        modifier = modifier.height(48.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isSeasonFullyWatched) Color(0xFF2E6543) else Color(0xFF4F378B),
             contentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFFEADDFF),
