@@ -230,16 +230,16 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun testDetectAnimeTorrents() = runTest {
+    fun testDetectTorrents() = runTest {
         val viewModel = createViewModel()
         val mockResult = mockk<SearchResultItem>()
-        coEvery { downloadRepositoryMock.detectAnimeTorrents(100, "Test Anime") } returns listOf(mockResult)
+        coEvery { downloadRepositoryMock.detectTorrents(100, "Test Anime") } returns listOf(mockResult)
 
-        val results = viewModel.detectAnimeTorrents(100, "Test Anime")
+        val results = viewModel.detectTorrents(100, "Test Anime")
 
         assertEquals(1, results.size)
         assertEquals(mockResult, results[0])
-        coVerify { downloadRepositoryMock.detectAnimeTorrents(100, "Test Anime") }
+        coVerify { downloadRepositoryMock.detectTorrents(100, "Test Anime") }
     }
 
     @Test

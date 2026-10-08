@@ -44,11 +44,16 @@ class TorrentSearchManager @Inject constructor(
 
         val itemSettings = itemSettingsDao.getSettings(simklId)
 
-        val rawSearchTitle = itemSettings?.titleOverride ?: item.titleRomaji ?: item.title
-        val searchTitle = if (item.type == MediaType.ANIME) {
-            rawSearchTitle.toNormalizedAnimeTitle()
+        val titleOverride = itemSettings?.titleOverride?.takeIf { it.isNotBlank() }
+        val searchTitle = if (titleOverride != null) {
+            titleOverride
         } else {
-            rawSearchTitle
+            val baseTitle = item.titleRomaji ?: item.title
+            if (item.type == MediaType.ANIME) {
+                baseTitle.toNormalizedAnimeTitle()
+            } else {
+                baseTitle
+            }
         }
 
         return searchInternal(
@@ -61,7 +66,7 @@ class TorrentSearchManager @Inject constructor(
         )
     }
 
-    suspend fun detectAnimeTorrents(
+    suspend fun detectTorrents(
         simklId: Int,
         customTitle: String,
     ): List<SearchResultItem> {
@@ -70,14 +75,14 @@ class TorrentSearchManager @Inject constructor(
         val season = baseItem?.season ?: 1
         val episode = baseItem?.episodeNumber ?: 1
         val itemDate = baseItem?.date ?: Instant.now()
-        val searchTitle = customTitle.toNormalizedAnimeTitle()
+        val mediaType = baseItem?.type ?: MediaType.ANIME
 
         return searchInternal(
-            searchTitle = searchTitle,
+            searchTitle = customTitle,
             season = season,
             episode = episode,
             itemDate = itemDate,
-            mediaType = MediaType.ANIME,
+            mediaType = mediaType,
             itemSettings = itemSettings
         )
     }

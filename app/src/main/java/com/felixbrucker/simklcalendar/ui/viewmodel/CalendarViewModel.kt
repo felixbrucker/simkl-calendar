@@ -459,11 +459,11 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    suspend fun detectAnimeTorrents(
+    suspend fun detectTorrents(
         simklId: Int,
         customTitle: String,
     ): List<SearchResultItem> {
-        return downloadRepository.detectAnimeTorrents(simklId, customTitle)
+        return downloadRepository.detectTorrents(simklId, customTitle)
     }
 
     fun getItemDownloadSettingsFlow(simklId: Int): Flow<ItemDownloadSettings?> {

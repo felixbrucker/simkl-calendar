@@ -43,7 +43,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
-import com.felixbrucker.simklcalendar.extensions.formatAnimeSeasonTokens
+import com.felixbrucker.simklcalendar.extensions.toAnimeSeasonTokens
 import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.torrent_search_api.SearchResultItem
@@ -721,7 +721,7 @@ fun DownloadSettingsCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (mediaType == MediaType.ANIME && itemSettings?.titleOverride.isNullOrBlank()) {
+                    if (itemSettings?.titleOverride.isNullOrBlank()) {
                         OutlinedButton(
                             onClick = { showDetectDialog = true },
                             enabled = isDownloaderInstalled,
@@ -770,7 +770,12 @@ fun DownloadSettingsCard(
             }
             if (showDetectDialog) {
                 DetectTitleDialog(
-                    initialTitle = (itemTitleRomaji?.takeIf { it.isNotBlank() } ?: itemTitle).toNormalizedAnimeTitle(),
+                    initialTitle = if (mediaType == MediaType.ANIME) {
+                        (itemTitleRomaji?.takeIf { it.isNotBlank() } ?: itemTitle).toNormalizedAnimeTitle()
+                    } else {
+                        itemTitle
+                    },
+                    mediaType = mediaType,
                     animeSeason = animeSeason,
                     onSearchTorrents = onSearchTorrents,
                     onSave = { detectedTitle ->
@@ -853,6 +858,7 @@ fun DownloadSettingsCard(
 @Composable
 fun DetectTitleDialog(
     initialTitle: String,
+    mediaType: MediaType = MediaType.ANIME,
     animeSeason: Int?,
     onSearchTorrents: (suspend (String) -> List<SearchResultItem>),
     onSave: (String) -> Unit,
@@ -864,8 +870,8 @@ fun DetectTitleDialog(
     var isLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    val seasonTokenStr = if (includeSeason && animeSeason != null && animeSeason > 0) {
-        formatAnimeSeasonTokens(animeSeason)
+    val seasonTokenStr = if (mediaType == MediaType.ANIME && includeSeason && animeSeason != null && animeSeason > 0) {
+        animeSeason.toAnimeSeasonTokens()
     } else {
         ""
     }
@@ -885,7 +891,7 @@ fun DetectTitleDialog(
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(includeSeason) {
         performSearch()
     }
 
@@ -921,11 +927,13 @@ fun DetectTitleDialog(
                     isLoading = isLoading,
                 )
 
-                DetectSeasonCheckbox(
-                    includeSeason = includeSeason,
-                    animeSeason = animeSeason,
-                    onIncludeSeasonChange = { includeSeason = it }
-                )
+                if (mediaType == MediaType.ANIME) {
+                    DetectSeasonCheckbox(
+                        includeSeason = includeSeason,
+                        animeSeason = animeSeason,
+                        onIncludeSeasonChange = { includeSeason = it }
+                    )
+                }
 
                 DetectSearchResultsTable(
                     results = results,

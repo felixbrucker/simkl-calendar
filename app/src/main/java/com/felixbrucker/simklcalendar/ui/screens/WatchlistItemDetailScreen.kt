@@ -319,7 +319,7 @@ fun WatchlistItemDetailScreen(
                         isDownloaderInstalled = isDownloaderInstalled,
                         availableSubdirectories = availableSubdirectories,
                         onSaveItemDownloadSettings = { viewModel.saveItemDownloadSettings(it) },
-                        onSearchTorrents = { term -> viewModel.detectAnimeTorrents(simklId = watchlistItem.simklId, customTitle = term) },
+                        onSearchTorrents = { term -> viewModel.detectTorrents(simklId = watchlistItem.simklId, customTitle = term) },
                         modifier = Modifier.padding(16.dp),
                     )
                 }

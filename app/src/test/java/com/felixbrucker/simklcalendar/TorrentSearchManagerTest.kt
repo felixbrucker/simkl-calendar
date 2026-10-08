@@ -261,24 +261,72 @@ class TorrentSearchManagerTest {
 
 
     @Test
-    fun testDetectAnimeTorrents() = runTest {
+    fun testTorrentSearchAnimeWithTitleOverridePreservesOverrideUnnormalized() = runTest {
+        val customSettings = ItemDownloadSettings(
+            simklId = 200,
+            titleOverride = "Fate/stay night [UBW]",
+            seasonOverrides = mapOf(1 to 1),
+            qualityOverride = "1080p",
+            preferHevcOverride = false
+        )
+        coEvery { dao.getSettings(200) } returns customSettings
+        val manager = TorrentSearchManager(calendarDao, dao, autoDownloadRepository)
+        val calendarItem = CalendarItem("v2_200_1_5", 200, "Ep 5", 1, 5, Instant.now(), null, false, false)
+        val watchlistItem = TrackedWatchlistItem(200, MediaType.ANIME, "Fate/stay night", "Fate/stay night", null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+
+        val results = manager.search(item)
+        val isEmpty = results.isEmpty()
+
+        assertTrue(isEmpty)
+        coVerify { anyConstructed<NyaaProvider>().search(term = "Fate/stay night [UBW] 05 1080p", category = any(), orderBy = any()) }
+    }
+
+    @Test
+    fun testDetectTorrentsUnnormalizedCustomTitle() = runTest {
         val manager = TorrentSearchManager(calendarDao, dao, autoDownloadRepository)
         val now = Instant.now()
         val calendarItem = CalendarItem("v2_200_1_1", 200, "Ep 1", 1, 1, now, null, false, false)
         val watchlistItem = TrackedWatchlistItem(200, MediaType.ANIME, "Anime Show", null, null)
         val itemWithWatchlist = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
         coEvery { calendarDao.findFirstItemForSimklId(200) } returns itemWithWatchlist
-
         val mockResult = mockk<SearchResultItem>()
-        every { mockResult.name } returns "[SubsPlease] Boku Hero Academia S4 - 01 (1080p)"
+        every { mockResult.name } returns "[SubsPlease] Boku Hero Academia (S4 | 4th | IV) 01 (1080p)"
         every { mockResult.uploadedAt } returns now
         coEvery { anyConstructed<NyaaProvider>().search(any(), any(), any()) } returns Result.success(
             PaginatedSearchResult(listOf(mockResult), 1, false)
         )
 
-        val results = manager.detectAnimeTorrents(simklId = 200, customTitle = "Boku Hero Academia (S4 | 4th | IV)")
+        val results = manager.detectTorrents(simklId = 200, customTitle = "Boku Hero Academia (S4 | 4th | IV)")
+        val resultsSize = results.size
+        val firstResult = results[0]
 
-        assertEquals(1, results.size)
-        assertEquals(mockResult, results[0])
+        assertEquals(1, resultsSize)
+        assertEquals(mockResult, firstResult)
+        coVerify { anyConstructed<NyaaProvider>().search(term = "Boku Hero Academia (S4 | 4th | IV) 01 1080p", category = any(), orderBy = any()) }
+    }
+
+    @Test
+    fun testDetectTorrentsTVShowUsesBaseItemMediaType() = runTest {
+        val manager = TorrentSearchManager(calendarDao, dao, autoDownloadRepository)
+        val now = Instant.now()
+        val calendarItem = CalendarItem("v2_300_1_1", 300, "Pilot", 1, 1, now, null, false, false)
+        val watchlistItem = TrackedWatchlistItem(300, MediaType.TV, "TV Show", null, null)
+        val itemWithWatchlist = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+        coEvery { calendarDao.findFirstItemForSimklId(300) } returns itemWithWatchlist
+        val mockResult = mockk<SearchResultItem>()
+        every { mockResult.name } returns "TV Show S01E01 1080p"
+        every { mockResult.uploadedAt } returns now
+        coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
+            PaginatedSearchResult(listOf(mockResult), 1, false)
+        )
+
+        val results = manager.detectTorrents(simklId = 300, customTitle = "Custom TV Title [1080p]")
+        val resultsSize = results.size
+        val firstResult = results[0]
+
+        assertEquals(1, resultsSize)
+        assertEquals(mockResult, firstResult)
+        coVerify { anyConstructed<TpbProvider>().search(term = "Custom TV Title [1080p] S01E01 1080p", category = any(), orderBy = any()) }
     }
 }
