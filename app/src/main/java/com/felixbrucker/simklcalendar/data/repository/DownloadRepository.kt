@@ -12,6 +12,7 @@ import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
+import com.felixbrucker.torrent_search_api.SearchResultItem
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -38,6 +39,13 @@ class DownloadRepository @Inject constructor(
 
     fun getItemDownloadSettingsFlow(simklId: Int): Flow<ItemDownloadSettings?> {
         return itemDownloadSettingsDao.getSettingsFlow(simklId)
+    }
+
+    suspend fun detectAnimeTorrents(
+        simklId: Int,
+        customTitle: String,
+    ): List<SearchResultItem> = withContext(Dispatchers.IO) {
+        torrentSearchManager.detectAnimeTorrents(simklId, customTitle)
     }
 
     suspend fun searchAndDownloadSeason(simklId: Int, season: Int) = withContext(Dispatchers.IO) {

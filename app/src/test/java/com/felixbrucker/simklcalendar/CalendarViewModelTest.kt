@@ -8,6 +8,7 @@ import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.data.repository.*
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
+import com.felixbrucker.torrent_search_api.SearchResultItem
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -222,6 +223,19 @@ class CalendarViewModelTest {
 
         coVerify { downloadRepositoryMock.saveItemDownloadSettings(settings) }
         assertEquals("1080p", retrievedSettings?.qualityOverride)
+    }
+
+    @Test
+    fun testDetectAnimeTorrents() = runTest {
+        val viewModel = createViewModel()
+        val mockResult = mockk<SearchResultItem>()
+        coEvery { downloadRepositoryMock.detectAnimeTorrents(100, "Test Anime") } returns listOf(mockResult)
+
+        val results = viewModel.detectAnimeTorrents(100, "Test Anime")
+
+        assertEquals(1, results.size)
+        assertEquals(mockResult, results[0])
+        coVerify { downloadRepositoryMock.detectAnimeTorrents(100, "Test Anime") }
     }
 
     @Test

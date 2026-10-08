@@ -59,6 +59,10 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC")
     suspend fun getItemsForSimklId(simklId: Int): List<CalendarItemWithWatchlist>
 
+    @Transaction
+    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC LIMIT 1")
+    suspend fun findFirstItemForSimklId(simklId: Int): CalendarItemWithWatchlist?
+
     @Query("SELECT * FROM calendar_items WHERE simklId IN (:simklIds) ORDER BY date ASC")
     suspend fun getCalendarEntitiesForSimklIds(simklIds: List<Int>): List<CalendarItem>
 

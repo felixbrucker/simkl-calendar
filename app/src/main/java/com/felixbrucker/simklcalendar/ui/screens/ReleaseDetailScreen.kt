@@ -370,13 +370,16 @@ fun ReleaseDetailScreen(
                     DownloadSettingsCard(
                         simklId = activeItem.simklId,
                         itemTitle = activeItem.title,
+                        itemTitleRomaji = activeItem.titleRomaji,
+                        animeSeason = activeItem.watchlistItem?.animeSeason,
                         mediaType = activeItem.type,
                         defaultSubdirectory = activeItem.defaultDestinationSubdirectory(),
                         autoDownloadPrefs = autoDownloadPrefs,
                         itemSettings = itemSettings,
                         isDownloaderInstalled = isDownloaderInstalled,
                         availableSubdirectories = availableSubdirectories,
-                        onSaveItemDownloadSettings = { viewModel.saveItemDownloadSettings(it) }
+                        onSaveItemDownloadSettings = { viewModel.saveItemDownloadSettings(it) },
+                        onSearchTorrents = { term -> viewModel.detectAnimeTorrents(simklId = activeItem.simklId, customTitle = term) }
                     )
                 }
             }

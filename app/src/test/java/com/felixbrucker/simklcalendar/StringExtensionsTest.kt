@@ -1,8 +1,11 @@
 package com.felixbrucker.simklcalendar.data.util
 
 import com.felixbrucker.simklcalendar.extensions.cleanedForUseAsPath
+import com.felixbrucker.simklcalendar.extensions.formatAnimeSeasonTokens
 import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
+import com.felixbrucker.simklcalendar.extensions.toOrdinal
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
+import com.felixbrucker.simklcalendar.extensions.toRomanNumeral
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -122,5 +125,38 @@ class StringExtensionsTest {
             val normalized = original.toNormalizedAnimeTitle()
             assertEquals(expected, normalized)
         }
+    }
+
+    @Test
+    fun testToOrdinal() {
+        val inputList = listOf(1, 2, 3, 4, 11, 12, 13, 21, 22, 23)
+
+        val resultList = inputList.map { it.toOrdinal() }
+
+        assertEquals(
+            listOf("1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "23rd"),
+            resultList
+        )
+    }
+
+    @Test
+    fun testToRomanNumeral() {
+        val inputList = listOf(1, 2, 3, 4, 5, 9, 10, 12)
+
+        val resultList = inputList.map { it.toRomanNumeral() }
+
+        assertEquals(
+            listOf("I", "II", "III", "IV", "V", "IX", "X", "XII"),
+            resultList
+        )
+    }
+
+    @Test
+    fun testFormatAnimeSeasonTokens() {
+        val season = 4
+
+        val formattedTokens = formatAnimeSeasonTokens(season)
+
+        assertEquals("(S4 | 4th | IV)", formattedTokens)
     }
 }

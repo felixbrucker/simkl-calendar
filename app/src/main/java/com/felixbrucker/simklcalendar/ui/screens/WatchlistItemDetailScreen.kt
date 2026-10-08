@@ -310,6 +310,8 @@ fun WatchlistItemDetailScreen(
                     DownloadSettingsCard(
                         simklId = watchlistItem.simklId,
                         itemTitle = watchlistItem.title,
+                        itemTitleRomaji = watchlistItem.titleRomaji,
+                        animeSeason = watchlistItem.animeSeason,
                         mediaType = watchlistItem.type,
                         defaultSubdirectory = watchlistItem.defaultDestinationSubdirectory(),
                         autoDownloadPrefs = autoDownloadPrefs,
@@ -317,6 +319,7 @@ fun WatchlistItemDetailScreen(
                         isDownloaderInstalled = isDownloaderInstalled,
                         availableSubdirectories = availableSubdirectories,
                         onSaveItemDownloadSettings = { viewModel.saveItemDownloadSettings(it) },
+                        onSearchTorrents = { term -> viewModel.detectAnimeTorrents(simklId = watchlistItem.simklId, customTitle = term) },
                         modifier = Modifier.padding(16.dp),
                     )
                 }

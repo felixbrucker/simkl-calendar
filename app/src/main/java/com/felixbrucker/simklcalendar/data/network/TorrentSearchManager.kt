@@ -1,6 +1,8 @@
 package com.felixbrucker.simklcalendar.data.network
 
+import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
@@ -23,6 +25,7 @@ import javax.inject.Singleton
 
 @Singleton
 class TorrentSearchManager @Inject constructor(
+    private val calendarDao: CalendarItemDao,
     private val itemSettingsDao: ItemDownloadSettingsDao,
     private val autoDownloadDataSource: AutoDownloadRepository
 ) {
@@ -37,6 +40,7 @@ class TorrentSearchManager @Inject constructor(
     suspend fun search(item: CalendarItemWithWatchlist): List<SearchResultItem> {
         val simklId = item.simklId
         val season = item.season ?: 1
+        val episode = item.episodeNumber ?: 1
 
         val itemSettings = itemSettingsDao.getSettings(simklId)
 
@@ -46,8 +50,47 @@ class TorrentSearchManager @Inject constructor(
         } else {
             rawSearchTitle
         }
+
+        return searchInternal(
+            searchTitle = searchTitle,
+            season = season,
+            episode = episode,
+            itemDate = item.date,
+            mediaType = item.type,
+            itemSettings = itemSettings
+        )
+    }
+
+    suspend fun detectAnimeTorrents(
+        simklId: Int,
+        customTitle: String,
+    ): List<SearchResultItem> {
+        val baseItem = calendarDao.findFirstItemForSimklId(simklId)
+        val itemSettings = itemSettingsDao.getSettings(simklId)
+        val season = baseItem?.season ?: 1
+        val episode = baseItem?.episodeNumber ?: 1
+        val itemDate = baseItem?.date ?: Instant.now()
+        val searchTitle = customTitle.toNormalizedAnimeTitle()
+
+        return searchInternal(
+            searchTitle = searchTitle,
+            season = season,
+            episode = episode,
+            itemDate = itemDate,
+            mediaType = MediaType.ANIME,
+            itemSettings = itemSettings
+        )
+    }
+
+    private suspend fun searchInternal(
+        searchTitle: String,
+        season: Int,
+        episode: Int,
+        itemDate: Instant,
+        mediaType: MediaType,
+        itemSettings: ItemDownloadSettings?
+    ): List<SearchResultItem> {
         val searchSeason = itemSettings?.seasonOverrides?.get(season) ?: season
-        val episode = item.episodeNumber
 
         val prefs = autoDownloadDataSource.preferencesFlow.first()
         val globalQuality = prefs.quality
@@ -70,11 +113,11 @@ class TorrentSearchManager @Inject constructor(
             Keyword(listOf("DVDScr")),
         )
 
-        val searchStyle = itemSettings?.episodeSearchStyle ?: item.type.defaultEpisodeSearchStyle
+        val searchStyle = itemSettings?.episodeSearchStyle ?: mediaType.defaultEpisodeSearchStyle
 
-        val seasonAndEpisodeTerm = "S${formatTwoDigits(searchSeason)}E${formatTwoDigits(episode ?: 1)}"
-        val episodeTerm = formatTwoDigits(episode ?: 1)
-        val episodeSearchTerm = when(item.type) {
+        val seasonAndEpisodeTerm = "S${formatTwoDigits(searchSeason)}E${formatTwoDigits(episode)}"
+        val episodeTerm = formatTwoDigits(episode)
+        val episodeSearchTerm = when (mediaType) {
             MediaType.MOVIE -> ""
             else -> when (searchStyle) {
                 EpisodeSearchStyle.SeasonAndEpisode -> seasonAndEpisodeTerm
@@ -92,8 +135,8 @@ class TorrentSearchManager @Inject constructor(
             term += " $quality"
         }
 
-        val provider = if (item.type == MediaType.ANIME) nyaaProvider else tpbProvider
-        val category = if (item.type == MediaType.ANIME) Category.ANIME_ENGLISH_TRANSLATED else Category.VIDEO
+        val provider = if (mediaType == MediaType.ANIME) nyaaProvider else tpbProvider
+        val category = if (mediaType == MediaType.ANIME) Category.ANIME_ENGLISH_TRANSLATED else Category.VIDEO
 
         Timber.tag(TAG).d("Searching provider ${provider.javaClass.simpleName} with term '$term'")
 
@@ -104,12 +147,12 @@ class TorrentSearchManager @Inject constructor(
 
         val filteredResults = rawResults
             .excluding(ignoreKeywords)
-            .filterByReleaseDate(item.date, RELEASE_DATE_BUFFER_MONTHS)
+            .filterByReleaseDate(itemDate, RELEASE_DATE_BUFFER_MONTHS)
             .sortedUsing(preferredKeywords)
 
         // Only anime episode search terms are generic enough to match partially, filter out invalid
         // matches
-        val finalResults = if (item.type == MediaType.ANIME) {
+        val finalResults = if (mediaType == MediaType.ANIME) {
             val keyword = Keyword(
                 variants = listOf(
                     " $episodeTerm ",

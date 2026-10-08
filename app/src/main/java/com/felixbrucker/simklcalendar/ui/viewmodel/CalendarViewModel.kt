@@ -37,6 +37,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.torrent_search_api.SearchResultItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -452,6 +453,13 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch {
             downloadRepository.saveItemDownloadSettings(settings)
         }
+    }
+
+    suspend fun detectAnimeTorrents(
+        simklId: Int,
+        customTitle: String,
+    ): List<SearchResultItem> {
+        return downloadRepository.detectAnimeTorrents(simklId, customTitle)
     }
 
     fun getItemDownloadSettingsFlow(simklId: Int): Flow<ItemDownloadSettings?> {
