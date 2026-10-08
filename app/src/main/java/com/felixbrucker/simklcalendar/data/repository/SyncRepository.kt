@@ -428,7 +428,8 @@ class SyncRepository @Inject constructor(
                     syncMetadataRepo.setCalendarLastModifiedHeader(lastModifiedHeaderKey, responseLastModifiedHeader ?: "")
 
                     val relevantEntries = calendarResponse.calendar.filter {
-                        allTrackedIds.contains(it.simklId)
+                        // Exclude season 0 (specials)
+                        allTrackedIds.contains(it.simklId) && it.episode?.season != 0
                     }
                     if (relevantEntries.isEmpty()) continue
 
