@@ -38,6 +38,7 @@ import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
+import com.felixbrucker.simklcalendar.data.util.formattedItemLabel
 import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.launch
@@ -357,10 +358,10 @@ fun ReleaseDetailScreen(
                     }
 
                     if (showDeleteConfirmation) {
-                        val episodeLabel = "${activeItem.formattedEpisodeCode}: ${activeItem.episodeTitle ?: "TBA"}"
+                        val itemLabel = activeItem.formattedItemLabel
                         AlertDialog(
                             onDismissRequest = { showDeleteConfirmation = false },
-                            title = { Text("Delete $episodeLabel", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5)) },
+                            title = { Text("Delete $itemLabel", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5)) },
                             text = { Text("Are you sure you want to delete this item? This action cannot be undone.", color = Color(0xFFCAC4D0)) },
                             confirmButton = {
                                 Button(
