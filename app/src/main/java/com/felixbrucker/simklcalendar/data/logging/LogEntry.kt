@@ -2,9 +2,11 @@ package com.felixbrucker.simklcalendar.data.logging
 
 import android.util.Log
 import com.squareup.moshi.JsonClass
+import java.util.UUID
 
 @JsonClass(generateAdapter = true)
 data class LogEntry(
+    val id: String = UUID.randomUUID().toString(),
     val timestamp: Long = System.currentTimeMillis(),
     val priority: Int = Log.DEBUG,
     val tag: String? = null,

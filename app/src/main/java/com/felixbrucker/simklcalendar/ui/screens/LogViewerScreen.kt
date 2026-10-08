@@ -433,7 +433,7 @@ fun LogViewerList(
     ) {
         items(
             items = filteredLogs,
-            key = { "${it.timestamp}_${it.priority}_${it.tag}_${it.message.take(100).hashCode()}" }
+            key = { entry -> entry.id }
         ) { entry ->
             LogEntryCard(entry = entry)
         }
