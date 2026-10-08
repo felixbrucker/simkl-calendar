@@ -356,9 +356,9 @@ class SyncRepository @Inject constructor(
             val base = trackedToUpdate[newItem.simklId] ?: existing
             val updated = base.updatedWith(newItem)
             if (updated != base) {
-                // Set lastSyncedAt to now when adding to trackedToUpdate for TV shows and Anime because their metadata update is complete from the calendar response.
-                // Movies are excluded because they require additional handling (digital/DVD release date timeline logic) in syncWatchlistItemDetails.
-                val itemToUpdate = if (newItem.type != MediaType.MOVIE) {
+                // Set lastSyncedAt to now when adding to trackedToUpdate for TV shows because their metadata update is complete from the calendar response.
+                // Anime and Movies are excluded because they require additional handling (animeSeason property for anime, digital/DVD release date timeline logic for movies) in syncWatchlistItemDetails.
+                val itemToUpdate = if (newItem.type == MediaType.TV) {
                     updated.copy(lastSyncedAt = nowInstant)
                 } else {
                     updated
@@ -844,7 +844,8 @@ class SyncRepository @Inject constructor(
                                             title = existingTitle,
                                             titleRomaji = details.title,
                                             poster = details.poster,
-                                            rating = details.ratings?.simkl?.rating
+                                            rating = details.ratings?.simkl?.rating,
+                                            animeSeason = details.season
                                         )
                                         SyncItemDetailResult(newItem = newItem)
                                     }

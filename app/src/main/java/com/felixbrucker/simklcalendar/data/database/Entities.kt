@@ -132,6 +132,7 @@ data class TrackedWatchlistItem(
     val titleRomaji: String? = null, // Romaji title for anime
     val poster: String? = null, // URL for show poster image
     val rating: Double? = null, // Simkl rating (e.g. 8.2)
+    val animeSeason: Int? = null, // Anime season number (from detail API)
     val lastSyncedAt: Instant? = null
 ) {
     companion object
@@ -144,6 +145,7 @@ data class TrackedWatchlistItem(
         val newRomaji = if (!newItem.titleRomaji.isNullOrBlank()) newItem.titleRomaji else this.titleRomaji
         val newPoster = if (!newItem.poster.isNullOrBlank()) newItem.poster else this.poster
         val newRating = newItem.rating ?: this.rating
+        val newAnimeSeason = newItem.animeSeason ?: this.animeSeason
         val newLastSyncedAt = newItem.lastSyncedAt ?: this.lastSyncedAt
 
         return this.copy(
@@ -152,6 +154,7 @@ data class TrackedWatchlistItem(
             titleRomaji = newRomaji,
             poster = newPoster,
             rating = newRating,
+            animeSeason = newAnimeSeason,
             lastSyncedAt = newLastSyncedAt
         )
     }

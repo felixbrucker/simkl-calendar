@@ -14,6 +14,8 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -207,6 +209,46 @@ class SimklRepositoryDeepSyncTest {
         val hasChanges = result.hasCalendarItemChanges
         assertTrue(hasChanges)
         coVerify { calendarDao.insertCalendarItems(any()) }
+    }
+
+    @Test
+    fun testSyncCalendarJsonsUpdatesLastSyncedAtForTvButNotForAnime() = runTest {
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+        coEvery { watchlistDao.getAllTrackedIds() } returns listOf(101, 202)
+        val existingTv = TrackedWatchlistItem(simklId = 101, type = MediaType.TV, title = "Old TV", lastSyncedAt = null)
+        val existingAnime = TrackedWatchlistItem(simklId = 202, type = MediaType.ANIME, title = "Old Anime", lastSyncedAt = null)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(101)) } returns listOf(existingTv)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(202)) } returns listOf(existingAnime)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(101, 202)) } returns listOf(existingTv, existingAnime)
+        coEvery { watchlistDao.getTrackedIdsByTypes(listOf(MediaType.MOVIE)) } returns emptyList()
+
+        val tvResponse = SimklV2CalendarResponse(
+            calendar = listOf(
+                SimklV2CalendarEntry(simklId = 101, date = "2026-04-10T20:00:00Z", episode = SimklV2Episode(season = 1, episode = 1, title = "Ep 1"))
+            ),
+            metadata = mapOf("101" to SimklV2Metadata(title = "New TV Title"))
+        )
+        val animeResponse = SimklV2CalendarResponse(
+            calendar = listOf(
+                SimklV2CalendarEntry(simklId = 202, date = "2026-04-10T20:00:00Z", episode = SimklV2Episode(season = 1, episode = 1, title = "Ep 1"))
+            ),
+            metadata = mapOf("202" to SimklV2Metadata(title = "New Anime Title"))
+        )
+        coEvery { publicApiService.getV2Calendar(any(), any(), eq("tv"), any()) } returns Response.success(tvResponse)
+        coEvery { publicApiService.getV2Calendar(any(), any(), eq("anime"), any()) } returns Response.success(animeResponse)
+        coEvery { publicApiService.getV2Calendar(any(), any(), eq("movie_release"), any()) } returns Response.success(SimklV2CalendarResponse(emptyList(), emptyMap()))
+
+        val updatedItemsSlot = slot<List<TrackedWatchlistItem>>()
+        coEvery { watchlistDao.updateItems(capture(updatedItemsSlot)) } returns Unit
+
+        syncRepository.syncCalendarJsons(forceFullSync = true)
+
+        val updatedItems = updatedItemsSlot.captured
+        val tvUpdated = updatedItems.first { it.simklId == 101 }
+        val animeUpdated = updatedItems.first { it.simklId == 202 }
+
+        assertNotNull(tvUpdated.lastSyncedAt)
+        assertNull(animeUpdated.lastSyncedAt)
     }
 
     @Test

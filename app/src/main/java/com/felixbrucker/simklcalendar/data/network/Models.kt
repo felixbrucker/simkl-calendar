@@ -204,6 +204,7 @@ data class SimklAnimeDetailResponse(
     @Json(name = "title") val title: String,
     @Json(name = "poster") val poster: String? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
+    @Json(name = "season") val season: Int? = null,
     @Json(name = "ids") val ids: SimklIds
 )
 

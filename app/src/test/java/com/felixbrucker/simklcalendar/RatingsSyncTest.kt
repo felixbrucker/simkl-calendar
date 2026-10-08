@@ -176,7 +176,35 @@ class RatingsSyncTest {
     }
 
     @Test
-    fun testSyncWatchlistItemDetailsForAnimePreservesExistingTitleAndSetsRomajiTitle() = runTest {
+    fun testTrackedWatchlistItemUpdatedWithAnimeSeason() {
+        val original = TrackedWatchlistItem(
+            simklId = 1,
+            type = MediaType.ANIME,
+            title = "Test Anime",
+            animeSeason = null
+        )
+        val newItemWithSeason = TrackedWatchlistItem(
+            simklId = 1,
+            type = MediaType.ANIME,
+            title = "Test Anime",
+            animeSeason = 2
+        )
+        val newItemWithoutSeason = TrackedWatchlistItem(
+            simklId = 1,
+            type = MediaType.ANIME,
+            title = "Test Anime",
+            animeSeason = null
+        )
+
+        val updatedWithSeason = original.updatedWith(newItemWithSeason)
+        val updatedWithoutSeason = original.updatedWith(newItemWithoutSeason)
+
+        assertEquals(2, updatedWithSeason.animeSeason)
+        assertEquals(null, updatedWithoutSeason.animeSeason)
+    }
+
+    @Test
+    fun testSyncWatchlistItemDetailsForAnimePreservesExistingTitleAndSetsRomajiTitleAndAnimeSeason() = runTest {
         coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.TV, any()) } returns emptyList()
         coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.ANIME, any()) } returns listOf(30)
         coEvery { watchlistDao.getItemIdsNeedingSync(MediaType.MOVIE, any()) } returns emptyList()
@@ -185,6 +213,7 @@ class RatingsSyncTest {
         coEvery { publicApiService.getAnimeDetails(30) } returns SimklAnimeDetailResponse(
             title = "Shingeki no Kyojin",
             ratings = SimklRatings(simkl = SimklRating(rating = 9.0)),
+            season = 2,
             ids = SimklIds(simkl = 30)
         )
         val updatedSlot = slot<List<TrackedWatchlistItem>>()
@@ -197,10 +226,12 @@ class RatingsSyncTest {
         val title = updatedAnime.title
         val titleRomaji = updatedAnime.titleRomaji
         val rating = updatedAnime.rating
+        val animeSeason = updatedAnime.animeSeason
         val hasChanges = syncResult.hasWatchlistItemChanges
         assertEquals("Attack on Titan", title)
         assertEquals("Shingeki no Kyojin", titleRomaji)
         assertEquals(9.0, rating!!, 0.01)
+        assertEquals(2, animeSeason)
         assertEquals(true, hasChanges)
     }
 
