@@ -4,6 +4,7 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
@@ -26,6 +27,7 @@ import javax.inject.Singleton
 @Singleton
 class TorrentSearchManager @Inject constructor(
     private val calendarDao: CalendarItemDao,
+    private val watchlistDao: WatchlistDao,
     private val itemSettingsDao: ItemDownloadSettingsDao,
     private val autoDownloadDataSource: AutoDownloadRepository
 ) {
@@ -44,11 +46,16 @@ class TorrentSearchManager @Inject constructor(
 
         val itemSettings = itemSettingsDao.getSettings(simklId)
 
-        val rawSearchTitle = itemSettings?.titleOverride ?: item.titleRomaji ?: item.title
-        val searchTitle = if (item.type == MediaType.ANIME) {
-            rawSearchTitle.toNormalizedAnimeTitle()
+        val titleOverride = itemSettings?.titleOverride?.takeIf { it.isNotBlank() }
+        val searchTitle = if (titleOverride != null) {
+            titleOverride
         } else {
-            rawSearchTitle
+            val baseTitle = item.titleRomaji ?: item.title
+            if (item.type == MediaType.ANIME) {
+                baseTitle.toNormalizedAnimeTitle()
+            } else {
+                baseTitle
+            }
         }
 
         return searchInternal(
@@ -61,23 +68,24 @@ class TorrentSearchManager @Inject constructor(
         )
     }
 
-    suspend fun detectAnimeTorrents(
+    suspend fun detectTorrents(
         simklId: Int,
         customTitle: String,
     ): List<SearchResultItem> {
+        val watchlistItem = watchlistDao.getItem(simklId)
+            ?: throw IllegalStateException("Watchlist item not found for simklId $simklId")
         val baseItem = calendarDao.findFirstItemForSimklId(simklId)
         val itemSettings = itemSettingsDao.getSettings(simklId)
         val season = baseItem?.season ?: 1
         val episode = baseItem?.episodeNumber ?: 1
         val itemDate = baseItem?.date ?: Instant.now()
-        val searchTitle = customTitle.toNormalizedAnimeTitle()
 
         return searchInternal(
-            searchTitle = searchTitle,
+            searchTitle = customTitle,
             season = season,
             episode = episode,
             itemDate = itemDate,
-            mediaType = MediaType.ANIME,
+            mediaType = watchlistItem.type,
             itemSettings = itemSettings
         )
     }

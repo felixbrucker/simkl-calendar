@@ -463,7 +463,7 @@ fun ReleaseDetailScreen(
                         isDownloaderInstalled = isDownloaderInstalled,
                         availableSubdirectories = availableSubdirectories,
                         onSaveItemDownloadSettings = { viewModel.saveItemDownloadSettings(it) },
-                        onSearchTorrents = { term -> viewModel.detectAnimeTorrents(simklId = activeItem.simklId, customTitle = term) }
+                        onSearchTorrents = { term -> viewModel.detectTorrents(simklId = activeItem.simklId, customTitle = term) }
                     )
                 }
             }

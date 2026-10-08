@@ -41,11 +41,11 @@ class DownloadRepository @Inject constructor(
         return itemDownloadSettingsDao.getSettingsFlow(simklId)
     }
 
-    suspend fun detectAnimeTorrents(
+    suspend fun detectTorrents(
         simklId: Int,
         customTitle: String,
     ): List<SearchResultItem> = withContext(Dispatchers.IO) {
-        torrentSearchManager.detectAnimeTorrents(simklId, customTitle)
+        torrentSearchManager.detectTorrents(simklId, customTitle)
     }
 
     suspend fun searchAndDownloadSeason(simklId: Int, season: Int) = withContext(Dispatchers.IO) {
