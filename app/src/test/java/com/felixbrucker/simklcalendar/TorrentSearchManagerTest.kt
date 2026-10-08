@@ -153,21 +153,28 @@ class TorrentSearchManagerTest {
             preferHevc = true
         )
         val manager = TorrentSearchManager(dao, autoDownloadRepository)
-        val calendarItem = CalendarItem("v2_400_1_1", 400, "Ep 1", 1, 1, Instant.now(), null, false, false)
+        val now = Instant.now()
+        val calendarItem = CalendarItem("v2_400_1_1", 400, "Ep 1", 1, 1, now, null, false, false)
         val watchlistItem = TrackedWatchlistItem(400, MediaType.TV, "Test Show", null, null)
         val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
         val itemIgnoredExact = mockk<SearchResultItem>()
         every { itemIgnoredExact.name } returns "Test Show S01E01 BAD_RELEASE"
+        every { itemIgnoredExact.uploadedAt } returns now
         val itemIgnoredCaseMismatch = mockk<SearchResultItem>()
         every { itemIgnoredCaseMismatch.name } returns "Test Show S01E01 bad_release"
+        every { itemIgnoredCaseMismatch.uploadedAt } returns now
         val itemPreferredCaseMismatch = mockk<SearchResultItem>()
         every { itemPreferredCaseMismatch.name } returns "Test Show S01E01 subsplease"
+        every { itemPreferredCaseMismatch.uploadedAt } returns now
         val itemPreferredExact = mockk<SearchResultItem>()
         every { itemPreferredExact.name } returns "Test Show S01E01 SubsPlease"
+        every { itemPreferredExact.uploadedAt } returns now
         val itemHevcLowerCase = mockk<SearchResultItem>()
         every { itemHevcLowerCase.name } returns "Test Show S01E01 hevc"
+        every { itemHevcLowerCase.uploadedAt } returns now
         val itemHevcUpperCase = mockk<SearchResultItem>()
         every { itemHevcUpperCase.name } returns "Test Show S01E01 HEVC"
+        every { itemHevcUpperCase.uploadedAt } returns now
         coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
             PaginatedSearchResult(
                 listOf(
@@ -184,16 +191,69 @@ class TorrentSearchManagerTest {
         )
 
         val results = manager.search(item)
-        val containsIgnoredExact = results.contains(itemIgnoredExact)
-        val containsIgnoredCaseMismatch = results.contains(itemIgnoredCaseMismatch)
-        val firstResultName = results[0].name
-        val secondResultName = results[1].name
-        val thirdResultName = results[2].name
 
-        assertFalse(containsIgnoredExact)
-        assertTrue(containsIgnoredCaseMismatch)
-        assertEquals("Test Show S01E01 SubsPlease", firstResultName)
-        assertEquals("Test Show S01E01 hevc", secondResultName)
-        assertEquals("Test Show S01E01 HEVC", thirdResultName)
+        assertFalse(results.contains(itemIgnoredExact))
+        assertTrue(results.contains(itemIgnoredCaseMismatch))
+        assertEquals("Test Show S01E01 SubsPlease", results[0].name)
+        assertEquals("Test Show S01E01 hevc", results[1].name)
+        assertEquals("Test Show S01E01 HEVC", results[2].name)
+    }
+
+    @Test
+    fun testTorrentSearchFiltersOutOldUploads() = runTest {
+        val manager = TorrentSearchManager(dao, autoDownloadRepository)
+        val releaseDate = Instant.parse("2024-10-01T12:00:00Z")
+        val calendarItem = CalendarItem("v2_500_1_1", 500, "Ep 1", 1, 1, releaseDate, null, false, false)
+        val watchlistItem = TrackedWatchlistItem(500, MediaType.TV, "Test Show", null, null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+        val oldUpload = mockk<SearchResultItem>()
+        every { oldUpload.name } returns "Test Show S01E01 1080p Old"
+        every { oldUpload.uploadedAt } returns Instant.parse("2024-05-01T00:00:00Z")
+        val validUpload = mockk<SearchResultItem>()
+        every { validUpload.name } returns "Test Show S01E01 1080p Valid"
+        every { validUpload.uploadedAt } returns Instant.parse("2024-09-01T00:00:00Z")
+        coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
+            PaginatedSearchResult(
+                listOf(oldUpload, validUpload),
+                1,
+                false
+            )
+        )
+
+        val results = manager.search(item)
+
+        assertEquals(1, results.size)
+        assertEquals("Test Show S01E01 1080p Valid", results[0].name)
+    }
+
+    @Test
+    fun testTorrentSearchUploadDateBoundaryAndBuffer() = runTest {
+        val manager = TorrentSearchManager(dao, autoDownloadRepository)
+        val releaseDate = Instant.parse("2024-10-01T12:00:00Z")
+        val calendarItem = CalendarItem("v2_600_theater", 600, null, null, null, releaseDate, null, false, false)
+        val watchlistItem = TrackedWatchlistItem(600, MediaType.MOVIE, "Test Movie", null, null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+        val uploadWayBeforeBuffer = mockk<SearchResultItem>()
+        every { uploadWayBeforeBuffer.name } returns "Test Movie 1080p Old"
+        every { uploadWayBeforeBuffer.uploadedAt } returns Instant.parse("2024-06-30T23:59:59Z")
+        val uploadExactBufferCutoff = mockk<SearchResultItem>()
+        every { uploadExactBufferCutoff.name } returns "Test Movie 1080p Cutoff"
+        every { uploadExactBufferCutoff.uploadedAt } returns Instant.parse("2024-07-01T12:00:00Z")
+        val uploadAfterRelease = mockk<SearchResultItem>()
+        every { uploadAfterRelease.name } returns "Test Movie 1080p New"
+        every { uploadAfterRelease.uploadedAt } returns Instant.parse("2024-10-02T12:00:00Z")
+        coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
+            PaginatedSearchResult(
+                listOf(uploadWayBeforeBuffer, uploadExactBufferCutoff, uploadAfterRelease),
+                1,
+                false
+            )
+        )
+
+        val results = manager.search(item)
+
+        assertEquals(2, results.size)
+        assertEquals("Test Movie 1080p Cutoff", results[0].name)
+        assertEquals("Test Movie 1080p New", results[1].name)
     }
 }

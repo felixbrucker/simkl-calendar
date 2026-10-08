@@ -15,6 +15,8 @@ import com.felixbrucker.torrent_search_api.SearchResultItem
 import com.felixbrucker.torrent_search_api.TpbProvider
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
+import java.time.Instant
+import java.time.ZoneOffset
 
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +28,7 @@ class TorrentSearchManager @Inject constructor(
 ) {
     companion object {
         private const val TAG = "TorrentSearchManager"
+        private const val RELEASE_DATE_BUFFER_MONTHS = 3L
     }
 
     private val nyaaProvider = NyaaProvider()
@@ -101,6 +104,7 @@ class TorrentSearchManager @Inject constructor(
 
         val filteredResults = rawResults
             .excluding(ignoreKeywords)
+            .filterByReleaseDate(item.date, RELEASE_DATE_BUFFER_MONTHS)
             .sortedUsing(preferredKeywords)
 
         // Only anime episode search terms are generic enough to match partially, filter out invalid
@@ -122,6 +126,14 @@ class TorrentSearchManager @Inject constructor(
         Timber.tag(TAG).d("Torrent search returned ${finalResults.size} results for term '$term' (${rawResults.size} raw results)")
         return finalResults
     }
+}
+
+private fun List<SearchResultItem>.filterByReleaseDate(
+    releaseDate: Instant,
+    bufferMonths: Long = 3
+): List<SearchResultItem> {
+    val earliestAllowedUploadDate = releaseDate.atZone(ZoneOffset.UTC).minusMonths(bufferMonths).toInstant()
+    return filter { it.uploadedAt.isAfter(earliestAllowedUploadDate) }
 }
 
 private fun List<SearchResultItem>.including(keywords: List<Keyword>): List<SearchResultItem> {
