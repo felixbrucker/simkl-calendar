@@ -132,6 +132,20 @@ class TorrentSearchManagerTest {
     }
 
     @Test
+    fun testTorrentSearchAnimeNormalizesTitle() = runTest {
+        val manager = TorrentSearchManager(dao, autoDownloadRepository)
+        val calendarItem = CalendarItem("v2_500_1_1", 500, "Ep 1", 1, 1, Instant.now(), null, false, false)
+        val watchlistItem = TrackedWatchlistItem(500, MediaType.ANIME, "Welcome to Demon School! Iruma-kun", "Mairimashita! Iruma-kun", null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+
+        val results = manager.search(item)
+        val isEmpty = results.isEmpty()
+
+        assertTrue(isEmpty)
+        coVerify { anyConstructed<NyaaProvider>().search(term = "Mairimashita Iruma-kun 01 1080p", category = any(), orderBy = any()) }
+    }
+
+    @Test
     fun testTorrentSearchKeywordsCaseSensitivityAndHevc() = runTest {
         preferencesStateFlow.value = AutoDownloadPreferences(
             preferredKeywords = listOf("SubsPlease", "Erai-raws"),

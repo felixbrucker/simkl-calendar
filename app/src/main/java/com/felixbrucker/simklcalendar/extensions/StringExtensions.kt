@@ -34,3 +34,38 @@ fun String.cleanedForUseAsPath(): String {
 
     return result.replace(MULTIPLE_WHITESPACES_REGEX, " ")
 }
+
+private val QUOTES_AND_BRACKETS_REGEX = Regex("""['"‘’“”`()\[\]{}⟨⟩「」『』【】〔〕（）«»]""")
+private val NON_ALPHANUMERIC_SPACE_OR_DASH_REGEX = Regex("""[^\p{L}\p{N}\s\-\u2010\u2013\u2014\u2015]""")
+private val WHITESPACE_REGEX = Regex("""\s+""")
+
+private val JAPANESE_PARTICLES = setOf(
+    "wa", "ga", "o", "wo", "ni", "de", "no", "to", "mo", "ka", "ha", "ya", "e",
+    "kara", "made", "yori"
+)
+
+/**
+ * Normalizes an anime title for search queries by:
+ * - Omitting quotes and surrounding brackets/delimiters
+ * - Stripping colons, tildes, slashes, exclamation marks, and other punctuation/symbols
+ * - Preserving internal word hyphens/dashes while omitting standalone dashes
+ * - Dropping common standalone Japanese particles
+ * - Cleaning extra whitespace
+ */
+fun String.toNormalizedAnimeTitle(): String {
+    val withoutQuotesOrBrackets = replace(QUOTES_AND_BRACKETS_REGEX, "")
+    val replacedSpecialChars = withoutQuotesOrBrackets.replace(NON_ALPHANUMERIC_SPACE_OR_DASH_REGEX, " ")
+    val words = replacedSpecialChars.split(WHITESPACE_REGEX).filter { it.isNotEmpty() }
+    if (words.isEmpty()) {
+        return this.trim()
+    }
+
+    val wordTokens = words.filter { token -> token.any { it.isLetterOrDigit() } }
+
+    val filteredWords = wordTokens.filter { word ->
+        word.lowercase() !in JAPANESE_PARTICLES
+    }
+
+    val finalWords = filteredWords.ifEmpty { wordTokens.ifEmpty { words } }
+    return finalWords.joinToString(" ")
+}

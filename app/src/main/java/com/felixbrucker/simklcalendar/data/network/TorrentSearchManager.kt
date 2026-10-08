@@ -7,6 +7,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
 import com.felixbrucker.simklcalendar.extensions.ensureAdded
+import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import com.felixbrucker.torrent_search_api.Category
 import com.felixbrucker.torrent_search_api.NyaaProvider
 import com.felixbrucker.torrent_search_api.OrderBy
@@ -36,7 +37,12 @@ class TorrentSearchManager @Inject constructor(
 
         val itemSettings = itemSettingsDao.getSettings(simklId)
 
-        val searchTitle = itemSettings?.titleOverride ?: item.titleRomaji ?: item.title
+        val rawSearchTitle = itemSettings?.titleOverride ?: item.titleRomaji ?: item.title
+        val searchTitle = if (item.type == MediaType.ANIME) {
+            rawSearchTitle.toNormalizedAnimeTitle()
+        } else {
+            rawSearchTitle
+        }
         val searchSeason = itemSettings?.seasonOverrides?.get(season) ?: season
         val episode = item.episodeNumber
 
