@@ -113,6 +113,7 @@ class TorrentSearchManager @Inject constructor(
             val keyword = Keyword(
                 variants = listOf(
                     " $episodeTerm ",
+                    " ${episodeTerm}v",
                     seasonAndEpisodeTerm
                 ),
                 ignoreCase = true
