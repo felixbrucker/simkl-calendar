@@ -4,6 +4,7 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
@@ -26,6 +27,7 @@ import javax.inject.Singleton
 @Singleton
 class TorrentSearchManager @Inject constructor(
     private val calendarDao: CalendarItemDao,
+    private val watchlistDao: WatchlistDao,
     private val itemSettingsDao: ItemDownloadSettingsDao,
     private val autoDownloadDataSource: AutoDownloadRepository
 ) {
@@ -70,19 +72,20 @@ class TorrentSearchManager @Inject constructor(
         simklId: Int,
         customTitle: String,
     ): List<SearchResultItem> {
+        val watchlistItem = watchlistDao.getItem(simklId)
+            ?: throw IllegalStateException("Watchlist item not found for simklId $simklId")
         val baseItem = calendarDao.findFirstItemForSimklId(simklId)
         val itemSettings = itemSettingsDao.getSettings(simklId)
         val season = baseItem?.season ?: 1
         val episode = baseItem?.episodeNumber ?: 1
         val itemDate = baseItem?.date ?: Instant.now()
-        val mediaType = baseItem?.type ?: MediaType.ANIME
 
         return searchInternal(
             searchTitle = customTitle,
             season = season,
             episode = episode,
             itemDate = itemDate,
-            mediaType = mediaType,
+            mediaType = watchlistItem.type,
             itemSettings = itemSettings
         )
     }

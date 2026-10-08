@@ -858,7 +858,7 @@ fun DownloadSettingsCard(
 @Composable
 fun DetectTitleDialog(
     initialTitle: String,
-    mediaType: MediaType = MediaType.ANIME,
+    mediaType: MediaType,
     animeSeason: Int?,
     onSearchTorrents: (suspend (String) -> List<SearchResultItem>),
     onSave: (String) -> Unit,
