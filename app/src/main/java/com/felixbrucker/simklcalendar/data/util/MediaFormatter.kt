@@ -225,11 +225,40 @@ object MediaFormatter {
         val message = "$showTitle$epCode$epName is now airing."
         return title to message
     }
+
+    /**
+     * Formats the label for an item in deletion or selection dialogs.
+     * For movies: "Movie Title (Release Type)" or "Movie Title"
+     * For shows/anime: "S01E01: Episode Title" or "S01E01: TBA"
+     */
+    fun formatItemLabel(
+        mediaType: MediaType,
+        title: String,
+        season: Int?,
+        episodeNumber: Int?,
+        episodeTitle: String?,
+        movieReleaseType: MovieReleaseType?
+    ): String {
+        return if (mediaType == MediaType.MOVIE) {
+            if (movieReleaseType != null) {
+                "$title (${movieReleaseType.displayName})"
+            } else {
+                title
+            }
+        } else {
+            val epCode = formatEpisodeCode(mediaType, season, episodeNumber)
+            val epTitle = episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
+            "$epCode: $epTitle"
+        }
+    }
 }
 
 // Extension properties for convenience on CalendarItemWithWatchlist
 val CalendarItemWithWatchlist.formattedEpisodeCode: String
     get() = MediaFormatter.formatEpisodeCode(type, season, episodeNumber)
+
+val CalendarItemWithWatchlist.formattedItemLabel: String
+    get() = MediaFormatter.formatItemLabel(type, title, season, episodeNumber, episodeTitle, movieReleaseType)
 
 val CalendarItemWithWatchlist.formattedEpisodeCardBadge: String
     get() = MediaFormatter.formatEpisodeCardBadge(type, season, episodeNumber)

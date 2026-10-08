@@ -218,4 +218,66 @@ class MediaFormatterTest {
         assertEquals("New Episode Released", title)
         assertEquals("One Piece E1000: \"A New Dawn\" is now airing.", msg)
     }
+
+    @Test
+    fun testFormatItemLabel() {
+        val movieTitle = "Inception"
+        val showTitle = "Breaking Bad"
+
+        val movieTheaterResult = MediaFormatter.formatItemLabel(
+            mediaType = MediaType.MOVIE,
+            title = movieTitle,
+            season = null,
+            episodeNumber = null,
+            episodeTitle = null,
+            movieReleaseType = MovieReleaseType.THEATER
+        )
+        val movieDigitalResult = MediaFormatter.formatItemLabel(
+            mediaType = MediaType.MOVIE,
+            title = movieTitle,
+            season = null,
+            episodeNumber = null,
+            episodeTitle = null,
+            movieReleaseType = MovieReleaseType.DIGITAL
+        )
+        val movieNullReleaseResult = MediaFormatter.formatItemLabel(
+            mediaType = MediaType.MOVIE,
+            title = movieTitle,
+            season = null,
+            episodeNumber = null,
+            episodeTitle = null,
+            movieReleaseType = null
+        )
+        val tvEpisodeResult = MediaFormatter.formatItemLabel(
+            mediaType = MediaType.TV,
+            title = showTitle,
+            season = 1,
+            episodeNumber = 1,
+            episodeTitle = "Pilot",
+            movieReleaseType = null
+        )
+        val tvTbaResult = MediaFormatter.formatItemLabel(
+            mediaType = MediaType.TV,
+            title = showTitle,
+            season = 1,
+            episodeNumber = 2,
+            episodeTitle = null,
+            movieReleaseType = null
+        )
+        val animeS1Result = MediaFormatter.formatItemLabel(
+            mediaType = MediaType.ANIME,
+            title = "Naruto",
+            season = 1,
+            episodeNumber = 5,
+            episodeTitle = "The Test",
+            movieReleaseType = null
+        )
+
+        assertEquals("Inception (Theater Release)", movieTheaterResult)
+        assertEquals("Inception (Digital / DVD Release)", movieDigitalResult)
+        assertEquals("Inception", movieNullReleaseResult)
+        assertEquals("S01E01: Pilot", tvEpisodeResult)
+        assertEquals("S01E02: TBA", tvTbaResult)
+        assertEquals("E05: The Test", animeS1Result)
+    }
 }
