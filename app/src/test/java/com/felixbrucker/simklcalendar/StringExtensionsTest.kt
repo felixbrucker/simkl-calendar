@@ -33,6 +33,15 @@ class StringExtensionsTest {
 
         val cleaned = original.cleanedForUseAsPath()
 
-        assertEquals("Show  Subtitle   Episode 1", cleaned)
+        assertEquals("Show Subtitle Episode 1", cleaned)
+    }
+
+    @Test
+    fun testCleanedForUseAsPathWithMultipleWhitespaces() {
+        val original = "Show    Subtitle \t\n Episode   1"
+
+        val cleaned = original.cleanedForUseAsPath()
+
+        assertEquals("Show Subtitle Episode 1", cleaned)
     }
 }

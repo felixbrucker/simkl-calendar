@@ -24,11 +24,13 @@ private val INVALID_CHARACTERS_FOR_PATH = listOf(
     "|",
 )
 
+private val MULTIPLE_WHITESPACES_REGEX = Regex("\\s+")
+
 fun String.cleanedForUseAsPath(): String {
     var result = this
     for (invalidCharacter in INVALID_CHARACTERS_FOR_PATH) {
-        result = result.replace(invalidCharacter, " ")
+        result = result.replace(invalidCharacter, "")
     }
 
-    return result
+    return result.replace(MULTIPLE_WHITESPACES_REGEX, " ")
 }
