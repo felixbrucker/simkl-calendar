@@ -6,6 +6,7 @@ plugins {
   alias(libs.plugins.kover)
   alias(libs.plugins.hilt.android)
   alias(libs.plugins.sentry.android)
+  alias(libs.plugins.detekt)
 }
 
 android {
@@ -69,6 +70,52 @@ android {
   testOptions {
     unitTests.isReturnDefaultValues = true
   }
+
+  lint {
+    abortOnError = true
+    checkAllWarnings = true
+    warningsAsErrors = true
+    checkReleaseBuilds = true
+    baseline = file("lint-baseline.xml")
+    enable += setOf(
+      "UnusedResources",
+      "TypographyQuotes",
+      "VectorPath"
+    )
+  }
+}
+
+val detektCliClasspath = configurations.create("detektCliClasspath")
+
+val javaToolchains = project.extensions.getByType<JavaToolchainService>()
+val java21Launcher = javaToolchains.launcherFor {
+  languageVersion.set(JavaLanguageVersion.of(21))
+}
+
+val detektRun = tasks.register<JavaExec>("detektRun") {
+  group = "verification"
+  description = "Runs Detekt static analysis via JavaExec."
+  javaLauncher.set(java21Launcher)
+  mainClass.set("io.gitlab.arturbosch.detekt.cli.Main")
+  classpath = detektCliClasspath
+  val baselineFile = file("$rootDir/detekt-baseline.xml")
+  val argsList = mutableListOf(
+    "--config", "$rootDir/detekt.yml",
+    "--input", "$projectDir/src/main/java,$projectDir/src/test/java",
+    "--jvm-target", "11",
+    "--build-upon-default-config"
+  )
+  if (project.hasProperty("detektCreateBaseline") || !baselineFile.exists()) {
+    argsList.addAll(listOf("--create-baseline", "--baseline", baselineFile.absolutePath))
+  } else {
+    argsList.addAll(listOf("--baseline", baselineFile.absolutePath))
+  }
+  args(argsList)
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+  enabled = false
+  dependsOn(detektRun)
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -118,6 +165,11 @@ kover {
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
+  detektCliClasspath(libs.detekt.cli)
+  detektCliClasspath(project(":detekt-rules"))
+  detektCliClasspath(libs.detekt.rules.compose)
+  detektCliClasspath(libs.detekt.formatting)
+
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.browser)
