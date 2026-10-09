@@ -342,7 +342,7 @@ object NotificationGlanceHelper {
     }
 }
 
-private fun String.width(
+internal fun String.width(
     context: Context,
     textSizeSp: Float = 12f,
     isBold: Boolean = false,

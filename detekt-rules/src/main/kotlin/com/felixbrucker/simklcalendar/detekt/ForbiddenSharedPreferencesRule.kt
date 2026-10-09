@@ -22,7 +22,8 @@ class ForbiddenSharedPreferencesRule(config: Config = Config.empty) : Rule(confi
     super.visitImportDirective(importDirective)
 
     val path = importDirective.importedFqName?.asString() ?: return
-    if (path.contains("SharedPreferences") || path.contains("PreferenceManager")) {
+    if (path.endsWith("SharedPreferencesMigration")) return
+    if (path.contains("android.content.SharedPreferences") || path.contains("PreferenceManager")) {
       report(
         CodeSmell(
           issue = issue,
