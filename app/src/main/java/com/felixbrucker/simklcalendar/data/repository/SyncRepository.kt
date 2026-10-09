@@ -1022,7 +1022,7 @@ class SyncRepository @Inject constructor(
     }
 }
 
-private fun TrackedWatchlistItem.Companion.fromShowItem(item: SyncShowItem, type: MediaType): TrackedWatchlistItem {
+internal fun TrackedWatchlistItem.Companion.fromShowItem(item: SyncShowItem, type: MediaType): TrackedWatchlistItem {
     val media = item.show
 
     return TrackedWatchlistItem(
@@ -1033,7 +1033,7 @@ private fun TrackedWatchlistItem.Companion.fromShowItem(item: SyncShowItem, type
     )
 }
 
-private fun TrackedWatchlistItem.Companion.fromMovieItem(item: SyncMovieItem): TrackedWatchlistItem {
+internal fun TrackedWatchlistItem.Companion.fromMovieItem(item: SyncMovieItem): TrackedWatchlistItem {
     val media = item.movie
 
     return TrackedWatchlistItem(

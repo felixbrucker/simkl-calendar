@@ -180,7 +180,7 @@ class TorrentSearchManager @Inject constructor(
     }
 }
 
-private fun List<SearchResultItem>.filterByReleaseDate(
+internal fun List<SearchResultItem>.filterByReleaseDate(
     releaseDate: Instant,
     bufferMonths: Long = 3
 ): List<SearchResultItem> {
@@ -188,7 +188,7 @@ private fun List<SearchResultItem>.filterByReleaseDate(
     return filter { it.uploadedAt.isAfter(earliestAllowedUploadDate) }
 }
 
-private fun List<SearchResultItem>.including(keywords: List<Keyword>): List<SearchResultItem> {
+internal fun List<SearchResultItem>.including(keywords: List<Keyword>): List<SearchResultItem> {
     return filter { item ->
         keywords.any { keyword ->
             item.name.contains(keyword)
@@ -196,7 +196,7 @@ private fun List<SearchResultItem>.including(keywords: List<Keyword>): List<Sear
     }
 }
 
-private fun List<SearchResultItem>.excluding(keywords: List<Keyword>): List<SearchResultItem> {
+internal fun List<SearchResultItem>.excluding(keywords: List<Keyword>): List<SearchResultItem> {
     return filter { item ->
         keywords.none { keyword ->
             item.name.contains(keyword)
@@ -214,7 +214,7 @@ private fun List<SearchResultItem>.excluding(keywords: List<Keyword>): List<Sear
 // 2. "[Erai-Raws] One Piece 1234" (1 match, first preferred keyword)
 // 3. "[SubsPlease] One Piece 1234" (1 match, second preferred keyword)
 // 4. "[AWS] One Piece 1234 HEVC" (1 match, third preferred keyword)
-private fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<Keyword>): List<SearchResultItem> {
+internal fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<Keyword>): List<SearchResultItem> {
     return sortedWith(
         compareByDescending<SearchResultItem> { item ->
             preferredKeywords.count { keyword ->
@@ -236,7 +236,7 @@ private fun String.contains(keyword: Keyword): Boolean {
     return keyword.variants.any { contains(it, ignoreCase = keyword.ignoreCase) }
 }
 
-private data class Keyword(
+internal data class Keyword(
     val variants: List<String>,
     val ignoreCase: Boolean = false,
 ) {

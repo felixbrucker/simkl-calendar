@@ -30,7 +30,7 @@ class ComposableLineLimitRule(config: Config = Config.empty) : Rule(config) {
     val bodyBlock = function.bodyBlockExpression ?: return
     val text = bodyBlock.text.trim()
     val lines = text.lines().filter { it.isNotBlank() }
-    val lineCount = lines.size - 2 // Exclude opening and closing braces
+    val lineCount = maxOf(0, lines.size - 2) // Exclude opening and closing braces
 
     if (lineCount > maxLines) {
       report(
