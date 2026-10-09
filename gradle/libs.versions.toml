@@ -35,8 +35,15 @@ datastorePreferences = "1.2.1"
 sentryAndroid = "8.58.0"
 sentryAndroidGradle = "6.23.0"
 glance = "1.2.0"
+detekt = "1.23.8"
+composeRules = "0.4.22"
 
 [libraries]
+detekt-api = { group = "io.gitlab.arturbosch.detekt", name = "detekt-api", version.ref = "detekt" }
+detekt-cli = { group = "io.gitlab.arturbosch.detekt", name = "detekt-cli", version.ref = "detekt" }
+detekt-formatting = { group = "io.gitlab.arturbosch.detekt", name = "detekt-formatting", version.ref = "detekt" }
+detekt-test = { group = "io.gitlab.arturbosch.detekt", name = "detekt-test", version.ref = "detekt" }
+detekt-rules-compose = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "composeRules" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesAndroid" }
@@ -90,3 +97,4 @@ secrets = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugi
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 sentry-android = { id = "io.sentry.android.gradle", version.ref = "sentryAndroidGradle" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

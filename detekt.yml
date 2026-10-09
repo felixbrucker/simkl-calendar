@@ -1,0 +1,92 @@
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+agents:
+  active: true
+  ThreeSectionTestPattern:
+    active: true
+  NamedBooleanArguments:
+    active: true
+  ComposableLineLimit:
+    active: true
+  StatelessChildComposable:
+    active: true
+  NoDefaultParamsInInjectableConstructor:
+    active: true
+  ForbiddenSharedPreferences:
+    active: true
+
+Compose:
+  active: true
+  ComposableNaming:
+    active: true
+  ComposableParamOrder:
+    active: true
+  ModifierMissing:
+    active: true
+  ModifierReused:
+    active: true
+  ModifierWithoutDefault:
+    active: true
+
+formatting:
+  active: true
+  NoWildcardImports:
+    active: true
+  FinalNewline:
+    active: true
+  ImportOrdering:
+    active: true
+
+complexity:
+  active: true
+  LongMethod:
+    active: true
+    threshold: 60
+  LongParameterList:
+    active: true
+    functionThreshold: 8
+  ComplexCondition:
+    active: true
+    threshold: 4
+
+style:
+  active: true
+  UnusedImports:
+    active: true
+  WildcardImport:
+    active: true
+  MagicNumber:
+    active: true
+    ignoreNumbers:
+      - '-1'
+      - '0'
+      - '1'
+      - '2'
+      - '3'
+      - '10'
+      - '100'
+      - '1000'
+    ignorePropertyDeclaration: true
+    ignoreAnnotation: true
+
+performance:
+  active: true
+  SpreadOperator:
+    active: true
+  UnnecessaryTemporaryInstantiation:
+    active: true
+
+naming:
+  active: true
+  ClassNaming:
+    active: true
+  FunctionNaming:
+    active: true
+  VariableNaming:
+    active: true
