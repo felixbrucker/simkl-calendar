@@ -473,6 +473,21 @@ fun SettingsCategorySelector(
 }
 
 @Composable
+private fun rememberCategoryColors(isSelected: Boolean): Pair<Color, Color> {
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) Color(0xFFEADDFF) else Color(0xFFCAC4D0),
+        animationSpec = tween(200),
+        label = "category_content_color"
+    )
+    val iconColor by animateColorAsState(
+        targetValue = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF938F99),
+        animationSpec = tween(200),
+        label = "category_icon_color"
+    )
+    return contentColor to iconColor
+}
+
+@Composable
 fun SettingsCategoryItem(
     category: SettingsCategory,
     isSelected: Boolean,
@@ -480,10 +495,17 @@ fun SettingsCategoryItem(
     modifier: Modifier = Modifier,
     onMeasuredHeight: (Float) -> Unit = {}
 ) {
-    val contentCol by animateColorAsState(if (isSelected) Color(0xFFEADDFF) else Color(0xFFCAC4D0), label = "c")
-    val iconCol by animateColorAsState(if (isSelected) Color(0xFFD0BCFF) else Color(0xFF938F99), label = "i")
+    val (contentColor, iconColor) = rememberCategoryColors(isSelected)
 
-    SettingsCategoryItemSurface(category, isSelected, contentCol, iconCol, onClick, onMeasuredHeight, modifier)
+    SettingsCategoryItemSurface(
+        category = category,
+        isSelected = isSelected,
+        contentColor = contentColor,
+        iconColor = iconColor,
+        onClick = onClick,
+        onMeasuredHeight = onMeasuredHeight,
+        modifier = modifier
+    )
 }
 
 @Composable
