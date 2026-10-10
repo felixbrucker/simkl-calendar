@@ -82,4 +82,38 @@ class AgentsRulesTest {
 
     assertEquals(1, findings.size)
   }
+
+  @Test
+  fun testComposableLineLimitPassesUnder25Lines() {
+    val bodyLines = (1..20).joinToString("\n") { "println($it)" }
+    val code = """
+      import androidx.compose.runtime.Composable
+
+      @Composable
+      fun ShortCard() {
+        $bodyLines
+      }
+    """.trimIndent()
+
+    val findings = ComposableLineLimitRule().compileAndLint(code)
+
+    assertEquals(0, findings.size)
+  }
+
+  @Test
+  fun testComposableLineLimitFlagsOver25Lines() {
+    val bodyLines = (1..30).joinToString("\n") { "println($it)" }
+    val code = """
+      import androidx.compose.runtime.Composable
+
+      @Composable
+      fun LongCard() {
+        $bodyLines
+      }
+    """.trimIndent()
+
+    val findings = ComposableLineLimitRule().compileAndLint(code)
+
+    assertEquals(1, findings.size)
+  }
 }

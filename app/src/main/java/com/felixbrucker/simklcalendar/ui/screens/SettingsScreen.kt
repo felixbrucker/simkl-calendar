@@ -35,13 +35,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -74,9 +74,8 @@ fun SettingsScreen(
     onNavigateToLogViewer: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val windowInfo = androidx.compose.ui.platform.LocalWindowInfo.current
-    val density = LocalDensity.current
-    val isTablet = with(density) { windowInfo.containerSize.width.toDp() >= 600.dp }
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
 
     val userToken by viewModel.userToken.collectAsState()
     val notificationPrefs by viewModel.notificationPreferences.collectAsState()
@@ -447,7 +446,7 @@ fun SettingsCategorySelector(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(effectiveItemHeightDp)
-                        .offset { IntOffset(0, animatedOffsetDp.roundToPx()) }
+                        .offset(y = animatedOffsetDp)
                 ) {}
 
                 Column(
@@ -473,81 +472,55 @@ fun SettingsCategorySelector(
 }
 
 @Composable
-private fun rememberCategoryColors(isSelected: Boolean): Pair<Color, Color> {
-    val contentColor by animateColorAsState(
-        targetValue = if (isSelected) Color(0xFFEADDFF) else Color(0xFFCAC4D0),
-        animationSpec = tween(200),
-        label = "category_content_color"
-    )
-    val iconColor by animateColorAsState(
-        targetValue = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF938F99),
-        animationSpec = tween(200),
-        label = "category_icon_color"
-    )
-    return contentColor to iconColor
-}
-
-@Composable
 fun SettingsCategoryItem(
     category: SettingsCategory,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    onMeasuredHeight: (Float) -> Unit = {}
-) {
-    val (contentColor, iconColor) = rememberCategoryColors(isSelected)
-
-    SettingsCategoryItemSurface(
-        category = category,
-        isSelected = isSelected,
-        contentColor = contentColor,
-        iconColor = iconColor,
-        onClick = onClick,
-        onMeasuredHeight = onMeasuredHeight,
-        modifier = modifier
-    )
-}
-
-@Composable
-private fun SettingsCategoryItemSurface(
-    category: SettingsCategory,
-    isSelected: Boolean,
-    contentColor: Color,
-    iconColor: Color,
-    onClick: () -> Unit,
-    onMeasuredHeight: (Float) -> Unit,
+    onMeasuredHeight: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val tag = "settings_category_${category.name.lowercase()}"
+    val animatedContentColor by animateColorAsState(
+        targetValue = if (isSelected) Color(0xFFEADDFF) else Color(0xFFCAC4D0),
+        animationSpec = tween(200),
+        label = "category_content_color"
+    )
+    val animatedIconColor by animateColorAsState(
+        targetValue = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF938F99),
+        animationSpec = tween(200),
+        label = "category_icon_color"
+    )
+
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
         color = Color.Transparent,
-        contentColor = contentColor,
+        contentColor = animatedContentColor,
         modifier = modifier
             .fillMaxWidth()
-            .onGloballyPositioned {
-                onMeasuredHeight(it.size.height.toFloat())
+            .onGloballyPositioned { coordinates ->
+                onMeasuredHeight(coordinates.size.height.toFloat())
             }
-            .testTag(tag)
+            .testTag("settings_category_${category.name.lowercase()}")
     ) {
-        SettingsCategoryItemRow(category, isSelected, iconColor)
-    }
-}
-
-@Composable
-private fun SettingsCategoryItemRow(
-    category: SettingsCategory,
-    isSelected: Boolean,
-    iconColor: Color
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Icon(category.icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
-        Text(category.title, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, fontSize = 14.sp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = category.icon,
+                contentDescription = null,
+                tint = animatedIconColor,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = category.title,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 14.sp
+            )
+        }
     }
 }
 

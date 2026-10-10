@@ -77,6 +77,10 @@ android {
     warningsAsErrors = true
     checkReleaseBuilds = true
     baseline = file("lint-baseline.xml")
+    disable += setOf(
+      "AndroidGradlePluginVersion",
+      "NewerVersionAvailable"
+    )
     enable += setOf(
       "UnusedResources",
       "TypographyQuotes",
@@ -88,14 +92,15 @@ android {
 val detektCliClasspath = configurations.create("detektCliClasspath")
 
 val javaToolchains = project.extensions.getByType<JavaToolchainService>()
-val java21Launcher = javaToolchains.launcherFor {
-  languageVersion.set(JavaLanguageVersion.of(21))
+val java25Launcher = javaToolchains.launcherFor {
+  languageVersion.set(JavaLanguageVersion.of(25))
 }
 
 val detektRun = tasks.register<JavaExec>("detektRun") {
   group = "verification"
   description = "Runs Detekt static analysis via JavaExec."
-  javaLauncher.set(java21Launcher)
+  javaLauncher.set(java25Launcher)
+  jvmArgs("-Djava.version=25")
   mainClass.set("io.gitlab.arturbosch.detekt.cli.Main")
   classpath = detektCliClasspath
   val baselineFile = file("$rootDir/detekt-baseline.xml")

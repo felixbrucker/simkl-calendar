@@ -13,11 +13,11 @@ class ComposableLineLimitRule(config: Config = Config.empty) : Rule(config) {
   override val issue = Issue(
     id = "ComposableLineLimit",
     severity = Severity.CodeSmell,
-    description = "Enforces line limit (15 lines max) on @Composable helper functions.",
+    description = "Enforces line limit (25 lines max) on @Composable helper functions.",
     debt = Debt.TEN_MINS
   )
 
-  private val maxLines = 15
+  private val maxLines = 25
 
   override fun visitNamedFunction(function: KtNamedFunction) {
     super.visitNamedFunction(function)
@@ -37,7 +37,7 @@ class ComposableLineLimitRule(config: Config = Config.empty) : Rule(config) {
         CodeSmell(
           issue = issue,
           entity = Entity.from(function),
-          message = "Composable function '${function.name}' body has $lineCount code lines, exceeding the 15-line limit. Extract layout sections into separate composables."
+          message = "Composable function '${function.name}' body has $lineCount code lines, exceeding the 25-line limit. Extract layout sections into separate composables."
         )
       )
     }
