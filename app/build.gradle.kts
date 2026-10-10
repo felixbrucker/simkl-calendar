@@ -77,10 +77,6 @@ android {
     warningsAsErrors = true
     checkReleaseBuilds = true
     baseline = file("lint-baseline.xml")
-    disable += setOf(
-      "AndroidGradlePluginVersion",
-      "NewerVersionAvailable"
-    )
     enable += setOf(
       "UnusedResources",
       "TypographyQuotes",

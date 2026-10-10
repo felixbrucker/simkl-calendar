@@ -33,10 +33,10 @@ jobs:
           sentry_dsn: ${{ secrets.SENTRY_DSN }}
           keystore_base64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      - name: Run Unit Tests and Generate Coverage Report
+      - name: Run Linting, Detekt, Unit Tests and Generate Coverage Report
         run: |
           chmod +x ./gradlew
-          ./gradlew test koverXmlReport --stacktrace
+          ./gradlew lint detekt test koverXmlReport --stacktrace
 
       - name: Post Coverage Report Comment on Pull Request
         uses: madrapps/jacoco-report@v1.8.0

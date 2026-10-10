@@ -35,13 +35,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -74,8 +75,8 @@ fun SettingsScreen(
     onNavigateToLogViewer: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val configuration = LocalConfiguration.current
-    val isTablet = configuration.screenWidthDp >= 600
+    val windowInfo = LocalWindowInfo.current
+    val isTablet = with(LocalDensity.current) { windowInfo.containerSize.width.toDp() } >= 600.dp
 
     val userToken by viewModel.userToken.collectAsState()
     val notificationPrefs by viewModel.notificationPreferences.collectAsState()
@@ -446,7 +447,7 @@ fun SettingsCategorySelector(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(effectiveItemHeightDp)
-                        .offset(y = animatedOffsetDp)
+                        .offset { IntOffset(0, animatedOffsetDp.roundToPx()) }
                 ) {}
 
                 Column(
@@ -476,8 +477,8 @@ fun SettingsCategoryItem(
     category: SettingsCategory,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onMeasuredHeight: (Float) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onMeasuredHeight: (Float) -> Unit = {}
 ) {
     val animatedContentColor by animateColorAsState(
         targetValue = if (isSelected) Color(0xFFEADDFF) else Color(0xFFCAC4D0),
@@ -497,30 +498,37 @@ fun SettingsCategoryItem(
         contentColor = animatedContentColor,
         modifier = modifier
             .fillMaxWidth()
-            .onGloballyPositioned { coordinates ->
-                onMeasuredHeight(coordinates.size.height.toFloat())
-            }
+            .onGloballyPositioned { onMeasuredHeight(it.size.height.toFloat()) }
             .testTag("settings_category_${category.name.lowercase()}")
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = category.icon,
-                contentDescription = null,
-                tint = animatedIconColor,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = category.title,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                fontSize = 14.sp
-            )
-        }
+        SettingsCategoryItemContent(category = category, isSelected = isSelected, animatedIconColor = animatedIconColor)
+    }
+}
+
+@Composable
+private fun SettingsCategoryItemContent(
+    category: SettingsCategory,
+    isSelected: Boolean,
+    animatedIconColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector = category.icon,
+            contentDescription = null,
+            tint = animatedIconColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = category.title,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            fontSize = 14.sp
+        )
     }
 }
 
