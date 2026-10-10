@@ -20,25 +20,80 @@
     </issue>
 
     <issue
-        id="ConfigurationScreenWidthHeight"
-        message="Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize"
-        errorLine1="    val isTablet = configuration.screenWidthDp >= 600"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        id="AndroidGradlePluginVersion"
+        message="A newer version of Gradle than 9.8.0 is available: 9.8.1"
+        errorLine1="distributionUrl=https\://services.gradle.org/distributions/gradle-9.8.0-bin.zip"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/felixbrucker/simklcalendar/ui/screens/SettingsScreen.kt"
-            line="78"
-            column="20"/>
+            file="../gradle/wrapper/gradle-wrapper.properties"
+            line="5"
+            column="17"/>
     </issue>
 
     <issue
-        id="ModifierParameter"
-        message="Modifier parameter should be the first optional parameter"
-        errorLine1="    modifier: Modifier = Modifier"
-        errorLine2="    ~~~~~~~~">
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.plugin.compose than 2.4.20 is available: 2.4.21"
+        errorLine1="kotlin = &quot;2.4.20&quot;"
+        errorLine2="         ~~~~~~~~">
         <location
-            file="src/main/java/com/felixbrucker/simklcalendar/ui/screens/SettingsScreen.kt"
-            line="480"
-            column="5"/>
+            file="../gradle/libs.versions.toml"
+            line="8"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx.kover than 0.9.9 is available: 0.9.11"
+        errorLine1="kover = &quot;0.9.9&quot;"
+        errorLine2="        ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="29"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.sentry:sentry-android than 8.58.0 is available: 8.60.0"
+        errorLine1="sentryAndroid = &quot;8.58.0&quot;"
+        errorLine2="                ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="35"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.sentry:sentry-android-sqlite than 8.58.0 is available: 8.60.0"
+        errorLine1="sentryAndroid = &quot;8.58.0&quot;"
+        errorLine2="                ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="35"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.sentry:sentry-android-timber than 8.58.0 is available: 8.60.0"
+        errorLine1="sentryAndroid = &quot;8.58.0&quot;"
+        errorLine2="                ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="35"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.nlopez.compose.rules:detekt than 0.4.22 is available: 0.6.8"
+        errorLine1="composeRules = &quot;0.4.22&quot;"
+        errorLine2="               ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="39"
+            column="16"/>
     </issue>
 
     <issue
@@ -79,17 +134,6 @@
         message="The resource `R.drawable.simkl_logo` appears to be unused">
         <location
             file="src/main/res/drawable/simkl_logo.png"/>
-    </issue>
-
-    <issue
-        id="UseOfNonLambdaOffsetOverload"
-        message="State backed values should use the lambda overload of Modifier.offset"
-        errorLine1="                        .offset(y = animatedOffsetDp)"
-        errorLine2="                         ~~~~~~">
-        <location
-            file="src/main/java/com/felixbrucker/simklcalendar/ui/screens/SettingsScreen.kt"
-            line="449"
-            column="26"/>
     </issue>
 
     <issue
