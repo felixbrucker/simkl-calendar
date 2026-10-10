@@ -3,7 +3,6 @@ package com.felixbrucker.simklcalendar.data.util
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
-import java.util.Locale
 
 /**
  * Unified formatting utility for media items, seasons, and episodes.
