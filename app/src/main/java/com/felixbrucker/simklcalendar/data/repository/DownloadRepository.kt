@@ -9,6 +9,7 @@ import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.data.util.formattedAutoDownloadLabel
 import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
@@ -104,15 +105,14 @@ class DownloadRepository @Inject constructor(
         withDelay: Duration = 50.milliseconds,
         onProgress: (current: Int, total: Int, itemTitle: String, success: Boolean) -> Unit = { _, _, _, _ -> }
     ) = withContext(Dispatchers.IO) {
-        val items = calendarDao.getAllCalendarItems().first()
-        val wantedItems = items.filter { it.mediaStatus == MediaStatus.WANTED }
+        val wantedItems = calendarDao.getWantedCalendarItems().first()
 
         if (wantedItems.isEmpty()) return@withContext
 
         wantedItems.forEachIndexed { index, item ->
             val result = searchAndDownloadEpisode(item)
 
-            onProgress(index + 1, wantedItems.size, item.title, result.isSuccess)
+            onProgress(index + 1, wantedItems.size, item.formattedAutoDownloadLabel, result.isSuccess)
 
             // Update the notification for this item, if it has one
             val updatedItem = calendarDao.findItem(item.primaryKey) ?: return@forEachIndexed

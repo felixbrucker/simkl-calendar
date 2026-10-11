@@ -31,6 +31,16 @@ interface CalendarItemDao {
     """)
     fun getAllCalendarItems(): Flow<List<CalendarItemWithWatchlist>>
 
+    @Transaction
+    @Query("""
+        SELECT ci.* FROM calendar_items ci
+        INNER JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
+        INNER JOIN local_item_state lis ON ci.primaryKey = lis.primaryKey
+        WHERE lis.mediaStatus = 'WANTED'
+        ORDER BY ci.date ASC, twi.title ASC
+    """)
+    fun getWantedCalendarItems(): Flow<List<CalendarItemWithWatchlist>>
+
     @Query("SELECT * FROM calendar_items")
     fun getAllCalendarEntitiesFlow(): Flow<List<CalendarItem>>
 

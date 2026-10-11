@@ -20,6 +20,7 @@ class CalendarRepository @Inject constructor(
     private val mediaStatusResolver: MediaStatusResolver,
 ) {
     val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()
+    val wantedCalendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getWantedCalendarItems()
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = watchlistDao.getAllTrackedItemsFlow()
 
     suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus) = withContext(Dispatchers.IO) {
