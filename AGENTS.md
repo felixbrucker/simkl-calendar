@@ -256,6 +256,10 @@ fun testUpdateItemStateSuccess() = runTest {
 }
 ```
 
+### 9.3 Lint and Detekt
+Modifying or adding issues to the detekt-baseline.xml and lint-baseline.xml is PROHIBITED. If you produce code that triggers lint or detekt issues, fix them instead of ignoring them.
+Only deleting issues from the baseline files is allowed (fixing ignored issues).
+
 ---
 
 ## 10. Build Environment & Executables
@@ -278,4 +282,5 @@ chmod +x gradlew
 Always use the local Gradle wrapper (`./gradlew` or `gradlew.bat`):
 - `./gradlew assembleDebug`: Build debug APK.
 - `./gradlew test`: Run unit test suite.
+- `./gradlew lint detekt`: Run linter.
 - `./gradlew koverVerify`: Run Kover test coverage verification.
