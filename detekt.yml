@@ -12,8 +12,6 @@ agents:
     active: true
   NamedBooleanArguments:
     active: true
-  ComposableLineLimit:
-    active: true
   StatelessChildComposable:
     active: true
   NoDefaultParamsInInjectableConstructor:

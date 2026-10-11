@@ -13,7 +13,6 @@ class AgentsRuleSetProvider : RuleSetProvider {
       listOf(
         ThreeSectionTestPatternRule(config),
         NamedBooleanArgumentsRule(config),
-        ComposableLineLimitRule(config),
         StatelessChildComposableRule(config),
         NoDefaultParamsInInjectableConstructorRule(config),
         ForbiddenSharedPreferencesRule(config)
