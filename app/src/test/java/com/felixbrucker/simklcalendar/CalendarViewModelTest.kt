@@ -15,6 +15,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.*
@@ -37,6 +38,7 @@ class CalendarViewModelTest {
     private lateinit var notificationSettingRepositoryMock: NotificationSettingRepository
 
     private val calendarItemsFlow = MutableStateFlow<List<CalendarItemWithWatchlist>>(emptyList())
+    private val wantedCalendarItemsFlow = MutableStateFlow<List<CalendarItemWithWatchlist>>(emptyList())
     private val userTokenFlow = MutableStateFlow<UserToken?>(null)
     private val watchlistItemsFlow = MutableStateFlow<List<TrackedWatchlistItem>>(emptyList())
     private val customSearchLinksFlow = MutableStateFlow<List<CustomSearchLink>>(emptyList())
@@ -63,6 +65,7 @@ class CalendarViewModelTest {
 
         userTokenFlow.value = null
         calendarItemsFlow.value = emptyList()
+        wantedCalendarItemsFlow.value = emptyList()
         watchlistItemsFlow.value = emptyList()
         customSearchLinksFlow.value = emptyList()
         uiPreferencesFlow.value = UiPreferences()
@@ -97,6 +100,7 @@ class CalendarViewModelTest {
         every { application.applicationContext } returns application
 
         every { calendarRepositoryMock.calendarItems } returns calendarItemsFlow
+        every { calendarRepositoryMock.wantedCalendarItems } returns wantedCalendarItemsFlow
         every { userRepositoryMock.activeUserToken } returns userTokenFlow
         every { calendarRepositoryMock.watchlistItems } returns watchlistItemsFlow
         every { customSearchLinkRepositoryMock.customSearchLinks } returns customSearchLinksFlow
@@ -582,7 +586,7 @@ class CalendarViewModelTest {
     @Test
     fun testRunAutoDownloadManualNoWantedItems() = runTest {
         val viewModel = createViewModel()
-        calendarItemsFlow.value = emptyList()
+        wantedCalendarItemsFlow.value = emptyList()
 
         viewModel.runAutoDownloadManual()
         advanceUntilIdle()
@@ -597,12 +601,34 @@ class CalendarViewModelTest {
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
-        calendarItemsFlow.value = listOf(item)
+        wantedCalendarItemsFlow.value = listOf(item)
 
         viewModel.runAutoDownloadManual()
         advanceUntilIdle()
 
         coVerify { downloadRepositoryMock.searchAndDownloadWantedItems(any(), any()) }
+    }
+
+    @Test
+    fun testHasWantedCalendarItemsFlow() = runTest {
+        val viewModel = createViewModel()
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
+        val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
+
+        val collectorJob = backgroundScope.launch {
+            viewModel.hasWantedCalendarItems.collect {}
+        }
+
+        val initialHasWanted = viewModel.hasWantedCalendarItems.value
+        wantedCalendarItemsFlow.value = listOf(item)
+        advanceUntilIdle()
+        val updatedHasWanted = viewModel.hasWantedCalendarItems.value
+
+        collectorJob.cancel()
+
+        assertFalse(initialHasWanted)
+        assertTrue(updatedHasWanted)
     }
 
     @Test

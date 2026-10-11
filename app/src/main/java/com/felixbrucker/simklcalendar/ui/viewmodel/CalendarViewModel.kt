@@ -109,8 +109,8 @@ class CalendarViewModel @Inject constructor(
 
     val isTorrentServiceBound: StateFlow<Boolean> = torrentServiceHelper.isBound
     val isTorrentServiceInstalled: StateFlow<Boolean> = torrentServiceHelper.isInstalled
-    val hasWantedCalendarItems: StateFlow<Boolean> = allCalendarItems
-        .map { it.any { item -> item.mediaStatus == MediaStatus.WANTED } }
+    val hasWantedCalendarItems: StateFlow<Boolean> = calendarRepository.wantedCalendarItems
+        .map { it.isNotEmpty() }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -776,8 +776,7 @@ class CalendarViewModel @Inject constructor(
 
     fun runAutoDownloadManual() {
         viewModelScope.launch {
-            val items = calendarRepository.calendarItems.first()
-            val wantedItems = items.filter { it.mediaStatus == MediaStatus.WANTED }
+            val wantedItems = calendarRepository.wantedCalendarItems.first()
 
             if (wantedItems.isEmpty()) {
                 _autoDownloadStatus.value = "No wanted episodes found"

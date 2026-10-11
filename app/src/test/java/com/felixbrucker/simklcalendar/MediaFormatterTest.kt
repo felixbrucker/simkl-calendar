@@ -280,4 +280,35 @@ class MediaFormatterTest {
         assertEquals("S01E02: TBA", tvTbaResult)
         assertEquals("E05: The Test", animeS1Result)
     }
+
+    @Test
+    fun testFormattedAutoDownloadLabel() {
+        val watchTv = com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem(1, MediaType.TV, "Breaking Bad")
+        val itemTv = com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist(
+            calendarItem = com.felixbrucker.simklcalendar.data.database.CalendarItem("key1", 1, "Pilot", 4, 2, java.time.Instant.now(), null, false, false),
+            watchlistItem = watchTv
+        )
+
+        val watchAnime = com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem(2, MediaType.ANIME, "Naruto")
+        val itemAnime = com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist(
+            calendarItem = com.felixbrucker.simklcalendar.data.database.CalendarItem("key2", 2, "Ep 12", 1, 12, java.time.Instant.now(), null, false, false),
+            watchlistItem = watchAnime
+        )
+
+        val watchMovie = com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem(3, MediaType.MOVIE, "Inception")
+        val itemMovieDigital = com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist(
+            calendarItem = com.felixbrucker.simklcalendar.data.database.CalendarItem("key3", 3, null, null, null, java.time.Instant.now(), MovieReleaseType.DIGITAL, false, false),
+            watchlistItem = watchMovie
+        )
+
+        val itemMovieTheater = com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist(
+            calendarItem = com.felixbrucker.simklcalendar.data.database.CalendarItem("key4", 3, null, null, null, java.time.Instant.now(), MovieReleaseType.THEATER, false, false),
+            watchlistItem = watchMovie
+        )
+
+        assertEquals("Breaking Bad S04E02", itemTv.formattedAutoDownloadLabel)
+        assertEquals("Naruto E12", itemAnime.formattedAutoDownloadLabel)
+        assertEquals("Inception (DVD/Digital)", itemMovieDigital.formattedAutoDownloadLabel)
+        assertEquals("Inception (Theater)", itemMovieTheater.formattedAutoDownloadLabel)
+    }
 }

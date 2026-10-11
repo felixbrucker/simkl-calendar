@@ -269,6 +269,17 @@ val CalendarItemWithWatchlist.formattedSeasonLabel: String
 val CalendarItemWithWatchlist.formattedEpisodeSlugHeader: String
     get() = MediaFormatter.formatEpisodeSlugHeader(type, season)
 
+val CalendarItemWithWatchlist.formattedAutoDownloadLabel: String
+    get() = if (type == MediaType.MOVIE) {
+        when (movieReleaseType) {
+            MovieReleaseType.DIGITAL -> "$title (DVD/Digital)"
+            MovieReleaseType.THEATER -> "$title (Theater)"
+            null -> title
+        }
+    } else {
+        "$title ${MediaFormatter.formatEpisodeCode(type, season, episodeNumber)}"
+    }
+
 // Fast 2-digit zero-padding helper avoiding java.util.Formatter, primitive boxing, and Object[] varargs allocations
 internal fun formatTwoDigits(number: Int): String {
     return if (number in 0..9) "0$number" else number.toString()
