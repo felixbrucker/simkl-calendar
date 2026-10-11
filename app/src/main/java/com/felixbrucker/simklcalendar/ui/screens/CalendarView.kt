@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -65,6 +67,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.PosterSize
+import com.felixbrucker.simklcalendar.data.util.formattedAnimeSeasonLabel
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCardBadge
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
@@ -477,9 +480,10 @@ fun CalendarItemCard(
 
                 // Details Column
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         // Type Badge
                         Badge(
@@ -554,6 +558,14 @@ fun CalendarItemCard(
                         if (item.isSeasonFinale) {
                             Badge(containerColor = Color(0xFFB3261E), contentColor = Color.White) {
                                 Text("SEASON FINALE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
+                            }
+                        }
+
+                        // Anime Season badge
+                        val animeSeasonLabel = item.formattedAnimeSeasonLabel
+                        if (animeSeasonLabel != null) {
+                            Badge(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B)) {
+                                Text(animeSeasonLabel.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                             }
                         }
                     }

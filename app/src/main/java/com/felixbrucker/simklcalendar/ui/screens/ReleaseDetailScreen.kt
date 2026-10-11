@@ -224,6 +224,7 @@ fun ReleaseDetailScreen(
                     rating = activeItem.rating,
                     titleRomaji = activeItem.titleRomaji,
                     hasUniqueTitleRomaji = activeItem.hasUniqueTitleRomaji,
+                    animeSeason = activeItem.animeSeason,
                     onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId) }
                 )
 

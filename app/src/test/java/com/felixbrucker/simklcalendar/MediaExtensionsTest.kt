@@ -110,4 +110,58 @@ class MediaExtensionsTest {
         assertEquals("series/Breaking Bad", defaultSubdir)
         assertEquals("custom/path", overrideSubdir)
     }
+
+    @Test
+    fun testFormatAnimeSeasonLabelWithAnimeAndSeason() {
+        val animeType = MediaType.ANIME
+        val seasonNumber = 3
+
+        val result = MediaFormatter.formatAnimeSeasonLabel(animeType, seasonNumber)
+
+        assertEquals("Season 3", result)
+    }
+
+    @Test
+    fun testFormatAnimeSeasonLabelWithNullSeasonOrNonAnime() {
+        val animeType = MediaType.ANIME
+        val tvType = MediaType.TV
+
+        val animeNullResult = MediaFormatter.formatAnimeSeasonLabel(animeType, null)
+        val animeZeroResult = MediaFormatter.formatAnimeSeasonLabel(animeType, 0)
+        val tvResult = MediaFormatter.formatAnimeSeasonLabel(tvType, 3)
+
+        assertEquals(null, animeNullResult)
+        assertEquals(null, animeZeroResult)
+        assertEquals(null, tvResult)
+    }
+
+    @Test
+    fun testFormattedAnimeSeasonLabelExtensionProperties() {
+        val animeItem = TrackedWatchlistItem(
+            simklId = 300,
+            type = MediaType.ANIME,
+            title = "Demon Slayer",
+            animeSeason = 3
+        )
+        val calendarItem = CalendarItem(
+            primaryKey = "v2_300_1_1",
+            simklId = 300,
+            episodeTitle = "Episode 1",
+            season = 1,
+            episodeNumber = 1,
+            date = Instant.now(),
+            isSeasonPremiere = true,
+            isSeasonFinale = false
+        )
+        val itemWithWatchlist = CalendarItemWithWatchlist(
+            calendarItem = calendarItem,
+            watchlistItem = animeItem
+        )
+
+        val itemLabel = animeItem.formattedAnimeSeasonLabel
+        val calendarLabel = itemWithWatchlist.formattedAnimeSeasonLabel
+
+        assertEquals("Season 3", itemLabel)
+        assertEquals("Season 3", calendarLabel)
+    }
 }
