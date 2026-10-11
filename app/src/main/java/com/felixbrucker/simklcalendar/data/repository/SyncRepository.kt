@@ -1,6 +1,5 @@
 package com.felixbrucker.simklcalendar.data.repository
 
-import timber.log.Timber
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
@@ -35,6 +34,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
@@ -72,7 +72,7 @@ class SyncRepository @Inject constructor(
     suspend fun syncCalendar(force: Boolean = false) = withContext(Dispatchers.IO) {
         val token = tokenDao.getActiveToken()
         if (token == null || token.accessToken.isEmpty()) {
-            Timber.tag("SyncRepository").d("Skipping syncCalendar: user is not authenticated")
+            Timber.d("Skipping syncCalendar: user is not authenticated")
             return@withContext
         }
         val watchlistSyncResult = syncWatchlist(forceFullSync = force)
@@ -98,7 +98,7 @@ class SyncRepository @Inject constructor(
     internal suspend fun syncWatchlist(forceFullSync: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
         val token = tokenDao.getActiveToken()
         if (token == null || token.accessToken.isEmpty()) {
-            Timber.tag("SyncRepository").d("Skipping syncWatchlist: user is not authenticated")
+            Timber.d("Skipping syncWatchlist: user is not authenticated")
             return@withContext SyncResult()
         }
         var changesDetected = false
@@ -113,7 +113,7 @@ class SyncRepository @Inject constructor(
             val shouldFetchDeltas = savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
 
             if (shouldFetchDeltas) {
-                Timber.tag("SyncRepository").d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
+                Timber.d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
                 val syncResponse = authenticatedSimklApiService.getSyncAllItems(
                     dateFrom = savedTimestamp,
@@ -124,7 +124,9 @@ class SyncRepository @Inject constructor(
                 syncResponse.anime?.forEach { collectedSimklIds.add(it.show.ids.simkl) }
                 syncResponse.movies?.forEach { collectedSimklIds.add(it.movie.ids.simkl) }
 
-                val existingTrackedMap = watchlistDao.getTrackedItemsBySimklIds(collectedSimklIds.toList()).associateBy { it.simklId }
+                val existingTrackedMap = watchlistDao
+                    .getTrackedItemsBySimklIds(collectedSimklIds.toList())
+                    .associateBy { it.simklId }
                 val trackedToInsert = mutableMapOf<Int, TrackedWatchlistItem>()
                 val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
                 val trackedToDelete = mutableSetOf<Int>()
@@ -208,12 +210,12 @@ class SyncRepository @Inject constructor(
                     for (simklId in trackedToDelete) {
                         watchlistDao.deleteItem(simklId)
                     }
-                    Timber.tag("SyncRepository").d("Deleted ${trackedToDelete.size} untracked watchlist items from DB")
+                    Timber.d("Deleted ${trackedToDelete.size} untracked watchlist items from DB")
                 }
 
                 if (trackedToInsert.isNotEmpty()) {
                     watchlistDao.insertItems(trackedToInsert.values.toList())
-                    Timber.tag("SyncRepository").d("Inserted ${trackedToInsert.size} new tracked watchlist items into DB")
+                    Timber.d("Inserted ${trackedToInsert.size} new tracked watchlist items into DB")
 
                     // Initialize default notification settings for newly inserted shows
                     try {
@@ -233,12 +235,12 @@ class SyncRepository @Inject constructor(
                         }
                         settingDao.insertSettings(newSettings)
                     } catch (e: Exception) {
-                        Timber.tag("SyncRepository").e(e, "Error initializing default notification settings")
+                        Timber.e(e, "Error initializing default notification settings")
                     }
                 }
                 if (trackedToUpdate.isNotEmpty()) {
                     watchlistDao.updateItems(trackedToUpdate.values.toList())
-                    Timber.tag("SyncRepository").d("Updated ${trackedToUpdate.size} changed tracked watchlist items in DB")
+                    Timber.d("Updated ${trackedToUpdate.size} changed tracked watchlist items in DB")
                 }
 
                 if (savedTimestamp == null) {
@@ -269,7 +271,7 @@ class SyncRepository @Inject constructor(
                                 watchedAt = null
                             )
                         }
-                        Timber.tag("SyncRepository").d("Removed ${allWatchedToRemove.size} WatchedEpisode entities not present in API response")
+                        Timber.d("Removed ${allWatchedToRemove.size} WatchedEpisode entities not present in API response")
                     }
                 }
 
@@ -290,10 +292,10 @@ class SyncRepository @Inject constructor(
                 }
                 changesDetected = true
             } else {
-                Timber.tag("SyncRepository").d("Watchlist Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
+                Timber.d("Watchlist Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
             }
         } catch (e: Exception) {
-            Timber.tag("SyncRepository").e(e, "Error during watchlist sync")
+            Timber.e(e, "Error during watchlist sync")
         }
 
         // Automatic cleanup of old watched calendar items (> 30 days)
@@ -313,7 +315,7 @@ class SyncRepository @Inject constructor(
         // Load local tracked items (IDs only for filtering)
         val allTrackedIds = watchlistDao.getAllTrackedIds().toSet()
         if (allTrackedIds.isEmpty()) {
-            Timber.tag("SyncRepository").d("No tracked items in watchlist, skipping calendar json sync.")
+            Timber.d("No tracked items in watchlist, skipping calendar json sync.")
             return@withContext SyncResult()
         }
 
@@ -409,13 +411,13 @@ class SyncRepository @Inject constructor(
                     )
 
                     if (response.code() == 304) {
-                        Timber.tag("SyncRepository").d("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
+                        Timber.d("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
                         syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, nowMillis)
                         continue
                     }
 
                     if (!response.isSuccessful) {
-                        Timber.tag("SyncRepository").w("HTTP ${response.code()} for calendar JSON $year/$month/$endpointType")
+                        Timber.w("HTTP ${response.code()} for calendar JSON $year/$month/$endpointType")
                         continue
                     }
 
@@ -425,7 +427,10 @@ class SyncRepository @Inject constructor(
                     val responseLastModifiedHeader = response.headers()["Last-Modified"]
                     val parsedHeaderMillis = DateUtil.parseHttpDateToMillis(responseLastModifiedHeader) ?: nowMillis
                     syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, parsedHeaderMillis)
-                    syncMetadataRepo.setCalendarLastModifiedHeader(lastModifiedHeaderKey, responseLastModifiedHeader ?: "")
+                    syncMetadataRepo.setCalendarLastModifiedHeader(
+                        lastModifiedHeaderKey,
+                        responseLastModifiedHeader ?: ""
+                    )
 
                     val relevantEntries = calendarResponse.calendar.filter {
                         // Exclude season 0 (specials)
@@ -437,10 +442,18 @@ class SyncRepository @Inject constructor(
 
                     // Targeted DB fetch for this JSON's content
                     val relevantSimklIds = relevantEntries.map { it.simklId }.distinct()
-                    val currentTrackedItemMap = watchlistDao.getTrackedItemsBySimklIds(relevantSimklIds).associateBy { it.simklId }
-                    val currentExistingItemsMap = calendarDao.getCalendarEntitiesForSimklIds(relevantSimklIds).associateBy { it.primaryKey }
-                    val currentWatchedLookup = watchedDao.getWatchedEpisodesForSimklIds(relevantSimklIds).groupBy { it.simklId }
-                    val currentSettingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(relevantSimklIds).associateBy { it.simklId }
+                    val currentTrackedItemMap = watchlistDao
+                        .getTrackedItemsBySimklIds(relevantSimklIds)
+                        .associateBy { it.simklId }
+                    val currentExistingItemsMap = calendarDao
+                        .getCalendarEntitiesForSimklIds(relevantSimklIds)
+                        .associateBy { it.primaryKey }
+                    val currentWatchedLookup = watchedDao
+                        .getWatchedEpisodesForSimklIds(relevantSimklIds)
+                        .groupBy { it.simklId }
+                    val currentSettingsMap = itemDownloadSettingsDao
+                        .getSettingsBySimklIds(relevantSimklIds)
+                        .associateBy { it.simklId }
 
                     for (entry in relevantEntries) {
                         val simklId = entry.simklId
@@ -533,7 +546,7 @@ class SyncRepository @Inject constructor(
                                 epNum >= meta.totalEpisodes
                             val isFinale = isExplicitFinale || isMetadataFinale
 
-                            val keyUnique = "v2_${simklId}_${seasonNum}_${epNum}"
+                            val keyUnique = "v2_${simklId}_${seasonNum}_$epNum"
 
                             val showWatchedList = currentWatchedLookup[simklId]
                             val watchedEntry = showWatchedList?.firstOrNull {
@@ -575,14 +588,14 @@ class SyncRepository @Inject constructor(
                         }
                     }
                 } catch (e: Exception) {
-                    Timber.tag("SyncRepository").e(e, "Failed fetching CDN v2 calendar for $year/$month/$endpointType")
+                    Timber.e(e, "Failed fetching CDN v2 calendar for $year/$month/$endpointType")
                 }
             }
         }
 
         if (trackedToUpdate.isNotEmpty()) {
             watchlistDao.updateItems(trackedToUpdate.values.toList())
-            Timber.tag("SyncRepository").d("Updated ${trackedToUpdate.size} changed tracked watchlist items with metadata in DB")
+            Timber.d("Updated ${trackedToUpdate.size} changed tracked watchlist items with metadata in DB")
         }
 
         if (itemsToInsert.isNotEmpty()) {
@@ -599,9 +612,9 @@ class SyncRepository @Inject constructor(
 
         val totalCalendarItemDbChanges = itemsToInsert.size + itemsToUpdate.size
         if (totalCalendarItemDbChanges == 0) {
-            Timber.tag("SyncRepository").d("Calendar sync complete: no changes detected, skipped DB writes")
+            Timber.d("Calendar sync complete: no changes detected, skipped DB writes")
         } else {
-            Timber.tag("SyncRepository").d("Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
+            Timber.d("Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         }
 
         syncMetadataRepo.setLastCalendarJsonSync(nowMillis)
@@ -631,18 +644,18 @@ class SyncRepository @Inject constructor(
         val lastCal = Calendar.getInstance().apply { timeInMillis = lastSyncTimestamp }
 
         val sameMonth = nowCal.get(Calendar.YEAR) == lastCal.get(Calendar.YEAR) &&
-                nowCal.get(Calendar.MONTH) == lastCal.get(Calendar.MONTH)
+            nowCal.get(Calendar.MONTH) == lastCal.get(Calendar.MONTH)
 
         val oneDayAgo = now.minus(1, ChronoUnit.DAYS)
         val moreThanOneDayAgo = lastSyncInstant.isBefore(oneDayAgo)
 
         // Logic: Sync when month changed AND more than 1 day since last sync
         if (sameMonth || !moreThanOneDayAgo) {
-            Timber.tag("SyncRepository").d("Backfill skipped: same month or < 1 day since last sync")
+            Timber.d("Backfill skipped: same month or < 1 day since last sync")
             return@withContext SyncResult()
         }
 
-        Timber.tag("SyncRepository").d("Starting backfill for past episodes...")
+        Timber.d("Starting backfill for past episodes...")
 
         val trackedShows = watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME))
         if (trackedShows.isEmpty()) return@withContext SyncResult()
@@ -687,7 +700,7 @@ class SyncRepository @Inject constructor(
                         }
                         show to episodes
                     } catch (e: Exception) {
-                        Timber.tag("SyncRepository").e(e, "Failed backfill for ${show.simklId}")
+                        Timber.e(e, "Failed backfill for ${show.simklId}")
                         show to null
                     }
                 }
@@ -715,7 +728,7 @@ class SyncRepository @Inject constructor(
                     val epNum = ep.episode ?: continue
                     val epTitle = ep.title
 
-                    val keyUnique = "v2_${show.simklId}_${seasonNum}_${epNum}"
+                    val keyUnique = "v2_${show.simklId}_${seasonNum}_$epNum"
 
                     val watchedEntry = showWatchedList?.firstOrNull {
                         it.season == seasonNum && it.episodeNumber == epNum
@@ -767,7 +780,7 @@ class SyncRepository @Inject constructor(
             calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
         }
 
-        Timber.tag("SyncRepository").d("Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
+        Timber.d("Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         val hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }
 
         SyncResult(
@@ -811,10 +824,14 @@ class SyncRepository @Inject constructor(
             val currentTrackedMap = watchlistDao.getTrackedItemsBySimklIds(ids).associateBy { it.simklId }
             val movieExistingItemsMap = if (type == MediaType.MOVIE) {
                 calendarDao.getCalendarEntitiesForSimklIds(ids).associateBy { it.primaryKey }
-            } else emptyMap()
+            } else {
+                emptyMap()
+            }
             val movieSettingsMap = if (type == MediaType.MOVIE) {
                 itemDownloadSettingsDao.getSettingsBySimklIds(ids).associateBy { it.simklId }
-            } else emptyMap()
+            } else {
+                emptyMap()
+            }
 
             val semaphore = Semaphore(16)
             val results = coroutineScope {
@@ -922,7 +939,7 @@ class SyncRepository @Inject constructor(
                                     }
                                 }
                             } catch (e: Exception) {
-                                Timber.tag("SyncRepository").e(e, "Failed fetching details for $type $id")
+                                Timber.e(e, "Failed fetching details for $type $id")
                                 null
                             }
                         }
@@ -934,14 +951,21 @@ class SyncRepository @Inject constructor(
                 successfullySyncedIds.add(res.newItem.simklId)
                 processTrackedItem(res.newItem, currentTrackedMap, trackedToUpdate)
                 for ((calItem, status) in res.calendarItems) {
-                    processCalendarItem(calItem, status, movieExistingItemsMap, itemsToInsert, itemsToUpdate, localStatesToInsert)
+                    processCalendarItem(
+                        calItem,
+                        status,
+                        movieExistingItemsMap,
+                        itemsToInsert,
+                        itemsToUpdate,
+                        localStatesToInsert
+                    )
                 }
             }
         }
 
         if (trackedToUpdate.isNotEmpty()) {
             watchlistDao.updateItems(trackedToUpdate.values.toList())
-            Timber.tag("SyncRepository").d("Updated ${trackedToUpdate.size} watchlist items with details in DB")
+            Timber.d("Updated ${trackedToUpdate.size} watchlist items with details in DB")
         }
 
         if (itemsToInsert.isNotEmpty()) {
@@ -1012,11 +1036,11 @@ class SyncRepository @Inject constructor(
             val cutoff = Instant.now().minus(cutoffDays, ChronoUnit.DAYS)
             val deletedCount = calendarDao.deleteWatchedItemsOlderThan(cutoff)
             if (deletedCount > 0) {
-                Timber.tag("SyncRepository").d("Cleaned up $deletedCount old watched calendar items (watched over $cutoffDays days ago)")
+                Timber.d("Cleaned up $deletedCount old watched calendar items (watched over $cutoffDays days ago)")
             }
             deletedCount
         } catch (e: Exception) {
-            Timber.tag("SyncRepository").e(e, "Error cleaning up old watched calendar items")
+            Timber.e(e, "Error cleaning up old watched calendar items")
             0
         }
     }
