@@ -68,6 +68,25 @@ import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.formattedAnimeSeasonLabel
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCardBadge
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
+import com.felixbrucker.simklcalendar.ui.theme.BlueAccent
+import com.felixbrucker.simklcalendar.ui.theme.BlueLight
+import com.felixbrucker.simklcalendar.ui.theme.ContainerBlue
+import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
+import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
+import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreyDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePurpleVariant
+import com.felixbrucker.simklcalendar.ui.theme.TextGreyLight
+import com.felixbrucker.simklcalendar.ui.theme.TextGreyMuted
+import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import java.time.LocalDate
 import java.time.ZoneId
@@ -220,7 +239,7 @@ private fun CalendarItemList(
                 renderGroupedCalendarItems(
                     groupedItems = state.earlierGrouped,
                     keyPrefix = "earlier",
-                    headerColor = Color(0xFF9E9AA3),
+                    headerColor = TextGreyMuted,
                     torrentDownloads = state.torrentDownloads,
                     onNavigateToShowDetail = onNavigateToShowDetail
                 )
@@ -231,7 +250,7 @@ private fun CalendarItemList(
             renderGroupedCalendarItems(
                 groupedItems = state.upcomingGrouped,
                 keyPrefix = "upcoming",
-                headerColor = Color(0xFFCAC4D0),
+                headerColor = TextSubtle,
                 torrentDownloads = state.torrentDownloads,
                 onNavigateToShowDetail = onNavigateToShowDetail
             )
@@ -279,7 +298,7 @@ private fun DateGroupHeader(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFF1C1B1F))
+            .background(SurfaceDark)
             .padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
         Text(
@@ -309,7 +328,7 @@ fun CalendarNoUpcomingReleasesNotice(
             Icon(
                 imageVector = Icons.Default.EventAvailable,
                 contentDescription = null,
-                tint = Color(0xFF3E3D4F),
+                tint = SurfacePurpleVariant,
                 modifier = Modifier.size(48.dp)
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -319,7 +338,7 @@ fun CalendarNoUpcomingReleasesNotice(
                 } else {
                     "No upcoming releases for active filters"
                 },
-                color = Color(0xFFA5A3B1),
+                color = TextGreyLight,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -331,7 +350,7 @@ fun CalendarNoUpcomingReleasesNotice(
                     } else {
                         "View $earlierCount Earlier Releases"
                     },
-                    color = Color(0xFFD0BCFF)
+                    color = PurpleLight
                 )
             }
         }
@@ -359,7 +378,7 @@ fun CalendarEmptyState(
             Icon(
                 imageVector = if (searchQuery.isNotBlank()) Icons.Default.SearchOff else Icons.Default.CalendarToday,
                 contentDescription = null,
-                tint = Color(0xFF3E3D4F),
+                tint = SurfacePurpleVariant,
                 modifier = Modifier.size(64.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -369,7 +388,7 @@ fun CalendarEmptyState(
                 } else {
                     "No releases found matching filters"
                 },
-                color = Color(0xFFA5A3B1),
+                color = TextGreyLight,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -382,13 +401,13 @@ fun CalendarEmptyState(
                         keyboardController?.hide()
                     }
                 ) {
-                    Text("Clear Search Query", color = Color(0xFFD0BCFF))
+                    Text("Clear Search Query", color = PurpleLight)
                 }
             } else {
                 TextButton(
                     onClick = onResetFilters
                 ) {
-                    Text("Reset Active Filters", color = Color(0xFFD0BCFF))
+                    Text("Reset Active Filters", color = PurpleLight)
                 }
             }
         }
@@ -406,11 +425,11 @@ fun CalendarEarlierReleasesHeader(
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (showEarlierReleases) Color(0xFF381E72).copy(alpha = 0.5f) else Color(0xFF2B2930)
+            containerColor = if (showEarlierReleases) SurfacePurple.copy(alpha = 0.5f) else SurfaceContainer
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (showEarlierReleases) Color(0xFFD0BCFF) else Color(0xFF49454F)
+            if (showEarlierReleases) PurpleLight else OutlineVariant
         ),
         modifier = modifier
             .fillMaxWidth()
@@ -431,7 +450,7 @@ fun CalendarEarlierReleasesHeader(
                 Icon(
                     imageVector = Icons.Default.History,
                     contentDescription = null,
-                    tint = Color(0xFFD0BCFF),
+                    tint = PurpleLight,
                     modifier = Modifier.size(20.dp)
                 )
                 Column {
@@ -439,7 +458,7 @@ fun CalendarEarlierReleasesHeader(
                         text = if (showEarlierReleases) "Hide Earlier Releases" else "Show Earlier Releases",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
-                        color = Color(0xFFE6E1E5)
+                        color = TextPrimary
                     )
                     Text(
                         text = if (searchQuery.isNotBlank()) {
@@ -448,14 +467,14 @@ fun CalendarEarlierReleasesHeader(
                             "$earlierCount past ${if (earlierCount == 1) "release" else "releases"} hidden by default"
                         },
                         fontSize = 12.sp,
-                        color = Color(0xFFCAC4D0)
+                        color = TextSubtle
                     )
                 }
             }
             Icon(
                 imageVector = if (showEarlierReleases) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                 contentDescription = if (showEarlierReleases) "Collapse earlier releases" else "Expand earlier releases",
-                tint = Color(0xFFD0BCFF),
+                tint = PurpleLight,
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -470,19 +489,19 @@ fun CalendarItemCard(
     downloadProgress: DownloadProgress? = null
 ) {
     val categoryColor = when (item.type) {
-        MediaType.ANIME -> Color(0xFFD0BCFF)
-        MediaType.MOVIE -> Color(0xFFF2B8B5)
-        MediaType.TV -> Color(0xFFBAC3FF)
+        MediaType.ANIME -> PurpleLight
+        MediaType.MOVIE -> ErrorPink
+        MediaType.TV -> BlueAccent
     }
 
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF2B2930)
+            containerColor = SurfaceContainer
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (item.mediaStatus == MediaStatus.DOWNLOADING) Color(0xFF004A77) else Color(0xFF49454F)
+            if (item.mediaStatus == MediaStatus.DOWNLOADING) ContainerBlue else OutlineVariant
         ),
         modifier = modifier
             .fillMaxWidth()
@@ -501,7 +520,7 @@ fun CalendarItemCard(
                     modifier = Modifier
                         .size(width = 60.dp, height = 90.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF313033))
+                        .background(SurfaceGreyDark)
                 ) {
                     AsyncImage(
                         model = item.poster.toPosterUrl(PosterSize.COMPACT),
@@ -540,8 +559,8 @@ fun CalendarItemCard(
                         // Downloading badge
                         if (item.mediaStatus == MediaStatus.DOWNLOADING) {
                             Badge(
-                                containerColor = Color(0xFF004A77),
-                                contentColor = Color(0xFFC2E8FF)
+                                containerColor = ContainerBlue,
+                                contentColor = BlueLight
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -552,13 +571,13 @@ fun CalendarItemCard(
                                         imageVector = Icons.Default.Download,
                                         contentDescription = "Downloading",
                                         modifier = Modifier.size(10.dp),
-                                        tint = Color(0xFFC2E8FF)
+                                        tint = BlueLight
                                     )
                                     Text(
                                         text = "DOWNLOADING",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFC2E8FF)
+                                        color = BlueLight
                                     )
                                 }
                             }
@@ -567,8 +586,8 @@ fun CalendarItemCard(
                         // Downloaded badge
                         if (item.mediaStatus == MediaStatus.DOWNLOADED) {
                             Badge(
-                                containerColor = Color(0xFF1E3A2B),
-                                contentColor = Color(0xFF7CE49F)
+                                containerColor = SurfaceGreen,
+                                contentColor = GreenSuccess
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -579,13 +598,13 @@ fun CalendarItemCard(
                                         imageVector = Icons.Default.CheckCircle,
                                         contentDescription = "Downloaded",
                                         modifier = Modifier.size(10.dp),
-                                        tint = Color(0xFF7CE49F)
+                                        tint = GreenSuccess
                                     )
                                     Text(
                                         text = "DOWNLOADED",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF7CE49F)
+                                        color = GreenSuccess
                                     )
                                 }
                             }
@@ -593,14 +612,14 @@ fun CalendarItemCard(
 
                         // Premiere badge
                         if (item.isSeasonPremiere) {
-                            Badge(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B)) {
+                            Badge(containerColor = PurpleContainerLight, contentColor = SurfacePurpleVariant) {
                                 Text("SEASON PREMIERE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                             }
                         }
 
                         // Finale badge
                         if (item.isSeasonFinale) {
-                            Badge(containerColor = Color(0xFFB3261E), contentColor = Color.White) {
+                            Badge(containerColor = ErrorRed, contentColor = Color.White) {
                                 Text("SEASON FINALE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                             }
                         }
@@ -608,7 +627,7 @@ fun CalendarItemCard(
                         // Anime Season badge
                         val animeSeasonLabel = item.formattedAnimeSeasonLabel
                         if (animeSeasonLabel != null) {
-                            Badge(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B)) {
+                            Badge(containerColor = PurpleContainerLight, contentColor = SurfacePurpleVariant) {
                                 Text(
                                     text = animeSeasonLabel.uppercase(),
                                     fontSize = 9.sp,
@@ -625,7 +644,7 @@ fun CalendarItemCard(
                         text = item.title,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
-                        color = Color(0xFFE6E1E5),
+                        color = TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -635,7 +654,7 @@ fun CalendarItemCard(
                             text = item.titleRomaji!!,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Normal,
-                            color = Color(0xFFCAC4D0),
+                            color = TextSubtle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -650,7 +669,7 @@ fun CalendarItemCard(
                             Text(
                                 text = "$epLabel: $epTitle",
                                 fontSize = 13.sp,
-                                color = Color(0xFFCAC4D0),
+                                color = TextSubtle,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -659,7 +678,7 @@ fun CalendarItemCard(
                             Text(
                                 text = item.movieReleaseType?.displayName ?: "Movie Release",
                                 fontSize = 13.sp,
-                                color = Color(0xFFF2B8B5)
+                                color = ErrorPink
                             )
                         }
                     }
@@ -673,14 +692,14 @@ fun CalendarItemCard(
                                     imageVector = Icons.Default.Schedule,
                                     contentDescription = "Air Time",
                                     modifier = Modifier.size(13.dp),
-                                    tint = Color(0xFFD0BCFF)
+                                    tint = PurpleLight
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = releaseTime,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFD0BCFF)
+                                    color = PurpleLight
                                 )
                             }
                         }
@@ -693,7 +712,7 @@ fun CalendarItemCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF004A77).copy(alpha = 0.1f))
+                        .background(ContainerBlue.copy(alpha = 0.1f))
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     val progress = if (downloadProgress.totalBytes > 0) downloadProgress.bytesDownloaded.toFloat() / downloadProgress.totalBytes else 0f
@@ -712,19 +731,19 @@ fun CalendarItemCard(
                                 .width(100.dp)
                                 .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp)),
-                            color = Color(0xFFC2E8FF),
-                            trackColor = Color(0xFF004A77).copy(alpha = 0.3f)
+                            color = BlueLight,
+                            trackColor = ContainerBlue.copy(alpha = 0.3f)
                         )
                         Text(
                             text = "${percentage}%",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFC2E8FF)
+                            color = BlueLight
                         )
                         Text(
                             text = "$downloaded / $total",
                             fontSize = 10.sp,
-                            color = Color(0xFFC2E8FF).copy(alpha = 0.7f)
+                            color = BlueLight.copy(alpha = 0.7f)
                         )
                     }
 
@@ -738,7 +757,7 @@ fun CalendarItemCard(
                         Text(
                             text = "$speedStr • ETA: $eta",
                             fontSize = 11.sp,
-                            color = Color(0xFFC2E8FF)
+                            color = BlueLight
                         )
                     }
                 }

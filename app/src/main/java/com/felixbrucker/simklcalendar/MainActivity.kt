@@ -46,6 +46,7 @@ import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
 import com.felixbrucker.simklcalendar.ui.screens.LogViewerScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
@@ -255,7 +256,7 @@ fun SimklCalendarApp(
     // Don't render navigation until we know if the user is logged in or not
     if (!authState.isReady) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Color(0xFFD0BCFF))
+            CircularProgressIndicator(color = PurpleLight)
         }
         return
     }

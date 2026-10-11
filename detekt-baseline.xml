@@ -1,13 +1,6 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
-  <ManuallySuppressedIssues>
-    <ID>MaxLineLength:SyncRepository.kt$SyncRepository$Timber.d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")</ID>
-    <ID>MaxLineLength:SyncRepository.kt$SyncRepository$Timber.d("Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")</ID>
-    <ID>MaxLineLength:SyncRepository.kt$SyncRepository$"Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)"</ID>
-    <ID>MaxLineLength:SyncRepository.kt$SyncRepository$Timber.d("Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")</ID>
-    <ID>MaxLineLength:SyncRepository.kt$SyncRepository$Timber.d("Removed ${allWatchedToRemove.size} WatchedEpisode entities not present in API response")</ID>
-    <ID>MaxLineLength:SyncRepository.kt$SyncRepository$Timber.d("Watchlist Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")</ID>
-  </ManuallySuppressedIssues>
+  <ManuallySuppressedIssues/>
   <CurrentIssues>
     <ID>ArgumentListWrapping:AlarmReceiver.kt$AlarmReceiver$("Season finale aired for '${item.title}', downloading unwatched season ${calendarItem.season}")</ID>
     <ID>ArgumentListWrapping:AlarmReceiver.kt$AlarmReceiver$("Skipping notification for '${item.title}' based on user preferences or notification state")</ID>
@@ -59,24 +52,17 @@
     <ID>ArgumentListWrapping:Daos.kt$CalendarItemDao$("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND season = :season AND episodeNumber = :episodeNumber")</ID>
     <ID>ArgumentListWrapping:Daos.kt$WatchedEpisodeDao$("DELETE FROM watched_episodes WHERE simklId = :simklId AND season = :season AND episodeNumber = :episodeNumber")</ID>
     <ID>ArgumentListWrapping:Daos.kt$WatchlistDao$("SELECT simklId FROM tracked_watchlist_items WHERE type = :type AND (lastSyncedAt IS NULL OR lastSyncedAt &lt; :cutoff)")</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Auto download all episodes when a season finishes airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Digital / DVD Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Download Season Unwatched", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Download Unwatched", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Episode Alerts", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Episode Search Style", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Notify me as soon as each episode of this series airs.", color = Color(0xFFCAC4D0), fontSize = 11.sp)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Notify me when the movie is available on digital or DVD.", color = Color(0xFFCAC4D0), fontSize = 11.sp)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Notify me when the movie releases in theaters.", color = Color(0xFFCAC4D0), fontSize = 11.sp)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Notify me when the season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Prefer HEVC / x265", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Season Finished Airing", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Season Overrides", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Seeders", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFCAC4D0), modifier = Modifier.width(45.dp), textAlign = TextAlign.End)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Size", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFCAC4D0), modifier = Modifier.width(65.dp))</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Theater Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Title Override", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Title", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFCAC4D0), modifier = Modifier.weight(1f))</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Auto download all episodes when a season finishes airing.", color = TextSubtle, fontSize = 11.sp)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Digital / DVD Release", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Download Season Unwatched", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Episode Search Style", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Notify me as soon as each episode of this series airs.", color = TextSubtle, fontSize = 11.sp)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Notify me when the movie is available on digital or DVD.", color = TextSubtle, fontSize = 11.sp)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Season Finished Airing", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Season Overrides", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Seeders", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(45.dp), textAlign = TextAlign.End)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Size", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(65.dp))</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$("Title", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.weight(1f))</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSeasonUnwatched = it))</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSubdirectoryOverride = next))</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadUnwatched = it))</ID>
@@ -85,19 +71,13 @@
     <ID>ArgumentListWrapping:DetailUIComponents.kt$((itemSettings ?: ItemDownloadSettings(simklId)).copy(seasonOverrides = it))</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$((itemSettings ?: ItemDownloadSettings(simklId)).copy(titleOverride = detectedTitle.trim().takeIf { it.isNotBlank() }))</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$((itemSettings ?: ItemDownloadSettings(simklId)).copy(titleOverride = tempTitle.trim().takeIf { it.isNotBlank() }))</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$(0xFF49454F)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$(0xFF7CE49F)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$(0xFFCAC4D0)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$(0xFFE6E1E5)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$(0xFFF2B8B5)</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$(18.dp)</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$(1f)</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$(45.dp)</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$(65.dp)</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF7CE49F))</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFF2B8B5), modifier = Modifier.size(18.dp))</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$(Icons.Default.RadioButtonUnchecked, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFFF2B8B5))</ID>
-    <ID>ArgumentListWrapping:DetailUIComponents.kt$(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp), tint = GreenSuccess)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$(Icons.Default.RadioButtonUnchecked, contentDescription = null, modifier = Modifier.size(18.dp), tint = ErrorPink)</ID>
+    <ID>ArgumentListWrapping:DetailUIComponents.kt$(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$(downloadSeasonUnwatched = it)</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$(downloadSubdirectoryOverride = next)</ID>
     <ID>ArgumentListWrapping:DetailUIComponents.kt$(downloadUnwatched = it)</ID>
@@ -112,9 +92,6 @@
     <ID>ArgumentListWrapping:DownloadCompletedReceiverTest.kt$DownloadCompletedReceiverTest$(finaleCalItem, watchItem, LocalItemState("v2_100_1_10", MediaStatus.DOWNLOADED))</ID>
     <ID>ArgumentListWrapping:DownloadCompletedReceiverTest.kt$DownloadCompletedReceiverTest$(relaxed = true)</ID>
     <ID>ArgumentListWrapping:LogRepositoryTest.kt$LogRepositoryTest$(timestamp = System.currentTimeMillis(), priority = Log.INFO, tag = "TestTag", message = "Hello Test")</ID>
-    <ID>ArgumentListWrapping:LogViewerScreen.kt$(0xFF79747E)</ID>
-    <ID>ArgumentListWrapping:LogViewerScreen.kt$(48.dp)</ID>
-    <ID>ArgumentListWrapping:LogViewerScreen.kt$(Icons.Default.Terminal, contentDescription = null, tint = Color(0xFF79747E), modifier = Modifier.size(48.dp))</ID>
     <ID>ArgumentListWrapping:LoginScreen.kt$(Icons.Default.Key, contentDescription = null, modifier = Modifier.padding(end = 8.dp))</ID>
     <ID>ArgumentListWrapping:LoginScreen.kt$(end = 8.dp)</ID>
     <ID>ArgumentListWrapping:MainScreen.kt$(fadeOut(animationSpec = tween(90)) + scaleOut(targetScale = 0.92f, animationSpec = tween(90)))</ID>
@@ -240,10 +217,7 @@
     <ID>ArgumentListWrapping:WatchHistoryRepository.kt$WatchHistoryRepository$("WatchHistoryRepository")</ID>
     <ID>ArgumentListWrapping:WatchHistoryRepository.kt$WatchHistoryRepository$(e, "Failed to mark episode S${season}E${episodeNumber} as unwatched for simklId $simklId")</ID>
     <ID>ArgumentListWrapping:WatchHistoryRepository.kt$WatchHistoryRepository$(e, "Failed to mark episode S${season}E${episodeNumber} as watched for simklId $simklId")</ID>
-    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$("Release Information", fontWeight = FontWeight.Bold, color = Color(0xFFD0BCFF), fontSize = 16.sp)</ID>
-    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(0xFF938F99)</ID>
-    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(0xFFCAC4D0)</ID>
-    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(0xFFD0BCFF)</ID>
+    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$("Release Information", fontWeight = FontWeight.Bold, color = PurpleLight, fontSize = 16.sp)</ID>
     <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(10.dp)</ID>
     <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(2.dp)</ID>
     <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(4.dp)</ID>
@@ -263,12 +237,10 @@
     <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(simklId, sNum, watchlistItem.type)</ID>
     <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(simklId, season, status)</ID>
     <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(simklId, season, watchlistItem.type)</ID>
-    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = "$downloaded / $total", fontSize = 8.sp, color = Color(0xFF938F99))</ID>
-    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = "$percentage%", fontSize = 11.sp, color = Color(0xFFCAC4D0), fontWeight = FontWeight.Bold)</ID>
-    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = "$percentage%", fontSize = 9.sp, color = Color(0xFFCAC4D0), fontWeight = FontWeight.Bold)</ID>
-    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = "$speedStr • ETA: $eta", fontSize = 9.sp, color = Color(0xFFCAC4D0))</ID>
-    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = Color(0xFFCAC4D0), maxLines = 1)</ID>
-    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = DateUtil.formatDisplayDateTime(release.date), fontSize = 12.sp, color = Color(0xFFCAC4D0), maxLines = 1)</ID>
+    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = "$percentage%", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)</ID>
+    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = "$percentage%", fontSize = 9.sp, color = TextSubtle, fontWeight = FontWeight.Bold)</ID>
+    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)</ID>
+    <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = DateUtil.formatDisplayDateTime(release.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)</ID>
     <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = episode.episodeNumber?.toString() ?: "-", fontSize = 13.sp, color = Color.White)</ID>
     <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = episode.episodeTitle ?: "TBA", fontSize = 13.sp, color = Color.White, maxLines = 1, fontWeight = FontWeight.Medium)</ID>
     <ID>ArgumentListWrapping:WatchlistItemDetailScreen.kt$(text = release.movieReleaseType?.displayName ?: "Release", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)</ID>
@@ -312,18 +284,18 @@
     <ID>ImportOrdering:AppDatabase.kt$import android.content.Context import androidx.room.AutoMigration import androidx.room.Database import androidx.room.DeleteColumn import androidx.room.RenameColumn import androidx.room.Room import androidx.room.RoomDatabase import androidx.room.TypeConverter import androidx.room.TypeConverters import androidx.room.migration.AutoMigrationSpec import androidx.room.migration.Migration import androidx.sqlite.db.SupportSQLiteDatabase import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.model.MovieReleaseType import com.felixbrucker.simklcalendar.data.model.MediaStatus import java.time.Instant</ID>
     <ID>ImportOrdering:AutoDownloadWorker.kt$import android.content.Context import timber.log.Timber import androidx.work.Constraints import androidx.work.CoroutineWorker import androidx.work.ExistingPeriodicWorkPolicy import androidx.work.NetworkType import androidx.work.PeriodicWorkRequestBuilder import androidx.work.WorkManager import androidx.work.WorkerParameters import androidx.hilt.work.HiltWorker import androidx.work.OneTimeWorkRequestBuilder import dagger.assisted.Assisted import dagger.assisted.AssistedInject import com.felixbrucker.simklcalendar.data.repository.DownloadRepository import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper import java.util.concurrent.TimeUnit</ID>
     <ID>ImportOrdering:CalendarRepository.kt$import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist import com.felixbrucker.simklcalendar.data.database.CalendarItemDao import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem import com.felixbrucker.simklcalendar.data.database.WatchlistDao import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver import kotlinx.coroutines.Dispatchers import kotlinx.coroutines.flow.Flow import kotlinx.coroutines.withContext import java.time.Instant import javax.inject.Inject import javax.inject.Singleton</ID>
+    <ID>ImportOrdering:CalendarView.kt$import androidx.compose.foundation.background import androidx.compose.foundation.clickable import androidx.compose.foundation.layout.Arrangement import androidx.compose.foundation.layout.Box import androidx.compose.foundation.layout.Column import androidx.compose.foundation.layout.FlowRow import androidx.compose.foundation.layout.PaddingValues import androidx.compose.foundation.layout.Row import androidx.compose.foundation.layout.Spacer import androidx.compose.foundation.layout.fillMaxSize import androidx.compose.foundation.layout.fillMaxWidth import androidx.compose.foundation.layout.height import androidx.compose.foundation.layout.padding import androidx.compose.foundation.layout.size import androidx.compose.foundation.layout.width import androidx.compose.foundation.lazy.LazyColumn import androidx.compose.foundation.lazy.LazyListScope import androidx.compose.foundation.lazy.LazyListState import androidx.compose.foundation.lazy.items import androidx.compose.foundation.lazy.rememberLazyListState import androidx.compose.foundation.rememberScrollState import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.foundation.verticalScroll import androidx.compose.material.icons.Icons import androidx.compose.material.icons.filled.CalendarToday import androidx.compose.material.icons.filled.CheckCircle import androidx.compose.material.icons.filled.Download import androidx.compose.material.icons.filled.EventAvailable import androidx.compose.material.icons.filled.ExpandLess import androidx.compose.material.icons.filled.ExpandMore import androidx.compose.material.icons.filled.History import androidx.compose.material.icons.filled.Schedule import androidx.compose.material.icons.filled.SearchOff import androidx.compose.material3.Badge import androidx.compose.material3.Card import androidx.compose.material3.CardDefaults import androidx.compose.material3.Icon import androidx.compose.material3.LinearProgressIndicator import androidx.compose.material3.Text import androidx.compose.material3.TextButton import androidx.compose.runtime.Composable import androidx.compose.runtime.Immutable import androidx.compose.runtime.collectAsState import androidx.compose.runtime.getValue import androidx.compose.runtime.remember import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.clip import androidx.compose.ui.graphics.Color import androidx.compose.ui.layout.ContentScale import androidx.compose.ui.platform.LocalContext import androidx.compose.ui.platform.LocalFocusManager import androidx.compose.ui.platform.LocalSoftwareKeyboardController import androidx.compose.ui.res.painterResource import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.text.style.TextOverflow import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import coil.compose.AsyncImage import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.util.DateUtil import com.felixbrucker.simklcalendar.data.util.DownloadProgress import com.felixbrucker.simklcalendar.data.util.PosterSize import com.felixbrucker.simklcalendar.data.util.formattedAnimeSeasonLabel import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCardBadge import com.felixbrucker.simklcalendar.extensions.toPosterUrl import com.felixbrucker.simklcalendar.ui.theme.BlueAccent import com.felixbrucker.simklcalendar.ui.theme.BlueLight import com.felixbrucker.simklcalendar.ui.theme.ContainerBlue import com.felixbrucker.simklcalendar.ui.theme.ErrorPink import com.felixbrucker.simklcalendar.ui.theme.ErrorRed import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant import com.felixbrucker.simklcalendar.ui.theme.PurpleLight import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreyDark import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple import com.felixbrucker.simklcalendar.ui.theme.SurfacePurpleVariant import com.felixbrucker.simklcalendar.ui.theme.TextGreyLight import com.felixbrucker.simklcalendar.ui.theme.TextGreyMuted import com.felixbrucker.simklcalendar.ui.theme.TextPrimary import com.felixbrucker.simklcalendar.ui.theme.TextSubtle import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel import java.time.LocalDate import java.time.ZoneId</ID>
     <ID>ImportOrdering:CalendarViewModel.kt$import androidx.compose.runtime.Immutable import androidx.lifecycle.ViewModel import androidx.lifecycle.viewModelScope import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist import com.felixbrucker.simklcalendar.data.database.CustomSearchLink import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings import com.felixbrucker.simklcalendar.data.database.NotificationSetting import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem import com.felixbrucker.simklcalendar.data.database.UserToken import com.felixbrucker.simklcalendar.data.database.WatchedEpisode import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.model.MovieReleaseType import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository import com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository import com.felixbrucker.simklcalendar.data.preferences.UiPreferences import com.felixbrucker.simklcalendar.data.preferences.UiRepository import com.felixbrucker.simklcalendar.data.preferences.ViewMode import com.felixbrucker.simklcalendar.data.repository.CalendarRepository import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository import com.felixbrucker.simklcalendar.data.repository.DownloadRepository import com.felixbrucker.simklcalendar.data.repository.NotificationSettingRepository import com.felixbrucker.simklcalendar.data.repository.SyncRepository import com.felixbrucker.simklcalendar.data.repository.UserRepository import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository import com.felixbrucker.simklcalendar.data.util.DirectoryUtils import com.felixbrucker.simklcalendar.data.util.DownloadProgress import com.felixbrucker.simklcalendar.data.util.MediaFormatter import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper import com.felixbrucker.torrent_search_api.SearchResultItem import dagger.hilt.android.lifecycle.HiltViewModel import java.time.Instant import javax.inject.Inject import kotlin.time.Duration.Companion.milliseconds import kotlin.time.Duration.Companion.seconds import kotlinx.coroutines.CoroutineDispatcher import kotlinx.coroutines.Dispatchers import kotlinx.coroutines.Job import kotlinx.coroutines.coroutineScope import kotlinx.coroutines.delay import kotlinx.coroutines.flow.Flow import kotlinx.coroutines.flow.MutableStateFlow import kotlinx.coroutines.flow.SharingStarted import kotlinx.coroutines.flow.StateFlow import kotlinx.coroutines.flow.asStateFlow import kotlinx.coroutines.flow.combine import kotlinx.coroutines.flow.distinctUntilChanged import kotlinx.coroutines.flow.filter import kotlinx.coroutines.flow.first import kotlinx.coroutines.flow.flowOn import kotlinx.coroutines.flow.map import kotlinx.coroutines.flow.stateIn import kotlinx.coroutines.flow.update import kotlinx.coroutines.launch import timber.log.Timber</ID>
     <ID>ImportOrdering:CalendarViewModelTest.kt$import android.app.Application import android.os.Environment import com.felixbrucker.simklcalendar.data.database.CalendarItem import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist import com.felixbrucker.simklcalendar.data.database.CustomSearchLink import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings import com.felixbrucker.simklcalendar.data.database.LocalItemState import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem import com.felixbrucker.simklcalendar.data.database.UserToken import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository import com.felixbrucker.simklcalendar.data.preferences.AuthPreferences import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository import com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository import com.felixbrucker.simklcalendar.data.preferences.UiPreferences import com.felixbrucker.simklcalendar.data.preferences.UiRepository import com.felixbrucker.simklcalendar.data.preferences.ViewMode import com.felixbrucker.simklcalendar.data.repository.CalendarRepository import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository import com.felixbrucker.simklcalendar.data.repository.DownloadRepository import com.felixbrucker.simklcalendar.data.repository.NotificationSettingRepository import com.felixbrucker.simklcalendar.data.repository.SyncRepository import com.felixbrucker.simklcalendar.data.repository.UserRepository import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper import com.felixbrucker.torrent_search_api.SearchResultItem import io.mockk.coEvery import io.mockk.coVerify import io.mockk.every import io.mockk.mockk import io.mockk.mockkStatic import io.mockk.unmockkStatic import java.io.File import java.time.Instant import kotlinx.coroutines.Dispatchers import kotlinx.coroutines.ExperimentalCoroutinesApi import kotlinx.coroutines.flow.MutableStateFlow import kotlinx.coroutines.flow.first import kotlinx.coroutines.flow.flowOf import kotlinx.coroutines.launch import kotlinx.coroutines.test.UnconfinedTestDispatcher import kotlinx.coroutines.test.advanceUntilIdle import kotlinx.coroutines.test.resetMain import kotlinx.coroutines.test.runTest import kotlinx.coroutines.test.setMain import org.junit.After import org.junit.Assert.assertEquals import org.junit.Assert.assertFalse import org.junit.Assert.assertTrue import org.junit.Before import org.junit.Test</ID>
     <ID>ImportOrdering:Daos.kt$import androidx.room.* import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.model.MediaStatus import kotlinx.coroutines.flow.Flow import java.time.Instant</ID>
     <ID>ImportOrdering:DatabaseModule.kt$import android.content.Context import com.felixbrucker.simklcalendar.data.database.AppDatabase import com.felixbrucker.simklcalendar.data.database.CalendarItemDao import com.felixbrucker.simklcalendar.data.database.CustomSearchLinkDao import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao import com.felixbrucker.simklcalendar.data.database.UserTokenDao import com.felixbrucker.simklcalendar.data.database.WatchlistDao import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao import dagger.Module import dagger.Provides import dagger.hilt.InstallIn import dagger.hilt.android.qualifiers.ApplicationContext import dagger.hilt.components.SingletonComponent import javax.inject.Singleton</ID>
     <ID>ImportOrdering:DateUtil.kt$import java.time.Instant import java.time.LocalDate import java.time.LocalDateTime import java.time.ZoneId import java.time.ZoneOffset import java.time.format.DateTimeFormatter import java.time.format.FormatStyle import java.time.temporal.ChronoUnit import java.util.Locale import java.util.TimeZone import java.text.SimpleDateFormat</ID>
-    <ID>ImportOrdering:DetailUIComponents.kt$import android.content.Context import android.content.Intent import android.text.format.Formatter import androidx.compose.foundation.* import androidx.compose.foundation.layout.* import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.foundation.text.KeyboardActions import androidx.compose.foundation.text.KeyboardOptions import androidx.compose.material.icons.Icons import androidx.compose.material.icons.automirrored.filled.OpenInNew import androidx.compose.material.icons.filled.* import androidx.compose.material3.* import androidx.compose.runtime.* import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.alpha import androidx.compose.ui.graphics.Brush import androidx.compose.ui.graphics.Color import androidx.compose.ui.layout.ContentScale import androidx.compose.ui.platform.LocalContext import androidx.compose.ui.platform.LocalFocusManager import androidx.compose.ui.platform.LocalSoftwareKeyboardController import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.text.input.KeyboardType import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import androidx.compose.ui.window.Dialog import androidx.compose.ui.window.DialogProperties import androidx.core.net.toUri import coil.compose.AsyncImage import androidx.compose.foundation.lazy.LazyColumn import androidx.compose.foundation.lazy.items import androidx.compose.ui.text.input.ImeAction import androidx.compose.ui.text.style.TextAlign import androidx.compose.ui.text.style.TextOverflow import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences import com.felixbrucker.simklcalendar.data.util.MediaFormatter import com.felixbrucker.simklcalendar.data.util.PosterSize import com.felixbrucker.simklcalendar.extensions.toAnimeSeasonTokens import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle import com.felixbrucker.simklcalendar.extensions.toPosterUrl import com.felixbrucker.torrent_search_api.SearchResultItem import kotlinx.coroutines.launch</ID>
     <ID>ImportOrdering:Entities.kt$import androidx.room.ColumnInfo import androidx.room.Embedded import androidx.room.Entity import androidx.room.ForeignKey import androidx.room.Index import androidx.room.PrimaryKey import androidx.room.Relation import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.model.MovieReleaseType import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.util.formatTwoDigits import java.time.Instant import androidx.compose.runtime.Immutable import androidx.core.net.toUri import java.time.Instant.now import kotlin.math.abs</ID>
-    <ID>ImportOrdering:LoginScreen.kt$import android.content.Intent import androidx.compose.foundation.BorderStroke import androidx.compose.foundation.Image import androidx.compose.foundation.background import androidx.compose.foundation.border import androidx.compose.foundation.layout.Arrangement import androidx.compose.foundation.layout.Box import androidx.compose.foundation.layout.Column import androidx.compose.foundation.layout.Row import androidx.compose.foundation.layout.Spacer import androidx.compose.foundation.layout.WindowInsets import androidx.compose.foundation.layout.fillMaxSize import androidx.compose.foundation.layout.fillMaxWidth import androidx.compose.foundation.layout.height import androidx.compose.foundation.layout.padding import androidx.compose.foundation.layout.size import androidx.compose.foundation.layout.systemBars import androidx.compose.foundation.layout.width import androidx.compose.foundation.rememberScrollState import androidx.compose.foundation.shape.CircleShape import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.foundation.verticalScroll import androidx.compose.material.icons.Icons import androidx.compose.material.icons.filled.Info import androidx.compose.material.icons.filled.Key import androidx.compose.material3.* import androidx.compose.runtime.* import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.clip import androidx.compose.ui.graphics.Brush import androidx.compose.ui.graphics.Color import androidx.compose.ui.layout.ContentScale import androidx.compose.ui.platform.LocalContext import androidx.compose.ui.res.painterResource import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.text.style.TextAlign import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel import com.felixbrucker.simklcalendar.R import com.felixbrucker.simklcalendar.data.database.UserToken import com.felixbrucker.simklcalendar.ui.viewmodel.LoginViewModel import androidx.core.net.toUri</ID>
+    <ID>ImportOrdering:LoginScreen.kt$import android.content.Intent import androidx.compose.foundation.BorderStroke import androidx.compose.foundation.Image import androidx.compose.foundation.background import androidx.compose.foundation.border import androidx.compose.foundation.layout.Arrangement import androidx.compose.foundation.layout.Box import androidx.compose.foundation.layout.Column import androidx.compose.foundation.layout.Row import androidx.compose.foundation.layout.Spacer import androidx.compose.foundation.layout.WindowInsets import androidx.compose.foundation.layout.fillMaxSize import androidx.compose.foundation.layout.fillMaxWidth import androidx.compose.foundation.layout.height import androidx.compose.foundation.layout.padding import androidx.compose.foundation.layout.size import androidx.compose.foundation.layout.systemBars import androidx.compose.foundation.layout.width import androidx.compose.foundation.rememberScrollState import androidx.compose.foundation.shape.CircleShape import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.foundation.verticalScroll import androidx.compose.material.icons.Icons import androidx.compose.material.icons.filled.Info import androidx.compose.material.icons.filled.Key import androidx.compose.material3.* import androidx.compose.runtime.* import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.clip import androidx.compose.ui.graphics.Brush import androidx.compose.ui.graphics.Color import androidx.compose.ui.layout.ContentScale import androidx.compose.ui.platform.LocalContext import androidx.compose.ui.res.painterResource import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.text.style.TextAlign import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel import com.felixbrucker.simklcalendar.R import com.felixbrucker.simklcalendar.data.database.UserToken import com.felixbrucker.simklcalendar.ui.theme.ErrorPink import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant import com.felixbrucker.simklcalendar.ui.theme.PurpleLight import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreyDark import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple import com.felixbrucker.simklcalendar.ui.theme.TextPrimary import com.felixbrucker.simklcalendar.ui.theme.TextSubtle import com.felixbrucker.simklcalendar.ui.viewmodel.LoginViewModel import androidx.core.net.toUri</ID>
     <ID>ImportOrdering:LoginViewModel.kt$import android.content.Context import android.widget.Toast import androidx.lifecycle.ViewModel import androidx.lifecycle.viewModelScope import com.felixbrucker.simklcalendar.data.database.UserToken import com.felixbrucker.simklcalendar.data.preferences.AuthRepository import com.felixbrucker.simklcalendar.data.util.OAuthCallbackEvent import com.felixbrucker.simklcalendar.data.util.OAuthEventHub import com.felixbrucker.simklcalendar.data.repository.UserRepository import dagger.hilt.android.lifecycle.HiltViewModel import dagger.hilt.android.qualifiers.ApplicationContext import kotlinx.coroutines.flow.MutableStateFlow import kotlinx.coroutines.flow.SharingStarted import kotlinx.coroutines.flow.StateFlow import kotlinx.coroutines.flow.asStateFlow import kotlinx.coroutines.flow.map import kotlinx.coroutines.flow.stateIn import kotlinx.coroutines.launch import javax.inject.Inject</ID>
     <ID>ImportOrdering:LoginViewModelTest.kt$import android.content.Context import android.widget.Toast import com.felixbrucker.simklcalendar.data.database.UserToken import com.felixbrucker.simklcalendar.data.preferences.AuthPreferences import com.felixbrucker.simklcalendar.data.preferences.AuthRepository import com.felixbrucker.simklcalendar.data.util.OAuthCallbackEvent import com.felixbrucker.simklcalendar.data.util.OAuthEventHub import com.felixbrucker.simklcalendar.data.repository.UserRepository import io.mockk.coEvery import io.mockk.every import io.mockk.mockk import io.mockk.mockkStatic import kotlinx.coroutines.Dispatchers import kotlinx.coroutines.ExperimentalCoroutinesApi import kotlinx.coroutines.flow.MutableSharedFlow import kotlinx.coroutines.flow.MutableStateFlow import kotlinx.coroutines.test.UnconfinedTestDispatcher import kotlinx.coroutines.test.advanceUntilIdle import kotlinx.coroutines.test.resetMain import kotlinx.coroutines.test.runTest import kotlinx.coroutines.test.setMain import org.junit.After import org.junit.Assert.assertEquals import org.junit.Assert.assertFalse import org.junit.Assert.assertTrue import org.junit.Before import org.junit.Test</ID>
-    <ID>ImportOrdering:MainActivity.kt$import android.Manifest import android.content.Intent import android.content.pm.PackageManager import android.net.Uri import android.os.Build import android.os.Bundle import android.widget.Toast import androidx.activity.ComponentActivity import androidx.activity.compose.rememberLauncherForActivityResult import androidx.activity.compose.setContent import androidx.activity.enableEdgeToEdge import androidx.activity.result.contract.ActivityResultContracts import androidx.activity.viewModels import androidx.browser.auth.AuthTabIntent import androidx.browser.customtabs.CustomTabsClient import androidx.browser.customtabs.CustomTabsIntent import androidx.compose.foundation.layout.Box import androidx.compose.foundation.layout.fillMaxSize import androidx.compose.material3.CircularProgressIndicator import androidx.compose.runtime.Composable import androidx.compose.runtime.LaunchedEffect import androidx.compose.runtime.collectAsState import androidx.compose.runtime.getValue import androidx.compose.runtime.remember import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.graphics.Color import androidx.compose.ui.platform.LocalContext import androidx.core.content.ContextCompat import androidx.navigation.NavType import androidx.navigation.compose.NavHost import androidx.navigation.compose.composable import androidx.lifecycle.Lifecycle import androidx.navigation.NavController import androidx.navigation.compose.rememberNavController import androidx.navigation.navArgument import androidx.navigation.navDeepLink import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker import com.felixbrucker.simklcalendar.ui.screens.MainScreen import com.felixbrucker.simklcalendar.ui.screens.LoginScreen import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen import com.felixbrucker.simklcalendar.ui.screens.LogViewerScreen import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel import androidx.core.net.toUri import androidx.lifecycle.lifecycleScope import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager import kotlinx.coroutines.Dispatchers import kotlinx.coroutines.flow.distinctUntilChanged import kotlinx.coroutines.flow.map import kotlinx.coroutines.launch import java.net.URLEncoder import java.net.URLDecoder import dagger.hilt.android.AndroidEntryPoint import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository import com.felixbrucker.simklcalendar.data.util.OAuthEventHub import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper import kotlinx.coroutines.flow.MutableStateFlow import kotlinx.coroutines.flow.StateFlow import kotlinx.coroutines.flow.asStateFlow import javax.inject.Inject</ID>
-    <ID>ImportOrdering:MainScreen.kt$import android.os.Build import androidx.activity.compose.BackHandler import androidx.activity.compose.rememberLauncherForActivityResult import androidx.activity.result.contract.ActivityResultContracts import androidx.compose.animation.* import androidx.compose.animation.core.* import androidx.compose.foundation.ExperimentalFoundationApi import androidx.compose.foundation.background import androidx.compose.foundation.border import androidx.compose.foundation.clickable import androidx.compose.foundation.interaction.MutableInteractionSource import androidx.compose.foundation.layout.* import androidx.compose.foundation.layout.FlowRow import androidx.compose.foundation.lazy.rememberLazyListState import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.foundation.text.BasicTextField import androidx.compose.foundation.text.KeyboardActions import androidx.compose.foundation.text.KeyboardOptions import androidx.compose.material.icons.Icons import androidx.compose.material.icons.filled.* import androidx.compose.material3.pulltorefresh.PullToRefreshBox import androidx.compose.material3.* import androidx.compose.runtime.* import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.clip import androidx.compose.ui.draw.clipToBounds import androidx.compose.ui.focus.FocusRequester import androidx.compose.ui.focus.focusRequester import androidx.compose.ui.focus.onFocusChanged import androidx.compose.ui.geometry.Offset import androidx.compose.ui.graphics.Color import androidx.compose.ui.graphics.SolidColor import androidx.compose.ui.input.nestedscroll.NestedScrollConnection import androidx.compose.ui.input.nestedscroll.NestedScrollSource import androidx.compose.ui.input.nestedscroll.nestedScroll import androidx.compose.ui.layout.layout import androidx.compose.ui.platform.LocalContext import androidx.compose.ui.platform.LocalDensity import androidx.compose.ui.platform.LocalFocusManager import androidx.compose.ui.platform.LocalSoftwareKeyboardController import androidx.compose.ui.platform.LocalWindowInfo import androidx.compose.ui.platform.testTag import androidx.compose.ui.text.TextStyle import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.text.input.ImeAction import androidx.compose.ui.text.style.TextOverflow import androidx.compose.ui.unit.IntOffset import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import kotlin.math.roundToInt import com.felixbrucker.simklcalendar.data.util.PermissionUtil import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel import com.felixbrucker.simklcalendar.data.preferences.ViewMode import kotlinx.coroutines.delay import kotlinx.coroutines.launch import kotlin.time.Duration.Companion.milliseconds</ID>
+    <ID>ImportOrdering:MainActivity.kt$import android.Manifest import android.content.Intent import android.content.pm.PackageManager import android.net.Uri import android.os.Build import android.os.Bundle import android.widget.Toast import androidx.activity.ComponentActivity import androidx.activity.compose.rememberLauncherForActivityResult import androidx.activity.compose.setContent import androidx.activity.enableEdgeToEdge import androidx.activity.result.contract.ActivityResultContracts import androidx.activity.viewModels import androidx.browser.auth.AuthTabIntent import androidx.browser.customtabs.CustomTabsClient import androidx.browser.customtabs.CustomTabsIntent import androidx.compose.foundation.layout.Box import androidx.compose.foundation.layout.fillMaxSize import androidx.compose.material3.CircularProgressIndicator import androidx.compose.runtime.Composable import androidx.compose.runtime.LaunchedEffect import androidx.compose.runtime.collectAsState import androidx.compose.runtime.getValue import androidx.compose.runtime.remember import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.graphics.Color import androidx.compose.ui.platform.LocalContext import androidx.core.content.ContextCompat import androidx.navigation.NavType import androidx.navigation.compose.NavHost import androidx.navigation.compose.composable import androidx.lifecycle.Lifecycle import androidx.navigation.NavController import androidx.navigation.compose.rememberNavController import androidx.navigation.navArgument import androidx.navigation.navDeepLink import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker import com.felixbrucker.simklcalendar.ui.screens.MainScreen import com.felixbrucker.simklcalendar.ui.screens.LoginScreen import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen import com.felixbrucker.simklcalendar.ui.screens.LogViewerScreen import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme import com.felixbrucker.simklcalendar.ui.theme.PurpleLight import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel import androidx.core.net.toUri import androidx.lifecycle.lifecycleScope import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager import kotlinx.coroutines.Dispatchers import kotlinx.coroutines.flow.distinctUntilChanged import kotlinx.coroutines.flow.map import kotlinx.coroutines.launch import java.net.URLEncoder import java.net.URLDecoder import dagger.hilt.android.AndroidEntryPoint import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository import com.felixbrucker.simklcalendar.data.util.OAuthEventHub import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper import kotlinx.coroutines.flow.MutableStateFlow import kotlinx.coroutines.flow.StateFlow import kotlinx.coroutines.flow.asStateFlow import javax.inject.Inject</ID>
+    <ID>ImportOrdering:MainScreen.kt$import android.os.Build import androidx.activity.compose.BackHandler import androidx.activity.compose.rememberLauncherForActivityResult import androidx.activity.result.contract.ActivityResultContracts import androidx.compose.animation.* import androidx.compose.animation.core.* import androidx.compose.foundation.ExperimentalFoundationApi import androidx.compose.foundation.background import androidx.compose.foundation.border import androidx.compose.foundation.clickable import androidx.compose.foundation.interaction.MutableInteractionSource import androidx.compose.foundation.layout.* import androidx.compose.foundation.layout.FlowRow import androidx.compose.foundation.lazy.rememberLazyListState import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.foundation.text.BasicTextField import androidx.compose.foundation.text.KeyboardActions import androidx.compose.foundation.text.KeyboardOptions import androidx.compose.material.icons.Icons import androidx.compose.material.icons.filled.* import androidx.compose.material3.pulltorefresh.PullToRefreshBox import androidx.compose.material3.* import androidx.compose.runtime.* import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.clip import androidx.compose.ui.draw.clipToBounds import androidx.compose.ui.focus.FocusRequester import androidx.compose.ui.focus.focusRequester import androidx.compose.ui.focus.onFocusChanged import androidx.compose.ui.geometry.Offset import androidx.compose.ui.graphics.Color import androidx.compose.ui.graphics.SolidColor import androidx.compose.ui.input.nestedscroll.NestedScrollConnection import androidx.compose.ui.input.nestedscroll.NestedScrollSource import androidx.compose.ui.input.nestedscroll.nestedScroll import androidx.compose.ui.layout.layout import androidx.compose.ui.platform.LocalContext import androidx.compose.ui.platform.LocalDensity import androidx.compose.ui.platform.LocalFocusManager import androidx.compose.ui.platform.LocalSoftwareKeyboardController import androidx.compose.ui.platform.LocalWindowInfo import androidx.compose.ui.platform.testTag import androidx.compose.ui.text.TextStyle import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.text.input.ImeAction import androidx.compose.ui.text.style.TextOverflow import androidx.compose.ui.unit.IntOffset import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import com.felixbrucker.simklcalendar.data.preferences.ViewMode import com.felixbrucker.simklcalendar.data.util.PermissionUtil import com.felixbrucker.simklcalendar.ui.theme.BlueAccent import com.felixbrucker.simklcalendar.ui.theme.ErrorPink import com.felixbrucker.simklcalendar.ui.theme.ErrorRed import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft import com.felixbrucker.simklcalendar.ui.theme.PurpleLight import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkBlue import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreyDark import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark import com.felixbrucker.simklcalendar.ui.theme.TextGrey import com.felixbrucker.simklcalendar.ui.theme.TextPrimary import com.felixbrucker.simklcalendar.ui.theme.TextSubtle import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel import kotlinx.coroutines.delay import kotlinx.coroutines.launch import kotlin.math.roundToInt import kotlin.time.Duration.Companion.milliseconds</ID>
     <ID>ImportOrdering:MediaFormatterTest.kt$import java.time.Instant import com.felixbrucker.simklcalendar.data.database.CalendarItem import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.model.MovieReleaseType import org.junit.Assert.assertEquals import org.junit.Assert.assertFalse import org.junit.Assert.assertTrue import org.junit.Test</ID>
     <ID>ImportOrdering:NetworkModule.kt$import com.felixbrucker.simklcalendar.data.database.UserTokenDao import com.felixbrucker.simklcalendar.data.network.AuthenticatedSimklApiService import com.felixbrucker.simklcalendar.data.network.RefreshMutexProvider import com.felixbrucker.simklcalendar.data.network.interceptor.RateLimitInterceptor import com.felixbrucker.simklcalendar.data.network.interceptor.SimklApiParameterInterceptor import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService import com.felixbrucker.simklcalendar.data.network.TokenRefreshProvider import com.felixbrucker.simklcalendar.data.network.interceptor.LoggingInterceptor import com.felixbrucker.simklcalendar.data.network.interceptor.SimklApiAuthenticator import com.felixbrucker.simklcalendar.data.network.interceptor.SimklAuthenticatedApiParameterInterceptor import com.squareup.moshi.Moshi import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory import dagger.Module import dagger.Provides import dagger.hilt.InstallIn import dagger.hilt.components.SingletonComponent import okhttp3.OkHttpClient import retrofit2.Retrofit import retrofit2.converter.moshi.MoshiConverterFactory import java.util.concurrent.TimeUnit import javax.inject.Singleton</ID>
     <ID>ImportOrdering:NotificationActionReceiver.kt$import android.content.BroadcastReceiver import android.content.Context import android.content.Intent import timber.log.Timber import com.felixbrucker.simklcalendar.data.database.CalendarItemDao import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.repository.CalendarRepository import com.felixbrucker.simklcalendar.data.repository.DownloadRepository import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker import dagger.hilt.android.AndroidEntryPoint import kotlinx.coroutines.CoroutineScope import kotlinx.coroutines.Dispatchers import kotlinx.coroutines.SupervisorJob import kotlinx.coroutines.launch import javax.inject.Inject</ID>
@@ -429,64 +401,14 @@
     <ID>LoopWithTooManyJumpStatements:CalendarViewModel.kt$CalendarViewModel$while</ID>
     <ID>LoopWithTooManyJumpStatements:Entities.kt$CustomSearchLink$while</ID>
     <ID>LoopWithTooManyJumpStatements:SyncRepository.kt$SyncRepository$for</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF004A77</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF1C1B1F</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF1D192B</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF1E3A2B</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF2B2930</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF313033</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF381E72</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF3E3D4F</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF49454F</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF7CE49F</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFF9E9AA3</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFFA5A3B1</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFFB3261E</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFFBAC3FF</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFFC2E8FF</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFFCAC4D0</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFFD0BCFF</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFFE6E1E5</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFFE8DEF8</ID>
-    <ID>MagicNumber:CalendarView.kt$0xFFF2B8B5</ID>
     <ID>MagicNumber:CalendarViewModel.kt$CalendarViewModel$4</ID>
     <ID>MagicNumber:CalendarViewModel.kt$CalendarViewModel$5</ID>
-    <ID>MagicNumber:CustomSearchLinksCard.kt$0xFF1C1B1F</ID>
-    <ID>MagicNumber:CustomSearchLinksCard.kt$0xFF2B2930</ID>
-    <ID>MagicNumber:CustomSearchLinksCard.kt$0xFF49454F</ID>
-    <ID>MagicNumber:CustomSearchLinksCard.kt$0xFFCAC4D0</ID>
-    <ID>MagicNumber:CustomSearchLinksCard.kt$0xFFD0BCFF</ID>
-    <ID>MagicNumber:CustomSearchLinksCard.kt$0xFFE6E1E5</ID>
     <ID>MagicNumber:DateUtil.kt$DateUtil$3600</ID>
     <ID>MagicNumber:DateUtil.kt$DateUtil$60</ID>
     <ID>MagicNumber:DateUtil.kt$DateUtil$86400</ID>
     <ID>MagicNumber:DetailUIComponents.kt$0.4</ID>
     <ID>MagicNumber:DetailUIComponents.kt$0.5f</ID>
     <ID>MagicNumber:DetailUIComponents.kt$0.96f</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF004A77</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF1A237E</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF1C1B1F</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF1D192B</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF1E3A2B</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF2B2930</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF3B383E</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF3C1F1E</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF49454F</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF601410</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF6750A4</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF79747E</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFF7CE49F</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFA5A3B1</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFBAC3FF</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFC2E8FF</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFCAC4D0</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFD0BCFF</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFE2E262</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFE6E1E5</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFE8DEF8</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFF2B8B5</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFF9DEDC</ID>
-    <ID>MagicNumber:DetailUIComponents.kt$0xFFFFC107</ID>
     <ID>MagicNumber:Entities.kt$CustomSearchLink$32</ID>
     <ID>MagicNumber:IntExtensions.kt$11</ID>
     <ID>MagicNumber:IntExtensions.kt$13</ID>
@@ -499,55 +421,8 @@
     <ID>MagicNumber:IntExtensions.kt$9</ID>
     <ID>MagicNumber:IntExtensions.kt$90</ID>
     <ID>MagicNumber:IntExtensions.kt$900</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF00382B</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF1C1B1F</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF1D192B</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF2B2930</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF313033</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF381E72</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF3B383E</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF49454F</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF4A3800</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF601410</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF79747E</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF7CE49F</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFF938F99</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFFCAC4D0</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFFD0BCFF</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFFE6E1E5</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFFF2B8B5</ID>
-    <ID>MagicNumber:LogViewerScreen.kt$0xFFFFDDB3</ID>
     <ID>MagicNumber:LogViewerScreen.kt$300</ID>
     <ID>MagicNumber:LogViewerScreen.kt$5</ID>
-    <ID>MagicNumber:LoginScreen.kt$0xFF1C1B1F</ID>
-    <ID>MagicNumber:LoginScreen.kt$0xFF2B2930</ID>
-    <ID>MagicNumber:LoginScreen.kt$0xFF313033</ID>
-    <ID>MagicNumber:LoginScreen.kt$0xFF381E72</ID>
-    <ID>MagicNumber:LoginScreen.kt$0xFF49454F</ID>
-    <ID>MagicNumber:LoginScreen.kt$0xFFCAC4D0</ID>
-    <ID>MagicNumber:LoginScreen.kt$0xFFD0BCFF</ID>
-    <ID>MagicNumber:LoginScreen.kt$0xFFE6E1E5</ID>
-    <ID>MagicNumber:LoginScreen.kt$0xFFF2B8B5</ID>
-    <ID>MagicNumber:MainActivity.kt$0xFFD0BCFF</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF1A237E</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF1C1B1F</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF1D192B</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF2B2930</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF313033</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF381E72</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF49454F</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF4F378B</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF601410</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF79747E</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFF938F99</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFFB3261E</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFFBAC3FF</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFFCAC4D0</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFFD0BCFF</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFFE6E1E5</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFFE8DEF8</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFFEADDFF</ID>
-    <ID>MagicNumber:MainScreen.kt$0xFFF2B8B5</ID>
     <ID>MagicNumber:MainScreen.kt$200</ID>
     <ID>MagicNumber:MainScreen.kt$220</ID>
     <ID>MagicNumber:MainScreen.kt$250</ID>
@@ -636,20 +511,7 @@
     <ID>MagicNumber:TokenRefreshProvider.kt$TokenRefreshProvider$180</ID>
     <ID>MagicNumber:TokenRefreshProvider.kt$TokenRefreshProvider$400</ID>
     <ID>MagicNumber:TokenRefreshProvider.kt$TokenRefreshProvider$401</ID>
-    <ID>MagicNumber:TrackedWatchlistTableView.kt$0xFF49454F</ID>
-    <ID>MagicNumber:TrackedWatchlistTableView.kt$0xFFBAC3FF</ID>
-    <ID>MagicNumber:TrackedWatchlistTableView.kt$0xFFCAC4D0</ID>
-    <ID>MagicNumber:TrackedWatchlistTableView.kt$0xFFD0BCFF</ID>
-    <ID>MagicNumber:TrackedWatchlistTableView.kt$0xFFE6E1E5</ID>
-    <ID>MagicNumber:TrackedWatchlistTableView.kt$0xFFF2B8B5</ID>
     <ID>MagicNumber:UserRepository.kt$UserRepository$180</ID>
-    <ID>MagicNumber:WatchlistItemDetailScreen.kt$0xFF1C1B1F</ID>
-    <ID>MagicNumber:WatchlistItemDetailScreen.kt$0xFF2B2930</ID>
-    <ID>MagicNumber:WatchlistItemDetailScreen.kt$0xFF381E72</ID>
-    <ID>MagicNumber:WatchlistItemDetailScreen.kt$0xFF49454F</ID>
-    <ID>MagicNumber:WatchlistItemDetailScreen.kt$0xFF938F99</ID>
-    <ID>MagicNumber:WatchlistItemDetailScreen.kt$0xFFCAC4D0</ID>
-    <ID>MagicNumber:WatchlistItemDetailScreen.kt$0xFFD0BCFF</ID>
     <ID>MagicNumber:WatchlistItemDetailScreen.kt$4</ID>
     <ID>MatchingDeclarationName:SettingsScreen.kt$SettingsCategory</ID>
     <ID>MaxLineLength:AlarmReceiver.kt$AlarmReceiver$Timber.tag(TAG).d("Season finale aired for '${item.title}', downloading unwatched season ${calendarItem.season}")</ID>
@@ -730,28 +592,20 @@
     <ID>MaxLineLength:Daos.kt$WatchedEpisodeDao$@Query("DELETE FROM watched_episodes WHERE simklId = :simklId AND season = :season AND episodeNumber = :episodeNumber")</ID>
     <ID>MaxLineLength:Daos.kt$WatchlistDao$@Query("SELECT simklId FROM tracked_watchlist_items WHERE type = :type AND (lastSyncedAt IS NULL OR lastSyncedAt &lt; :cutoff)")</ID>
     <ID>MaxLineLength:DateUtil.kt$DateUtil$if</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF7CE49F))</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFF2B8B5), modifier = Modifier.size(18.dp))</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Icon(Icons.Default.RadioButtonUnchecked, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFFF2B8B5))</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Auto download all episodes when a season finishes airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Digital / DVD Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Download Season Unwatched", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Download Unwatched", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Episode Alerts", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Episode Search Style", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Notify me as soon as each episode of this series airs.", color = Color(0xFFCAC4D0), fontSize = 11.sp)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Notify me when the movie is available on digital or DVD.", color = Color(0xFFCAC4D0), fontSize = 11.sp)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Notify me when the movie releases in theaters.", color = Color(0xFFCAC4D0), fontSize = 11.sp)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Notify me when the season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Prefer HEVC / x265", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Season Finished Airing", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Season Overrides", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Seeders", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFCAC4D0), modifier = Modifier.width(45.dp), textAlign = TextAlign.End)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Size", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFCAC4D0), modifier = Modifier.width(65.dp))</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Theater Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Title Override", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
-    <ID>MaxLineLength:DetailUIComponents.kt$Text("Title", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFCAC4D0), modifier = Modifier.weight(1f))</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp), tint = GreenSuccess)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Icon(Icons.Default.RadioButtonUnchecked, contentDescription = null, modifier = Modifier.size(18.dp), tint = ErrorPink)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Auto download all episodes when a season finishes airing.", color = TextSubtle, fontSize = 11.sp)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Digital / DVD Release", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Download Season Unwatched", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Episode Search Style", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Notify me as soon as each episode of this series airs.", color = TextSubtle, fontSize = 11.sp)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Notify me when the movie is available on digital or DVD.", color = TextSubtle, fontSize = 11.sp)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Season Finished Airing", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Season Overrides", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Seeders", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(45.dp), textAlign = TextAlign.End)</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Size", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(65.dp))</ID>
+    <ID>MaxLineLength:DetailUIComponents.kt$Text("Title", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.weight(1f))</ID>
     <ID>MaxLineLength:DetailUIComponents.kt$onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSeasonUnwatched = it))</ID>
     <ID>MaxLineLength:DetailUIComponents.kt$onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSubdirectoryOverride = next))</ID>
     <ID>MaxLineLength:DetailUIComponents.kt$onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadUnwatched = it))</ID>
@@ -773,7 +627,6 @@
     <ID>MaxLineLength:Entities.kt$CustomSearchLink$return</ID>
     <ID>MaxLineLength:Entities.kt$CustomSearchLink$val</ID>
     <ID>MaxLineLength:LogRepositoryTest.kt$LogRepositoryTest$val testEntry = LogEntry(timestamp = System.currentTimeMillis(), priority = Log.INFO, tag = "TestTag", message = "Hello Test")</ID>
-    <ID>MaxLineLength:LogViewerScreen.kt$Icon(Icons.Default.Terminal, contentDescription = null, tint = Color(0xFF79747E), modifier = Modifier.size(48.dp))</ID>
     <ID>MaxLineLength:LoginScreen.kt$Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.padding(end = 8.dp))</ID>
     <ID>MaxLineLength:LoginScreen.kt$text = "Simkl has upgraded to Auth V2 authentication. Please log in again to reconnect your account. All your saved watchlist items, custom settings, and watched history have been preserved."</ID>
     <ID>MaxLineLength:MainScreen.kt$(fadeIn(animationSpec = tween(220, delayMillis = 90)) + scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 90)))</ID>
@@ -936,14 +789,12 @@
     <ID>MaxLineLength:WatchHistoryRepository.kt$WatchHistoryRepository$Timber.tag("WatchHistoryRepository").e(e, "Failed to mark episode S${season}E${episodeNumber} as unwatched for simklId $simklId")</ID>
     <ID>MaxLineLength:WatchHistoryRepository.kt$WatchHistoryRepository$Timber.tag("WatchHistoryRepository").e(e, "Failed to mark episode S${season}E${episodeNumber} as watched for simklId $simklId")</ID>
     <ID>MaxLineLength:WatchlistItemDetailScreen.kt$0 -&gt; Text(text = episode.episodeNumber?.toString() ?: "-", fontSize = 13.sp, color = Color.White)</ID>
-    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$2 -&gt; Text(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = Color(0xFFCAC4D0), maxLines = 1)</ID>
+    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$2 -&gt; Text(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)</ID>
     <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Row</ID>
-    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text("Release Information", fontWeight = FontWeight.Bold, color = Color(0xFFD0BCFF), fontSize = 16.sp)</ID>
-    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = "$downloaded / $total", fontSize = 8.sp, color = Color(0xFF938F99))</ID>
-    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = "$percentage%", fontSize = 11.sp, color = Color(0xFFCAC4D0), fontWeight = FontWeight.Bold)</ID>
-    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = "$percentage%", fontSize = 9.sp, color = Color(0xFFCAC4D0), fontWeight = FontWeight.Bold)</ID>
-    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = "$speedStr • ETA: $eta", fontSize = 9.sp, color = Color(0xFFCAC4D0))</ID>
-    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = DateUtil.formatDisplayDateTime(release.date), fontSize = 12.sp, color = Color(0xFFCAC4D0), maxLines = 1)</ID>
+    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text("Release Information", fontWeight = FontWeight.Bold, color = PurpleLight, fontSize = 16.sp)</ID>
+    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = "$percentage%", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)</ID>
+    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = "$percentage%", fontSize = 9.sp, color = TextSubtle, fontWeight = FontWeight.Bold)</ID>
+    <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = DateUtil.formatDisplayDateTime(release.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)</ID>
     <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = episode.episodeTitle ?: "TBA", fontSize = 13.sp, color = Color.White, maxLines = 1, fontWeight = FontWeight.Medium)</ID>
     <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = release.movieReleaseType?.displayName ?: "Release", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)</ID>
     <ID>MaxLineLength:WatchlistItemDetailScreen.kt$Text(text = value, fontSize = 13.sp, color = valueColor, fontWeight = FontWeight.SemiBold, maxLines = 2, textAlign = TextAlign.Center)</ID>
@@ -989,7 +840,6 @@
     <ID>MaximumLineLength:Entities.kt$CalendarItemWithWatchlist$ </ID>
     <ID>MaximumLineLength:Entities.kt$CustomSearchLink$ </ID>
     <ID>MaximumLineLength:LogRepositoryTest.kt$LogRepositoryTest$ </ID>
-    <ID>MaximumLineLength:LogViewerScreen.kt$ </ID>
     <ID>MaximumLineLength:LoginScreen.kt$ </ID>
     <ID>MaximumLineLength:MainScreen.kt$ </ID>
     <ID>MaximumLineLength:MediaExtensions.kt$ </ID>
@@ -1074,7 +924,6 @@
     <ID>NoBlankLineBeforeRbrace:Table.kt$TableMeasurePolicy$ </ID>
     <ID>NoConsecutiveBlankLines:AlarmScheduler.kt$ </ID>
     <ID>NoConsecutiveBlankLines:Daos.kt$ </ID>
-    <ID>NoConsecutiveBlankLines:DetailUIComponents.kt$ </ID>
     <ID>NoConsecutiveBlankLines:Entities.kt$ </ID>
     <ID>NoConsecutiveBlankLines:Models.kt$ </ID>
     <ID>NoConsecutiveBlankLines:PublicSimklApiService.kt$ </ID>
@@ -1082,6 +931,7 @@
     <ID>NoConsecutiveBlankLines:TokenRefreshProvider.kt$ </ID>
     <ID>NoEmptyFirstLineInMethodBlock:WatchHistoryRepository.kt$WatchHistoryRepository$ </ID>
     <ID>NoSemicolons:MediaEnums.kt$MovieReleaseType.DIGITAL$;</ID>
+    <ID>NoUnusedImports:MainActivity.kt$com.felixbrucker.simklcalendar.MainActivity.kt</ID>
     <ID>NoWildcardImports:AlarmReceiverTest.kt$import com.felixbrucker.simklcalendar.data.database.*</ID>
     <ID>NoWildcardImports:AlarmReceiverTest.kt$import com.felixbrucker.simklcalendar.data.model.*</ID>
     <ID>NoWildcardImports:AlarmReceiverTest.kt$import com.felixbrucker.simklcalendar.data.preferences.*</ID>
@@ -1096,11 +946,6 @@
     <ID>NoWildcardImports:DefaultNotificationSettingsTest.kt$import com.felixbrucker.simklcalendar.data.model.*</ID>
     <ID>NoWildcardImports:DefaultNotificationSettingsTest.kt$import com.felixbrucker.simklcalendar.data.preferences.*</ID>
     <ID>NoWildcardImports:DefaultNotificationSettingsTest.kt$import org.junit.Assert.*</ID>
-    <ID>NoWildcardImports:DetailUIComponents.kt$import androidx.compose.foundation.*</ID>
-    <ID>NoWildcardImports:DetailUIComponents.kt$import androidx.compose.foundation.layout.*</ID>
-    <ID>NoWildcardImports:DetailUIComponents.kt$import androidx.compose.material.icons.filled.*</ID>
-    <ID>NoWildcardImports:DetailUIComponents.kt$import androidx.compose.material3.*</ID>
-    <ID>NoWildcardImports:DetailUIComponents.kt$import androidx.compose.runtime.*</ID>
     <ID>NoWildcardImports:LoginScreen.kt$import androidx.compose.material3.*</ID>
     <ID>NoWildcardImports:LoginScreen.kt$import androidx.compose.runtime.*</ID>
     <ID>NoWildcardImports:MainScreen.kt$import androidx.compose.animation.*</ID>
@@ -1244,6 +1089,7 @@
     <ID>TooManyFunctions:NotificationManager.kt$NotificationManager</ID>
     <ID>TooManyFunctions:SettingsScreen.kt$com.felixbrucker.simklcalendar.ui.screens.SettingsScreen.kt</ID>
     <ID>TooManyFunctions:SettingsViewModel.kt$SettingsViewModel : ViewModel</ID>
+    <ID>UnusedImports:MainActivity.kt$import androidx.compose.ui.graphics.Color</ID>
     <ID>UnusedPrivateProperty:DirectoryUtilsTest.kt$DirectoryUtilsTest$val deepSubdir = File(nestedSubdir, "SubSub").apply { mkdirs() }</ID>
     <ID>UnusedPrivateProperty:DirectoryUtilsTest.kt$DirectoryUtilsTest$val excludedDir = File(tempDir, "Musicolet").apply { mkdirs() }</ID>
     <ID>UnusedPrivateProperty:DirectoryUtilsTest.kt$DirectoryUtilsTest$val hiddenDir = File(tempDir, ".hidden").apply { mkdirs() }</ID>
@@ -1263,11 +1109,6 @@
     <ID>WildcardImport:DefaultNotificationSettingsTest.kt$import com.felixbrucker.simklcalendar.data.model.*</ID>
     <ID>WildcardImport:DefaultNotificationSettingsTest.kt$import com.felixbrucker.simklcalendar.data.preferences.*</ID>
     <ID>WildcardImport:DefaultNotificationSettingsTest.kt$import org.junit.Assert.*</ID>
-    <ID>WildcardImport:DetailUIComponents.kt$import androidx.compose.foundation.*</ID>
-    <ID>WildcardImport:DetailUIComponents.kt$import androidx.compose.foundation.layout.*</ID>
-    <ID>WildcardImport:DetailUIComponents.kt$import androidx.compose.material.icons.filled.*</ID>
-    <ID>WildcardImport:DetailUIComponents.kt$import androidx.compose.material3.*</ID>
-    <ID>WildcardImport:DetailUIComponents.kt$import androidx.compose.runtime.*</ID>
     <ID>WildcardImport:LoginScreen.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:LoginScreen.kt$import androidx.compose.runtime.*</ID>
     <ID>WildcardImport:MainScreen.kt$import androidx.compose.animation.*</ID>

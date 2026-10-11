@@ -25,6 +25,12 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.formattedAnimeSeasonLabel
 import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
+import com.felixbrucker.simklcalendar.ui.theme.BlueAccent
+import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
+import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.SortDirection
 import com.felixbrucker.simklcalendar.ui.viewmodel.TableSortField
@@ -101,7 +107,7 @@ fun TrackedWatchlistTableContent(
     Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         if (items.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("No items found matching the selected filters.", color = Color(0xFFCAC4D0))
+                Text("No items found matching the selected filters.", color = TextSubtle)
             }
         } else {
             WatchlistTableHeader(
@@ -241,7 +247,7 @@ fun SortableHeaderItem(
             text = label,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isSelected) Color(0xFFD0BCFF) else Color(0xFFCAC4D0),
+            color = if (isSelected) PurpleLight else TextSubtle,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -249,7 +255,7 @@ fun SortableHeaderItem(
             Icon(
                 imageVector = if (currentDirection == SortDirection.ASCENDING) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
                 contentDescription = null,
-                tint = Color(0xFFD0BCFF),
+                tint = PurpleLight,
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -263,9 +269,9 @@ fun WatchlistTableSectionHeader(title: String, count: Int) {
             text = "$title ($count)",
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFFD0BCFF).copy(alpha = 0.8f)
+            color = PurpleLight.copy(alpha = 0.8f)
         )
-        HorizontalDivider(color = Color(0xFF49454F).copy(alpha = 0.5f), thickness = 0.5.dp)
+        HorizontalDivider(color = OutlineVariant.copy(alpha = 0.5f), thickness = 0.5.dp)
     }
 }
 
@@ -277,9 +283,9 @@ fun WatchlistTableItemRow(
     onNavigateToSeriesDetail: (Int) -> Unit,
 ) {
     val categoryColor = when (item.watchlistItem.type) {
-        MediaType.ANIME -> Color(0xFFD0BCFF)
-        MediaType.MOVIE -> Color(0xFFF2B8B5)
-        MediaType.TV -> Color(0xFFBAC3FF)
+        MediaType.ANIME -> PurpleLight
+        MediaType.MOVIE -> ErrorPink
+        MediaType.TV -> BlueAccent
     }
 
     Card(
@@ -327,7 +333,7 @@ fun WatchlistTableItemRow(
                     Text(
                         text = item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
                         fontSize = 12.sp,
-                        color = Color(0xFFE6E1E5),
+                        color = TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(TableWeights.LAST_EP)
@@ -337,7 +343,7 @@ fun WatchlistTableItemRow(
                     Text(
                         text = item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
                         fontSize = 12.sp,
-                        color = Color(0xFFD0BCFF),
+                        color = PurpleLight,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(TableWeights.NEXT_EP)
@@ -377,7 +383,7 @@ fun WatchlistTableItemRow(
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = Color(0xFFCAC4D0),
+                    tint = TextSubtle,
                     modifier = Modifier.size(24.dp).padding(end = 8.dp)
                 )
             }
