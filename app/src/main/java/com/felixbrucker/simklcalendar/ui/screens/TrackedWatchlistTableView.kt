@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
+import com.felixbrucker.simklcalendar.data.util.formattedAnimeSeasonLabel
 import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.SortDirection
@@ -303,9 +304,16 @@ fun WatchlistTableItemRow(
                         .background(categoryColor, RoundedCornerShape(2.dp))
                 )
 
+                val animeSeasonLabel = item.watchlistItem.formattedAnimeSeasonLabel
+                val displayName = if (animeSeasonLabel != null) {
+                    "${item.watchlistItem.title} ($animeSeasonLabel)"
+                } else {
+                    item.watchlistItem.title
+                }
+
                 // Name
                 Text(
-                    text = item.watchlistItem.title,
+                    text = displayName,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
                     color = Color.White,

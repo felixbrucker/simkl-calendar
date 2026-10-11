@@ -431,6 +431,7 @@ fun DetailHeader(
     rating: Double? = null,
     titleRomaji: String? = null,
     hasUniqueTitleRomaji: Boolean = !titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true),
+    animeSeason: Int? = null,
     onTitleClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -533,6 +534,17 @@ fun DetailHeader(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = titleRomaji!!,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color(0xFFCAC4D0)
+                )
+            }
+
+            val animeSeasonLabel = MediaFormatter.formatAnimeSeasonLabel(type, animeSeason)
+            if (animeSeasonLabel != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = animeSeasonLabel,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
                     color = Color(0xFFCAC4D0)

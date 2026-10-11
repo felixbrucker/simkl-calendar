@@ -65,6 +65,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.PosterSize
+import com.felixbrucker.simklcalendar.data.util.formattedAnimeSeasonLabel
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCardBadge
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
@@ -554,6 +555,14 @@ fun CalendarItemCard(
                         if (item.isSeasonFinale) {
                             Badge(containerColor = Color(0xFFB3261E), contentColor = Color.White) {
                                 Text("SEASON FINALE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
+                            }
+                        }
+
+                        // Anime Season badge
+                        val animeSeasonLabel = item.formattedAnimeSeasonLabel
+                        if (animeSeasonLabel != null) {
+                            Badge(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B)) {
+                                Text(animeSeasonLabel.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                             }
                         }
                     }

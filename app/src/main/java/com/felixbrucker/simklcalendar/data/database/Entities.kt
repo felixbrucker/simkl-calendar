@@ -190,6 +190,7 @@ data class CalendarItemWithWatchlist(
         get() = watchlistItem?.hasUniqueTitleRomaji ?: (!titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true))
     val poster: String? get() = watchlistItem?.poster
     val rating: Double? get() = watchlistItem?.rating
+    val animeSeason: Int? get() = watchlistItem?.animeSeason
     val type: MediaType get() = watchlistItem?.type ?: MediaType.TV
     val episodeTitle: String? get() = calendarItem.episodeTitle
     val season: Int? get() = calendarItem.season

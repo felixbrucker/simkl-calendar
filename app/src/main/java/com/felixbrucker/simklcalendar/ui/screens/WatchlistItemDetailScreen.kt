@@ -165,7 +165,8 @@ fun WatchlistItemDetailScreen(
                         poster = watchlistItem.poster,
                         rating = watchlistItem.rating,
                         titleRomaji = watchlistItem.titleRomaji,
-                        hasUniqueTitleRomaji = watchlistItem.hasUniqueTitleRomaji
+                        hasUniqueTitleRomaji = watchlistItem.hasUniqueTitleRomaji,
+                        animeSeason = watchlistItem.animeSeason
                     )
                 }
 

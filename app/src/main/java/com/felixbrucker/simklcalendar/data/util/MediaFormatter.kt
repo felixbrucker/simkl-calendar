@@ -1,6 +1,7 @@
 package com.felixbrucker.simklcalendar.data.util
 
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import java.util.Locale
@@ -64,6 +65,20 @@ object MediaFormatter {
             "Season"
         } else {
             "Season $sNum"
+        }
+    }
+
+    /**
+     * Formats the anime season label (e.g., "Season 3" for Anime when animeSeason > 0).
+     */
+    fun formatAnimeSeasonLabel(
+        mediaType: MediaType,
+        animeSeason: Int?
+    ): String? {
+        return if (mediaType == MediaType.ANIME && animeSeason != null && animeSeason > 0) {
+            "Season $animeSeason"
+        } else {
+            null
         }
     }
 
@@ -275,6 +290,12 @@ val CalendarItemWithWatchlist.formattedAutoDownloadLabel: String
     } else {
         "$title: ${MediaFormatter.formatEpisodeCode(type, season, episodeNumber)}"
     }
+
+val CalendarItemWithWatchlist.formattedAnimeSeasonLabel: String?
+    get() = MediaFormatter.formatAnimeSeasonLabel(type, animeSeason)
+
+val TrackedWatchlistItem.formattedAnimeSeasonLabel: String?
+    get() = MediaFormatter.formatAnimeSeasonLabel(type, animeSeason)
 
 // Fast 2-digit zero-padding helper avoiding java.util.Formatter, primitive boxing, and Object[] varargs allocations
 internal fun formatTwoDigits(number: Int): String {
