@@ -120,18 +120,11 @@
     <ID>ArgumentListWrapping:RateLimitInterceptorTest.kt$RateLimitInterceptorTest$("application/json".toMediaType())</ID>
     <ID>ArgumentListWrapping:RateLimitInterceptorTest.kt$RateLimitInterceptorTest$("{\"error\": \"user_limit_exceeded\", \"code\": 429, \"message\": \"This user has reached their daily API request limit\"}".toResponseBody("application/json".toMediaType()))</ID>
     <ID>ArgumentListWrapping:RatingsSyncTest.kt$RatingsSyncTest$(simklId = 30, type = MediaType.ANIME, title = "Attack on Titan", rating = null)</ID>
-    <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$("Are you sure you want to delete this item? This action cannot be undone.", color = Color(0xFFCAC4D0))</ID>
-    <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$("Delete $itemLabel", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5))</ID>
-    <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$("🎉 SEASON PREMIERE", color = Color(0xFF1D192B), fontSize = 11.sp, fontWeight = FontWeight.Bold)</ID>
+    <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$("Are you sure you want to delete this item? This action cannot be undone.", color = TextSubtle)</ID>
     <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$("🎬 SEASON FINALE", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)</ID>
-    <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(0xFF1D192B)</ID>
-    <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(0xFF49454F)</ID>
-    <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(0xFFCAC4D0)</ID>
-    <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(0xFFE6E1E5)</ID>
     <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(activeItem, allWatchedEpisodes, isMarkingWatched, appSettingsPrefs.showDebugActions)</ID>
     <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(activeItem.simklId, activeItem.primaryKey, activeItem.title)</ID>
     <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(activeItem.simklId, activeItem.season, activeItem.episodeNumber ?: 1, activeItem.type, activeItem.primaryKey, activeItem.title)</ID>
-    <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))</ID>
     <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(compareBy&lt;CalendarItemWithWatchlist&gt; { it.date }.thenBy { it.season }.thenBy { it.episodeNumber })</ID>
     <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(epItem.date)</ID>
     <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(epItem.primaryKey, newStatus)</ID>
@@ -139,43 +132,12 @@
     <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title)</ID>
     <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(showSetting?.notifyAiredLastEpisode ?: (if (isMovie) defaultMovieDigital else defaultSeasonFinished))</ID>
     <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(simklId = activeItem.simklId, customTitle = term)</ID>
-    <ID>ArgumentListWrapping:ReleaseDetailScreen.kt$(vertical = 4.dp)</ID>
     <ID>ArgumentListWrapping:RepositoryAdditionalCoverageTest.kt$RepositoryAdditionalCoverageTest$(simklId = 77, notifyEveryEpisode = true, notifyAiredLastEpisode = false)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Airing Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Anime", Color(0xFF00382B), Color(0xFF7CE49F))</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Automatic Downloads", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Battery Optimization", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Default Alerts (New Items)", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Default to alert as soon as each episode is ready to stream.", color = Color(0xFFCAC4D0), fontSize = 12.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Default to notify on the movie's theatrical release date.", color = Color(0xFFCAC4D0), fontSize = 12.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Default to notify when a full TV Show or Anime season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 12.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Default to notify when the movie releases digitally or on DVD.", color = Color(0xFFCAC4D0), fontSize = 12.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Digital / DVD Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Movie", Color(0xFF601410), Color(0xFFF2B8B5))</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Prioritize high efficiency video coding results.", color = Color(0xFFCAC4D0), fontSize = 12.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Season Finished Airing", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("TV", Color(0xFF381E72), Color(0xFFEADDFF))</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$("Theater Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(0xFF00382B)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(0xFF381E72)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(0xFF49454F)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(0xFF601410)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(0xFF7CE49F)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(0xFFCAC4D0)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(0xFFD0BCFF)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(0xFFE6E1E5)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(0xFFEADDFF)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(0xFFF2B8B5)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(20.dp)</ID>
     <ID>ArgumentListWrapping:SettingsScreen.kt$(8.dp)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(Icons.Default.BatteryChargingFull, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(Icons.Default.Download, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))</ID>
     <ID>ArgumentListWrapping:SettingsScreen.kt$(density)</ID>
     <ID>ArgumentListWrapping:SettingsScreen.kt$(horizontal = 5.dp, vertical = 1.dp)</ID>
     <ID>ArgumentListWrapping:SettingsScreen.kt$(if (editingKeyword == null) "Add Keyword" else "Edit Keyword", fontWeight = FontWeight.Bold)</ID>
     <ID>ArgumentListWrapping:SettingsScreen.kt$(targetKeyword)</ID>
-    <ID>ArgumentListWrapping:SettingsScreen.kt$(vertical = 12.dp)</ID>
     <ID>ArgumentListWrapping:SettingsScreen.kt$(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp))</ID>
     <ID>ArgumentListWrapping:SimklRepositoryDeepSyncTest.kt$SimklRepositoryDeepSyncTest$(TrackedWatchlistItem(simklId = 303, type = MediaType.MOVIE, title = "Old Title", poster = "old.jpg", rating = 7.0))</ID>
     <ID>ArgumentListWrapping:SimklRepositoryDeepSyncTest.kt$SimklRepositoryDeepSyncTest$(season = 1, episode = 1, title = "Ep 1")</ID>
@@ -263,8 +225,8 @@
     <ID>CyclomaticComplexMethod:ReleaseDetailScreen.kt$@Composable fun ScheduledReleasesCard( activeItem: CalendarItemWithWatchlist, showScheduleItems: List&lt;CalendarItemWithWatchlist&gt;, isSmallScreen: Boolean, updatingWatchKeys: Set&lt;String&gt;, onSelectActiveItemKey: (String) -&gt; Unit, onWatchedStatusChange: (CalendarItemWithWatchlist, Boolean) -&gt; Unit, onMediaStatusChange: (String, MediaStatus) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>CyclomaticComplexMethod:ReleaseDetailScreen.kt$@Composable fun SelectedEpisodeDetailsCard( activeItem: CalendarItemWithWatchlist, theatricalItem: CalendarItemWithWatchlist?, digitalItem: CalendarItemWithWatchlist?, updatingWatchKeys: Set&lt;String&gt;, onWatchedStatusChange: (Boolean) -&gt; Unit, onMediaStatusChange: (String, MediaStatus) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>CyclomaticComplexMethod:ReleaseDetailScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ReleaseDetailScreen( viewModel: CalendarViewModel, itemKey: String, onNavigateBack: () -&gt; Unit, onNavigateToWatchlistItem: (Int) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable fun KeywordManagerSection( title: String, subtitle: String, keywords: List&lt;String&gt;, onAdd: (String) -&gt; Unit, onRemove: (String) -&gt; Unit, onReorder: (List&lt;String&gt;) -&gt; Unit, enabled: Boolean, color: Color = Color(0xFFD0BCFF) )</ID>
     <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable fun SettingsCustomSearchLinksCard( localLinks: List&lt;CustomSearchLink&gt;, onOpenAddDialog: () -&gt; Unit, onOpenEditDialog: (CustomSearchLink) -&gt; Unit, onDeleteLink: (CustomSearchLink) -&gt; Unit, onReorderLinks: (List&lt;CustomSearchLink&gt;) -&gt; Unit, modifier: Modifier = Modifier )</ID>
-    <ID>CyclomaticComplexMethod:SettingsScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable fun KeywordManagerSection( title: String, subtitle: String, keywords: List&lt;String&gt;, onAdd: (String) -&gt; Unit, onRemove: (String) -&gt; Unit, onReorder: (List&lt;String&gt;) -&gt; Unit, enabled: Boolean, color: Color = Color(0xFFD0BCFF) )</ID>
     <ID>CyclomaticComplexMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel(), onNavigateBack: () -&gt; Unit, onNavigateToLogViewer: () -&gt; Unit = {} )</ID>
     <ID>CyclomaticComplexMethod:SyncRepository.kt$SyncRepository$internal suspend fun backfillPastEpisodes( lastSyncTimestamp: Long ): SyncResult</ID>
     <ID>CyclomaticComplexMethod:SyncRepository.kt$SyncRepository$internal suspend fun syncCalendarJsons(forceFullSync: Boolean = false): SyncResult</ID>
@@ -301,6 +263,7 @@
     <ID>ImportOrdering:NotificationActionReceiver.kt$import android.content.BroadcastReceiver import android.content.Context import android.content.Intent import timber.log.Timber import com.felixbrucker.simklcalendar.data.database.CalendarItemDao import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.repository.CalendarRepository import com.felixbrucker.simklcalendar.data.repository.DownloadRepository import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker import dagger.hilt.android.AndroidEntryPoint import kotlinx.coroutines.CoroutineScope import kotlinx.coroutines.Dispatchers import kotlinx.coroutines.SupervisorJob import kotlinx.coroutines.launch import javax.inject.Inject</ID>
     <ID>ImportOrdering:NotificationManager.kt$import android.Manifest import android.app.Notification import android.app.NotificationChannel import android.app.NotificationManager as SystemNotificationManager import android.app.PendingIntent import android.content.Context import android.content.Intent import android.content.pm.PackageManager import android.graphics.Bitmap import android.os.Build import timber.log.Timber import android.widget.Toast import androidx.core.app.NotificationCompat import androidx.core.content.ContextCompat import androidx.core.graphics.drawable.toBitmap import androidx.core.net.toUri import coil.ImageLoader import coil.request.ImageRequest import coil.request.SuccessResult import com.felixbrucker.simklcalendar.MainActivity import com.felixbrucker.simklcalendar.R import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao import com.felixbrucker.simklcalendar.data.database.CalendarItemDao import com.felixbrucker.simklcalendar.data.database.ActiveNotification import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.model.MovieReleaseType import com.felixbrucker.simklcalendar.data.util.MediaFormatter import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper import com.felixbrucker.simklcalendar.data.util.PosterSize import com.felixbrucker.simklcalendar.extensions.toPosterUrl import kotlinx.coroutines.CoroutineScope import kotlinx.coroutines.Dispatchers import kotlinx.coroutines.launch import kotlinx.coroutines.withContext import dagger.hilt.android.qualifiers.ApplicationContext import javax.inject.Inject import javax.inject.Singleton</ID>
     <ID>ImportOrdering:NotificationManagerFullTest.kt$import android.app.Notification import android.app.NotificationManager as AndroidNotificationManager import android.app.PendingIntent import android.content.Context import android.content.SharedPreferences import android.content.pm.ApplicationInfo import android.content.pm.PackageInfo import android.content.pm.PackageManager import android.net.Uri import android.service.notification.StatusBarNotification import android.util.Log import android.widget.RemoteViews import android.widget.Toast import androidx.core.app.NotificationCompat import androidx.core.content.ContextCompat import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao import com.felixbrucker.simklcalendar.data.database.CalendarItem import com.felixbrucker.simklcalendar.data.database.CalendarItemDao import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist import com.felixbrucker.simklcalendar.data.database.CustomSearchLinkDao import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao import com.felixbrucker.simklcalendar.data.database.LocalItemState import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem import com.felixbrucker.simklcalendar.data.database.UserTokenDao import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao import com.felixbrucker.simklcalendar.data.database.WatchlistDao import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.model.MovieReleaseType import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper import com.felixbrucker.simklcalendar.receiver.notification.NotificationActionReceiver import com.felixbrucker.simklcalendar.receiver.notification.NotificationGlanceHelper import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager import com.felixbrucker.simklcalendar.receiver.notification.formatNotificationContent import com.felixbrucker.simklcalendar.receiver.notification.makeOpenReleaseDetailViewIntent import io.mockk.coEvery import io.mockk.coVerify import io.mockk.every import io.mockk.mockk import io.mockk.mockkConstructor import io.mockk.mockkObject import io.mockk.mockkStatic import io.mockk.unmockkConstructor import io.mockk.unmockkObject import io.mockk.unmockkStatic import io.mockk.verify import kotlinx.coroutines.ExperimentalCoroutinesApi import kotlinx.coroutines.flow.MutableStateFlow import kotlinx.coroutines.flow.flowOf import kotlinx.coroutines.test.runTest import org.junit.After import org.junit.Assert.assertEquals import org.junit.Assert.assertNotNull import org.junit.Before import org.junit.Test import java.time.Instant</ID>
+    <ID>ImportOrdering:ReleaseDetailScreen.kt$import android.Manifest import android.content.pm.PackageManager import android.os.Build import androidx.activity.compose.rememberLauncherForActivityResult import androidx.activity.result.contract.ActivityResultContracts import androidx.compose.foundation.BorderStroke import androidx.compose.foundation.background import androidx.compose.foundation.clickable import androidx.compose.foundation.layout.* import androidx.compose.foundation.rememberScrollState import androidx.compose.foundation.shape.CircleShape import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.foundation.verticalScroll import androidx.compose.material.icons.Icons import androidx.compose.material.icons.automirrored.filled.ArrowBack import androidx.compose.material.icons.filled.Check import androidx.compose.material.icons.filled.CheckCircle import androidx.compose.material.icons.filled.Delete import androidx.compose.material3.* import androidx.compose.runtime.* import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.graphics.Color import androidx.compose.ui.platform.LocalContext import androidx.compose.ui.platform.LocalDensity import androidx.compose.ui.platform.LocalWindowInfo import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import androidx.core.content.ContextCompat import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist import com.felixbrucker.simklcalendar.ui.theme.ErrorPink import com.felixbrucker.simklcalendar.ui.theme.ErrorRed import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft import com.felixbrucker.simklcalendar.ui.theme.PurpleLight import com.felixbrucker.simklcalendar.ui.theme.SuccessLight import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkGreenVariant import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenBright import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenDeep import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedWine import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey import com.felixbrucker.simklcalendar.ui.theme.TextGreyLight import com.felixbrucker.simklcalendar.ui.theme.TextPrimary import com.felixbrucker.simklcalendar.ui.theme.TextSubtle import com.felixbrucker.simklcalendar.data.model.MediaStatus import com.felixbrucker.simklcalendar.data.model.MediaType import com.felixbrucker.simklcalendar.data.model.MovieReleaseType import com.felixbrucker.simklcalendar.data.util.DateUtil import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader import com.felixbrucker.simklcalendar.data.util.formattedItemLabel import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard import com.felixbrucker.simklcalendar.ui.composable.DetailHeader import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel import kotlinx.coroutines.launch</ID>
     <ID>ImportOrdering:SimklRepositoryTest.kt$import android.content.Context import android.content.Intent import android.net.Uri import android.util.Base64 import android.util.Log import java.io.File import com.felixbrucker.simklcalendar.data.database.* import com.felixbrucker.simklcalendar.data.model.* import com.felixbrucker.simklcalendar.data.preferences.* import com.felixbrucker.simklcalendar.data.network.* import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager import io.mockk.* import kotlinx.coroutines.ExperimentalCoroutinesApi import kotlinx.coroutines.flow.flowOf import kotlinx.coroutines.test.* import org.junit.After import org.junit.Assert.* import org.junit.Before import org.junit.Test import java.time.Instant</ID>
     <ID>ImportOrdering:StartupReceiver.kt$import android.content.BroadcastReceiver import android.content.Context import android.content.Intent import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager import dagger.hilt.android.AndroidEntryPoint import timber.log.Timber import kotlinx.coroutines.CoroutineScope import kotlinx.coroutines.Dispatchers import kotlinx.coroutines.SupervisorJob import kotlinx.coroutines.launch import javax.inject.Inject</ID>
     <ID>ImportOrdering:SyncCalendarWorker.kt$import android.content.Context import timber.log.Timber import androidx.work.Constraints import androidx.work.CoroutineWorker import androidx.work.ExistingPeriodicWorkPolicy import androidx.work.NetworkType import androidx.work.PeriodicWorkRequestBuilder import androidx.work.WorkManager import androidx.work.WorkerParameters import androidx.hilt.work.HiltWorker import dagger.assisted.Assisted import dagger.assisted.AssistedInject import com.felixbrucker.simklcalendar.data.repository.SyncRepository import com.felixbrucker.simklcalendar.data.repository.UserRepository import java.util.concurrent.TimeUnit</ID>
@@ -358,6 +321,7 @@
     <ID>LongMethod:ReleaseDetailScreen.kt$@Composable fun SelectedEpisodeDetailsCard( activeItem: CalendarItemWithWatchlist, theatricalItem: CalendarItemWithWatchlist?, digitalItem: CalendarItemWithWatchlist?, updatingWatchKeys: Set&lt;String&gt;, onWatchedStatusChange: (Boolean) -&gt; Unit, onMediaStatusChange: (String, MediaStatus) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:ReleaseDetailScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ReleaseDetailScreen( viewModel: CalendarViewModel, itemKey: String, onNavigateBack: () -&gt; Unit, onNavigateToWatchlistItem: (Int) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun CustomSearchLinkAddEditDialog( editingLink: CustomSearchLink?, inputName: String, onInputNameChange: (String) -&gt; Unit, inputSubtitle: String, onInputSubtitleChange: (String) -&gt; Unit, inputUrlTemplate: TextFieldValue, onInputUrlTemplateChange: (TextFieldValue) -&gt; Unit, inputSelectedTypes: Set&lt;MediaType&gt;, onInputSelectedTypesChange: (Set&lt;MediaType&gt;) -&gt; Unit, formError: String?, onSave: () -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
+    <ID>LongMethod:SettingsScreen.kt$@Composable fun KeywordManagerSection( title: String, subtitle: String, keywords: List&lt;String&gt;, onAdd: (String) -&gt; Unit, onRemove: (String) -&gt; Unit, onReorder: (List&lt;String&gt;) -&gt; Unit, enabled: Boolean, color: Color = Color(0xFFD0BCFF) )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsAppLogsDiagnosticsCard( sentryEnabled: Boolean, isSentryConfigured: Boolean, isSentryRunning: Boolean, showDebugActions: Boolean, onUpdateSentryEnabled: (Boolean) -&gt; Unit, onUpdateShowDebugActions: (Boolean) -&gt; Unit, onNavigateToLogViewer: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsAutomaticDownloadsCard( isDownloaderInstalled: Boolean, autoQuality: String, autoPreferHevc: Boolean, autoDownloadUnwatchedTv: Boolean, autoDownloadUnwatchedAnime: Boolean, autoDownloadUnwatchedMovie: Boolean, autoDownloadSeasonUnwatchedTv: Boolean, autoDownloadSeasonUnwatchedAnime: Boolean, searchIntervalHours: Float, autoPreferredKeywords: List&lt;String&gt;, autoIgnoreKeywords: List&lt;String&gt;, onUpdateAutoDownloadQuality: (String) -&gt; Unit, onUpdateAutoDownloadPreferHevc: (Boolean) -&gt; Unit, onUpdateAutoDownloadUnwatchedTv: (Boolean) -&gt; Unit, onUpdateAutoDownloadUnwatchedAnime: (Boolean) -&gt; Unit, onUpdateAutoDownloadUnwatchedMovie: (Boolean) -&gt; Unit, onUpdateAutoDownloadSeasonUnwatchedTv: (Boolean) -&gt; Unit, onUpdateAutoDownloadSeasonUnwatchedAnime: (Boolean) -&gt; Unit, onSearchIntervalHoursChange: (Float) -&gt; Unit, onSearchIntervalHoursChangeFinished: () -&gt; Unit, onAddPreferredKeyword: (String) -&gt; Unit, onRemovePreferredKeyword: (String) -&gt; Unit, onReorderPreferredKeywords: (List&lt;String&gt;) -&gt; Unit, onAddIgnoreKeyword: (String) -&gt; Unit, onRemoveIgnoreKeyword: (String) -&gt; Unit, onReorderIgnoreKeywords: (List&lt;String&gt;) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsBatteryOptimizationCard( useExactAlarms: Boolean, hasExactAlarmPermission: Boolean, onUpdateUseExactAlarms: (Boolean) -&gt; Unit, onGrantExactAlarmPermission: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
@@ -367,7 +331,6 @@
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsSentrySection( sentryEnabled: Boolean, isSentryConfigured: Boolean, isSentryRunning: Boolean, onUpdateSentryEnabled: (Boolean) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsSyncIntervalCard( syncIntervalHours: Float, onSyncIntervalChange: (Float) -&gt; Unit, onSyncIntervalChangeFinished: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsWatchlistResyncCard( isForceSyncing: Boolean, onForceSync: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
-    <ID>LongMethod:SettingsScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable fun KeywordManagerSection( title: String, subtitle: String, keywords: List&lt;String&gt;, onAdd: (String) -&gt; Unit, onRemove: (String) -&gt; Unit, onReorder: (List&lt;String&gt;) -&gt; Unit, enabled: Boolean, color: Color = Color(0xFFD0BCFF) )</ID>
     <ID>LongMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel(), onNavigateBack: () -&gt; Unit, onNavigateToLogViewer: () -&gt; Unit = {} )</ID>
     <ID>LongMethod:SyncRepository.kt$SyncRepository$internal suspend fun backfillPastEpisodes( lastSyncTimestamp: Long ): SyncResult</ID>
     <ID>LongMethod:SyncRepository.kt$SyncRepository$internal suspend fun syncCalendarJsons(forceFullSync: Boolean = false): SyncResult</ID>
@@ -447,54 +410,9 @@
     <ID>MagicNumber:RateLimitInterceptor.kt$RateLimitInterceptor$1024</ID>
     <ID>MagicNumber:RateLimitInterceptor.kt$RateLimitInterceptor$429</ID>
     <ID>MagicNumber:RateLimitInterceptor.kt$RateLimitInterceptor$64</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF1B3828</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF1C1B1F</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF1D192B</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF1E3A2B</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF2B2930</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF2E6543</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF381E72</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF3B383E</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF48A36E</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF49454F</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF4F378B</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF601410</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF79747E</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF7CE49F</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFF8C1D40</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFFA5A3B1</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFFB3261E</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFFC3EED3</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFFCAC4D0</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFFD0BCFF</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFFE6E1E5</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFFE8DEF8</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFFEADDFF</ID>
-    <ID>MagicNumber:ReleaseDetailScreen.kt$0xFFF2B8B5</ID>
     <ID>MagicNumber:SettingsScreen.kt$0.5f</ID>
     <ID>MagicNumber:SettingsScreen.kt$0.8f</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF00382B</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF1C1B1F</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF1E3A2B</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF2A2D36</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF2B2930</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF36323D</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF381E72</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF3B2D2C</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF3B383E</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF49454F</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF4A4458</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF4A4D58</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF4F378B</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF601410</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF79747E</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF7CE49F</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFF938F99</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFFCAC4D0</ID>
     <ID>MagicNumber:SettingsScreen.kt$0xFFD0BCFF</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFFE6E1E5</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFFEADDFF</ID>
-    <ID>MagicNumber:SettingsScreen.kt$0xFFF2B8B5</ID>
     <ID>MagicNumber:SettingsScreen.kt$1.03f</ID>
     <ID>MagicNumber:SettingsScreen.kt$1.1f</ID>
     <ID>MagicNumber:SettingsScreen.kt$120f</ID>
@@ -669,8 +587,6 @@
     <ID>MaxLineLength:RateLimitInterceptorTest.kt$RateLimitInterceptorTest$.</ID>
     <ID>MaxLineLength:RatingsSyncTest.kt$RatingsSyncTest$val animeItem = TrackedWatchlistItem(simklId = 30, type = MediaType.ANIME, title = "Attack on Titan", rating = null)</ID>
     <ID>MaxLineLength:ReleaseDetailScreen.kt$.</ID>
-    <ID>MaxLineLength:ReleaseDetailScreen.kt$HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))</ID>
-    <ID>MaxLineLength:ReleaseDetailScreen.kt$Text("🎉 SEASON PREMIERE", color = Color(0xFF1D192B), fontSize = 11.sp, fontWeight = FontWeight.Bold)</ID>
     <ID>MaxLineLength:ReleaseDetailScreen.kt$Text("🎬 SEASON FINALE", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)</ID>
     <ID>MaxLineLength:ReleaseDetailScreen.kt$if</ID>
     <ID>MaxLineLength:ReleaseDetailScreen.kt$mutableStateOf(showSetting?.notifyAiredLastEpisode ?: (if (isMovie) defaultMovieDigital else defaultSeasonFinished))</ID>
@@ -678,8 +594,7 @@
     <ID>MaxLineLength:ReleaseDetailScreen.kt$onStatusChange = { newStatus -&gt; onMediaStatusChange(epItem.primaryKey, newStatus) }</ID>
     <ID>MaxLineLength:ReleaseDetailScreen.kt$text = if (activeItem.type == MediaType.MOVIE) "Scheduled Releases (${showScheduleItems.size})" else "Scheduled Episodes (${showScheduleItems.size})"</ID>
     <ID>MaxLineLength:ReleaseDetailScreen.kt$text = if (formattedWatchedAt != null) "Watched on $formattedWatchedAt" else "Marked as watched on Simkl"</ID>
-    <ID>MaxLineLength:ReleaseDetailScreen.kt$text = { Text("Are you sure you want to delete this item? This action cannot be undone.", color = Color(0xFFCAC4D0)) }</ID>
-    <ID>MaxLineLength:ReleaseDetailScreen.kt$title = { Text("Delete $itemLabel", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5)) }</ID>
+    <ID>MaxLineLength:ReleaseDetailScreen.kt$text = { Text("Are you sure you want to delete this item? This action cannot be undone.", color = TextSubtle) }</ID>
     <ID>MaxLineLength:ReleaseDetailScreen.kt$val</ID>
     <ID>MaxLineLength:ReleaseDetailScreen.kt$val dateLabel = if (activeItem.movieReleaseType == MovieReleaseType.THEATER) "Theatrical Release" else "Digital / DVD Release"</ID>
     <ID>MaxLineLength:ReleaseDetailScreen.kt$val epDate = if (epItem.type == MediaType.MOVIE) DateUtil.formatDisplayDate(epItem.date) else DateUtil.formatDisplayDateTime(epItem.date)</ID>
@@ -697,25 +612,7 @@
     <ID>MaxLineLength:SettingsScreen.kt$"Sets how frequently the app runs background checks to discover new episode releases and sync your watchlist."</ID>
     <ID>MaxLineLength:SettingsScreen.kt$"To ensure notifications are delivered exactly when they air, the app needs permission to schedule exact alarms."</ID>
     <ID>MaxLineLength:SettingsScreen.kt$.</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$MediaType.ANIME -&gt; Triple("Anime", Color(0xFF00382B), Color(0xFF7CE49F))</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$MediaType.MOVIE -&gt; Triple("Movie", Color(0xFF601410), Color(0xFFF2B8B5))</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$MediaType.TV -&gt; Triple("TV", Color(0xFF381E72), Color(0xFFEADDFF))</ID>
     <ID>MaxLineLength:SettingsScreen.kt$Row</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Airing Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Battery Optimization", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Default Alerts (New Items)", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Default to alert as soon as each episode is ready to stream.", color = Color(0xFFCAC4D0), fontSize = 12.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Default to notify on the movie's theatrical release date.", color = Color(0xFFCAC4D0), fontSize = 12.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Default to notify when a full TV Show or Anime season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 12.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Default to notify when the movie releases digitally or on DVD.", color = Color(0xFFCAC4D0), fontSize = 12.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Digital / DVD Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Prioritize high efficiency video coding results.", color = Color(0xFFCAC4D0), fontSize = 12.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Season Finished Airing", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("Theater Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)</ID>
     <ID>MaxLineLength:SettingsScreen.kt$currentDragging &lt; targetIndex &amp;&amp; index in (currentDragging + 1)..targetIndex -&gt; -effectiveSlotHeight</ID>
     <ID>MaxLineLength:SettingsScreen.kt$currentDragging &gt; targetIndex &amp;&amp; index in targetIndex until currentDragging -&gt; effectiveSlotHeight</ID>
     <ID>MaxLineLength:SettingsScreen.kt$if</ID>
@@ -1025,7 +922,7 @@
     <ID>PropertyWrapping:NotificationManagerFullTest.kt$NotificationManagerFullTest$val movieDigitalItem = CalendarItemWithWatchlist(calMovieDigital, watchMovie, LocalItemState("v2_201_digital", MediaStatus.WANTED))</ID>
     <ID>PropertyWrapping:NotificationManagerFullTest.kt$NotificationManagerFullTest$val movieItem = CalendarItemWithWatchlist(calMovie, watchMovie, LocalItemState("v2_200_theater", MediaStatus.IGNORED))</ID>
     <ID>PropertyWrapping:RatingsSyncTest.kt$RatingsSyncTest$val animeItem = TrackedWatchlistItem(simklId = 30, type = MediaType.ANIME, title = "Attack on Titan", rating = null)</ID>
-    <ID>PropertyWrapping:ReleaseDetailScreen.kt$val actions = remember(activeItem, allWatchedEpisodes, isMarkingWatched, appSettingsPrefs.showDebugActions) { val list = mutableListOf&lt;@Composable (Modifier) -&gt; Unit&gt;() if (activeItem.type != MediaType.MOVIE) { val sNum = activeItem.season ?: 1 val seasonLabel = activeItem.formattedSeasonLabel val (isSeasonFullyWatched, _, _) = getSeasonWatchStatus(sNum) list.add { mod -&gt; SeasonWatchButton( isMarkingWatched = isMarkingWatched, isSeasonFullyWatched = isSeasonFullyWatched, seasonLabel = seasonLabel, onMarkSeasonWatched = { viewModel.markSeasonWatched( simklId = activeItem.simklId, season = sNum, mediaType = activeItem.type, showTitle = activeItem.title ) { success, msg -&gt; if (success) { scope.launch { val result = snackbarHostState.showSnackbar( message = msg, actionLabel = "Revert", duration = SnackbarDuration.Short ) if (result == SnackbarResult.ActionPerformed) { viewModel.markSeasonUnwatched( simklId = activeItem.simklId, season = sNum, mediaType = activeItem.type, showTitle = activeItem.title ) { _, revertMsg -&gt; scope.launch { snackbarHostState.showSnackbar(revertMsg) } } } } } else { scope.launch { snackbarHostState.showSnackbar(msg) } } } }, modifier = mod ) } } if (appSettingsPrefs.showDebugActions) { list.add { mod -&gt; Button( onClick = { showDeleteConfirmation = true }, modifier = mod.height(48.dp), colors = ButtonDefaults.buttonColors( containerColor = Color(0xFF601410), contentColor = Color(0xFFF2B8B5) ), shape = RoundedCornerShape(10.dp) ) { Icon( imageVector = Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp) ) Spacer(modifier = Modifier.width(6.dp)) Text("Delete", fontWeight = FontWeight.Bold, maxLines = 1) } } } list }</ID>
+    <ID>PropertyWrapping:ReleaseDetailScreen.kt$val actions = remember(activeItem, allWatchedEpisodes, isMarkingWatched, appSettingsPrefs.showDebugActions) { val list = mutableListOf&lt;@Composable (Modifier) -&gt; Unit&gt;() if (activeItem.type != MediaType.MOVIE) { val sNum = activeItem.season ?: 1 val seasonLabel = activeItem.formattedSeasonLabel val (isSeasonFullyWatched, _, _) = getSeasonWatchStatus(sNum) list.add { mod -&gt; SeasonWatchButton( isMarkingWatched = isMarkingWatched, isSeasonFullyWatched = isSeasonFullyWatched, seasonLabel = seasonLabel, onMarkSeasonWatched = { viewModel.markSeasonWatched( simklId = activeItem.simklId, season = sNum, mediaType = activeItem.type, showTitle = activeItem.title ) { success, msg -&gt; if (success) { scope.launch { val result = snackbarHostState.showSnackbar( message = msg, actionLabel = "Revert", duration = SnackbarDuration.Short ) if (result == SnackbarResult.ActionPerformed) { viewModel.markSeasonUnwatched( simklId = activeItem.simklId, season = sNum, mediaType = activeItem.type, showTitle = activeItem.title ) { _, revertMsg -&gt; scope.launch { snackbarHostState.showSnackbar(revertMsg) } } } } } else { scope.launch { snackbarHostState.showSnackbar(msg) } } } }, modifier = mod ) } } if (appSettingsPrefs.showDebugActions) { list.add { mod -&gt; Button( onClick = { showDeleteConfirmation = true }, modifier = mod.height(48.dp), colors = ButtonDefaults.buttonColors( containerColor = SurfaceRedDeep, contentColor = ErrorPink ), shape = RoundedCornerShape(10.dp) ) { Icon( imageVector = Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp) ) Spacer(modifier = Modifier.width(6.dp)) Text("Delete", fontWeight = FontWeight.Bold, maxLines = 1) } } } list }</ID>
     <ID>PropertyWrapping:SimklRepositoryDeepSyncTest.kt$SimklRepositoryDeepSyncTest$val existingAnime = TrackedWatchlistItem(simklId = 202, type = MediaType.ANIME, title = "Old Anime", lastSyncedAt = null)</ID>
     <ID>PropertyWrapping:SimklRepositoryDeepSyncTest.kt$SimklRepositoryDeepSyncTest$val existingTracked = listOf(TrackedWatchlistItem(simklId = 303, type = MediaType.MOVIE, title = "Old Title", poster = "old.jpg", rating = 7.0))</ID>
     <ID>PropertyWrapping:SimklRepositoryTest.kt$SimklRepositoryTest$val calItem = CalendarItem("v2_100_1_2", 100, "Ep 2", 1, 2, Instant.now().minusSeconds(3600), null, false, false, false, null)</ID>
