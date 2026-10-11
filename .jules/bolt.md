@@ -57,3 +57,9 @@
 **Learning:** When offloading in-memory collection sorting from ViewModel transformations to Room SQL queries (`ORDER BY`), ensure the SQL query orders by the exact matching relational property. Do not avoid adding database indices on frequently sorted or queried columns due to perceived migration complexity; Room's `AutoMigration` mechanism handles index additions seamlessly without adding manual migration code or runtime complexity.
 
 **Action:** Add database indices on columns used for query sorting or filtering and configure Room `AutoMigration` rather than avoiding schema updates or reverting to in-memory sorting.
+
+## 2027-03-05 - Offloading Multi-Flow State Transformations to Default Dispatcher
+
+**Learning:** Reactive `combine` flow transformations inside ViewModels default to executing on `Dispatchers.Main` when collected by UI state flows (`stateIn`). Performing complex list transformations, string pattern matching, statistics calculation, and multi-criterion collection sorting directly on `Dispatchers.Main` causes UI thread jank and frame drops during search query typing or filter updates. Attaching `.flowOn(defaultDispatcher)` before `.stateIn(...)` offloads heavy collection computations to `Dispatchers.Default` background threads. Injecting `defaultDispatcher: CoroutineDispatcher = Dispatchers.Default` via Hilt provides clean testability without requiring static dispatcher mocking.
+
+**Action:** Always attach `.flowOn(defaultDispatcher)` to complex `combine` or `map` flow transformations in ViewModels that process large collections or perform string matching and sorting.

@@ -22,6 +22,7 @@ import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -54,6 +55,7 @@ enum class SortDirection {
     DESCENDING
 }
 
+
 @Immutable
 data class WatchlistTableItem(
     val watchlistItem: TrackedWatchlistItem,
@@ -84,7 +86,8 @@ class CalendarViewModel @Inject constructor(
     notificationRepo: NotificationRepository,
     private val uiRepo: UiRepository,
     appSettingsRepo: AppSettingsRepository,
-    private val torrentServiceHelper: TorrentServiceHelper
+    private val torrentServiceHelper: TorrentServiceHelper,
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
 
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = calendarRepository.watchlistItems
@@ -451,7 +454,9 @@ class CalendarViewModel @Inject constructor(
             }
             if (sortDirection == SortDirection.ASCENDING) list.sortedWith(comparator) else list.sortedWith(comparator.reversed())
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+        .flowOn(defaultDispatcher)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun saveItemDownloadSettings(settings: ItemDownloadSettings) {
         viewModelScope.launch {
@@ -718,7 +723,9 @@ class CalendarViewModel @Inject constructor(
 
             true
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+        .flowOn(defaultDispatcher)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Calendar sync and status tracking
     private val _isSyncing = MutableStateFlow(false)

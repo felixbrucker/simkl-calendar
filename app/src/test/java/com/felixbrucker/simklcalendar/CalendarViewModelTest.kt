@@ -127,6 +127,7 @@ class CalendarViewModelTest {
             uiRepo = uiRepo,
             appSettingsRepo = appSettingsRepo,
             torrentServiceHelper = torrentServiceHelper,
+            defaultDispatcher = testDispatcher
         )
     }
 
