@@ -273,7 +273,7 @@ val CalendarItemWithWatchlist.formattedAutoDownloadLabel: String
     get() = if (type == MediaType.MOVIE) {
         title
     } else {
-        "$title ${MediaFormatter.formatEpisodeCode(type, season, episodeNumber)}"
+        "$title: ${MediaFormatter.formatEpisodeCode(type, season, episodeNumber)}"
     }
 
 // Fast 2-digit zero-padding helper avoiding java.util.Formatter, primitive boxing, and Object[] varargs allocations

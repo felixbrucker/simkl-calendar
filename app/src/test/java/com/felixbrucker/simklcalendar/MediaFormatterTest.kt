@@ -306,8 +306,8 @@ class MediaFormatterTest {
             watchlistItem = watchMovie
         )
 
-        assertEquals("Breaking Bad S04E02", itemTv.formattedAutoDownloadLabel)
-        assertEquals("Naruto E12", itemAnime.formattedAutoDownloadLabel)
+        assertEquals("Breaking Bad: S04E02", itemTv.formattedAutoDownloadLabel)
+        assertEquals("Naruto: E12", itemAnime.formattedAutoDownloadLabel)
         assertEquals("Inception", itemMovieDigital.formattedAutoDownloadLabel)
         assertEquals("Inception", itemMovieTheater.formattedAutoDownloadLabel)
     }
