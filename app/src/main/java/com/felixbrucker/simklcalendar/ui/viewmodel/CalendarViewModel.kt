@@ -87,7 +87,7 @@ class CalendarViewModel @Inject constructor(
     private val uiRepo: UiRepository,
     appSettingsRepo: AppSettingsRepository,
     private val torrentServiceHelper: TorrentServiceHelper,
-    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default
+    private val defaultDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = calendarRepository.watchlistItems
