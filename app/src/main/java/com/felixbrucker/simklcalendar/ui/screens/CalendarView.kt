@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -40,6 +41,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -97,6 +99,17 @@ fun CalendarView(
     )
 }
 
+@Immutable
+data class CalendarItemListState(
+    val lazyListState: LazyListState,
+    val showEarlierReleases: Boolean,
+    val earlierItems: List<CalendarItemWithWatchlist>,
+    val earlierGrouped: Map<String, List<CalendarItemWithWatchlist>>,
+    val upcomingGrouped: Map<String, List<CalendarItemWithWatchlist>>,
+    val searchQuery: String,
+    val torrentDownloads: Map<String, DownloadProgress>,
+)
+
 @Composable
 fun CalendarContent(
     items: List<CalendarItemWithWatchlist>,
@@ -111,39 +124,13 @@ fun CalendarContent(
     modifier: Modifier = Modifier,
     lazyListState: LazyListState = rememberLazyListState(),
 ) {
-    // Separate and group earlier and upcoming releases in a single pass to minimize timezone conversions
     val (earlierItems, earlierGrouped, upcomingGrouped) = remember(items) {
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now(zone)
-
-        val earlierList = mutableListOf<CalendarItemWithWatchlist>()
-        val earlierMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
-        val upcomingMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
-
-        for (item in items) {
-            val localDate = item.date.atZone(zone).toLocalDate()
-            if (localDate.isBefore(today)) {
-                earlierList.add(item)
-                earlierMap.getOrPut(localDate) { mutableListOf() }.add(item)
-            } else {
-                upcomingMap.getOrPut(localDate) { mutableListOf() }.add(item)
-            }
-        }
-
-        val formattedEarlier = earlierMap.mapKeys { (localDate, _) ->
-            DateUtil.formatAiringDateHeader(localDate, zone, today)
-        }
-        val formattedUpcoming = upcomingMap.mapKeys { (localDate, _) ->
-            DateUtil.formatAiringDateHeader(localDate, zone, today)
-        }
-
-        Triple(earlierList, formattedEarlier, formattedUpcoming)
+        groupCalendarItems(items)
     }
 
     Column(modifier = modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Calendar Group list
         if (items.isEmpty()) {
             CalendarEmptyState(
                 searchQuery = searchQuery,
@@ -151,95 +138,157 @@ fun CalendarContent(
                 onResetFilters = onResetFilters
             )
         } else {
-            LazyColumn(
-                state = lazyListState,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
-                // Earlier Releases Expandable Header Card
-                if (earlierItems.isNotEmpty()) {
-                    item(key = "earlier_releases_toggle_card") {
-                        CalendarEarlierReleasesHeader(
-                            showEarlierReleases = showEarlierReleases,
-                            earlierCount = earlierItems.size,
-                            searchQuery = searchQuery,
-                            onToggle = onToggleShowEarlierReleases
-                        )
-                    }
+            CalendarItemList(
+                state = CalendarItemListState(
+                    lazyListState = lazyListState,
+                    showEarlierReleases = showEarlierReleases,
+                    earlierItems = earlierItems,
+                    earlierGrouped = earlierGrouped,
+                    upcomingGrouped = upcomingGrouped,
+                    searchQuery = searchQuery,
+                    torrentDownloads = torrentDownloads
+                ),
+                onToggleShowEarlierReleases = onToggleShowEarlierReleases,
+                onSetShowEarlierReleases = onSetShowEarlierReleases,
+                onNavigateToShowDetail = onNavigateToShowDetail,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
 
-                    // When expanded, render earlier day groups
-                    if (showEarlierReleases) {
-                        earlierGrouped.forEach { (dateHeader, dayItems) ->
-                            stickyHeader(key = "earlier_header_$dateHeader") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(Color(0xFF1C1B1F))
-                                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = dateHeader,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF9E9AA3),
-                                        letterSpacing = 1.sp
-                                    )
-                                }
-                            }
+private typealias GroupedCalendarItems = Triple<
+    List<CalendarItemWithWatchlist>,
+    Map<String, List<CalendarItemWithWatchlist>>,
+    Map<String, List<CalendarItemWithWatchlist>>
+    >
 
-                            items(dayItems, key = { "earlier_${it.primaryKey}" }) { item ->
-                                CalendarItemCard(
-                                    item = item,
-                                    onNavigateToShowDetail = onNavigateToShowDetail,
-                                    downloadProgress = torrentDownloads[item.downloadTaskId],
-                                    modifier = Modifier.animateItem(),
-                                )
-                            }
-                        }
-                    }
-                }
+private fun groupCalendarItems(
+    items: List<CalendarItemWithWatchlist>
+): GroupedCalendarItems {
+    val zone = ZoneId.systemDefault()
+    val today = LocalDate.now(zone)
 
-                // Upcoming releases (today and future dates)
-                if (upcomingGrouped.isNotEmpty()) {
-                    upcomingGrouped.forEach { (dateHeader, dayItems) ->
-                        stickyHeader(key = "upcoming_header_$dateHeader") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFF1C1B1F))
-                                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = dateHeader,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFCAC4D0),
-                                    letterSpacing = 1.sp
-                                )
-                            }
-                        }
+    val earlierList = mutableListOf<CalendarItemWithWatchlist>()
+    val earlierMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
+    val upcomingMap = LinkedHashMap<LocalDate, MutableList<CalendarItemWithWatchlist>>()
 
-                        items(dayItems, key = { it.primaryKey }) { item ->
-                            CalendarItemCard(
-                                item = item,
-                                onNavigateToShowDetail = onNavigateToShowDetail,
-                                downloadProgress = torrentDownloads[item.downloadTaskId],
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                    }
-                } else if (earlierItems.isNotEmpty() && !showEarlierReleases) {
-                    // Notice when upcoming is empty but earlier items exist
-                    item(key = "no_upcoming_prompt") {
-                        CalendarNoUpcomingReleasesNotice(
-                            searchQuery = searchQuery,
-                            earlierCount = earlierItems.size,
-                            onShowEarlierReleases = { onSetShowEarlierReleases(true) }
-                        )
-                    }
-                }
+    for (item in items) {
+        val localDate = item.date.atZone(zone).toLocalDate()
+        if (localDate.isBefore(today)) {
+            earlierList.add(item)
+            earlierMap.getOrPut(localDate) { mutableListOf() }.add(item)
+        } else {
+            upcomingMap.getOrPut(localDate) { mutableListOf() }.add(item)
+        }
+    }
+
+    val formattedEarlier = earlierMap.mapKeys { (localDate, _) ->
+        DateUtil.formatAiringDateHeader(localDate, zone, today)
+    }
+    val formattedUpcoming = upcomingMap.mapKeys { (localDate, _) ->
+        DateUtil.formatAiringDateHeader(localDate, zone, today)
+    }
+
+    return Triple(earlierList, formattedEarlier, formattedUpcoming)
+}
+
+@Composable
+private fun CalendarItemList(
+    state: CalendarItemListState,
+    onToggleShowEarlierReleases: () -> Unit,
+    onSetShowEarlierReleases: (Boolean) -> Unit,
+    onNavigateToShowDetail: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        state = state.lazyListState,
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(bottom = 16.dp)
+    ) {
+        if (state.earlierItems.isNotEmpty()) {
+            item(key = "earlier_releases_toggle_card") {
+                CalendarEarlierReleasesHeader(
+                    showEarlierReleases = state.showEarlierReleases,
+                    earlierCount = state.earlierItems.size,
+                    searchQuery = state.searchQuery,
+                    onToggle = onToggleShowEarlierReleases
+                )
+            }
+
+            if (state.showEarlierReleases) {
+                renderGroupedCalendarItems(
+                    groupedItems = state.earlierGrouped,
+                    keyPrefix = "earlier",
+                    headerColor = Color(0xFF9E9AA3),
+                    torrentDownloads = state.torrentDownloads,
+                    onNavigateToShowDetail = onNavigateToShowDetail
+                )
             }
         }
+
+        if (state.upcomingGrouped.isNotEmpty()) {
+            renderGroupedCalendarItems(
+                groupedItems = state.upcomingGrouped,
+                keyPrefix = "upcoming",
+                headerColor = Color(0xFFCAC4D0),
+                torrentDownloads = state.torrentDownloads,
+                onNavigateToShowDetail = onNavigateToShowDetail
+            )
+        } else if (state.earlierItems.isNotEmpty() && !state.showEarlierReleases) {
+            item(key = "no_upcoming_prompt") {
+                CalendarNoUpcomingReleasesNotice(
+                    searchQuery = state.searchQuery,
+                    earlierCount = state.earlierItems.size,
+                    onShowEarlierReleases = { onSetShowEarlierReleases(true) }
+                )
+            }
+        }
+    }
+}
+
+private fun LazyListScope.renderGroupedCalendarItems(
+    groupedItems: Map<String, List<CalendarItemWithWatchlist>>,
+    keyPrefix: String,
+    headerColor: Color,
+    torrentDownloads: Map<String, DownloadProgress>,
+    onNavigateToShowDetail: (String) -> Unit
+) {
+    groupedItems.forEach { (dateHeader, dayItems) ->
+        stickyHeader(key = "${keyPrefix}_header_$dateHeader") {
+            DateGroupHeader(dateHeader = dateHeader, textColor = headerColor)
+        }
+
+        items(dayItems, key = { if (keyPrefix == "earlier") "earlier_${it.primaryKey}" else it.primaryKey }) { item ->
+            CalendarItemCard(
+                item = item,
+                onNavigateToShowDetail = onNavigateToShowDetail,
+                downloadProgress = torrentDownloads[item.downloadTaskId],
+                modifier = Modifier.animateItem(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DateGroupHeader(
+    dateHeader: String,
+    textColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color(0xFF1C1B1F))
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = dateHeader,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = textColor,
+            letterSpacing = 1.sp
+        )
     }
 }
 
