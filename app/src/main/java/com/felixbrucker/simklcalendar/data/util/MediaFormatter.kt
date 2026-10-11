@@ -271,10 +271,11 @@ val CalendarItemWithWatchlist.formattedEpisodeSlugHeader: String
 
 val CalendarItemWithWatchlist.formattedAutoDownloadLabel: String
     get() = if (type == MediaType.MOVIE) {
-        when (movieReleaseType) {
-            MovieReleaseType.DIGITAL -> "$title (DVD/Digital)"
-            MovieReleaseType.THEATER -> "$title (Theater)"
-            null -> title
+        val releaseType = movieReleaseType
+        if (releaseType != null) {
+            "$title (${releaseType.displayName})"
+        } else {
+            title
         }
     } else {
         "$title ${MediaFormatter.formatEpisodeCode(type, season, episodeNumber)}"

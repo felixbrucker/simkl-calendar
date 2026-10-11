@@ -308,7 +308,7 @@ class MediaFormatterTest {
 
         assertEquals("Breaking Bad S04E02", itemTv.formattedAutoDownloadLabel)
         assertEquals("Naruto E12", itemAnime.formattedAutoDownloadLabel)
-        assertEquals("Inception (DVD/Digital)", itemMovieDigital.formattedAutoDownloadLabel)
-        assertEquals("Inception (Theater)", itemMovieTheater.formattedAutoDownloadLabel)
+        assertEquals("Inception (Digital / DVD Release)", itemMovieDigital.formattedAutoDownloadLabel)
+        assertEquals("Inception (Theater Release)", itemMovieTheater.formattedAutoDownloadLabel)
     }
 }
