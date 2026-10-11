@@ -421,169 +421,205 @@ fun NotificationSettingsCard(
     }
 }
 
+@Immutable
+data class DetailHeaderData(
+    val simklId: Int,
+    val type: MediaType,
+    val title: String,
+    val poster: String?,
+    val rating: Double? = null,
+    val titleRomaji: String? = null,
+    val hasUniqueTitleRomaji: Boolean = !titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true),
+    val animeSeason: Int? = null,
+)
+
 @Composable
 fun DetailHeader(
-    simklId: Int,
-    type: MediaType,
-    title: String,
-    poster: String?,
+    data: DetailHeaderData,
     modifier: Modifier = Modifier,
-    rating: Double? = null,
-    titleRomaji: String? = null,
-    hasUniqueTitleRomaji: Boolean = !titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true),
-    animeSeason: Int? = null,
     onTitleClick: () -> Unit = {},
 ) {
-    val context = LocalContext.current
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(260.dp)
     ) {
-        AsyncImage(
-            model = poster.toPosterUrl(PosterSize.WIDE),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Scrim gradient
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color(0xFF1C1B1F)
-                        ),
-                        startY = 100f
-                    )
-                )
-        )
-
-        // Rating Badge on top right of poster
-        if (rating != null) {
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = Color.Black.copy(alpha = 0.75f),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Rating",
-                        tint = Color(0xFFFFC107),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = String.format(java.util.Locale.US, "%.1f", rating),
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
-        }
-
-        // Overlay Title metadata
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp)
-                .padding(end = 100.dp) // Avoid overlapping with the button
-        ) {
-            Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = when (type) {
-                    MediaType.ANIME -> Color(0xFFE8DEF8)
-                    MediaType.MOVIE -> Color(0xFFF2B8B5)
-                    MediaType.TV -> Color(0xFFBAC3FF)
-                },
-                contentColor = when (type) {
-                    MediaType.ANIME -> Color(0xFF1D192B)
-                    MediaType.MOVIE -> Color(0xFF601410)
-                    MediaType.TV -> Color(0xFF1A237E)
-                }
-            ) {
-                Text(
-                    text = type.displayName.uppercase(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = title,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
-                modifier = Modifier.clickable(onClick = onTitleClick)
+        DetailHeaderPosterScrim(poster = data.poster)
+        if (data.rating != null) {
+            DetailHeaderRatingBadge(
+                rating = data.rating,
+                modifier = Modifier.align(Alignment.TopEnd)
             )
-
-            if (hasUniqueTitleRomaji) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = titleRomaji!!,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Color(0xFFCAC4D0)
-                )
-            }
-
-            val animeSeasonLabel = MediaFormatter.formatAnimeSeasonLabel(type, animeSeason)
-            if (animeSeasonLabel != null) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = animeSeasonLabel,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Color(0xFFCAC4D0)
-                )
-            }
         }
+        DetailHeaderTitleOverlay(
+            data = data,
+            onTitleClick = onTitleClick,
+            modifier = Modifier.align(Alignment.BottomStart)
+        )
+        DetailHeaderOpenSimklButton(
+            simklId = data.simklId,
+            type = data.type,
+            modifier = Modifier.align(Alignment.BottomEnd)
+        )
+    }
+}
 
-        // Open on SIMKL Button in Bottom Right
-        Button(
-            onClick = {
-                val intent = Intent(
-                    Intent.ACTION_VIEW,
-                    MediaFormatter.formatSimklUrl(simklId, type).toUri(),
+@Composable
+private fun DetailHeaderPosterScrim(poster: String?) {
+    AsyncImage(
+        model = poster.toPosterUrl(PosterSize.WIDE),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxSize()
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, Color(0xFF1C1B1F)),
+                    startY = 100f
                 )
-                context.startActivity(intent)
-            },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .height(32.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF6750A4).copy(alpha = 0.8f),
-                contentColor = Color.White
-            ),
-            shape = RoundedCornerShape(8.dp)
+            )
+    )
+}
+
+@Composable
+private fun DetailHeaderRatingBadge(
+    rating: Double,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = Color.Black.copy(alpha = 0.75f),
+        modifier = modifier.padding(16.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
+                imageVector = Icons.Default.Star,
+                contentDescription = "Rating",
+                tint = Color(0xFFFFC107),
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "Open on SIMKL",
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp
+                text = String.format(java.util.Locale.US, "%.1f", rating),
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.ExtraBold
             )
         }
+    }
+}
+
+@Composable
+private fun DetailHeaderTitleOverlay(
+    data: DetailHeaderData,
+    onTitleClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .padding(16.dp)
+            .padding(end = 100.dp)
+    ) {
+        DetailMediaTypeBadge(type = data.type)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = data.title,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.White,
+            modifier = Modifier.clickable(onClick = onTitleClick)
+        )
+        DetailSubtitles(data = data)
+    }
+}
+
+@Composable
+private fun DetailSubtitles(data: DetailHeaderData) {
+    if (data.hasUniqueTitleRomaji && data.titleRomaji != null) {
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = data.titleRomaji,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Normal,
+            color = Color(0xFFCAC4D0)
+        )
+    }
+    val animeSeasonLabel = MediaFormatter.formatAnimeSeasonLabel(data.type, data.animeSeason)
+    if (animeSeasonLabel != null) {
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = animeSeasonLabel,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Normal,
+            color = Color(0xFFCAC4D0)
+        )
+    }
+}
+
+@Composable
+private fun DetailMediaTypeBadge(
+    type: MediaType,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(4.dp),
+        color = when (type) {
+            MediaType.ANIME -> Color(0xFFE8DEF8)
+            MediaType.MOVIE -> Color(0xFFF2B8B5)
+            MediaType.TV -> Color(0xFFBAC3FF)
+        },
+        contentColor = when (type) {
+            MediaType.ANIME -> Color(0xFF1D192B)
+            MediaType.MOVIE -> Color(0xFF601410)
+            MediaType.TV -> Color(0xFF1A237E)
+        }
+    ) {
+        Text(
+            text = type.displayName.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
+private fun DetailHeaderOpenSimklButton(
+    simklId: Int,
+    type: MediaType,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    Button(
+        onClick = {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                MediaFormatter.formatSimklUrl(simklId, type).toUri(),
+            )
+            context.startActivity(intent)
+        },
+        modifier = modifier.padding(16.dp).height(32.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFF6750A4).copy(alpha = 0.8f),
+            contentColor = Color.White
+        ),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = "Open on SIMKL", fontWeight = FontWeight.Bold, fontSize = 11.sp)
     }
 }
 

@@ -1,5 +1,9 @@
 package com.felixbrucker.simklcalendar.data.util
 
+import java.time.Instant
+import com.felixbrucker.simklcalendar.data.database.CalendarItem
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import org.junit.Assert.assertEquals
@@ -282,33 +286,51 @@ class MediaFormatterTest {
     }
 
     @Test
-    fun testFormattedAutoDownloadLabel() {
-        val watchTv = com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem(1, MediaType.TV, "Breaking Bad")
-        val itemTv = com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist(
-            calendarItem = com.felixbrucker.simklcalendar.data.database.CalendarItem("key1", 1, "Pilot", 4, 2, java.time.Instant.now(), null, false, false),
-            watchlistItem = watchTv
+    fun testFormattedAutoDownloadLabelTvAndAnime() {
+        val itemTv = CalendarItemWithWatchlist(
+            calendarItem = createTestCalendarItem("key1", 1, 4, 2, null),
+            watchlistItem = TrackedWatchlistItem(1, MediaType.TV, "Breaking Bad")
         )
-
-        val watchAnime = com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem(2, MediaType.ANIME, "Naruto")
-        val itemAnime = com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist(
-            calendarItem = com.felixbrucker.simklcalendar.data.database.CalendarItem("key2", 2, "Ep 12", 1, 12, java.time.Instant.now(), null, false, false),
-            watchlistItem = watchAnime
-        )
-
-        val watchMovie = com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem(3, MediaType.MOVIE, "Inception")
-        val itemMovieDigital = com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist(
-            calendarItem = com.felixbrucker.simklcalendar.data.database.CalendarItem("key3", 3, null, null, null, java.time.Instant.now(), MovieReleaseType.DIGITAL, false, false),
-            watchlistItem = watchMovie
-        )
-
-        val itemMovieTheater = com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist(
-            calendarItem = com.felixbrucker.simklcalendar.data.database.CalendarItem("key4", 3, null, null, null, java.time.Instant.now(), MovieReleaseType.THEATER, false, false),
-            watchlistItem = watchMovie
+        val itemAnime = CalendarItemWithWatchlist(
+            calendarItem = createTestCalendarItem("key2", 2, 1, 12, null),
+            watchlistItem = TrackedWatchlistItem(2, MediaType.ANIME, "Naruto")
         )
 
         assertEquals("Breaking Bad: S04E02", itemTv.formattedAutoDownloadLabel)
         assertEquals("Naruto: E12", itemAnime.formattedAutoDownloadLabel)
+    }
+
+    @Test
+    fun testFormattedAutoDownloadLabelMovies() {
+        val watchMovie = TrackedWatchlistItem(3, MediaType.MOVIE, "Inception")
+        val itemMovieDigital = CalendarItemWithWatchlist(
+            calendarItem = createTestCalendarItem("key3", 3, null, null, MovieReleaseType.DIGITAL),
+            watchlistItem = watchMovie
+        )
+        val itemMovieTheater = CalendarItemWithWatchlist(
+            calendarItem = createTestCalendarItem("key4", 3, null, null, MovieReleaseType.THEATER),
+            watchlistItem = watchMovie
+        )
+
         assertEquals("Inception", itemMovieDigital.formattedAutoDownloadLabel)
         assertEquals("Inception", itemMovieTheater.formattedAutoDownloadLabel)
     }
+
+    private fun createTestCalendarItem(
+        key: String,
+        simklId: Int,
+        season: Int?,
+        episode: Int?,
+        movieReleaseType: MovieReleaseType?
+    ) = CalendarItem(
+        primaryKey = key,
+        simklId = simklId,
+        episodeTitle = if (season != null) "Ep" else null,
+        season = season,
+        episodeNumber = episode,
+        date = Instant.now(),
+        movieReleaseType = movieReleaseType,
+        isSeasonPremiere = false,
+        isSeasonFinale = false
+    )
 }

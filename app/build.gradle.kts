@@ -104,7 +104,8 @@ val detektRun = tasks.register<JavaExec>("detektRun") {
     "--config", "$rootDir/detekt.yml",
     "--input", "$projectDir/src/main/java,$projectDir/src/test/java",
     "--jvm-target", "11",
-    "--build-upon-default-config"
+    "--build-upon-default-config",
+    "--report", "txt:$rootDir/detekt-report.txt"
   )
   if (project.hasProperty("detektCreateBaseline") || !baselineFile.exists()) {
     argsList.addAll(listOf("--create-baseline", "--baseline", baselineFile.absolutePath))

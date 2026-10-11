@@ -8,10 +8,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -28,24 +28,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
-import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
+import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
 import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.MediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
-import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import com.felixbrucker.simklcalendar.ui.composable.Table
 import com.felixbrucker.simklcalendar.ui.composable.WatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
+import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -159,14 +160,16 @@ fun WatchlistItemDetailScreen(
                 // 1. Header with Poster & Title
                 item {
                     DetailHeader(
-                        simklId = watchlistItem.simklId,
-                        type = watchlistItem.type,
-                        title = watchlistItem.title,
-                        poster = watchlistItem.poster,
-                        rating = watchlistItem.rating,
-                        titleRomaji = watchlistItem.titleRomaji,
-                        hasUniqueTitleRomaji = watchlistItem.hasUniqueTitleRomaji,
-                        animeSeason = watchlistItem.animeSeason
+                        data = DetailHeaderData(
+                            simklId = watchlistItem.simklId,
+                            type = watchlistItem.type,
+                            title = watchlistItem.title,
+                            poster = watchlistItem.poster,
+                            rating = watchlistItem.rating,
+                            titleRomaji = watchlistItem.titleRomaji,
+                            hasUniqueTitleRomaji = watchlistItem.hasUniqueTitleRomaji,
+                            animeSeason = watchlistItem.animeSeason
+                        )
                     )
                 }
 

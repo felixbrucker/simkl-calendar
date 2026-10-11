@@ -1,6 +1,6 @@
 package com.felixbrucker.simklcalendar.ui.viewmodel
 
-import timber.log.Timber
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -10,9 +10,18 @@ import com.felixbrucker.simklcalendar.data.database.NotificationSetting
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisode
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
-import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences
+import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
+import com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences
+import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
+import com.felixbrucker.simklcalendar.data.preferences.UiPreferences
+import com.felixbrucker.simklcalendar.data.preferences.UiRepository
+import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
 import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository
 import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
@@ -20,27 +29,36 @@ import com.felixbrucker.simklcalendar.data.repository.NotificationSettingReposit
 import com.felixbrucker.simklcalendar.data.repository.SyncRepository
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository
+import com.felixbrucker.simklcalendar.data.util.DirectoryUtils
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.torrent_search_api.SearchResultItem
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Instant
+import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.Instant
-import kotlin.time.Duration.Companion.seconds
-import androidx.compose.runtime.Immutable
-import com.felixbrucker.simklcalendar.data.util.DirectoryUtils
-import com.felixbrucker.simklcalendar.data.preferences.*
-import kotlin.time.Duration.Companion.milliseconds
-
-import com.felixbrucker.simklcalendar.data.preferences.ViewMode
-import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
-import com.felixbrucker.torrent_search_api.SearchResultItem
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
+import timber.log.Timber
 
 enum class TableSortField {
     NAME,
@@ -54,7 +72,6 @@ enum class SortDirection {
     ASCENDING,
     DESCENDING
 }
-
 
 @Immutable
 data class WatchlistTableItem(

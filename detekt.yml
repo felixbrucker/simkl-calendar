@@ -51,6 +51,10 @@ complexity:
   LongParameterList:
     active: true
     functionThreshold: 8
+    ignoreAnnotated:
+      - 'Inject'
+      - 'javax.inject.Inject'
+      - 'jakarta.inject.Inject'
   ComplexCondition:
     active: true
     threshold: 4

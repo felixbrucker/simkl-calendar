@@ -1,13 +1,11 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,8 +45,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import java.time.LocalDate
-import java.time.ZoneId
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -71,7 +67,8 @@ import com.felixbrucker.simklcalendar.data.util.formattedAnimeSeasonLabel
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCardBadge
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
-import kotlin.collections.get
+import java.time.LocalDate
+import java.time.ZoneId
 
 @Composable
 fun CalendarView(
@@ -100,7 +97,6 @@ fun CalendarView(
     )
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CalendarContent(
     items: List<CalendarItemWithWatchlist>,
@@ -480,7 +476,6 @@ fun CalendarItemCard(
 
                 // Details Column
                 Column(modifier = Modifier.weight(1f)) {
-                    @OptIn(ExperimentalLayoutApi::class)
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -565,7 +560,12 @@ fun CalendarItemCard(
                         val animeSeasonLabel = item.formattedAnimeSeasonLabel
                         if (animeSeasonLabel != null) {
                             Badge(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B)) {
-                                Text(animeSeasonLabel.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
+                                Text(
+                                    text = animeSeasonLabel.uppercase(),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(4.dp)
+                                )
                             }
                         }
                     }

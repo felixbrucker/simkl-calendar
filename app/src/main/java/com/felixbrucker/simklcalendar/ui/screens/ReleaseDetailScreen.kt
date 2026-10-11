@@ -35,19 +35,20 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedItemLabel
 import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
-import kotlinx.coroutines.launch
+import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
+import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
 import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
+import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -217,14 +218,16 @@ fun ReleaseDetailScreen(
             ) {
                 // Banner / Poster Header
                 DetailHeader(
-                    simklId = activeItem.simklId,
-                    type = activeItem.type,
-                    title = activeItem.title,
-                    poster = activeItem.poster,
-                    rating = activeItem.rating,
-                    titleRomaji = activeItem.titleRomaji,
-                    hasUniqueTitleRomaji = activeItem.hasUniqueTitleRomaji,
-                    animeSeason = activeItem.animeSeason,
+                    data = DetailHeaderData(
+                        simklId = activeItem.simklId,
+                        type = activeItem.type,
+                        title = activeItem.title,
+                        poster = activeItem.poster,
+                        rating = activeItem.rating,
+                        titleRomaji = activeItem.titleRomaji,
+                        hasUniqueTitleRomaji = activeItem.hasUniqueTitleRomaji,
+                        animeSeason = activeItem.animeSeason,
+                    ),
                     onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId) }
                 )
 
