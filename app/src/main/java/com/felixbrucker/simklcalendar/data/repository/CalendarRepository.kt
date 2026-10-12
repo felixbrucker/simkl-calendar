@@ -21,7 +21,27 @@ class CalendarRepository @Inject constructor(
 ) {
     val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()
     val wantedCalendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getWantedCalendarItems()
+    val downloadingCalendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getDownloadingCalendarItemsFlow()
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = watchlistDao.getAllTrackedItemsFlow()
+
+    suspend fun findCalendarItem(
+        primaryKey: String
+    ): CalendarItemWithWatchlist? = withContext(Dispatchers.IO) {
+        calendarDao.findItem(primaryKey)
+    }
+
+    fun getCalendarItemFlow(primaryKey: String): Flow<CalendarItemWithWatchlist?> =
+        calendarDao.getItemFlow(primaryKey)
+
+    fun getSortedCalendarItemsForSimklIdFlow(simklId: Int): Flow<List<CalendarItemWithWatchlist>> =
+        calendarDao.getSortedItemsForSimklIdFlow(simklId)
+
+    suspend fun getItemsInSeasonOrRelatedItems(
+        simklId: Int,
+        season: Int?
+    ): List<CalendarItemWithWatchlist> = withContext(Dispatchers.IO) {
+        calendarDao.getItemsInSeasonOrRelatedItems(simklId, season)
+    }
 
     suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus) = withContext(Dispatchers.IO) {
         calendarDao.updateMediaStatus(primaryKey, status)

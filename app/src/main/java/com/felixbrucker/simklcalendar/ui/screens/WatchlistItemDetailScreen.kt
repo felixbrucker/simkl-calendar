@@ -63,7 +63,6 @@ fun WatchlistItemDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEpisode: (String) -> Unit
 ) {
-    val allCalendarItems by viewModel.allCalendarItems.collectAsState()
     val watchlistItems by viewModel.watchlistItems.collectAsState(initial = emptyList())
     val tableItems by viewModel.watchlistTableItems.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
@@ -90,10 +89,8 @@ fun WatchlistItemDetailScreen(
         }
     }
 
-    val settingsList by viewModel.notificationSettings.collectAsState()
-    val showSetting = remember(settingsList, simklId) {
-        settingsList.find { it.simklId == simklId }
-    }
+    val setting by viewModel.getSettingForSimklIdFlow(simklId).collectAsState(null)
+    val notificationSetting = setting  // Required for smart casting
 
     val watchlistItem = remember(watchlistItems, simklId) {
         watchlistItems.find { it.simklId == simklId }
@@ -103,12 +100,9 @@ fun WatchlistItemDetailScreen(
         tableItems.find { it.watchlistItem.simklId == simklId }
     }
 
-    val episodes = remember(allCalendarItems, simklId) {
-        allCalendarItems.filter { it.simklId == simklId }
-            .sortedWith(compareBy<CalendarItemWithWatchlist> { it.season ?: 0 }
-                .thenBy { it.episodeNumber ?: 0 }
-                .thenBy { it.date })
-    }
+    val episodes by viewModel
+        .getSortedCalendarItemsForSimklIdFlow(simklId)
+        .collectAsState(emptyList())
 
     val (seasons, sortedSeasons) = remember(episodes) {
         val grouped = episodes.groupBy { it.season ?: 1 }
@@ -125,17 +119,19 @@ fun WatchlistItemDetailScreen(
     val defaultMovieTheater = notificationPrefs.defaultNotifyMovieTheater
     val defaultMovieDigital = notificationPrefs.defaultNotifyMovieDigital
 
-    var notifyEveryEpisode by remember(showSetting, defaultAiring, defaultMovieTheater, isMovie) {
-        mutableStateOf(showSetting?.notifyEveryEpisode ?: (if (isMovie) defaultMovieTheater else defaultAiring))
+    var notifyEveryEpisode by remember(notificationSetting, defaultAiring, defaultMovieTheater, isMovie) {
+        mutableStateOf(notificationSetting?.notifyEveryEpisode
+            ?: (if (isMovie) defaultMovieTheater else defaultAiring))
     }
-    var notifySeasonFinished by remember(showSetting, defaultSeasonFinished, defaultMovieDigital, isMovie) {
-        mutableStateOf(showSetting?.notifyAiredLastEpisode ?: (if (isMovie) defaultMovieDigital else defaultSeasonFinished))
+    var notifySeasonFinished by remember(notificationSetting, defaultSeasonFinished, defaultMovieDigital, isMovie) {
+        mutableStateOf(notificationSetting?.notifyAiredLastEpisode
+            ?: (if (isMovie) defaultMovieDigital else defaultSeasonFinished))
     }
 
-    LaunchedEffect(showSetting) {
-        if (showSetting != null) {
-            notifyEveryEpisode = showSetting.notifyEveryEpisode
-            notifySeasonFinished = showSetting.notifyAiredLastEpisode
+    LaunchedEffect(notificationSetting) {
+        if (notificationSetting != null) {
+            notifyEveryEpisode = notificationSetting.notifyEveryEpisode
+            notifySeasonFinished = notificationSetting.notifyAiredLastEpisode
         }
     }
 

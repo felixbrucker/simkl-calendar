@@ -88,7 +88,7 @@ class SimklRepositoryMarkTest {
     @Test
     fun testMarkSeasonWatchedSuccess() = runTest {
         coEvery { calendarDao.getItemsForSimklId(100) } returns emptyList()
-        coEvery { watchedDao.getWatchedEpisodesForShow(100) } returns emptyList()
+        coEvery { watchedDao.getWatchedEpisodesForSimklId(100) } returns emptyList()
         coEvery { calendarDao.markSeasonWatched(any(), any(), any()) } returns Unit
 
         val result = repository.markSeasonWatched(100, 1, MediaType.TV)
@@ -100,7 +100,7 @@ class SimklRepositoryMarkTest {
     @Test
     fun testMarkSeasonWatchedAnimeSuccess() = runTest {
         coEvery { calendarDao.getItemsForSimklId(100) } returns emptyList()
-        coEvery { watchedDao.getWatchedEpisodesForShow(100) } returns emptyList()
+        coEvery { watchedDao.getWatchedEpisodesForSimklId(100) } returns emptyList()
         coEvery { calendarDao.markSeasonWatched(any(), any(), any()) } returns Unit
 
         val result = repository.markSeasonWatched(100, 1, MediaType.ANIME)

@@ -148,7 +148,7 @@ class AlarmReceiver: BroadcastReceiver() {
             return false
         }
 
-        val setting = notificationSettingDao.getSettingForShow(item.simklId)
+        val setting = notificationSettingDao.getSettingForSimklId(item.simklId)
             ?: notificationRepo.preferencesFlow.first().toDefaultNotificationSettings().makeNotificationSettings(item)
 
         return when {

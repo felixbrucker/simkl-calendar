@@ -93,7 +93,7 @@ fun MainScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val items by viewModel.filteredCalendarItems.collectAsState()
+    val totalFilteredCalendarItems by viewModel.totalFilteredCalendarItems.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val shouldShowAutoDownloadStatus by viewModel.shouldShowAutoDownloadStatus.collectAsState()
     val isSearchingWantedTorrents by viewModel.isSearchingWantedTorrents.collectAsState()
@@ -374,7 +374,7 @@ fun MainScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Results for \"$searchQuery\" (${items.size})",
+                            text = "Results for \"$searchQuery\" (${totalFilteredCalendarItems})",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = PurpleLight

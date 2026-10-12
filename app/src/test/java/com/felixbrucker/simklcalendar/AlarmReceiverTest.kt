@@ -201,7 +201,7 @@ class AlarmReceiverTest {
         val watchItem = TrackedWatchlistItem(200, MediaType.MOVIE, "Movie", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_200_theater", MediaStatus.DOWNLOADED))
         coEvery { calendarDao.findItem("v2_200_theater") } returns item
-        coEvery { settingDao.getSettingForShow(200) } returns NotificationSetting(200, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
+        coEvery { settingDao.getSettingForSimklId(200) } returns NotificationSetting(200, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
 
         receiver.onReceive(context, intent)
 
@@ -222,7 +222,7 @@ class AlarmReceiverTest {
         val watchItem = TrackedWatchlistItem(200, MediaType.MOVIE, "Movie", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_200_theater", MediaStatus.DOWNLOADED))
         coEvery { calendarDao.findItem("v2_200_theater") } returns item
-        coEvery { settingDao.getSettingForShow(200) } returns NotificationSetting(200, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
+        coEvery { settingDao.getSettingForSimklId(200) } returns NotificationSetting(200, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
 
         receiver.onReceive(context, intent)
 
@@ -242,7 +242,7 @@ class AlarmReceiverTest {
         val watchItem = TrackedWatchlistItem(200, MediaType.MOVIE, "Movie", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_200_digital", MediaStatus.DOWNLOADED))
         coEvery { calendarDao.findItem("v2_200_digital") } returns item
-        coEvery { settingDao.getSettingForShow(200) } returns NotificationSetting(200, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
+        coEvery { settingDao.getSettingForSimklId(200) } returns NotificationSetting(200, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
 
         receiver.onReceive(context, intent)
 
@@ -263,7 +263,7 @@ class AlarmReceiverTest {
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_10", MediaStatus.DOWNLOADED))
         coEvery { calendarDao.findItem("v2_100_1_10") } returns item
-        coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
+        coEvery { settingDao.getSettingForSimklId(100) } returns NotificationSetting(100, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
 
         receiver.onReceive(context, intent)
 
@@ -284,7 +284,7 @@ class AlarmReceiverTest {
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_2", MediaStatus.DOWNLOADED))
         coEvery { calendarDao.findItem("v2_100_1_2") } returns item
-        coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
+        coEvery { settingDao.getSettingForSimklId(100) } returns NotificationSetting(100, notifyEveryEpisode = false, notifyAiredLastEpisode = true)
 
         receiver.onReceive(context, intent)
 
@@ -304,7 +304,7 @@ class AlarmReceiverTest {
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.NOT_AIRED_YET))
         coEvery { calendarDao.findItem("v2_100_1_1") } returns item
-        coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
+        coEvery { settingDao.getSettingForSimklId(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
 
         receiver.onReceive(context, intent)
 
@@ -327,7 +327,7 @@ class AlarmReceiverTest {
         val settings = ItemDownloadSettings(simklId = 100, downloadUnwatched = true)
         coEvery { itemDownloadSettingsDao.getSettings(100) } returns settings
         coEvery { calendarDao.findItem("v2_100_1_1") } returns itemNotAired andThen itemWanted
-        coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
+        coEvery { settingDao.getSettingForSimklId(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
 
         receiver.onReceive(context, intent)
 
@@ -370,7 +370,7 @@ class AlarmReceiverTest {
         val itemInitial = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.WANTED))
         val itemFinal = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.DOWNLOADING))
         coEvery { calendarDao.findItem("v2_100_1_1") } returns itemInitial andThen itemInitial andThen itemFinal
-        coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
+        coEvery { settingDao.getSettingForSimklId(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
 
         receiver.onReceive(context, intent)
 
@@ -390,7 +390,7 @@ class AlarmReceiverTest {
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val itemIgnored = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.IGNORED))
         coEvery { calendarDao.findItem("v2_100_1_1") } returns itemIgnored
-        coEvery { settingDao.getSettingForShow(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
+        coEvery { settingDao.getSettingForSimklId(100) } returns NotificationSetting(100, notifyEveryEpisode = true, notifyAiredLastEpisode = false)
 
         receiver.onReceive(context, intent)
 

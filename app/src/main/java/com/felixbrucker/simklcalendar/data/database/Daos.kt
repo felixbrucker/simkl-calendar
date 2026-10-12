@@ -36,6 +36,16 @@ interface CalendarItemDao {
         SELECT ci.* FROM calendar_items ci
         INNER JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
         INNER JOIN local_item_state lis ON ci.primaryKey = lis.primaryKey
+        WHERE lis.mediaStatus = 'DOWNLOADING'
+        ORDER BY ci.date ASC, twi.title ASC
+    """)
+    fun getDownloadingCalendarItemsFlow(): Flow<List<CalendarItemWithWatchlist>>
+
+    @Transaction
+    @Query("""
+        SELECT ci.* FROM calendar_items ci
+        INNER JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
+        INNER JOIN local_item_state lis ON ci.primaryKey = lis.primaryKey
         WHERE lis.mediaStatus = 'WANTED'
         ORDER BY ci.date ASC, twi.title ASC
     """)
@@ -54,6 +64,9 @@ interface CalendarItemDao {
     @Transaction
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC")
     suspend fun getItemsForSimklId(simklId: Int): List<CalendarItemWithWatchlist>
+
+    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY season ASC, episodeNumber ASC, date ASC")
+    fun getSortedItemsForSimklIdFlow(simklId: Int): Flow<List<CalendarItemWithWatchlist>>
 
     @Transaction
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC LIMIT 1")
@@ -77,6 +90,9 @@ interface CalendarItemDao {
     @Transaction
     @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
     suspend fun findItem(primaryKey: String): CalendarItemWithWatchlist?
+
+    @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
+    fun getItemFlow(primaryKey: String): Flow<CalendarItemWithWatchlist?>
 
     @Query("UPDATE calendar_items SET isNotified = 1 WHERE primaryKey = :primaryKey")
     suspend fun markItemAsNotified(primaryKey: String)
@@ -167,7 +183,10 @@ interface NotificationSettingDao {
     fun getAllSettings(): Flow<List<NotificationSetting>>
 
     @Query("SELECT * FROM notification_settings WHERE simklId = :simklId LIMIT 1")
-    suspend fun getSettingForShow(simklId: Int): NotificationSetting?
+    suspend fun getSettingForSimklId(simklId: Int): NotificationSetting?
+
+    @Query("SELECT * FROM notification_settings WHERE simklId = :simklId LIMIT 1")
+    fun getSettingForSimklIdFlow(simklId: Int): Flow<NotificationSetting?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveSetting(setting: NotificationSetting)
@@ -221,7 +240,10 @@ interface WatchedEpisodeDao {
     fun getAllWatchedEpisodesFlow(): Flow<List<WatchedEpisode>>
 
     @Query("SELECT * FROM watched_episodes WHERE simklId = :simklId")
-    suspend fun getWatchedEpisodesForShow(simklId: Int): List<WatchedEpisode>
+    fun getWatchedEpisodesForSimklIdFlow(simklId: Int): Flow<List<WatchedEpisode>>
+
+    @Query("SELECT * FROM watched_episodes WHERE simklId = :simklId")
+    suspend fun getWatchedEpisodesForSimklId(simklId: Int): List<WatchedEpisode>
 
     @Query("SELECT * FROM watched_episodes WHERE simklId IN (:simklIds)")
     suspend fun getWatchedEpisodesForSimklIds(simklIds: List<Int>): List<WatchedEpisode>

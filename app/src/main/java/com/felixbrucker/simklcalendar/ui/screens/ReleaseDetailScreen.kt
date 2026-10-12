@@ -90,8 +90,6 @@ fun ReleaseDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val allItems by viewModel.allCalendarItems.collectAsState()
-    val allWatchedEpisodes by viewModel.watchedEpisodes.collectAsState()
     val isMarkingWatched by viewModel.isMarkingWatched.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
@@ -115,32 +113,17 @@ fun ReleaseDetailScreen(
     }
 
     var activeItemKey by remember(itemKey) { mutableStateOf(itemKey) }
-
-    val activeItem = remember(allItems, activeItemKey, itemKey) {
-        allItems.firstOrNull { it.primaryKey == activeItemKey }
-            ?: allItems.firstOrNull { it.simklId.toString() == activeItemKey }
-            ?: allItems.firstOrNull { it.primaryKey == itemKey }
-            ?: allItems.firstOrNull { it.simklId.toString() == itemKey }
-    }
-
+    val item by viewModel.getCalendarItemFlow(activeItemKey).collectAsState(null)
+    val activeItem = item // Required for smart casting
     val itemSettings by viewModel.getItemDownloadSettingsFlow(activeItem?.simklId ?: 0).collectAsState(null)
 
-    val showScheduleItems = remember(allItems, activeItem) {
-        if (activeItem != null) {
-            allItems.filter { it.simklId == activeItem.simklId }
-                .sortedWith(compareBy<CalendarItemWithWatchlist> { it.date }.thenBy { it.season }.thenBy { it.episodeNumber })
-        } else {
-            emptyList()
-        }
-    }
+    val showScheduleItems by viewModel
+        .getSortedCalendarItemsForSimklIdFlow(activeItem?.simklId ?: 0)
+        .collectAsState(emptyList())
 
-    val showWatched = remember(allWatchedEpisodes, activeItem) {
-        if (activeItem != null) {
-            allWatchedEpisodes.filter { it.simklId == activeItem.simklId }
-        } else {
-            emptyList()
-        }
-    }
+    val showWatched by viewModel
+        .getWatchedEpisodesForSimklIdFlow(activeItem?.simklId ?: 0)
+        .collectAsState(emptyList())
 
     // Helper to evaluate watch status of a season
     fun getSeasonWatchStatus(seasonNum: Int): Triple<Boolean, Boolean, String> {
@@ -181,10 +164,8 @@ fun ReleaseDetailScreen(
         } else null
     }
 
-    val settingsList by viewModel.notificationSettings.collectAsState()
-    val showSetting = remember(settingsList, activeItem) {
-        if (activeItem != null) settingsList.firstOrNull { it.simklId == activeItem.simklId } else null
-    }
+    val setting by viewModel.getSettingForSimklIdFlow(activeItem?.simklId ?: 0).collectAsState(null)
+    val notificationSetting = setting  // Required for smart casting
 
     val notificationPrefs by viewModel.notificationPreferences.collectAsState()
     val defaultAiring = notificationPrefs.defaultNotifyAiring
@@ -194,17 +175,19 @@ fun ReleaseDetailScreen(
     val isMovie = activeItem?.type == MediaType.MOVIE
 
     // Individual notification toggle flows
-    var notifyEveryEpisode by remember(showSetting, defaultAiring, defaultMovieTheater, isMovie) {
-        mutableStateOf(showSetting?.notifyEveryEpisode ?: (if (isMovie) defaultMovieTheater else defaultAiring))
+    var notifyEveryEpisode by remember(notificationSetting, defaultAiring, defaultMovieTheater, isMovie) {
+        mutableStateOf(notificationSetting?.notifyEveryEpisode
+            ?: (if (isMovie) defaultMovieTheater else defaultAiring))
     }
-    var notifySeasonFinished by remember(showSetting, defaultSeasonFinished, defaultMovieDigital, isMovie) {
-        mutableStateOf(showSetting?.notifyAiredLastEpisode ?: (if (isMovie) defaultMovieDigital else defaultSeasonFinished))
+    var notifySeasonFinished by remember(notificationSetting, defaultSeasonFinished, defaultMovieDigital, isMovie) {
+        mutableStateOf(notificationSetting?.notifyAiredLastEpisode
+            ?: (if (isMovie) defaultMovieDigital else defaultSeasonFinished))
     }
 
-    LaunchedEffect(showSetting) {
-        if (showSetting != null) {
-            notifyEveryEpisode = showSetting.notifyEveryEpisode
-            notifySeasonFinished = showSetting.notifyAiredLastEpisode
+    LaunchedEffect(notificationSetting) {
+        if (notificationSetting != null) {
+            notifyEveryEpisode = notificationSetting.notifyEveryEpisode
+            notifySeasonFinished = notificationSetting.notifyAiredLastEpisode
         }
     }
 
@@ -293,7 +276,7 @@ fun ReleaseDetailScreen(
                     )
 
                     // Dynamic Action Buttons Section (Max 2 per row)
-                    val actions = remember(activeItem, allWatchedEpisodes, isMarkingWatched, appSettingsPrefs.showDebugActions) {
+                    val actions = remember(activeItem, showWatched, isMarkingWatched, appSettingsPrefs.showDebugActions) {
                         val list = mutableListOf<@Composable (Modifier) -> Unit>()
 
                         if (activeItem.type != MediaType.MOVIE) {

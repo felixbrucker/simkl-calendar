@@ -25,7 +25,8 @@ class WatchHistoryRepository @Inject constructor(
     private val watchedDao: WatchedEpisodeDao,
     private val authenticatedSimklApiService: AuthenticatedSimklApiService
 ) {
-    val watchedEpisodes: Flow<List<WatchedEpisode>> = watchedDao.getAllWatchedEpisodesFlow()
+    fun getWatchedEpisodesForSimklIdFlow(simklId: Int): Flow<List<WatchedEpisode>> =
+        watchedDao.getWatchedEpisodesForSimklIdFlow(simklId)
 
     suspend fun markEpisodeWatched(
         simklId: Int,
@@ -109,7 +110,7 @@ class WatchHistoryRepository @Inject constructor(
 
             // Determine if show should be marked as "completed"
             val showCalendarItems = calendarDao.getItemsForSimklId(simklId)
-            val showWatchedItems = watchedDao.getWatchedEpisodesForShow(simklId)
+            val showWatchedItems = watchedDao.getWatchedEpisodesForSimklId(simklId)
 
             val seasonsSet = mutableSetOf<Int>()
             showCalendarItems.forEach { item -> item.season?.let { if (it > 0) seasonsSet.add(it) } }

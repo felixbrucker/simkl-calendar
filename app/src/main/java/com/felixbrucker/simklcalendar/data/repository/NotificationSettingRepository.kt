@@ -14,6 +14,9 @@ class NotificationSettingRepository @Inject constructor(
 ) {
     val notificationSettings: Flow<List<NotificationSetting>> = settingDao.getAllSettings()
 
+    fun getSettingForSimklIdFlow(simklId: Int): Flow<NotificationSetting?> =
+        settingDao.getSettingForSimklIdFlow(simklId)
+
     suspend fun toggleNotificationSetting(simklId: Int, notifyEveryEpisode: Boolean, notifyAiredLastEpisode: Boolean) = withContext(Dispatchers.IO) {
         settingDao.saveSetting(
             NotificationSetting(

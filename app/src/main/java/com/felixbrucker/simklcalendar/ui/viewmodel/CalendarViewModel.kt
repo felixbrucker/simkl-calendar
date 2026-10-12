@@ -104,20 +104,10 @@ class CalendarViewModel @Inject constructor(
     private val uiRepo: UiRepository,
     appSettingsRepo: AppSettingsRepository,
     private val torrentServiceHelper: TorrentServiceHelper,
-    private val defaultDispatcher: CoroutineDispatcher
+    defaultDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = calendarRepository.watchlistItems
-
-    val notificationSettings: StateFlow<List<NotificationSetting>> = notificationSettingRepository.notificationSettings
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val allCalendarItems: StateFlow<List<CalendarItemWithWatchlist>> = calendarRepository.calendarItems
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val watchedEpisodes: StateFlow<List<WatchedEpisode>> = watchHistoryRepository.watchedEpisodes
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     val customSearchLinks: StateFlow<List<CustomSearchLink>> = customSearchLinkRepository.customSearchLinks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -154,9 +144,7 @@ class CalendarViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ViewMode.CALENDAR)
 
     private var pollingJob: Job? = null
-    private val downloadingItems = allCalendarItems
-        .map { items -> items.filter { it.mediaStatus == MediaStatus.DOWNLOADING } }
-        .distinctUntilChanged()
+    private val downloadingItems = calendarRepository.downloadingCalendarItems
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setViewMode(mode: ViewMode) {
@@ -475,6 +463,22 @@ class CalendarViewModel @Inject constructor(
         .flowOn(defaultDispatcher)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    fun getCalendarItemFlow(primaryKey: String): Flow<CalendarItemWithWatchlist?> {
+        return calendarRepository.getCalendarItemFlow(primaryKey).flowOn(Dispatchers.IO)
+    }
+
+    fun getSortedCalendarItemsForSimklIdFlow(simklId: Int): Flow<List<CalendarItemWithWatchlist>> {
+        return calendarRepository.getSortedCalendarItemsForSimklIdFlow(simklId).flowOn(Dispatchers.IO)
+    }
+
+    fun getWatchedEpisodesForSimklIdFlow(simklId: Int): Flow<List<WatchedEpisode>> {
+        return watchHistoryRepository.getWatchedEpisodesForSimklIdFlow(simklId).flowOn(Dispatchers.IO)
+    }
+
+    fun getSettingForSimklIdFlow(simklId: Int): Flow<NotificationSetting?> {
+        return notificationSettingRepository.getSettingForSimklIdFlow(simklId).flowOn(Dispatchers.IO)
+    }
+
     fun saveItemDownloadSettings(settings: ItemDownloadSettings) {
         viewModelScope.launch {
             downloadRepository.saveItemDownloadSettings(settings)
@@ -744,6 +748,11 @@ class CalendarViewModel @Inject constructor(
         .flowOn(defaultDispatcher)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val totalFilteredCalendarItems: StateFlow<Int> = filteredCalendarItems
+        .map { it.size }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     // Calendar sync and status tracking
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
@@ -842,8 +851,8 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch {
             calendarRepository.updateMediaStatus(primaryKey, status)
             if (status == MediaStatus.WANTED) {
-                val item = calendarRepository.calendarItems.first().find { it.primaryKey == primaryKey }
-                if (item != null && item.date.isBefore(Instant.now())) {
+                val item = calendarRepository.findCalendarItem(primaryKey) ?: return@launch
+                if (item.date.isBefore(Instant.now())) {
                     searchAndDownloadEpisode(item) { _, _ -> }
                 }
             }
@@ -878,10 +887,7 @@ class CalendarViewModel @Inject constructor(
     fun searchAndDownloadSeason(simklId: Int, season: Int) {
         viewModelScope.launch {
             _isSearchingTorrents.value = true
-            val items = calendarRepository.calendarItems.first()
-            val seasonEpisodes = items.filter {
-                it.simklId == simklId && (it.season == season || (season == 1 && it.season == null))
-            }
+            val seasonEpisodes = calendarRepository.getItemsInSeasonOrRelatedItems(simklId, season)
 
             val now = Instant.now()
             val airedEpisodes = seasonEpisodes.filter { it.date.isBefore(now) }
@@ -933,7 +939,7 @@ class CalendarViewModel @Inject constructor(
                                         // Wait a few seconds to allow completion intent to be processed
                                         delay(3.seconds)
                                         // Fetch current items from repository flow
-                                        val currentEntity = calendarRepository.calendarItems.first().find { it.primaryKey == item.primaryKey }
+                                        val currentEntity = calendarRepository.findCalendarItem(item.primaryKey)
                                         if (currentEntity?.mediaStatus == MediaStatus.DOWNLOADING && currentEntity.downloadTaskId == taskId) {
                                             Timber.tag("CalendarViewModel").d("Task $taskId still not found after 3s and status is still DOWNLOADING with same taskId, reverting for ${item.primaryKey}")
                                             calendarRepository.updateDownloadTaskId(item.primaryKey, null, MediaStatus.WANTED)

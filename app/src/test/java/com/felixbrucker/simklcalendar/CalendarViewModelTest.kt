@@ -137,7 +137,6 @@ class CalendarViewModelTest {
         every { calendarRepositoryMock.watchlistItems } returns watchlistItemsFlow
         every { customSearchLinkRepositoryMock.customSearchLinks } returns customSearchLinksFlow
         every { notificationSettingRepositoryMock.notificationSettings } returns flowOf(emptyList())
-        every { watchHistoryRepositoryMock.watchedEpisodes } returns flowOf(emptyList())
         every { torrentServiceHelper.downloads } returns MutableStateFlow(emptyMap())
         every { torrentServiceHelper.isBound } returns MutableStateFlow(false)
         every { torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
