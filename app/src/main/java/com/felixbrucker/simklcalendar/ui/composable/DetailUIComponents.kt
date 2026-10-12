@@ -1003,18 +1003,23 @@ private fun DownloadSubdirectorySection(
         if (isExpanded) {
             val subdirs = (listOf(defaultSubdirectory) + availableSubdirectories).distinct().sorted()
             DownloadSubdirectoryChipList(
-                simklId = simklId,
                 defaultSubdirectory = defaultSubdirectory,
                 selectedSubdirectory = selectedSubdirectory,
                 subdirs = subdirs,
-                itemSettings = itemSettings,
                 isDownloaderInstalled = isDownloaderInstalled,
-                onSaveItemDownloadSettings = onSaveItemDownloadSettings
+                onSelectSubdirectory = { next ->
+                    val updated = (itemSettings ?: ItemDownloadSettings(simklId)).copy(
+                        downloadSubdirectoryOverride = next
+                    )
+                    onSaveItemDownloadSettings(updated)
+                    isExpanded = false
+                }
             )
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DownloadSubdirectoryHeader(
     selectedSubdirectory: String,
@@ -1023,25 +1028,20 @@ private fun DownloadSubdirectoryHeader(
     isDownloaderInstalled: Boolean,
     onToggleExpand: () -> Unit,
 ) {
-    Row(
+    FlowRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = isDownloaderInstalled, onClick = onToggleExpand),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 8.dp)
-        ) {
-            Text(
-                text = "Download Subdirectory",
-                color = TextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
+        Text(
+            text = "Download Subdirectory",
+            color = TextPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
         Surface(
             shape = RoundedCornerShape(8.dp),
             color = SurfaceDark,
@@ -1073,13 +1073,11 @@ private fun DownloadSubdirectoryHeader(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DownloadSubdirectoryChipList(
-    simklId: Int,
     defaultSubdirectory: String,
     selectedSubdirectory: String,
     subdirs: List<String>,
-    itemSettings: ItemDownloadSettings?,
     isDownloaderInstalled: Boolean,
-    onSaveItemDownloadSettings: (ItemDownloadSettings) -> Unit,
+    onSelectSubdirectory: (String?) -> Unit,
 ) {
     FlowRow(
         modifier = Modifier.padding(top = 8.dp),
@@ -1091,10 +1089,7 @@ private fun DownloadSubdirectoryChipList(
                 selected = isSelected,
                 onClick = {
                     val next = if (subdir == defaultSubdirectory) null else subdir
-                    val updated = (itemSettings ?: ItemDownloadSettings(simklId)).copy(
-                        downloadSubdirectoryOverride = next
-                    )
-                    onSaveItemDownloadSettings(updated)
+                    onSelectSubdirectory(next)
                 },
                 label = { Text(subdir, fontSize = 11.sp) },
                 enabled = isDownloaderInstalled
