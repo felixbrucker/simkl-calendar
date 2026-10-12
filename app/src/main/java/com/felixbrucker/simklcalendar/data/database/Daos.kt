@@ -41,17 +41,6 @@ interface CalendarItemDao {
     """)
     fun getWantedCalendarItems(): Flow<List<CalendarItemWithWatchlist>>
 
-    @Query("SELECT * FROM calendar_items")
-    fun getAllCalendarEntitiesFlow(): Flow<List<CalendarItem>>
-
-    @Transaction
-    @Query("""
-        SELECT ci.* FROM calendar_items ci
-        INNER JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
-        ORDER BY ci.date ASC, twi.title ASC
-    """)
-    suspend fun getAllCalendarItemsList(): List<CalendarItemWithWatchlist>
-
     @Transaction
     @Query("""
         SELECT ci.* FROM calendar_items ci 
@@ -61,9 +50,6 @@ interface CalendarItemDao {
         ORDER BY ci.date ASC
         """)
     suspend fun getCalendarItemsForAiredAlarm(now: Instant): List<CalendarItemWithWatchlist>
-
-    @Query("SELECT * FROM calendar_items ORDER BY date ASC")
-    suspend fun getAllCalendarEntities(): List<CalendarItem>
 
     @Transaction
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC")
@@ -76,9 +62,6 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items WHERE simklId IN (:simklIds) ORDER BY date ASC")
     suspend fun getCalendarEntitiesForSimklIds(simklIds: List<Int>): List<CalendarItem>
 
-    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC")
-    suspend fun getCalendarEntitiesForSimklId(simklId: Int): List<CalendarItem>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCalendarItems(items: List<CalendarItem>)
 
@@ -88,9 +71,6 @@ interface CalendarItemDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertLocalItemStates(states: List<LocalItemState>)
 
-    @Delete
-    suspend fun deleteCalendarItems(items: List<CalendarItem>)
-
     @Query("DELETE FROM calendar_items WHERE primaryKey = :primaryKey")
     suspend fun deleteCalendarItemByPrimaryKey(primaryKey: String)
 
@@ -98,17 +78,8 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
     suspend fun findItem(primaryKey: String): CalendarItemWithWatchlist?
 
-    @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
-    suspend fun findCalendarEntity(primaryKey: String): CalendarItem?
-
     @Query("UPDATE calendar_items SET isNotified = 1 WHERE primaryKey = :primaryKey")
     suspend fun markItemAsNotified(primaryKey: String)
-
-    @Query("UPDATE calendar_items SET isNotified = 0 WHERE simklId = :simklId")
-    suspend fun resetNotifiedForShow(simklId: Int)
-
-    @Query("UPDATE calendar_items SET isNotified = 0")
-    suspend fun resetAllNotified()
 
     @Query("INSERT OR IGNORE INTO local_item_state (primaryKey) VALUES (:primaryKey)")
     suspend fun ensureLocalStateExists(primaryKey: String)
@@ -195,9 +166,6 @@ interface NotificationSettingDao {
     @Query("SELECT * FROM notification_settings")
     fun getAllSettings(): Flow<List<NotificationSetting>>
 
-    @Query("SELECT * FROM notification_settings")
-    suspend fun getAllSettingsList(): List<NotificationSetting>
-
     @Query("SELECT * FROM notification_settings WHERE simklId = :simklId LIMIT 1")
     suspend fun getSettingForShow(simklId: Int): NotificationSetting?
 
@@ -206,18 +174,12 @@ interface NotificationSettingDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSettings(settings: List<NotificationSetting>)
-
-    @Query("DELETE FROM notification_settings WHERE simklId = :simklId")
-    suspend fun deleteSetting(simklId: Int)
 }
 
 @Dao
 interface WatchlistDao {
     @Query("SELECT * FROM tracked_watchlist_items")
     fun getAllTrackedItemsFlow(): Flow<List<TrackedWatchlistItem>>
-
-    @Query("SELECT * FROM tracked_watchlist_items")
-    suspend fun getAllTrackedItems(): List<TrackedWatchlistItem>
 
     @Query("SELECT simklId FROM tracked_watchlist_items")
     suspend fun getAllTrackedIds(): List<Int>
@@ -233,9 +195,6 @@ interface WatchlistDao {
 
     @Query("SELECT * FROM tracked_watchlist_items WHERE type IN (:types)")
     suspend fun getTrackedItemsByTypes(types: List<MediaType>): List<TrackedWatchlistItem>
-
-    @Query("SELECT * FROM tracked_watchlist_items WHERE type = :type")
-    suspend fun getTrackedItemsByType(type: MediaType): List<TrackedWatchlistItem>
 
     @Query("SELECT simklId FROM tracked_watchlist_items WHERE type = :type AND (lastSyncedAt IS NULL OR lastSyncedAt < :cutoff)")
     suspend fun getItemIdsNeedingSync(type: MediaType, cutoff: Instant): List<Int>
@@ -261,12 +220,6 @@ interface WatchedEpisodeDao {
     @Query("SELECT * FROM watched_episodes")
     fun getAllWatchedEpisodesFlow(): Flow<List<WatchedEpisode>>
 
-    @Query("SELECT * FROM watched_episodes")
-    suspend fun getAllWatchedEpisodes(): List<WatchedEpisode>
-
-    @Query("SELECT * FROM watched_episodes WHERE simklId = :simklId")
-    fun getWatchedEpisodesForShowFlow(simklId: Int): Flow<List<WatchedEpisode>>
-
     @Query("SELECT * FROM watched_episodes WHERE simklId = :simklId")
     suspend fun getWatchedEpisodesForShow(simklId: Int): List<WatchedEpisode>
 
@@ -278,9 +231,6 @@ interface WatchedEpisodeDao {
 
     @Delete
     suspend fun deleteWatchedEpisodes(episodes: List<WatchedEpisode>)
-
-    @Query("DELETE FROM watched_episodes WHERE simklId = :simklId")
-    suspend fun deleteWatchedForShow(simklId: Int)
 
     @Query("DELETE FROM watched_episodes WHERE simklId = :simklId AND season = :season AND episodeNumber = :episodeNumber")
     suspend fun deleteWatchedEpisode(simklId: Int, season: Int, episodeNumber: Int)
@@ -297,9 +247,6 @@ interface CustomSearchLinkDao {
     @Query("SELECT * FROM custom_search_links ORDER BY position ASC, id ASC")
     fun getAllSearchLinks(): Flow<List<CustomSearchLink>>
 
-    @Query("SELECT * FROM custom_search_links ORDER BY position ASC, id ASC")
-    suspend fun getAllSearchLinksList(): List<CustomSearchLink>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSearchLink(link: CustomSearchLink): Long
 
@@ -311,9 +258,6 @@ interface CustomSearchLinkDao {
 
     @Delete
     suspend fun deleteSearchLink(link: CustomSearchLink)
-
-    @Query("DELETE FROM custom_search_links WHERE id = :id")
-    suspend fun deleteSearchLinkById(id: Long)
 
     @Query("DELETE FROM custom_search_links")
     suspend fun clearAll()
@@ -342,17 +286,8 @@ interface ItemDownloadSettingsDao {
     @Query("SELECT * FROM item_download_settings WHERE simklId = :simklId LIMIT 1")
     fun getSettingsFlow(simklId: Int): Flow<ItemDownloadSettings?>
 
-    @Query("SELECT * FROM item_download_settings")
-    fun getAllSettings(): Flow<List<ItemDownloadSettings>>
-
-    @Query("SELECT * FROM item_download_settings")
-    suspend fun getAllSettingsList(): List<ItemDownloadSettings>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdate(settings: ItemDownloadSettings)
-
-    @Delete
-    suspend fun delete(settings: ItemDownloadSettings)
 }
 
 
