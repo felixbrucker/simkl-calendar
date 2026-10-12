@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
@@ -822,25 +823,14 @@ fun DownloadSettingsCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Download Subdirectory Override
-            Text("Download Subdirectory", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            val subdirs = (listOf(defaultSubdirectory) + availableSubdirectories).distinct().sorted()
-            FlowRow(
-                modifier = Modifier.padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                subdirs.forEach { subdir ->
-                    val isSelected = (itemSettings?.downloadSubdirectoryOverride == subdir) || (itemSettings?.downloadSubdirectoryOverride == null && subdir == defaultSubdirectory)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = {
-                            val next = if (subdir == defaultSubdirectory) null else subdir
-                            onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSubdirectoryOverride = next))
-                        },
-                        label = { Text(subdir, fontSize = 11.sp) },
-                        enabled = isDownloaderInstalled
-                    )
-                }
-            }
+            DownloadSubdirectorySection(
+                simklId = simklId,
+                defaultSubdirectory = defaultSubdirectory,
+                itemSettings = itemSettings,
+                isDownloaderInstalled = isDownloaderInstalled,
+                availableSubdirectories = availableSubdirectories,
+                onSaveItemDownloadSettings = onSaveItemDownloadSettings
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -985,6 +975,125 @@ fun DownloadSettingsCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DownloadSubdirectorySection(
+    simklId: Int,
+    defaultSubdirectory: String,
+    itemSettings: ItemDownloadSettings?,
+    isDownloaderInstalled: Boolean,
+    availableSubdirectories: List<String>,
+    onSaveItemDownloadSettings: (ItemDownloadSettings) -> Unit,
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val selectedSubdirectory = itemSettings?.downloadSubdirectoryOverride ?: defaultSubdirectory
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        DownloadSubdirectoryHeader(
+            selectedSubdirectory = selectedSubdirectory,
+            hasOverride = itemSettings?.downloadSubdirectoryOverride != null,
+            isExpanded = isExpanded,
+            isDownloaderInstalled = isDownloaderInstalled,
+            onToggleExpand = { isExpanded = !isExpanded }
+        )
+
+        if (isExpanded) {
+            val subdirs = (listOf(defaultSubdirectory) + availableSubdirectories).distinct().sorted()
+            DownloadSubdirectoryChipList(
+                defaultSubdirectory = defaultSubdirectory,
+                selectedSubdirectory = selectedSubdirectory,
+                subdirs = subdirs,
+                isDownloaderInstalled = isDownloaderInstalled,
+                onSelectSubdirectory = { next ->
+                    val updated = (itemSettings ?: ItemDownloadSettings(simklId)).copy(
+                        downloadSubdirectoryOverride = next
+                    )
+                    onSaveItemDownloadSettings(updated)
+                    isExpanded = false
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DownloadSubdirectoryHeader(
+    selectedSubdirectory: String,
+    hasOverride: Boolean,
+    isExpanded: Boolean,
+    isDownloaderInstalled: Boolean,
+    onToggleExpand: () -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = isDownloaderInstalled, onClick = onToggleExpand),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Download Subdirectory",
+            color = TextPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = SurfaceDark,
+            border = BorderStroke(1.dp, OutlineVariant),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = selectedSubdirectory,
+                    color = if (hasOverride) PurpleLight else Color.White,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    tint = TextSubtle,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DownloadSubdirectoryChipList(
+    defaultSubdirectory: String,
+    selectedSubdirectory: String,
+    subdirs: List<String>,
+    isDownloaderInstalled: Boolean,
+    onSelectSubdirectory: (String?) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        subdirs.forEach { subdir ->
+            val isSelected = subdir == selectedSubdirectory
+            FilterChip(
+                selected = isSelected,
+                onClick = {
+                    val next = if (subdir == defaultSubdirectory) null else subdir
+                    onSelectSubdirectory(next)
+                },
+                label = { Text(subdir, fontSize = 11.sp) },
+                enabled = isDownloaderInstalled
+            )
         }
     }
 }
