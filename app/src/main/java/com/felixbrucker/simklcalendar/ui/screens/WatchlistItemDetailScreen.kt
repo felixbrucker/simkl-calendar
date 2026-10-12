@@ -8,10 +8,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -28,24 +28,32 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
-import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
+import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
 import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.MediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
-import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import com.felixbrucker.simklcalendar.ui.composable.Table
 import com.felixbrucker.simklcalendar.ui.composable.WatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
+import com.felixbrucker.simklcalendar.ui.theme.TextGrey
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
+import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,10 +148,10 @@ fun WatchlistItemDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C1B1F))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceDark)
             )
         },
-        containerColor = Color(0xFF1C1B1F),
+        containerColor = SurfaceDark,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         if (watchlistItem == null) {
@@ -159,14 +167,16 @@ fun WatchlistItemDetailScreen(
                 // 1. Header with Poster & Title
                 item {
                     DetailHeader(
-                        simklId = watchlistItem.simklId,
-                        type = watchlistItem.type,
-                        title = watchlistItem.title,
-                        poster = watchlistItem.poster,
-                        rating = watchlistItem.rating,
-                        titleRomaji = watchlistItem.titleRomaji,
-                        hasUniqueTitleRomaji = watchlistItem.hasUniqueTitleRomaji,
-                        animeSeason = watchlistItem.animeSeason
+                        data = DetailHeaderData(
+                            simklId = watchlistItem.simklId,
+                            type = watchlistItem.type,
+                            title = watchlistItem.title,
+                            poster = watchlistItem.poster,
+                            rating = watchlistItem.rating,
+                            titleRomaji = watchlistItem.titleRomaji,
+                            hasUniqueTitleRomaji = watchlistItem.hasUniqueTitleRomaji,
+                            animeSeason = watchlistItem.animeSeason
+                        )
                     )
                 }
 
@@ -228,13 +238,13 @@ fun WatchlistItemDetailScreen(
                     Card(
                         modifier = Modifier.padding(16.dp).fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                        border = BorderStroke(1.dp, Color(0xFF49454F))
+                        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+                        border = BorderStroke(1.dp, OutlineVariant)
                     ) {
                         Column {
                             if (isMovie) {
                                 Box(modifier = Modifier.padding(16.dp)) {
-                                    Text("Release Information", fontWeight = FontWeight.Bold, color = Color(0xFFD0BCFF), fontSize = 16.sp)
+                                    Text("Release Information", fontWeight = FontWeight.Bold, color = PurpleLight, fontSize = 16.sp)
                                 }
                                 MovieReleasesTable(
                                     releases = episodes,
@@ -346,7 +356,7 @@ fun MovieSharedActionsCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
-            .background(Color(0xFF2B2930), RoundedCornerShape(12.dp))
+            .background(SurfaceContainer, RoundedCornerShape(12.dp))
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -392,7 +402,7 @@ fun WatchlistItemSummaryStats(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
-            .background(Color(0xFF2B2930), RoundedCornerShape(12.dp))
+            .background(SurfaceContainer, RoundedCornerShape(12.dp))
             .padding(12.dp)
     ) {
         val isNarrow = maxWidth < 450.dp
@@ -404,7 +414,7 @@ fun WatchlistItemSummaryStats(
             ) {
                 SummaryStatsContent(item, isNarrow = true)
 
-                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp)
+                HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
 
                 SummaryDropdowns(
                     episodes = episodes,
@@ -430,7 +440,7 @@ fun WatchlistItemSummaryStats(
                         modifier = Modifier
                             .height(32.dp)
                             .padding(horizontal = 12.dp),
-                        color = Color(0xFF49454F)
+                        color = OutlineVariant
                     )
                     SummaryDropdowns(
                         episodes = episodes,
@@ -559,7 +569,7 @@ private fun SummaryDropdowns(
 @Composable
 fun StatItem(label: String, value: String, modifier: Modifier = Modifier, valueColor: Color = Color.White) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = label, fontSize = 11.sp, color = Color(0xFFCAC4D0), fontWeight = FontWeight.Bold)
+        Text(text = label, fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
         Text(text = value, fontSize = 13.sp, color = valueColor, fontWeight = FontWeight.SemiBold, maxLines = 2, textAlign = TextAlign.Center)
     }
 }
@@ -582,7 +592,7 @@ fun SeasonSectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF1C1B1F).copy(alpha = 0.5f))
+            .background(SurfaceDark.copy(alpha = 0.5f))
             .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -591,7 +601,7 @@ fun SeasonSectionHeader(
             text = "Season $season ($count)",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFFD0BCFF)
+            color = PurpleLight
         )
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -654,7 +664,7 @@ fun EpisodesTable(
                         text = label,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFCAC4D0),
+                        color = TextSubtle,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 } else {
@@ -685,23 +695,23 @@ fun EpisodesTable(
                                             LinearProgressIndicator(
                                                 progress = { progress },
                                                 modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
-                                                color = Color(0xFFD0BCFF),
-                                                trackColor = Color(0xFF381E72)
+                                                color = PurpleLight,
+                                                trackColor = SurfacePurple
                                             )
-                                            Text(text = "$percentage%", fontSize = 9.sp, color = Color(0xFFCAC4D0), fontWeight = FontWeight.Bold)
-                                            Text(text = "$downloaded / $total", fontSize = 8.sp, color = Color(0xFF938F99))
+                                            Text(text = "$percentage%", fontSize = 9.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                            Text(text = "$downloaded / $total", fontSize = 8.sp, color = TextGrey)
                                         }
 
                                         if (downloadProgress.downloadSpeed > 0) {
                                             val remainingBytes = downloadProgress.totalBytes - downloadProgress.bytesDownloaded
                                             val remainingSeconds = (remainingBytes / downloadProgress.downloadSpeed).toLong()
                                             val eta = DateUtil.formatDuration(remainingSeconds)
-                                            Text(text = "$speedStr • ETA: $eta", fontSize = 9.sp, color = Color(0xFFCAC4D0))
+                                            Text(text = "$speedStr • ETA: $eta", fontSize = 9.sp, color = TextSubtle)
                                         }
                                     }
                                 }
                             }
-                            2 -> Text(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = Color(0xFFCAC4D0), maxLines = 1)
+                            2 -> Text(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)
                             3 -> ItemWatchedStatusDropdown(
                                 item = episode,
                                 onWatchedStatusChange = { isWatched -> onItemWatchedStatusChange(episode, isWatched) },
@@ -751,7 +761,7 @@ fun MovieReleasesTable(
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(text = release.movieReleaseType?.displayName ?: "Release", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
-                        Text(text = DateUtil.formatDisplayDateTime(release.date), fontSize = 12.sp, color = Color(0xFFCAC4D0), maxLines = 1)
+                        Text(text = DateUtil.formatDisplayDateTime(release.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)
 
                         if (release.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
                             Spacer(modifier = Modifier.height(8.dp))
@@ -766,18 +776,18 @@ fun MovieReleasesTable(
                                     LinearProgressIndicator(
                                         progress = { progress },
                                         modifier = Modifier.width(100.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
-                                        color = Color(0xFFD0BCFF),
-                                        trackColor = Color(0xFF381E72)
+                                        color = PurpleLight,
+                                        trackColor = SurfacePurple
                                     )
-                                    Text(text = "$percentage%", fontSize = 11.sp, color = Color(0xFFCAC4D0), fontWeight = FontWeight.Bold)
-                                    Text(text = "$downloaded / $total", fontSize = 10.sp, color = Color(0xFF938F99))
+                                    Text(text = "$percentage%", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                    Text(text = "$downloaded / $total", fontSize = 10.sp, color = TextGrey)
                                 }
 
                                 if (downloadProgress.downloadSpeed > 0) {
                                     val remainingBytes = downloadProgress.totalBytes - downloadProgress.bytesDownloaded
                                     val remainingSeconds = (remainingBytes / downloadProgress.downloadSpeed).toLong()
                                     val eta = DateUtil.formatDuration(remainingSeconds)
-                                    Text(text = "$speedStr • ETA: $eta", fontSize = 11.sp, color = Color(0xFFCAC4D0))
+                                    Text(text = "$speedStr • ETA: $eta", fontSize = 11.sp, color = TextSubtle)
                                 }
                             }
                         }

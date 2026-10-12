@@ -5,9 +5,9 @@ lifecycleRuntimeKtx = "2.11.0"
 lifecycleViewmodelCompose = "2.11.0"
 lifecycleRuntimeCompose = "2.11.0"
 activityCompose = "1.13.0"
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 composeBom = "2026.09.00"
-googleDevtoolsKsp = "2.3.11"
+googleDevtoolsKsp = "2.3.12"
 navigationCompose = "2.10.2"
 roomRuntime = "2.8.5"
 roomKtx = "2.8.5"
@@ -26,17 +26,24 @@ workRuntimeKtx = "2.12.0"
 secretsGradlePlugin = "2.0.1"
 androidxBrowser = "1.10.0"
 junit = "4.13.2"
-kover = "0.9.9"
+kover = "0.9.11"
 hilt = "2.60.1"
 hiltWork = "1.4.0"
 mockk = "1.14.11"
 timber = "5.0.1"
 datastorePreferences = "1.2.1"
-sentryAndroid = "8.58.0"
+sentryAndroid = "8.60.0"
 sentryAndroidGradle = "6.23.0"
 glance = "1.2.0"
+detekt = "1.23.8"
+composeRules = "0.6.8"
 
 [libraries]
+detekt-api = { group = "io.gitlab.arturbosch.detekt", name = "detekt-api", version.ref = "detekt" }
+detekt-cli = { group = "io.gitlab.arturbosch.detekt", name = "detekt-cli", version.ref = "detekt" }
+detekt-formatting = { group = "io.gitlab.arturbosch.detekt", name = "detekt-formatting", version.ref = "detekt" }
+detekt-test = { group = "io.gitlab.arturbosch.detekt", name = "detekt-test", version.ref = "detekt" }
+detekt-rules-compose = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "composeRules" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesAndroid" }
@@ -90,3 +97,4 @@ secrets = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugi
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 sentry-android = { id = "io.sentry.android.gradle", version.ref = "sentryAndroidGradle" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

@@ -35,13 +35,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -51,6 +52,28 @@ import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
+import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
+import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
+import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkGreen
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceSettingsBlueDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceSettingsBrownDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceSettingsCardDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceSettingsDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceSettingsPurpleDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
+import com.felixbrucker.simklcalendar.ui.theme.TextGrey
+import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -74,8 +97,8 @@ fun SettingsScreen(
     onNavigateToLogViewer: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val configuration = LocalConfiguration.current
-    val isTablet = configuration.screenWidthDp >= 600
+    val windowInfo = LocalWindowInfo.current
+    val isTablet = with(LocalDensity.current) { windowInfo.containerSize.width.toDp() } >= 600.dp
 
     val userToken by viewModel.userToken.collectAsState()
     val notificationPrefs by viewModel.notificationPreferences.collectAsState()
@@ -183,16 +206,16 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Settings", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
+                title = { Text("Settings", color = TextPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFFE6E1E5))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C1B1F))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceDark)
             )
         },
-        containerColor = Color(0xFF1C1B1F)
+        containerColor = SurfaceDark
     ) { innerPadding ->
         if (isTablet) {
             Row(
@@ -412,8 +435,8 @@ fun SettingsCategorySelector(
 
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
         Column(
@@ -425,7 +448,7 @@ fun SettingsCategorySelector(
             Text(
                 text = "Categories",
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFCAC4D0),
+                color = TextSubtle,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
             )
@@ -442,11 +465,11 @@ fun SettingsCategorySelector(
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF4F378B),
+                    color = SurfacePrimaryVariant,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(effectiveItemHeightDp)
-                        .offset(y = animatedOffsetDp)
+                        .offset { IntOffset(0, animatedOffsetDp.roundToPx()) }
                 ) {}
 
                 Column(
@@ -476,16 +499,16 @@ fun SettingsCategoryItem(
     category: SettingsCategory,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onMeasuredHeight: (Float) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onMeasuredHeight: (Float) -> Unit = {}
 ) {
     val animatedContentColor by animateColorAsState(
-        targetValue = if (isSelected) Color(0xFFEADDFF) else Color(0xFFCAC4D0),
+        targetValue = if (isSelected) PurpleContainerSoft else TextSubtle,
         animationSpec = tween(200),
         label = "category_content_color"
     )
     val animatedIconColor by animateColorAsState(
-        targetValue = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF938F99),
+        targetValue = if (isSelected) PurpleLight else TextGrey,
         animationSpec = tween(200),
         label = "category_icon_color"
     )
@@ -497,30 +520,37 @@ fun SettingsCategoryItem(
         contentColor = animatedContentColor,
         modifier = modifier
             .fillMaxWidth()
-            .onGloballyPositioned { coordinates ->
-                onMeasuredHeight(coordinates.size.height.toFloat())
-            }
+            .onGloballyPositioned { onMeasuredHeight(it.size.height.toFloat()) }
             .testTag("settings_category_${category.name.lowercase()}")
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = category.icon,
-                contentDescription = null,
-                tint = animatedIconColor,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = category.title,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                fontSize = 14.sp
-            )
-        }
+        SettingsCategoryItemContent(category = category, isSelected = isSelected, animatedIconColor = animatedIconColor)
+    }
+}
+
+@Composable
+private fun SettingsCategoryItemContent(
+    category: SettingsCategory,
+    isSelected: Boolean,
+    animatedIconColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector = category.icon,
+            contentDescription = null,
+            tint = animatedIconColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = category.title,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            fontSize = 14.sp
+        )
     }
 }
 
@@ -715,8 +745,8 @@ fun SettingsCustomSearchLinksCard(
 
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -732,13 +762,13 @@ fun SettingsCustomSearchLinksCard(
                     Icon(
                         Icons.Default.Search,
                         contentDescription = null,
-                        tint = Color(0xFFD0BCFF),
+                        tint = PurpleLight,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
                         "Custom Search Links",
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE6E1E5),
+                        color = TextPrimary,
                         fontSize = 16.sp
                     )
                 }
@@ -764,8 +794,8 @@ fun SettingsCustomSearchLinksCard(
             if (localLinks.isEmpty()) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF1C1B1F),
-                    border = BorderStroke(1.dp, Color(0xFF3B383E)),
+                    color = SurfaceDark,
+                    border = BorderStroke(1.dp, SurfaceVariantGrey),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -778,19 +808,19 @@ fun SettingsCustomSearchLinksCard(
                         Icon(
                             Icons.Default.LinkOff,
                             contentDescription = null,
-                            tint = Color(0xFF79747E),
+                            tint = OutlineGrey,
                             modifier = Modifier.size(32.dp)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             "No custom search links configured yet",
-                            color = Color(0xFFCAC4D0),
+                            color = TextSubtle,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             "Tap '+ Add Link' above to configure custom search shortcuts.",
-                            color = Color(0xFF79747E),
+                            color = OutlineGrey,
                             fontSize = 11.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
@@ -810,12 +840,12 @@ fun SettingsCustomSearchLinksCard(
                             Icon(
                                 Icons.Default.DragHandle,
                                 contentDescription = null,
-                                tint = Color(0xFF938F99),
+                                tint = TextGrey,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
                                 text = "Long press and drag anywhere on a link to reorder",
-                                color = Color(0xFF938F99),
+                                color = TextGrey,
                                 fontSize = 11.sp
                             )
                         }
@@ -850,10 +880,10 @@ fun SettingsCustomSearchLinksCard(
 
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (isDraggingThis) Color(0xFF36323D) else Color(0xFF1C1B1F),
+                                color = if (isDraggingThis) SurfaceSettingsCardDark else SurfaceDark,
                                 border = BorderStroke(
                                     width = if (isDraggingThis) 1.5.dp else 1.dp,
-                                    color = if (isDraggingThis) Color(0xFFD0BCFF) else Color(0xFF49454F)
+                                    color = if (isDraggingThis) PurpleLight else OutlineVariant
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -921,7 +951,7 @@ fun SettingsCustomSearchLinksCard(
                                         Icon(
                                             Icons.Default.DragHandle,
                                             contentDescription = "Reorder handle for ${link.name}",
-                                            tint = if (isDraggingThis) Color(0xFFD0BCFF) else Color(0xFF79747E),
+                                            tint = if (isDraggingThis) PurpleLight else OutlineGrey,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -935,7 +965,7 @@ fun SettingsCustomSearchLinksCard(
                                     ) {
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = Color(0xFF2B2930),
+                                            color = SurfaceContainer,
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Box(
@@ -958,14 +988,14 @@ fun SettingsCustomSearchLinksCard(
                                             ) {
                                                 Text(
                                                     text = link.name,
-                                                    color = Color(0xFFE6E1E5),
+                                                    color = TextPrimary,
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 14.sp
                                                 )
                                                 if (!link.subtitle.isNullOrBlank()) {
                                                     Text(
                                                         text = "• ${link.subtitle}",
-                                                        color = Color(0xFFCAC4D0),
+                                                        color = TextSubtle,
                                                         fontSize = 12.sp,
                                                         maxLines = 1
                                                     )
@@ -975,7 +1005,7 @@ fun SettingsCustomSearchLinksCard(
                                             Spacer(modifier = Modifier.height(2.dp))
                                             Text(
                                                 text = link.urlTemplate,
-                                                color = Color(0xFF938F99),
+                                                color = TextGrey,
                                                 fontSize = 11.sp,
                                                 maxLines = 1
                                             )
@@ -986,9 +1016,21 @@ fun SettingsCustomSearchLinksCard(
                                             ) {
                                                 link.associatedTypes.forEach { type ->
                                                     val (label, bgCol, textCol) = when (type) {
-                                                        MediaType.TV -> Triple("TV", Color(0xFF381E72), Color(0xFFEADDFF))
-                                                        MediaType.ANIME -> Triple("Anime", Color(0xFF00382B), Color(0xFF7CE49F))
-                                                        MediaType.MOVIE -> Triple("Movie", Color(0xFF601410), Color(0xFFF2B8B5))
+                                                        MediaType.TV -> Triple(
+                                                            "TV",
+                                                            SurfacePurple,
+                                                            PurpleContainerSoft
+                                                        )
+                                                        MediaType.ANIME -> Triple(
+                                                            "Anime",
+                                                            SurfaceDarkGreen,
+                                                            GreenSuccess
+                                                        )
+                                                        MediaType.MOVIE -> Triple(
+                                                            "Movie",
+                                                            SurfaceRedDeep,
+                                                            ErrorPink
+                                                        )
                                                     }
                                                     Surface(
                                                         shape = RoundedCornerShape(4.dp),
@@ -1020,7 +1062,7 @@ fun SettingsCustomSearchLinksCard(
                                             Icon(
                                                 Icons.Default.Edit,
                                                 contentDescription = "Edit ${link.name}",
-                                                tint = Color(0xFFD0BCFF),
+                                                tint = PurpleLight,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -1034,7 +1076,7 @@ fun SettingsCustomSearchLinksCard(
                                             Icon(
                                                 Icons.Default.Delete,
                                                 contentDescription = "Delete ${link.name}",
-                                                tint = Color(0xFFF2B8B5),
+                                                tint = ErrorPink,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -1070,7 +1112,7 @@ fun CustomSearchLinkAddEditDialog(
             Text(
                 text = if (editingLink == null) "Add Custom Search Link" else "Edit Custom Search Link",
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFE6E1E5)
+                color = TextPrimary
             )
         },
         text = {
@@ -1133,10 +1175,9 @@ fun CustomSearchLinkAddEditDialog(
                         text = "Tap placeholder to insert:",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFCAC4D0)
+                        color = TextSubtle
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    @OptIn(ExperimentalLayoutApi::class)
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1154,15 +1195,15 @@ fun CustomSearchLinkAddEditDialog(
                         ).forEach { placeholder ->
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
-                                color = Color(0xFF2B2930),
-                                border = BorderStroke(1.dp, Color(0xFF49454F)),
+                                color = SurfaceContainer,
+                                border = BorderStroke(1.dp, OutlineVariant),
                                 modifier = Modifier.clickable {
                                     insertPlaceholder(placeholder)
                                 }
                             ) {
                                 Text(
                                     text = placeholder,
-                                    color = Color(0xFFD0BCFF),
+                                    color = PurpleLight,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -1172,14 +1213,14 @@ fun CustomSearchLinkAddEditDialog(
                     }
                 }
 
-                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp)
+                HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
 
                 Column {
                     Text(
                         text = "Associated Item Types",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFE6E1E5)
+                        color = TextPrimary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
@@ -1274,12 +1315,12 @@ fun SettingsUserSessionCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Session Status", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+            Text("Session Status", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1290,13 +1331,13 @@ fun SettingsUserSessionCard(
                     Text(
                         "Logged in as",
                         fontSize = 13.sp,
-                        color = Color(0xFFCAC4D0)
+                        color = TextSubtle
                     )
                     Text(
                         username,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color(0xFFD0BCFF)
+                        color = PurpleLight
                     )
                 }
 
@@ -1326,8 +1367,8 @@ fun SettingsSyncIntervalCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1340,24 +1381,24 @@ fun SettingsSyncIntervalCard(
                     Icon(
                         Icons.Default.Sync,
                         contentDescription = null,
-                        tint = Color(0xFFD0BCFF),
+                        tint = PurpleLight,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "Background Sync Interval",
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE6E1E5),
+                        color = TextPrimary,
                         fontSize = 16.sp
                     )
                 }
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF4A4458)
+                    color = SurfaceSettingsPurpleDark
                 ) {
                     Text(
                         text = "${syncIntervalHours.roundToInt()} hrs",
-                        color = Color(0xFFD0BCFF),
+                        color = PurpleLight,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
@@ -1368,7 +1409,7 @@ fun SettingsSyncIntervalCard(
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 "Sets how frequently the app runs background checks to discover new episode releases and sync your watchlist.",
-                color = Color(0xFFCAC4D0),
+                color = TextSubtle,
                 fontSize = 12.sp,
                 lineHeight = 16.sp
             )
@@ -1382,9 +1423,9 @@ fun SettingsSyncIntervalCard(
                 valueRange = 1f..24f,
                 steps = 22,
                 colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFFD0BCFF),
-                    activeTrackColor = Color(0xFFD0BCFF),
-                    inactiveTrackColor = Color(0xFF49454F),
+                    thumbColor = PurpleLight,
+                    activeTrackColor = PurpleLight,
+                    inactiveTrackColor = OutlineVariant,
                     activeTickColor = Color.Transparent,
                     inactiveTickColor = Color.Transparent
                 ),
@@ -1395,9 +1436,9 @@ fun SettingsSyncIntervalCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("1 hour (frequent)", color = Color(0xFF938F99), fontSize = 11.sp)
-                Text("12 hours (default)", color = Color(0xFF938F99), fontSize = 11.sp)
-                Text("24 hours (daily)", color = Color(0xFF938F99), fontSize = 11.sp)
+                Text("1 hour (frequent)", color = TextGrey, fontSize = 11.sp)
+                Text("12 hours (default)", color = TextGrey, fontSize = 11.sp)
+                Text("24 hours (daily)", color = TextGrey, fontSize = 11.sp)
             }
         }
     }
@@ -1417,16 +1458,16 @@ fun SettingsDefaultAlertsCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Default Alerts (New Items)", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+            Text("Default Alerts (New Items)", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 "Sets default alert preferences when new shows or movies are synced. Individual settings in Release Details will always take precedence.",
-                color = Color(0xFFCAC4D0),
+                color = TextSubtle,
                 fontSize = 12.sp,
                 lineHeight = 16.sp
             )
@@ -1435,7 +1476,7 @@ fun SettingsDefaultAlertsCard(
             Text(
                 text = "TV Shows & Anime",
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFD0BCFF),
+                color = PurpleLight,
                 fontSize = 14.sp
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -1448,8 +1489,17 @@ fun SettingsDefaultAlertsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Airing Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text("Default to alert as soon as each episode is ready to stream.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                    Text(
+                        text = "Airing Notifications",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = "Default to alert as soon as each episode is ready to stream.",
+                        color = TextSubtle,
+                        fontSize = 12.sp
+                    )
                 }
                 Switch(
                     checked = enableDefaultAiring,
@@ -1465,8 +1515,17 @@ fun SettingsDefaultAlertsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Season Finished Airing", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text("Default to notify when a full TV Show or Anime season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                    Text(
+                        text = "Season Finished Airing",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = "Default to notify when a full TV Show or Anime season has finished airing.",
+                        color = TextSubtle,
+                        fontSize = 12.sp
+                    )
                 }
                 Switch(
                     checked = enableDefaultSeasonFinished,
@@ -1474,12 +1533,12 @@ fun SettingsDefaultAlertsCard(
                 )
             }
 
-            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 
             Text(
                 text = "Movies",
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFF2B8B5),
+                color = ErrorPink,
                 fontSize = 14.sp
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -1492,8 +1551,17 @@ fun SettingsDefaultAlertsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Theater Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text("Default to notify on the movie's theatrical release date.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                    Text(
+                        text = "Theater Release Notifications",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = "Default to notify on the movie's theatrical release date.",
+                        color = TextSubtle,
+                        fontSize = 12.sp
+                    )
                 }
                 Switch(
                     checked = enableDefaultMovieTheater,
@@ -1509,8 +1577,17 @@ fun SettingsDefaultAlertsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Digital / DVD Release Notifications", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text("Default to notify when the movie releases digitally or on DVD.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                    Text(
+                        text = "Digital / DVD Release Notifications",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = "Default to notify when the movie releases digitally or on DVD.",
+                        color = TextSubtle,
+                        fontSize = 12.sp
+                    )
                 }
                 Switch(
                     checked = enableDefaultMovieDigital,
@@ -1531,8 +1608,8 @@ fun SettingsBatteryOptimizationCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1542,8 +1619,13 @@ fun SettingsBatteryOptimizationCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))
-                    Text("Battery Optimization", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+                    Icon(
+                        imageVector = Icons.Default.BatteryChargingFull,
+                        contentDescription = null,
+                        tint = PurpleLight,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text("Battery Optimization", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -1553,10 +1635,10 @@ fun SettingsBatteryOptimizationCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Use Exact Alarms", color = Color(0xFFE6E1E5), fontSize = 14.sp)
+                    Text("Use Exact Alarms", color = TextPrimary, fontSize = 14.sp)
                     Text(
                         "Exact alarms ensure notifications arrive at the precise airing time but may increase battery consumption.",
-                        color = Color(0xFFCAC4D0),
+                        color = TextSubtle,
                         fontSize = 12.sp
                     )
                 }
@@ -1570,37 +1652,37 @@ fun SettingsBatteryOptimizationCard(
                 Spacer(modifier = Modifier.height(16.dp))
                 Card(
                     shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF3B2D2C)),
-                    border = BorderStroke(1.dp, Color(0xFFF2B8B5))
+                    colors = CardDefaults.cardColors(containerColor = SurfaceSettingsBrownDark),
+                    border = BorderStroke(1.dp, ErrorPink)
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Default.Warning,
                                 contentDescription = null,
-                                tint = Color(0xFFF2B8B5),
+                                tint = ErrorPink,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 "Exact Alarms Required",
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFF2B8B5),
+                                color = ErrorPink,
                                 fontSize = 14.sp
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             "To ensure notifications are delivered exactly when they air, the app needs permission to schedule exact alarms.",
-                            color = Color(0xFFCAC4D0),
+                            color = TextSubtle,
                             fontSize = 12.sp
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = onGrantExactAlarmPermission,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF601410),
-                                contentColor = Color(0xFFF2B8B5)
+                                containerColor = SurfaceRedDeep,
+                                contentColor = ErrorPink
                             ),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -1646,8 +1728,8 @@ fun SettingsAutomaticDownloadsCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
@@ -1661,14 +1743,19 @@ fun SettingsAutomaticDownloadsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFFD0BCFF), modifier = Modifier.size(20.dp))
-                    Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = PurpleLight,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
                 }
                 if (isDownloaderInstalled) {
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = Color(0xFF1E3A2B),
-                        contentColor = Color(0xFF7CE49F)
+                        color = SurfaceGreen,
+                        contentColor = GreenSuccess
                     ) {
                         Text(
                             "AVAILABLE",
@@ -1680,8 +1767,8 @@ fun SettingsAutomaticDownloadsCard(
                 } else {
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = Color(0xFF3B383E),
-                        contentColor = Color(0xFFCAC4D0)
+                        color = SurfaceVariantGrey,
+                        contentColor = TextSubtle
                     ) {
                         Text(
                             "UNAVAILABLE",
@@ -1696,7 +1783,7 @@ fun SettingsAutomaticDownloadsCard(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 "Configure how the app interacts with the external Torrent Downloader service.",
-                color = Color(0xFFCAC4D0),
+                color = TextSubtle,
                 fontSize = 12.sp,
                 lineHeight = 16.sp
             )
@@ -1705,7 +1792,7 @@ fun SettingsAutomaticDownloadsCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "Downloader app not found. Please install the Torrent Downloader service to enable these features.",
-                    color = Color(0xFFF2B8B5),
+                    color = ErrorPink,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -1713,7 +1800,7 @@ fun SettingsAutomaticDownloadsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Preferred Quality", color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("Preferred Quality", color = PurpleLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1735,8 +1822,8 @@ fun SettingsAutomaticDownloadsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Prefer HEVC / x265", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                    Text("Prioritize high efficiency video coding results.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                    Text("Prefer HEVC / x265", color = TextPrimary, fontSize = 15.sp)
+                    Text("Prioritize high efficiency video coding results.", color = TextSubtle, fontSize = 12.sp)
                 }
                 Switch(
                     checked = autoPreferHevc,
@@ -1745,7 +1832,7 @@ fun SettingsAutomaticDownloadsCard(
                 )
             }
 
-            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -1753,8 +1840,8 @@ fun SettingsAutomaticDownloadsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Unwatched TV Shows", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                    Text("Default setting for newly tracked TV Shows.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                    Text("Download Unwatched TV Shows", color = TextPrimary, fontSize = 15.sp)
+                    Text("Default setting for newly tracked TV Shows.", color = TextSubtle, fontSize = 12.sp)
                 }
                 Switch(
                     checked = autoDownloadUnwatchedTv,
@@ -1769,8 +1856,8 @@ fun SettingsAutomaticDownloadsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Unwatched Anime", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                    Text("Default setting for newly tracked Anime.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                    Text("Download Unwatched Anime", color = TextPrimary, fontSize = 15.sp)
+                    Text("Default setting for newly tracked Anime.", color = TextSubtle, fontSize = 12.sp)
                 }
                 Switch(
                     checked = autoDownloadUnwatchedAnime,
@@ -1785,8 +1872,8 @@ fun SettingsAutomaticDownloadsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Unwatched Movies", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                    Text("Default setting for newly tracked Movies.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                    Text("Download Unwatched Movies", color = TextPrimary, fontSize = 15.sp)
+                    Text("Default setting for newly tracked Movies.", color = TextSubtle, fontSize = 12.sp)
                 }
                 Switch(
                     checked = autoDownloadUnwatchedMovie,
@@ -1801,8 +1888,8 @@ fun SettingsAutomaticDownloadsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Season Unwatched TV Shows", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                    Text("Default setting for newly tracked TV Shows.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                    Text("Download Season Unwatched TV Shows", color = TextPrimary, fontSize = 15.sp)
+                    Text("Default setting for newly tracked TV Shows.", color = TextSubtle, fontSize = 12.sp)
                 }
                 Switch(
                     checked = autoDownloadSeasonUnwatchedTv,
@@ -1817,8 +1904,8 @@ fun SettingsAutomaticDownloadsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Season Unwatched Anime", color = Color(0xFFE6E1E5), fontSize = 15.sp)
-                    Text("Default setting for newly tracked Anime.", color = Color(0xFFCAC4D0), fontSize = 12.sp)
+                    Text("Download Season Unwatched Anime", color = TextPrimary, fontSize = 15.sp)
+                    Text("Default setting for newly tracked Anime.", color = TextSubtle, fontSize = 12.sp)
                 }
                 Switch(
                     checked = autoDownloadSeasonUnwatchedAnime,
@@ -1827,7 +1914,7 @@ fun SettingsAutomaticDownloadsCard(
                 )
             }
 
-            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 
             Column {
                 Row(
@@ -1839,23 +1926,23 @@ fun SettingsAutomaticDownloadsCard(
                         Text(
                             "Periodic Torrent Search",
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFE6E1E5),
+                            color = TextPrimary,
                             fontSize = 15.sp
                         )
                         Text(
                             "Sets how frequently the app searches for torrents for episodes in 'Wanted' status.",
-                            color = Color(0xFFCAC4D0),
+                            color = TextSubtle,
                             fontSize = 12.sp,
                             lineHeight = 16.sp
                         )
                     }
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFF4A4458)
+                        color = SurfaceSettingsPurpleDark
                     ) {
                         Text(
                             text = "${searchIntervalHours.roundToInt()} hrs",
-                            color = Color(0xFFD0BCFF),
+                            color = PurpleLight,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
@@ -1873,9 +1960,9 @@ fun SettingsAutomaticDownloadsCard(
                     valueRange = 1f..24f,
                     steps = 22,
                     colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFFD0BCFF),
-                        activeTrackColor = Color(0xFFD0BCFF),
-                        inactiveTrackColor = Color(0xFF49454F),
+                        thumbColor = PurpleLight,
+                        activeTrackColor = PurpleLight,
+                        inactiveTrackColor = OutlineVariant,
                         activeTickColor = Color.Transparent,
                         inactiveTickColor = Color.Transparent
                     ),
@@ -1886,13 +1973,13 @@ fun SettingsAutomaticDownloadsCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("1 hour", color = Color(0xFF938F99), fontSize = 11.sp)
-                    Text("12 hours", color = Color(0xFF938F99), fontSize = 11.sp)
-                    Text("24 hours", color = Color(0xFF938F99), fontSize = 11.sp)
+                    Text("1 hour", color = TextGrey, fontSize = 11.sp)
+                    Text("12 hours", color = TextGrey, fontSize = 11.sp)
+                    Text("24 hours", color = TextGrey, fontSize = 11.sp)
                 }
             }
 
-            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 
             KeywordManagerSection(
                 title = "Preferred Keywords",
@@ -1901,7 +1988,8 @@ fun SettingsAutomaticDownloadsCard(
                 onAdd = onAddPreferredKeyword,
                 onRemove = onRemovePreferredKeyword,
                 onReorder = onReorderPreferredKeywords,
-                enabled = isDownloaderInstalled
+                enabled = isDownloaderInstalled,
+                color = PurpleLight
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -1914,7 +2002,7 @@ fun SettingsAutomaticDownloadsCard(
                 onRemove = onRemoveIgnoreKeyword,
                 onReorder = onReorderIgnoreKeywords,
                 enabled = isDownloaderInstalled,
-                color = Color(0xFFF2B8B5)
+                color = ErrorPink
             )
         }
     }
@@ -1928,8 +2016,8 @@ fun SettingsWatchlistResyncCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1940,14 +2028,14 @@ fun SettingsWatchlistResyncCard(
                 Icon(
                     Icons.Default.CloudSync,
                     contentDescription = null,
-                    tint = Color(0xFFD0BCFF),
+                    tint = PurpleLight,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "Watchlist Synchronization",
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE6E1E5),
+                    color = TextPrimary,
                     fontSize = 16.sp
                 )
             }
@@ -1955,7 +2043,7 @@ fun SettingsWatchlistResyncCard(
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 "Forces a full re-synchronization of your complete SIMKL watchlist and watched history from scratch.",
-                color = Color(0xFFCAC4D0),
+                color = TextSubtle,
                 fontSize = 12.sp,
                 lineHeight = 16.sp
             )
@@ -1966,10 +2054,10 @@ fun SettingsWatchlistResyncCard(
                 onClick = onForceSync,
                 enabled = !isForceSyncing,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF4F378B),
-                    contentColor = Color(0xFFEADDFF),
-                    disabledContainerColor = Color(0xFF3B383E),
-                    disabledContentColor = Color(0xFF79747E)
+                    containerColor = SurfacePrimaryVariant,
+                    contentColor = PurpleContainerSoft,
+                    disabledContainerColor = SurfaceVariantGrey,
+                    disabledContentColor = OutlineGrey
                 ),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
@@ -1978,7 +2066,7 @@ fun SettingsWatchlistResyncCard(
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
-                        color = Color(0xFFEADDFF)
+                        color = PurpleContainerSoft
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Re-syncing Watchlist...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -2009,8 +2097,8 @@ fun SettingsAppLogsDiagnosticsCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -2021,14 +2109,14 @@ fun SettingsAppLogsDiagnosticsCard(
                 Icon(
                     Icons.Default.BugReport,
                     contentDescription = null,
-                    tint = Color(0xFFD0BCFF),
+                    tint = PurpleLight,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "Crash Reporting & Diagnostics",
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE6E1E5),
+                    color = TextPrimary,
                     fontSize = 16.sp
                 )
             }
@@ -2042,7 +2130,7 @@ fun SettingsAppLogsDiagnosticsCard(
                 onUpdateSentryEnabled = onUpdateSentryEnabled
             )
 
-            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 
             Row(
                 modifier = Modifier
@@ -2054,13 +2142,13 @@ fun SettingsAppLogsDiagnosticsCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         "Show Debug Actions",
-                        color = Color(0xFFE6E1E5),
+                        color = TextPrimary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp
                     )
                     Text(
                         "Show debug actions like manual item deletion on release detail screen",
-                        color = Color(0xFFCAC4D0),
+                        color = TextSubtle,
                         fontSize = 12.sp
                     )
                 }
@@ -2072,7 +2160,7 @@ fun SettingsAppLogsDiagnosticsCard(
                 )
             }
 
-            HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 
             SettingsAppLogsSection(
                 onNavigateToLogViewer = onNavigateToLogViewer
@@ -2100,13 +2188,13 @@ fun SettingsSentrySection(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "Sentry Crash Reporting",
-                    color = Color(0xFFE6E1E5),
+                    color = TextPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp
                 )
                 Text(
                     "Automatically report application crashes",
-                    color = Color(0xFFCAC4D0),
+                    color = TextSubtle,
                     fontSize = 12.sp
                 )
             }
@@ -2123,8 +2211,8 @@ fun SettingsSentrySection(
             Spacer(modifier = Modifier.height(12.dp))
             Card(
                 shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2D36)),
-                border = BorderStroke(1.dp, Color(0xFF4A4D58)),
+                colors = CardDefaults.cardColors(containerColor = SurfaceSettingsDark),
+                border = BorderStroke(1.dp, SurfaceSettingsBlueDark),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -2132,21 +2220,21 @@ fun SettingsSentrySection(
                         Icon(
                             Icons.Default.Info,
                             contentDescription = null,
-                            tint = Color(0xFFD0BCFF),
+                            tint = PurpleLight,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "Sentry Not Configured",
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFD0BCFF),
+                            color = PurpleLight,
                             fontSize = 14.sp
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Sentry is not configured in this app build and can't be enabled.",
-                        color = Color(0xFFCAC4D0),
+                        color = TextSubtle,
                         fontSize = 12.sp
                     )
                 }
@@ -2155,8 +2243,8 @@ fun SettingsSentrySection(
             Spacer(modifier = Modifier.height(12.dp))
             Card(
                 shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF3B2D2C)),
-                border = BorderStroke(1.dp, Color(0xFFF2B8B5)),
+                colors = CardDefaults.cardColors(containerColor = SurfaceSettingsBrownDark),
+                border = BorderStroke(1.dp, ErrorPink),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -2164,21 +2252,21 @@ fun SettingsSentrySection(
                         Icon(
                             Icons.Default.Warning,
                             contentDescription = null,
-                            tint = Color(0xFFF2B8B5),
+                            tint = ErrorPink,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "Restart Required",
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFF2B8B5),
+                            color = ErrorPink,
                             fontSize = 14.sp
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Please restart the app for this change to take effect.",
-                        color = Color(0xFFCAC4D0),
+                        color = TextSubtle,
                         fontSize = 12.sp
                     )
                 }
@@ -2195,7 +2283,7 @@ fun SettingsAppLogsSection(
     Column(modifier = modifier) {
         Text(
             "View diagnostic logs generated during app operation across current and earlier app runs.",
-            color = Color(0xFFCAC4D0),
+            color = TextSubtle,
             fontSize = 12.sp,
             lineHeight = 16.sp
         )
@@ -2205,8 +2293,8 @@ fun SettingsAppLogsSection(
         Button(
             onClick = onNavigateToLogViewer,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF4A4458),
-                contentColor = Color(0xFFEADDFF)
+                containerColor = SurfaceSettingsPurpleDark,
+                contentColor = PurpleContainerSoft
             ),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.fillMaxWidth().height(48.dp).testTag("view_logs_button")
@@ -2222,7 +2310,7 @@ fun SettingsAppLogsSection(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@Suppress("CyclomaticComplexMethod", "LongParameterList", "LongMethod")
 @Composable
 fun KeywordManagerSection(
     title: String,
@@ -2232,7 +2320,7 @@ fun KeywordManagerSection(
     onRemove: (String) -> Unit,
     onReorder: (List<String>) -> Unit,
     enabled: Boolean,
-    color: Color = Color(0xFFD0BCFF)
+    color: Color,
 ) {
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingKeyword by remember { mutableStateOf<String?>(null) }
@@ -2251,7 +2339,7 @@ fun KeywordManagerSection(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, color = color, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(subtitle, color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                Text(subtitle, color = TextSubtle, fontSize = 11.sp)
             }
             IconButton(
                 onClick = {
@@ -2269,7 +2357,7 @@ fun KeywordManagerSection(
         if (keywords.isEmpty()) {
             Text(
                 "No keywords added",
-                color = Color(0xFF79747E),
+                color = OutlineGrey,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(vertical = 4.dp)
             )
@@ -2378,8 +2466,8 @@ fun KeywordManagerSection(
                                         }
                                     },
                                     colors = InputChipDefaults.inputChipColors(
-                                        containerColor = Color(0xFF1C1B1F),
-                                        labelColor = Color(0xFFE6E1E5)
+                                        containerColor = SurfaceDark,
+                                        labelColor = TextPrimary
                                     ),
                                     enabled = enabled
                                 )

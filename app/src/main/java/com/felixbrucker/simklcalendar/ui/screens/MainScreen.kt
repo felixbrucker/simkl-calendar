@@ -50,12 +50,31 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
-import com.felixbrucker.simklcalendar.data.util.PermissionUtil
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
+import com.felixbrucker.simklcalendar.data.util.PermissionUtil
+import com.felixbrucker.simklcalendar.ui.theme.BlueAccent
+import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
+import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
+import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkBlue
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreyDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
+import com.felixbrucker.simklcalendar.ui.theme.TextGrey
+import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
+import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
 private enum class SearchBarDisplayMode {
@@ -283,12 +302,12 @@ fun MainScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF1C1B1F),
+                    containerColor = SurfaceDark,
                     titleContentColor = Color.White
                 )
             )
         },
-        containerColor = Color(0xFF1C1B1F)
+        containerColor = SurfaceDark
     ) { innerPadding ->
         PullToRefreshBox(
             isRefreshing = isSyncing,
@@ -358,13 +377,13 @@ fun MainScreen(
                             text = "Results for \"$searchQuery\" (${items.size})",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFFD0BCFF)
+                            color = PurpleLight
                         )
                         Text(
                             text = "Clear",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFF2B8B5),
+                            color = ErrorPink,
                             modifier = Modifier.clickable {
                                 viewModel.clearSearchQuery()
                                 isSearchActive = false
@@ -488,15 +507,15 @@ private fun MainExpandedSearchBar(
             .fillMaxWidth()
             .height(44.dp)
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xFF2B2930))
-            .border(1.dp, Color(0xFFD0BCFF), RoundedCornerShape(22.dp))
+            .background(SurfaceContainer)
+            .border(1.dp, PurpleLight, RoundedCornerShape(22.dp))
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Default.Search,
             contentDescription = "Search active",
-            tint = Color(0xFFD0BCFF),
+            tint = PurpleLight,
             modifier = Modifier.size(20.dp)
         )
 
@@ -512,11 +531,11 @@ private fun MainExpandedSearchBar(
                 .testTag("search_input_field"),
             singleLine = true,
             textStyle = TextStyle(
-                color = Color(0xFFE6E1E5),
+                color = TextPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Normal
             ),
-            cursorBrush = SolidColor(Color(0xFFD0BCFF)),
+            cursorBrush = SolidColor(PurpleLight),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { onSearch() }),
             decorationBox = { innerTextField ->
@@ -524,7 +543,7 @@ private fun MainExpandedSearchBar(
                     if (searchQuery.isEmpty()) {
                         Text(
                             text = "Search show, episode, movie...",
-                            color = Color(0xFF938F99),
+                            color = TextGrey,
                             fontSize = 14.sp
                         )
                     }
@@ -542,7 +561,7 @@ private fun MainExpandedSearchBar(
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Delete search query",
-                tint = Color(0xFFCAC4D0),
+                tint = TextSubtle,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -560,8 +579,8 @@ private fun MainDockedSearchBar(
             .fillMaxWidth()
             .height(40.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF2B2930))
-            .border(1.dp, Color(0xFF79747E), RoundedCornerShape(20.dp))
+            .background(SurfaceContainer)
+            .border(1.dp, OutlineGrey, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(start = 12.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -569,7 +588,7 @@ private fun MainDockedSearchBar(
         Icon(
             imageVector = Icons.Default.Search,
             contentDescription = "Search",
-            tint = Color(0xFFD0BCFF),
+            tint = PurpleLight,
             modifier = Modifier.size(18.dp)
         )
 
@@ -577,7 +596,7 @@ private fun MainDockedSearchBar(
 
         Text(
             text = searchQuery,
-            color = Color(0xFFE6E1E5),
+            color = TextPrimary,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
@@ -594,7 +613,7 @@ private fun MainDockedSearchBar(
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Delete search query",
-                tint = Color(0xFFCAC4D0),
+                tint = TextSubtle,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -624,7 +643,7 @@ private fun MainDefaultTitleBar(
             Text(
                 text = "Hi, $username • Tracked Schedule",
                 fontSize = 12.sp,
-                color = Color(0xFFCAC4D0),
+                color = TextSubtle,
                 fontWeight = FontWeight.Normal,
                 lineHeight = 16.sp
             )
@@ -661,8 +680,8 @@ private fun MainAutoDownloadActionButton(
                 modifier = Modifier
                     .padding(end = 4.dp)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Color(0xFF2B2930))
-                    .border(1.dp, Color(0xFF49454F), RoundedCornerShape(20.dp))
+                    .background(SurfaceContainer)
+                    .border(1.dp, OutlineVariant, RoundedCornerShape(20.dp))
                     .animateContentSize()
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -675,13 +694,13 @@ private fun MainAutoDownloadActionButton(
                         CircularProgressIndicator(
                             modifier = Modifier.fillMaxSize(),
                             strokeWidth = 2.dp,
-                            color = Color(0xFFD0BCFF)
+                            color = PurpleLight
                         )
                     }
                     Icon(
                         imageVector = Icons.Default.Download,
                         contentDescription = null,
-                        tint = Color(0xFFD0BCFF),
+                        tint = PurpleLight,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -690,7 +709,7 @@ private fun MainAutoDownloadActionButton(
                     text = autoDownloadStatus,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFFE6E1E5),
+                    color = TextPrimary,
                     maxLines = 1
                 )
             }
@@ -770,10 +789,10 @@ fun MainFilterBar(
                 onClick = onToggleShowTv,
                 label = { Text("TV") },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0xFFBAC3FF),
-                    selectedLabelColor = Color(0xFF1A237E),
-                    containerColor = Color(0xFF313033),
-                    labelColor = Color(0xFFCAC4D0)
+                    selectedContainerColor = BlueAccent,
+                    selectedLabelColor = SurfaceDarkBlue,
+                    containerColor = SurfaceGreyDark,
+                    labelColor = TextSubtle
                 )
             )
 
@@ -783,10 +802,10 @@ fun MainFilterBar(
                 onClick = onToggleShowAnime,
                 label = { Text("Anime") },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0xFFE8DEF8),
-                    selectedLabelColor = Color(0xFF1D192B),
-                    containerColor = Color(0xFF313033),
-                    labelColor = Color(0xFFCAC4D0)
+                    selectedContainerColor = PurpleContainerLight,
+                    selectedLabelColor = SurfaceVariantDark,
+                    containerColor = SurfaceGreyDark,
+                    labelColor = TextSubtle
                 )
             )
 
@@ -796,10 +815,10 @@ fun MainFilterBar(
                 onClick = onToggleShowMovies,
                 label = { Text("Movies") },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0xFFF2B8B5),
-                    selectedLabelColor = Color(0xFF601410),
-                    containerColor = Color(0xFF313033),
-                    labelColor = Color(0xFFCAC4D0)
+                    selectedContainerColor = ErrorPink,
+                    selectedLabelColor = SurfaceRedDeep,
+                    containerColor = SurfaceGreyDark,
+                    labelColor = TextSubtle
                 )
             )
 
@@ -808,7 +827,7 @@ fun MainFilterBar(
                 modifier = Modifier
                     .height(24.dp)
                     .padding(horizontal = 4.dp),
-                color = Color(0xFF49454F)
+                color = OutlineVariant
             )
 
             // Unwatched Released Toggle (Only in Table View)
@@ -827,10 +846,10 @@ fun MainFilterBar(
                         }
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFD0BCFF),
-                        selectedLabelColor = Color(0xFF381E72),
-                        containerColor = Color(0xFF313033),
-                        labelColor = Color(0xFFCAC4D0)
+                        selectedContainerColor = PurpleLight,
+                        selectedLabelColor = SurfacePurple,
+                        containerColor = SurfaceGreyDark,
+                        labelColor = TextSubtle
                     )
                 )
             }
@@ -842,10 +861,10 @@ fun MainFilterBar(
                     onClick = onToggleOnlySeasonPremieres,
                     label = { Text("Season Premiere") },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFE8DEF8),
-                        selectedLabelColor = Color(0xFF1D192B),
-                        containerColor = Color(0xFF313033),
-                        labelColor = Color(0xFFCAC4D0)
+                        selectedContainerColor = PurpleContainerLight,
+                        selectedLabelColor = SurfaceVariantDark,
+                        containerColor = SurfaceGreyDark,
+                        labelColor = TextSubtle
                     )
                 )
 
@@ -854,10 +873,10 @@ fun MainFilterBar(
                     onClick = onToggleOnlySeasonFinales,
                     label = { Text("Season Finale") },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFB3261E),
+                        selectedContainerColor = ErrorRed,
                         selectedLabelColor = Color.White,
-                        containerColor = Color(0xFF313033),
-                        labelColor = Color(0xFFCAC4D0)
+                        containerColor = SurfaceGreyDark,
+                        labelColor = TextSubtle
                     )
                 )
 
@@ -866,10 +885,10 @@ fun MainFilterBar(
                     onClick = onToggleOnlyDigitalDvd,
                     label = { Text("Digital / DVD") },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF4F378B),
-                        selectedLabelColor = Color(0xFFEADDFF),
-                        containerColor = Color(0xFF313033),
-                        labelColor = Color(0xFFCAC4D0)
+                        selectedContainerColor = SurfacePrimaryVariant,
+                        selectedLabelColor = PurpleContainerSoft,
+                        containerColor = SurfaceGreyDark,
+                        labelColor = TextSubtle
                     )
                 )
             }
@@ -892,7 +911,7 @@ private fun ViewModeToggle(
             .height(containerHeight)
             .width(containerWidth)
             .clip(RoundedCornerShape(containerHeight / 2))
-            .background(Color(0xFF2B2930))
+            .background(SurfaceContainer)
     ) {
         // Animated Selection Badge
         val targetOffset = if (isCalendar) 0.dp else containerWidth - badgeWidth
@@ -908,7 +927,7 @@ private fun ViewModeToggle(
                 .fillMaxHeight()
                 .width(badgeWidth)
                 .clip(RoundedCornerShape((containerHeight) / 2))
-                .background(Color(0xFFD0BCFF))
+                .background(PurpleLight)
         )
 
         // Content Row
@@ -936,7 +955,7 @@ private fun ViewModeToggle(
                 Icon(
                     imageVector = Icons.Default.CalendarToday,
                     contentDescription = null,
-                    tint = if (isCalendar) Color(0xFF381E72) else Color(0xFFCAC4D0),
+                    tint = if (isCalendar) SurfacePurple else TextSubtle,
                     modifier = Modifier.size(18.dp)
                 )
                 AnimatedVisibility(
@@ -946,7 +965,7 @@ private fun ViewModeToggle(
                 ) {
                     Text(
                         text = "Calendar",
-                        color = Color(0xFF381E72),
+                        color = SurfacePurple,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 6.dp),
@@ -975,7 +994,7 @@ private fun ViewModeToggle(
                 Icon(
                     imageVector = Icons.Default.TableChart,
                     contentDescription = null,
-                    tint = if (!isCalendar) Color(0xFF381E72) else Color(0xFFCAC4D0),
+                    tint = if (!isCalendar) SurfacePurple else TextSubtle,
                     modifier = Modifier.size(18.dp)
                 )
                 AnimatedVisibility(
@@ -985,7 +1004,7 @@ private fun ViewModeToggle(
                 ) {
                     Text(
                         text = "Library",
-                        color = Color(0xFF381E72),
+                        color = SurfacePurple,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 6.dp),

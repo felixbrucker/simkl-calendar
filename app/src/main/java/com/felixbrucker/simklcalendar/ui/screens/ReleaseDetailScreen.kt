@@ -31,23 +31,48 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
+import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
+import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
+import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
+import com.felixbrucker.simklcalendar.ui.theme.SuccessLight
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkGreenVariant
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenBright
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenDeep
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedWine
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
+import com.felixbrucker.simklcalendar.ui.theme.TextGreyLight
+import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedItemLabel
 import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
-import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
-import kotlinx.coroutines.launch
+import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
+import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
 import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
+import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -187,17 +212,17 @@ fun ReleaseDetailScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Release Details", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
+                title = { Text("Release Details", color = TextPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFFE6E1E5))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C1B1F))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceDark)
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color(0xFF1C1B1F)
+        containerColor = SurfaceDark
     ) { innerPadding ->
         if (activeItem == null) {
             Box(
@@ -206,7 +231,7 @@ fun ReleaseDetailScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Show details not found.", color = Color(0xFFE6E1E5))
+                Text("Show details not found.", color = TextPrimary)
             }
         } else {
             Column(
@@ -217,14 +242,16 @@ fun ReleaseDetailScreen(
             ) {
                 // Banner / Poster Header
                 DetailHeader(
-                    simklId = activeItem.simklId,
-                    type = activeItem.type,
-                    title = activeItem.title,
-                    poster = activeItem.poster,
-                    rating = activeItem.rating,
-                    titleRomaji = activeItem.titleRomaji,
-                    hasUniqueTitleRomaji = activeItem.hasUniqueTitleRomaji,
-                    animeSeason = activeItem.animeSeason,
+                    data = DetailHeaderData(
+                        simklId = activeItem.simklId,
+                        type = activeItem.type,
+                        title = activeItem.title,
+                        poster = activeItem.poster,
+                        rating = activeItem.rating,
+                        titleRomaji = activeItem.titleRomaji,
+                        hasUniqueTitleRomaji = activeItem.hasUniqueTitleRomaji,
+                        animeSeason = activeItem.animeSeason,
+                    ),
                     onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId) }
                 )
 
@@ -320,8 +347,8 @@ fun ReleaseDetailScreen(
                                     onClick = { showDeleteConfirmation = true },
                                     modifier = mod.height(48.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF601410),
-                                        contentColor = Color(0xFFF2B8B5)
+                                        containerColor = SurfaceRedDeep,
+                                        contentColor = ErrorPink
                                     ),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
@@ -362,8 +389,8 @@ fun ReleaseDetailScreen(
                         val itemLabel = activeItem.formattedItemLabel
                         AlertDialog(
                             onDismissRequest = { showDeleteConfirmation = false },
-                            title = { Text("Delete $itemLabel", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5)) },
-                            text = { Text("Are you sure you want to delete this item? This action cannot be undone.", color = Color(0xFFCAC4D0)) },
+                            title = { Text("Delete $itemLabel", fontWeight = FontWeight.Bold, color = TextPrimary) },
+                            text = { Text("Are you sure you want to delete this item? This action cannot be undone.", color = TextSubtle) },
                             confirmButton = {
                                 Button(
                                     onClick = {
@@ -373,8 +400,8 @@ fun ReleaseDetailScreen(
                                         }
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF8C1D40),
-                                        contentColor = Color(0xFFF2B8B5)
+                                        containerColor = SurfaceRedWine,
+                                        contentColor = ErrorPink
                                     )
                                 ) {
                                     Text("Delete")
@@ -480,8 +507,8 @@ fun WatchedEpisodeHighlightBanner(
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF1B3828),
-        border = BorderStroke(1.dp, Color(0xFF48A36E)),
+        color = SurfaceDarkGreenVariant,
+        border = BorderStroke(1.dp, SurfaceGreenBright),
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
@@ -492,20 +519,20 @@ fun WatchedEpisodeHighlightBanner(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(Color(0xFF2E6543), CircleShape),
+                    .background(SurfaceGreenDeep, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Watched",
-                    tint = Color(0xFF7CE49F),
+                    tint = GreenSuccess,
                     modifier = Modifier.size(20.dp)
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (activeItem.type == MediaType.MOVIE) "Watched Movie" else "Watched Episode",
-                    color = Color(0xFF7CE49F),
+                    color = GreenSuccess,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -514,7 +541,7 @@ fun WatchedEpisodeHighlightBanner(
                 }
                 Text(
                     text = if (formattedWatchedAt != null) "Watched on $formattedWatchedAt" else "Marked as watched on Simkl",
-                    color = Color(0xFFC3EED3),
+                    color = SuccessLight,
                     fontSize = 12.sp
                 )
             }
@@ -534,8 +561,8 @@ fun SelectedEpisodeDetailsCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
         Column(
@@ -545,7 +572,7 @@ fun SelectedEpisodeDetailsCard(
             Text(
                 text = if (activeItem.type == MediaType.MOVIE) "Release Information" else "Selected Episode Details",
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFE6E1E5),
+                color = TextPrimary,
                 fontSize = 15.sp
             )
 
@@ -556,10 +583,10 @@ fun SelectedEpisodeDetailsCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Theatrical Release", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                        Text("Theatrical Release", color = TextSubtle, fontSize = 14.sp)
                         Text(
                             text = DateUtil.formatDisplayDate(theatricalItem.date),
-                            color = Color(0xFFE6E1E5),
+                            color = TextPrimary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp
                         )
@@ -572,10 +599,10 @@ fun SelectedEpisodeDetailsCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Digital / DVD Release", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                        Text("Digital / DVD Release", color = TextSubtle, fontSize = 14.sp)
                         Text(
                             text = DateUtil.formatDisplayDate(digitalItem.date),
-                            color = Color(0xFFE6E1E5),
+                            color = TextPrimary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp
                         )
@@ -589,10 +616,10 @@ fun SelectedEpisodeDetailsCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(dateLabel, color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                        Text(dateLabel, color = TextSubtle, fontSize = 14.sp)
                         Text(
                             text = DateUtil.formatDisplayDate(activeItem.date),
-                            color = Color(0xFFE6E1E5),
+                            color = TextPrimary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp
                         )
@@ -605,10 +632,10 @@ fun SelectedEpisodeDetailsCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Air Date", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                    Text("Air Date", color = TextSubtle, fontSize = 14.sp)
                     Text(
                         text = formattedDateTime,
-                        color = Color(0xFFE6E1E5),
+                        color = TextPrimary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
                     )
@@ -625,10 +652,10 @@ fun SelectedEpisodeDetailsCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(slugLabel, color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                    Text(slugLabel, color = TextSubtle, fontSize = 14.sp)
                     Text(
                         text = slugValue,
-                        color = Color(0xFFE6E1E5),
+                        color = TextPrimary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
                     )
@@ -640,10 +667,10 @@ fun SelectedEpisodeDetailsCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Episode Name", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                    Text("Episode Name", color = TextSubtle, fontSize = 14.sp)
                     Text(
                         text = titleText,
-                        color = Color(0xFFE6E1E5),
+                        color = TextPrimary,
                         fontWeight = FontWeight.Medium,
                         fontSize = 14.sp,
                     )
@@ -655,7 +682,7 @@ fun SelectedEpisodeDetailsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Watch Status", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                Text("Watch Status", color = TextSubtle, fontSize = 14.sp)
                 ItemWatchedStatusDropdown(
                     item = activeItem,
                     onWatchedStatusChange = onWatchedStatusChange,
@@ -670,7 +697,7 @@ fun SelectedEpisodeDetailsCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Status", color = Color(0xFFCAC4D0), fontSize = 14.sp)
+                    Text("Status", color = TextSubtle, fontSize = 14.sp)
                     ItemMediaStatusDropdown(
                         item = mediaStatusItem,
                         onStatusChange = { newStatus -> onMediaStatusChange(mediaStatusItem.primaryKey, newStatus) }
@@ -680,21 +707,30 @@ fun SelectedEpisodeDetailsCard(
 
             // Prem/Finale labels
             if (activeItem.isSeasonPremiere || activeItem.isSeasonFinale) {
-                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+                HorizontalDivider(
+                    color = OutlineVariant,
+                    thickness = 1.dp,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (activeItem.isSeasonPremiere) {
                         Box(
                             modifier = Modifier
-                                .background(Color(0xFFE8DEF8), RoundedCornerShape(4.dp))
+                                .background(PurpleContainerLight, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Text("🎉 SEASON PREMIERE", color = Color(0xFF1D192B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "🎉 SEASON PREMIERE",
+                                color = SurfaceVariantDark,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                     if (activeItem.isSeasonFinale) {
                         Box(
                             modifier = Modifier
-                                .background(Color(0xFFB3261E), RoundedCornerShape(4.dp))
+                                .background(ErrorRed, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text("🎬 SEASON FINALE", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -719,15 +755,15 @@ fun ScheduledReleasesCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = if (activeItem.type == MediaType.MOVIE) "Scheduled Releases (${showScheduleItems.size})" else "Scheduled Episodes (${showScheduleItems.size})",
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFE6E1E5),
+                color = TextPrimary,
                 fontSize = 15.sp
             )
             Spacer(modifier = Modifier.height(10.dp))
@@ -743,10 +779,10 @@ fun ScheduledReleasesCard(
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) Color(0xFF4F378B).copy(alpha = 0.4f) else Color(0xFF1C1B1F),
+                    color = if (isSelected) SurfacePrimaryVariant.copy(alpha = 0.4f) else SurfaceDark,
                     border = BorderStroke(
                         1.dp,
-                        if (isSelected) Color(0xFFD0BCFF) else Color(0xFF3B383E)
+                        if (isSelected) PurpleLight else SurfaceVariantGrey
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -767,8 +803,8 @@ fun ScheduledReleasesCard(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
-                                color = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF381E72),
-                                contentColor = if (isSelected) Color(0xFF381E72) else Color(0xFFEADDFF)
+                                color = if (isSelected) PurpleLight else SurfacePurple,
+                                contentColor = if (isSelected) SurfacePurple else PurpleContainerSoft
                             ) {
                                 Text(
                                     text = epTag,
@@ -785,14 +821,14 @@ fun ScheduledReleasesCard(
                                     } else {
                                         epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
                                     },
-                                    color = Color(0xFFE6E1E5),
+                                    color = TextPrimary,
                                     fontSize = 13.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     maxLines = 1
                                 )
                                 Text(
                                     text = epDate,
-                                    color = Color(0xFFA5A3B1),
+                                    color = TextGreyLight,
                                     fontSize = 11.sp
                                 )
                             }
@@ -837,7 +873,7 @@ fun ScheduledReleasesCard(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Currently Selected",
-                                tint = Color(0xFFD0BCFF),
+                                tint = PurpleLight,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -861,10 +897,10 @@ fun SeasonWatchButton(
         enabled = !isMarkingWatched && !isSeasonFullyWatched,
         modifier = modifier.height(48.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSeasonFullyWatched) Color(0xFF2E6543) else Color(0xFF4F378B),
-            contentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFFEADDFF),
-            disabledContainerColor = if (isSeasonFullyWatched) Color(0xFF1E3A2B) else Color(0xFF3B383E),
-            disabledContentColor = if (isSeasonFullyWatched) Color(0xFF7CE49F) else Color(0xFF79747E)
+            containerColor = if (isSeasonFullyWatched) SurfaceGreenDeep else SurfacePrimaryVariant,
+            contentColor = if (isSeasonFullyWatched) GreenSuccess else PurpleContainerSoft,
+            disabledContainerColor = if (isSeasonFullyWatched) SurfaceGreen else SurfaceVariantGrey,
+            disabledContentColor = if (isSeasonFullyWatched) GreenSuccess else OutlineGrey
         ),
         shape = RoundedCornerShape(10.dp)
     ) {
@@ -872,7 +908,7 @@ fun SeasonWatchButton(
             CircularProgressIndicator(
                 modifier = Modifier.size(18.dp),
                 strokeWidth = 2.dp,
-                color = Color(0xFFEADDFF)
+                color = PurpleContainerSoft
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Updating SIMKL...", fontWeight = FontWeight.Bold)

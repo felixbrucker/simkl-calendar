@@ -187,9 +187,9 @@ Whenever modifying Room entities or database schema:
 - Pass URL-encoded string arguments (`URLEncoder.encode(param, "UTF-8")`) when navigating across routes with string parameters.
 - Provide safe backstack navigation helpers (`navController.popBackStackSafely()`).
 
-### 7.2 Composable Function Decomposition Rule (15-Line Limit)
+### 7.2 Composable Function Decomposition Rule (25-Line Limit)
 - **Granular Composable Extraction**: UI code MUST be split into small, single-responsibility `@Composable` functions.
-- **15-Line Limit**: Any UI layout section or block that exceeds **15 lines** of code MUST be extracted into a separate standalone `@Composable` helper function (e.g., `HeaderCard`, `SearchBar`, `StatusBadge`, `SectionTitle`).
+- **25-Line Limit**: Any UI layout section or block that exceeds **25 lines** of code MUST be extracted into a separate standalone `@Composable` helper function (e.g., `HeaderCard`, `SearchBar`, `StatusBadge`, `SectionTitle`).
 - **Benefits**: This strict decomposition keeps screen files clean and readable, reduces re-composition scope, simplifies UI testing, and enables isolated `@Preview` functions.
 
 ### 7.3 State Hoisting & Flow Subscription Directives
@@ -256,6 +256,10 @@ fun testUpdateItemStateSuccess() = runTest {
 }
 ```
 
+### 9.3 Lint and Detekt
+Modifying or adding issues to the detekt-baseline.xml and lint-baseline.xml is PROHIBITED. If you produce code that triggers lint or detekt issues, fix them instead of ignoring them.
+Only deleting issues from the baseline files is allowed (fixing ignored issues). Adding @Suppress to new code to silence issues is PROHIBITED.
+
 ---
 
 ## 10. Build Environment & Executables
@@ -278,4 +282,5 @@ chmod +x gradlew
 Always use the local Gradle wrapper (`./gradlew` or `gradlew.bat`):
 - `./gradlew assembleDebug`: Build debug APK.
 - `./gradlew test`: Run unit test suite.
+- `./gradlew lint detekt`: Run linter.
 - `./gradlew koverVerify`: Run Kover test coverage verification.

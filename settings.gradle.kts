@@ -25,4 +25,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Simkl Calendar"
 
-include(":app")
+include(":app", ":detekt-rules")

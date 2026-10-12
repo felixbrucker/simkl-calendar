@@ -42,6 +42,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.felixbrucker.simklcalendar.R
 import com.felixbrucker.simklcalendar.data.database.UserToken
+import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreyDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
+import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.LoginViewModel
 import androidx.core.net.toUri
 
@@ -100,8 +109,8 @@ fun LoginContent(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF2B2930),
-                            Color(0xFF1C1B1F)
+                            SurfaceContainer,
+                            SurfaceDark
                         )
                     )
                 )
@@ -120,7 +129,7 @@ fun LoginContent(
                     modifier = Modifier
                         .size(120.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF313033))
+                        .background(SurfaceGreyDark)
                         .padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -138,7 +147,7 @@ fun LoginContent(
                     text = "SIMKL CALENDAR",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFFE6E1E5),
+                    color = TextPrimary,
                     letterSpacing = 2.sp,
                     textAlign = TextAlign.Center
                 )
@@ -146,7 +155,7 @@ fun LoginContent(
                 Text(
                     text = "Track your favorite TV Shows, Anime & Movies",
                     fontSize = 15.sp,
-                    color = Color(0xFFCAC4D0),
+                    color = TextSubtle,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
                 )
@@ -158,8 +167,8 @@ fun LoginContent(
                 // OAuth Options Card
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-                    border = BorderStroke(1.dp, Color(0xFF49454F)),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+                    border = BorderStroke(1.dp, OutlineVariant),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 24.dp)
@@ -196,8 +205,8 @@ fun LoginContent(
                                     .fillMaxWidth()
                                     .height(50.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFD0BCFF),
-                                    contentColor = Color(0xFF381E72)
+                                    containerColor = PurpleLight,
+                                    contentColor = SurfacePurple
                                 ),
                                 shape = RoundedCornerShape(12.dp),
                                 enabled = !isSyncing
@@ -210,24 +219,24 @@ fun LoginContent(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFF313033), RoundedCornerShape(8.dp))
-                                    .border(BorderStroke(1.dp, Color(0xFF49454F)), RoundedCornerShape(8.dp))
+                                    .background(SurfaceGreyDark, RoundedCornerShape(8.dp))
+                                    .border(BorderStroke(1.dp, OutlineVariant), RoundedCornerShape(8.dp))
                                     .padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFF2B8B5))
+                                Icon(Icons.Default.Info, contentDescription = null, tint = ErrorPink)
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
                                         text = "Secrets Not Configured",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
-                                        color = Color(0xFFF2B8B5)
+                                        color = ErrorPink
                                     )
                                     Text(
                                         text = "SIMKL_CLIENT_ID is missing from secrets panel.",
                                         fontSize = 12.sp,
-                                        color = Color(0xFFCAC4D0)
+                                        color = TextSubtle
                                     )
                                 }
                             }
@@ -253,7 +262,7 @@ fun LoginContent(
                         .background(Color.Black.copy(alpha = 0.6f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color(0xFFD0BCFF))
+                    CircularProgressIndicator(color = PurpleLight)
                 }
             }
         }
@@ -264,8 +273,8 @@ fun LoginContent(
 private fun AuthV2UpgradeCard() {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF381E72)),
-        border = BorderStroke(1.dp, Color(0xFFD0BCFF)),
+        colors = CardDefaults.cardColors(containerColor = SurfacePurple),
+        border = BorderStroke(1.dp, PurpleLight),
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 20.dp)
@@ -277,7 +286,7 @@ private fun AuthV2UpgradeCard() {
             Icon(
                 imageVector = Icons.Default.Info,
                 contentDescription = null,
-                tint = Color(0xFFD0BCFF),
+                tint = PurpleLight,
                 modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -292,7 +301,7 @@ private fun AuthV2UpgradeCard() {
                 Text(
                     text = "Simkl has upgraded to Auth V2 authentication. Please log in again to reconnect your account. All your saved watchlist items, custom settings, and watched history have been preserved.",
                     fontSize = 13.sp,
-                    color = Color(0xFFE6E1E5)
+                    color = TextPrimary
                 )
             }
         }

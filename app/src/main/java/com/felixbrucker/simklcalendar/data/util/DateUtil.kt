@@ -14,12 +14,15 @@ import java.text.SimpleDateFormat
 
 object DateUtil {
 
-    // Thread-safe cached formatters to avoid pattern compilation during UI rendering
-    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
-    private val headerSameYearFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault())
-    private val headerDiffYearFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.getDefault())
     private val slashDateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
-    private val displayDateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)
+    private val displayDateFormatter: DateTimeFormatter
+        get() = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(Locale.getDefault())
+    private val timeFormatter: DateTimeFormatter
+        get() = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
+    private val headerSameYearFormatter: DateTimeFormatter
+        get() = DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault())
+    private val headerDiffYearFormatter: DateTimeFormatter
+        get() = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.getDefault())
 
     /**
      * Parses an HTTP date string (e.g. from Last-Modified header in RFC 1123 format) into an Instant.

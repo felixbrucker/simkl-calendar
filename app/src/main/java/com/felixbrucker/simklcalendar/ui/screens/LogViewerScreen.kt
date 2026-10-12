@@ -84,6 +84,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.felixbrucker.simklcalendar.data.logging.LogEntry
+import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
+import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
+import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkGreen
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreyDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceYellowDark
+import com.felixbrucker.simklcalendar.ui.theme.TextGrey
+import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
+import com.felixbrucker.simklcalendar.ui.theme.YellowWarningLight
 import com.felixbrucker.simklcalendar.ui.viewmodel.LogViewerViewModel
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -173,7 +191,7 @@ fun LogViewerScreen(
                 onClearLogs = { showClearDialog = true }
             )
         },
-        containerColor = Color(0xFF1C1B1F)
+        containerColor = SurfaceDark
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -245,21 +263,21 @@ fun LogViewerTopBar(
     onClearLogs: () -> Unit
 ) {
     TopAppBar(
-        title = { Text("App Log Viewer", color = Color(0xFFE6E1E5), fontWeight = FontWeight.Bold) },
+        title = { Text("App Log Viewer", color = TextPrimary, fontWeight = FontWeight.Bold) },
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFFE6E1E5))
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
             }
         },
         actions = {
             IconButton(onClick = onCopyLogs, modifier = Modifier.testTag("copy_logs_button")) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "Copy Logs", tint = Color(0xFFD0BCFF))
+                Icon(Icons.Default.ContentCopy, contentDescription = "Copy Logs", tint = PurpleLight)
             }
             IconButton(onClick = onClearLogs, modifier = Modifier.testTag("clear_logs_button")) {
-                Icon(Icons.Default.Delete, contentDescription = "Clear Logs", tint = Color(0xFFF2B8B5))
+                Icon(Icons.Default.Delete, contentDescription = "Clear Logs", tint = ErrorPink)
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C1B1F))
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceDark)
     )
 }
 
@@ -273,11 +291,11 @@ fun LogViewerSearchInput(
         value = searchQuery,
         onValueChange = onSearchQueryChange,
         placeholder = { Text("Filter logs by tag or text...", fontSize = 13.sp) },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFCAC4D0)) },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextSubtle) },
         trailingIcon = {
             if (searchQuery.isNotEmpty()) {
                 IconButton(onClick = { onSearchQueryChange("") }) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear search", tint = Color(0xFFCAC4D0))
+                    Icon(Icons.Default.Close, contentDescription = "Clear search", tint = TextSubtle)
                 }
             }
         },
@@ -286,12 +304,12 @@ fun LogViewerSearchInput(
         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         modifier = Modifier.fillMaxWidth().testTag("log_search_input"),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Color(0xFFD0BCFF),
-            unfocusedBorderColor = Color(0xFF49454F),
-            focusedContainerColor = Color(0xFF2B2930),
-            unfocusedContainerColor = Color(0xFF2B2930),
-            focusedTextColor = Color(0xFFE6E1E5),
-            unfocusedTextColor = Color(0xFFE6E1E5)
+            focusedBorderColor = PurpleLight,
+            unfocusedBorderColor = OutlineVariant,
+            focusedContainerColor = SurfaceContainer,
+            unfocusedContainerColor = SurfaceContainer,
+            focusedTextColor = TextPrimary,
+            unfocusedTextColor = TextPrimary
         )
     )
 }
@@ -308,10 +326,10 @@ fun LogViewerPriorityFilterChip(
         onClick = { onSelectPriority(priorityVal) },
         label = { Text(label, fontSize = 12.sp) },
         colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = Color(0xFFD0BCFF),
-            selectedLabelColor = Color(0xFF381E72),
-            containerColor = Color(0xFF2B2930),
-            labelColor = Color(0xFFCAC4D0)
+            selectedContainerColor = PurpleLight,
+            selectedLabelColor = SurfacePurple,
+            containerColor = SurfaceContainer,
+            labelColor = TextSubtle
         )
     )
 }
@@ -361,7 +379,7 @@ fun LogViewerCountHeader(
     ) {
         Text(
             text = "Showing $filteredLogsCount of $totalLogsCount log entries",
-            color = Color(0xFFCAC4D0),
+            color = TextSubtle,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium
         )
@@ -370,7 +388,7 @@ fun LogViewerCountHeader(
                 onClick = onJumpToBottom,
                 contentPadding = PaddingValues(0.dp)
             ) {
-                Text("Jump to Bottom", fontSize = 11.sp, color = Color(0xFFD0BCFF))
+                Text("Jump to Bottom", fontSize = 11.sp, color = PurpleLight)
             }
         }
     }
@@ -408,11 +426,11 @@ fun LogEmptyView(isLogsEmpty: Boolean) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.Terminal, contentDescription = null, tint = Color(0xFF79747E), modifier = Modifier.size(48.dp))
+            Icon(Icons.Default.Terminal, contentDescription = null, tint = OutlineGrey, modifier = Modifier.size(48.dp))
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = if (isLogsEmpty) "No log entries recorded yet" else "No matching log entries found",
-                color = Color(0xFFCAC4D0),
+                color = TextSubtle,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -482,7 +500,7 @@ fun LogEntryHeader(
             LogBadge(priorityLabel = entry.priorityLabel(), badgeBg = badgeBg, badgeFg = badgeFg)
             Text(
                 text = entry.tag ?: "SimklCalendar",
-                color = Color(0xFFE6E1E5),
+                color = TextPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp
             )
@@ -490,7 +508,7 @@ fun LogEntryHeader(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = formattedTime,
-                color = Color(0xFF938F99),
+                color = TextGrey,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
             )
@@ -502,7 +520,7 @@ fun LogEntryHeader(
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = if (isExpanded) "Collapse" else "Expand",
-                        tint = Color(0xFFCAC4D0)
+                        tint = TextSubtle
                     )
                 }
             }
@@ -524,7 +542,7 @@ fun LogEntryMessage(
     SelectionContainer(modifier = modifier) {
         Text(
             text = displayText,
-            color = Color(0xFFE6E1E5),
+            color = TextPrimary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
             lineHeight = 16.sp
@@ -545,13 +563,13 @@ fun LogEntryStackTrace(
 
     Surface(
         shape = RoundedCornerShape(4.dp),
-        color = Color(0xFF1C1B1F),
+        color = SurfaceDark,
         modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
     ) {
         SelectionContainer(modifier = Modifier.padding(8.dp)) {
             Text(
                 text = displayText,
-                color = Color(0xFFF2B8B5),
+                color = ErrorPink,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
             )
@@ -575,11 +593,11 @@ fun LogEntryCard(entry: LogEntry) {
 
     val (badgeBg, badgeFg) = remember(entry.priority) {
         when (entry.priority) {
-            Log.ERROR -> Color(0xFF601410) to Color(0xFFF2B8B5)
-            Log.WARN -> Color(0xFF4A3800) to Color(0xFFFFDDB3)
-            Log.INFO -> Color(0xFF00382B) to Color(0xFF7CE49F)
-            Log.DEBUG -> Color(0xFF1D192B) to Color(0xFFD0BCFF)
-            else -> Color(0xFF313033) to Color(0xFFCAC4D0)
+            Log.ERROR -> SurfaceRedDeep to ErrorPink
+            Log.WARN -> SurfaceYellowDark to YellowWarningLight
+            Log.INFO -> SurfaceDarkGreen to GreenSuccess
+            Log.DEBUG -> SurfaceVariantDark to PurpleLight
+            else -> SurfaceGreyDark to TextSubtle
         }
     }
 
@@ -593,8 +611,8 @@ fun LogEntryCard(entry: LogEntry) {
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = Color(0xFF2B2930),
-        border = BorderStroke(1.dp, Color(0xFF3B383E)),
+        color = SurfaceContainer,
+        border = BorderStroke(1.dp, SurfaceVariantGrey),
         modifier = Modifier
             .fillMaxWidth()
             .then(

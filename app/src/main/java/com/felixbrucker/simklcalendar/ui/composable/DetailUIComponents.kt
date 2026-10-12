@@ -3,16 +3,76 @@ package com.felixbrucker.simklcalendar.ui.composable
 import android.content.Context
 import android.content.Intent
 import android.text.format.Formatter
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -23,18 +83,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
@@ -46,6 +104,30 @@ import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.extensions.toAnimeSeasonTokens
 import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
+import com.felixbrucker.simklcalendar.ui.theme.BlueAccent
+import com.felixbrucker.simklcalendar.ui.theme.BlueLight
+import com.felixbrucker.simklcalendar.ui.theme.ContainerBlue
+import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
+import com.felixbrucker.simklcalendar.ui.theme.ErrorPinkLight
+import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
+import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
+import com.felixbrucker.simklcalendar.ui.theme.PurplePrimaryDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkBlue
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
+import com.felixbrucker.simklcalendar.ui.theme.TextGreyLight
+import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
+import com.felixbrucker.simklcalendar.ui.theme.YellowAccent
+import com.felixbrucker.simklcalendar.ui.theme.YellowWarning
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import kotlinx.coroutines.launch
 
@@ -64,7 +146,7 @@ fun SeasonOverrideDialog(
         title = { Text("Season Overrides") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Text("Remap season numbers for torrent searches.", fontSize = 12.sp, color = Color(0xFFCAC4D0))
+                Text("Remap season numbers for torrent searches.", fontSize = 12.sp, color = TextSubtle)
 
                 if (tempOverrides.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -74,17 +156,22 @@ fun SeasonOverrideDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Season $orig → Season $target", color = Color(0xFFE6E1E5), fontSize = 14.sp)
+                                Text("Season $orig → Season $target", color = TextPrimary, fontSize = 14.sp)
                                 IconButton(onClick = { tempOverrides = tempOverrides - orig }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFF2B8B5), modifier = Modifier.size(18.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = ErrorPink,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
                             }
                         }
                     }
-                    HorizontalDivider(color = Color(0xFF49454F))
+                    HorizontalDivider(color = OutlineVariant)
                 }
 
-                Text("Add/Update Override", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFD0BCFF))
+                Text("Add/Update Override", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = PurpleLight)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -123,7 +210,7 @@ fun SeasonOverrideDialog(
                         },
                         enabled = origSeason.isNotBlank() && targetSeason.isNotBlank()
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Add", tint = Color(0xFFD0BCFF))
+                        Icon(Icons.Default.Add, contentDescription = "Add", tint = PurpleLight)
                     }
                 }
             }
@@ -151,11 +238,11 @@ fun MediaStatusDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val (backgroundColor, textColor) = when (currentStatus) {
-        MediaStatus.IGNORED -> Color(0xFF3B383E) to Color(0xFFA5A3B1)
-        MediaStatus.NOT_AIRED_YET -> Color(0xFF3B383E) to Color(0xFFA5A3B1)
-        MediaStatus.WANTED -> Color(0xFF601410) to Color(0xFFF9DEDC)
-        MediaStatus.DOWNLOADING -> Color(0xFF004A77) to Color(0xFFC2E8FF)
-        MediaStatus.DOWNLOADED -> Color(0xFF1E3A2B) to Color(0xFF7CE49F)
+        MediaStatus.IGNORED -> SurfaceVariantGrey to TextGreyLight
+        MediaStatus.NOT_AIRED_YET -> SurfaceVariantGrey to TextGreyLight
+        MediaStatus.WANTED -> SurfaceRedDeep to ErrorPinkLight
+        MediaStatus.DOWNLOADING -> ContainerBlue to BlueLight
+        MediaStatus.DOWNLOADED -> SurfaceGreen to GreenSuccess
     }
 
     Box {
@@ -188,7 +275,7 @@ fun MediaStatusDropdown(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.background(Color(0xFF2B2930))
+            modifier = Modifier.background(SurfaceContainer)
         ) {
             MediaStatus.entries.forEach { status ->
                 DropdownMenuItem(
@@ -205,7 +292,7 @@ fun MediaStatusDropdown(
                             MediaStatus.DOWNLOADING -> Icons.Default.Download
                             MediaStatus.DOWNLOADED -> Icons.Default.CheckCircle
                         }
-                        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFFD0BCFF))
+                        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = PurpleLight)
                     }
                 )
             }
@@ -220,8 +307,8 @@ fun WatchedStatusDropdown(
     isLoading: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val backgroundColor = if (isWatched) Color(0xFF1E3A2B) else Color(0xFF3C1F1E)
-    val textColor = if (isWatched) Color(0xFF7CE49F) else Color(0xFFF2B8B5)
+    val backgroundColor = if (isWatched) SurfaceGreen else SurfaceRedDark
+    val textColor = if (isWatched) GreenSuccess else ErrorPink
 
     Box {
         Surface(
@@ -260,7 +347,7 @@ fun WatchedStatusDropdown(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.background(Color(0xFF2B2930))
+            modifier = Modifier.background(SurfaceContainer)
         ) {
             DropdownMenuItem(
                 text = { Text("Watched", color = Color.White, fontSize = 14.sp) },
@@ -269,7 +356,7 @@ fun WatchedStatusDropdown(
                     expanded = false
                 },
                 leadingIcon = {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF7CE49F))
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp), tint = GreenSuccess)
                 }
             )
             DropdownMenuItem(
@@ -279,7 +366,7 @@ fun WatchedStatusDropdown(
                     expanded = false
                 },
                 leadingIcon = {
-                    Icon(Icons.Default.RadioButtonUnchecked, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFFF2B8B5))
+                    Icon(Icons.Default.RadioButtonUnchecked, contentDescription = null, modifier = Modifier.size(18.dp), tint = ErrorPink)
                 }
             )
         }
@@ -311,9 +398,9 @@ fun ItemMediaStatusDropdown(
 }
 
 fun getTableItemColor(x: Int, y: Int): Color {
-    if (y == 0 || x == y) return Color(0xFF7CE49F) // Green
+    if (y == 0 || x == y) return GreenSuccess // Green
     val ratio = x.toDouble() / y
-    return if (ratio > 0.4) Color(0xFFE2E262) else Color(0xFFF2B8B5) // Yellow, Red
+    return if (ratio > 0.4) YellowWarning else ErrorPink // Yellow, Red
 }
 
 @Composable
@@ -329,11 +416,11 @@ fun NotificationSettingsCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F))
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Notifications Strategy", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 15.sp)
+            Text("Notifications Strategy", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 15.sp)
             Spacer(modifier = Modifier.height(12.dp))
 
             if (!isMovie) {
@@ -344,8 +431,8 @@ fun NotificationSettingsCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Episode Alerts", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Notify me as soon as each episode of this series airs.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                        Text("Episode Alerts", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Notify me as soon as each episode of this series airs.", color = TextSubtle, fontSize = 11.sp)
                     }
                     Switch(
                         checked = notifyEveryEpisode,
@@ -356,7 +443,7 @@ fun NotificationSettingsCard(
                     )
                 }
 
-                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
 
                 // Toggle Season Finished Airing
                 Row(
@@ -365,8 +452,8 @@ fun NotificationSettingsCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Season Finished Airing", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Notify me when the season has finished airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                        Text("Season Finished Airing", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Notify me when the season has finished airing.", color = TextSubtle, fontSize = 11.sp)
                     }
                     Switch(
                         checked = notifySeasonFinished,
@@ -384,8 +471,8 @@ fun NotificationSettingsCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Theater Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Notify me when the movie releases in theaters.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                        Text("Theater Release", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Notify me when the movie releases in theaters.", color = TextSubtle, fontSize = 11.sp)
                     }
                     Switch(
                         checked = notifyEveryEpisode,
@@ -396,7 +483,7 @@ fun NotificationSettingsCard(
                     )
                 }
 
-                HorizontalDivider(color = Color(0xFF49454F), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
 
                 // Movie Digital / DVD Release Toggle
                 Row(
@@ -405,8 +492,8 @@ fun NotificationSettingsCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Digital / DVD Release", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Notify me when the movie is available on digital or DVD.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                        Text("Digital / DVD Release", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Notify me when the movie is available on digital or DVD.", color = TextSubtle, fontSize = 11.sp)
                     }
                     Switch(
                         checked = notifySeasonFinished,
@@ -421,169 +508,205 @@ fun NotificationSettingsCard(
     }
 }
 
+@Immutable
+data class DetailHeaderData(
+    val simklId: Int,
+    val type: MediaType,
+    val title: String,
+    val poster: String?,
+    val rating: Double? = null,
+    val titleRomaji: String? = null,
+    val hasUniqueTitleRomaji: Boolean = !titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true),
+    val animeSeason: Int? = null,
+)
+
 @Composable
 fun DetailHeader(
-    simklId: Int,
-    type: MediaType,
-    title: String,
-    poster: String?,
+    data: DetailHeaderData,
     modifier: Modifier = Modifier,
-    rating: Double? = null,
-    titleRomaji: String? = null,
-    hasUniqueTitleRomaji: Boolean = !titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true),
-    animeSeason: Int? = null,
     onTitleClick: () -> Unit = {},
 ) {
-    val context = LocalContext.current
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(260.dp)
     ) {
-        AsyncImage(
-            model = poster.toPosterUrl(PosterSize.WIDE),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Scrim gradient
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color(0xFF1C1B1F)
-                        ),
-                        startY = 100f
-                    )
-                )
-        )
-
-        // Rating Badge on top right of poster
-        if (rating != null) {
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = Color.Black.copy(alpha = 0.75f),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Rating",
-                        tint = Color(0xFFFFC107),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = String.format(java.util.Locale.US, "%.1f", rating),
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
-        }
-
-        // Overlay Title metadata
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp)
-                .padding(end = 100.dp) // Avoid overlapping with the button
-        ) {
-            Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = when (type) {
-                    MediaType.ANIME -> Color(0xFFE8DEF8)
-                    MediaType.MOVIE -> Color(0xFFF2B8B5)
-                    MediaType.TV -> Color(0xFFBAC3FF)
-                },
-                contentColor = when (type) {
-                    MediaType.ANIME -> Color(0xFF1D192B)
-                    MediaType.MOVIE -> Color(0xFF601410)
-                    MediaType.TV -> Color(0xFF1A237E)
-                }
-            ) {
-                Text(
-                    text = type.displayName.uppercase(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = title,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
-                modifier = Modifier.clickable(onClick = onTitleClick)
+        DetailHeaderPosterScrim(poster = data.poster)
+        if (data.rating != null) {
+            DetailHeaderRatingBadge(
+                rating = data.rating,
+                modifier = Modifier.align(Alignment.TopEnd)
             )
-
-            if (hasUniqueTitleRomaji) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = titleRomaji!!,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Color(0xFFCAC4D0)
-                )
-            }
-
-            val animeSeasonLabel = MediaFormatter.formatAnimeSeasonLabel(type, animeSeason)
-            if (animeSeasonLabel != null) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = animeSeasonLabel,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Color(0xFFCAC4D0)
-                )
-            }
         }
+        DetailHeaderTitleOverlay(
+            data = data,
+            onTitleClick = onTitleClick,
+            modifier = Modifier.align(Alignment.BottomStart)
+        )
+        DetailHeaderOpenSimklButton(
+            simklId = data.simklId,
+            type = data.type,
+            modifier = Modifier.align(Alignment.BottomEnd)
+        )
+    }
+}
 
-        // Open on SIMKL Button in Bottom Right
-        Button(
-            onClick = {
-                val intent = Intent(
-                    Intent.ACTION_VIEW,
-                    MediaFormatter.formatSimklUrl(simklId, type).toUri(),
+@Composable
+private fun DetailHeaderPosterScrim(poster: String?) {
+    AsyncImage(
+        model = poster.toPosterUrl(PosterSize.WIDE),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxSize()
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, SurfaceDark),
+                    startY = 100f
                 )
-                context.startActivity(intent)
-            },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .height(32.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF6750A4).copy(alpha = 0.8f),
-                contentColor = Color.White
-            ),
-            shape = RoundedCornerShape(8.dp)
+            )
+    )
+}
+
+@Composable
+private fun DetailHeaderRatingBadge(
+    rating: Double,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = Color.Black.copy(alpha = 0.75f),
+        modifier = modifier.padding(16.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
+                imageVector = Icons.Default.Star,
+                contentDescription = "Rating",
+                tint = YellowAccent,
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "Open on SIMKL",
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp
+                text = String.format(java.util.Locale.US, "%.1f", rating),
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.ExtraBold
             )
         }
+    }
+}
+
+@Composable
+private fun DetailHeaderTitleOverlay(
+    data: DetailHeaderData,
+    onTitleClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .padding(16.dp)
+            .padding(end = 100.dp)
+    ) {
+        DetailMediaTypeBadge(type = data.type)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = data.title,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.White,
+            modifier = Modifier.clickable(onClick = onTitleClick)
+        )
+        DetailSubtitles(data = data)
+    }
+}
+
+@Composable
+private fun DetailSubtitles(data: DetailHeaderData) {
+    if (data.hasUniqueTitleRomaji && data.titleRomaji != null) {
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = data.titleRomaji,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Normal,
+            color = TextSubtle
+        )
+    }
+    val animeSeasonLabel = MediaFormatter.formatAnimeSeasonLabel(data.type, data.animeSeason)
+    if (animeSeasonLabel != null) {
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = animeSeasonLabel,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Normal,
+            color = TextSubtle
+        )
+    }
+}
+
+@Composable
+private fun DetailMediaTypeBadge(
+    type: MediaType,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(4.dp),
+        color = when (type) {
+            MediaType.ANIME -> PurpleContainerLight
+            MediaType.MOVIE -> ErrorPink
+            MediaType.TV -> BlueAccent
+        },
+        contentColor = when (type) {
+            MediaType.ANIME -> SurfaceVariantDark
+            MediaType.MOVIE -> SurfaceRedDeep
+            MediaType.TV -> SurfaceDarkBlue
+        }
+    ) {
+        Text(
+            text = type.displayName.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
+private fun DetailHeaderOpenSimklButton(
+    simklId: Int,
+    type: MediaType,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    Button(
+        onClick = {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                MediaFormatter.formatSimklUrl(simklId, type).toUri(),
+            )
+            context.startActivity(intent)
+        },
+        modifier = modifier.padding(16.dp).height(32.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = PurplePrimaryDark.copy(alpha = 0.8f),
+            contentColor = Color.White
+        ),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = "Open on SIMKL", fontWeight = FontWeight.Bold, fontSize = 11.sp)
     }
 }
 
@@ -620,18 +743,18 @@ fun DownloadSettingsCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-        border = BorderStroke(1.dp, Color(0xFF49454F))
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp).alpha(if (isDownloaderInstalled) 1f else 0.5f)) {
-            Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = Color(0xFFE6E1E5), fontSize = 16.sp)
+            Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
             Spacer(modifier = Modifier.height(12.dp))
 
             // Unwatched Toggle
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Unwatched", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Auto search and add unwatched episodes.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                    Text("Download Unwatched", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Auto search and add unwatched episodes.", color = TextSubtle, fontSize = 11.sp)
                 }
                 Switch(
                     checked = itemSettings?.downloadUnwatched ?: globalUnwatched,
@@ -648,8 +771,8 @@ fun DownloadSettingsCard(
                 // Season Unwatched Toggle
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Download Season Unwatched", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Auto download all episodes when a season finishes airing.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                        Text("Download Season Unwatched", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Auto download all episodes when a season finishes airing.", color = TextSubtle, fontSize = 11.sp)
                     }
                     Switch(
                         checked = itemSettings?.downloadSeasonUnwatched ?: globalSeasonUnwatched,
@@ -664,7 +787,7 @@ fun DownloadSettingsCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Quality
-            Text("Preferred Quality", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text("Preferred Quality", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("4K", "1080p", "720p").forEach { quality ->
                     val isSelected = (itemSettings?.qualityOverride == quality) || (itemSettings?.qualityOverride == null && globalQuality == quality)
@@ -685,7 +808,7 @@ fun DownloadSettingsCard(
             // HEVC
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Prefer HEVC / x265", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Prefer HEVC / x265", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Switch(
                     checked = itemSettings?.preferHevcOverride ?: globalPreferHevc,
@@ -699,7 +822,7 @@ fun DownloadSettingsCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Download Subdirectory Override
-            Text("Download Subdirectory", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text("Download Subdirectory", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             val subdirs = (listOf(defaultSubdirectory) + availableSubdirectories).distinct().sorted()
             FlowRow(
                 modifier = Modifier.padding(top = 8.dp),
@@ -726,8 +849,8 @@ fun DownloadSettingsCard(
             var showDetectDialog by remember { mutableStateOf(false) }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Title Override", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Use custom search title for this item.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                    Text("Title Override", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Use custom search title for this item.", color = TextSubtle, fontSize = 11.sp)
                 }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -744,13 +867,13 @@ fun DownloadSettingsCard(
                     }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF1C1B1F),
-                        border = BorderStroke(1.dp, Color(0xFF49454F)),
+                        color = SurfaceDark,
+                        border = BorderStroke(1.dp, OutlineVariant),
                         modifier = Modifier.clickable(enabled = isDownloaderInstalled) { showTitleDialog = true }
                     ) {
                         Text(
                             text = itemSettings?.titleOverride ?: "None",
-                            color = if (itemSettings?.titleOverride != null) Color(0xFFD0BCFF) else Color.White,
+                            color = if (itemSettings?.titleOverride != null) PurpleLight else Color.White,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
@@ -805,18 +928,18 @@ fun DownloadSettingsCard(
                 val seasonOverrides = itemSettings?.seasonOverrides ?: emptyMap()
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Season Overrides", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Map seasons for torrent searching.", color = Color(0xFFCAC4D0), fontSize = 11.sp)
+                        Text("Season Overrides", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Map seasons for torrent searching.", color = TextSubtle, fontSize = 11.sp)
                     }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF1C1B1F),
-                        border = BorderStroke(1.dp, Color(0xFF49454F)),
+                        color = SurfaceDark,
+                        border = BorderStroke(1.dp, OutlineVariant),
                         modifier = Modifier.clickable(enabled = isDownloaderInstalled) { showSeasonDialog = true }
                     ) {
                         Text(
                             text = if (seasonOverrides.isEmpty()) "None" else "${seasonOverrides.size} active",
-                            color = if (seasonOverrides.isNotEmpty()) Color(0xFFD0BCFF) else Color.White,
+                            color = if (seasonOverrides.isNotEmpty()) PurpleLight else Color.White,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
@@ -836,7 +959,7 @@ fun DownloadSettingsCard(
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Episode Search Style", color = Color(0xFFE6E1E5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Episode Search Style", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     }
                     val currentSearchStyle = itemSettings?.episodeSearchStyle ?: mediaType.defaultEpisodeSearchStyle
                     SingleChoiceSegmentedButtonRow {
@@ -916,8 +1039,8 @@ fun DetectTitleDialog(
                 .widthIn(min = 360.dp, max = 900.dp)
                 .fillMaxWidth(0.96f),
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-            border = BorderStroke(1.dp, Color(0xFF49454F))
+            colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+            border = BorderStroke(1.dp, OutlineVariant)
         ) {
             Column(
                 modifier = Modifier
@@ -1039,7 +1162,7 @@ private fun DetectSeasonCheckbox(
         Text(
             text = labelText,
             fontSize = 13.sp,
-            color = if (isEnabled) Color(0xFFE6E1E5) else Color(0xFF79747E)
+            color = if (isEnabled) TextPrimary else OutlineGrey
         )
     }
 }
@@ -1059,7 +1182,7 @@ private fun DetectSearchResultsTable(
             text = "First Episode Search Results",
             fontWeight = FontWeight.Bold,
             fontSize = 12.sp,
-            color = Color(0xFFCAC4D0),
+            color = TextSubtle,
             modifier = Modifier.padding(bottom = 6.dp)
         )
         if (isLoading) {
@@ -1078,11 +1201,11 @@ private fun DetectSearchResultsTable(
                     .height(60.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("No torrents found", fontSize = 12.sp, color = Color(0xFFCAC4D0))
+                Text("No torrents found", fontSize = 12.sp, color = TextSubtle)
             }
         } else {
             DetectResultsTableHeader()
-            HorizontalDivider(color = Color(0xFF49454F), thickness = 0.5.dp)
+            HorizontalDivider(color = OutlineVariant, thickness = 0.5.dp)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -1103,9 +1226,9 @@ private fun DetectResultsTableHeader() {
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("Title", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFCAC4D0), modifier = Modifier.weight(1f))
-        Text("Size", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFCAC4D0), modifier = Modifier.width(65.dp))
-        Text("Seeders", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFCAC4D0), modifier = Modifier.width(45.dp), textAlign = TextAlign.End)
+        Text("Title", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.weight(1f))
+        Text("Size", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(65.dp))
+        Text("Seeders", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(45.dp), textAlign = TextAlign.End)
     }
 }
 
@@ -1135,17 +1258,16 @@ private fun DetectSearchResultRow(
         Text(
             text = formattedSize,
             fontSize = 11.sp,
-            color = Color(0xFFCAC4D0),
+            color = TextSubtle,
             modifier = Modifier.width(65.dp)
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = "${item.seeder}",
             fontSize = 11.sp,
-            color = Color(0xFFD0BCFF),
+            color = PurpleLight,
             modifier = Modifier.width(45.dp),
             textAlign = TextAlign.End
         )
     }
 }
-

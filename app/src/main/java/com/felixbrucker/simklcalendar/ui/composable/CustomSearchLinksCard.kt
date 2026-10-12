@@ -27,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
@@ -38,6 +37,12 @@ import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
+import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -62,8 +67,8 @@ fun CustomSearchLinksCard(
     if (matchingSearchLinks.isNotEmpty()) {
         Card(
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
-            border = BorderStroke(1.dp, Color(0xFF49454F)),
+            colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+            border = BorderStroke(1.dp, OutlineVariant),
             modifier = modifier,
         ) {
             Column(
@@ -77,13 +82,13 @@ fun CustomSearchLinksCard(
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
-                        tint = Color(0xFFD0BCFF),
+                        tint = PurpleLight,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = "Custom Search Links",
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE6E1E5),
+                        color = TextPrimary,
                         fontSize = 15.sp
                     )
                 }
@@ -106,8 +111,8 @@ fun CustomSearchLinksCard(
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFF1C1B1F),
-                            border = BorderStroke(1.dp, Color(0xFF49454F)),
+                            color = SurfaceDark,
+                            border = BorderStroke(1.dp, OutlineVariant),
                             modifier = Modifier
                                 .clickable {
                                     try {
@@ -128,7 +133,7 @@ fun CustomSearchLinksCard(
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
-                                    color = Color(0xFF2B2930),
+                                    color = SurfaceContainer,
                                     modifier = Modifier.size(28.dp)
                                 ) {
                                     Box(
@@ -149,7 +154,7 @@ fun CustomSearchLinksCard(
                                 ) {
                                     Text(
                                         text = link.name,
-                                        color = Color(0xFFE6E1E5),
+                                        color = TextPrimary,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 13.sp,
                                         lineHeight = 15.sp,
@@ -160,7 +165,7 @@ fun CustomSearchLinksCard(
                                     if (!link.subtitle.isNullOrBlank()) {
                                         Text(
                                             text = link.subtitle,
-                                            color = Color(0xFFCAC4D0),
+                                            color = TextSubtle,
                                             fontSize = 11.sp,
                                             lineHeight = 13.sp,
                                             maxLines = 1,
@@ -174,7 +179,7 @@ fun CustomSearchLinksCard(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                                     contentDescription = "Open ${link.name}",
-                                    tint = Color(0xFFD0BCFF),
+                                    tint = PurpleLight,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
