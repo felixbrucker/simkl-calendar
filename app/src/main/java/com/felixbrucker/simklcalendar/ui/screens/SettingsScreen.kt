@@ -1988,7 +1988,8 @@ fun SettingsAutomaticDownloadsCard(
                 onAdd = onAddPreferredKeyword,
                 onRemove = onRemovePreferredKeyword,
                 onReorder = onReorderPreferredKeywords,
-                enabled = isDownloaderInstalled
+                enabled = isDownloaderInstalled,
+                color = PurpleLight
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -2318,7 +2319,7 @@ fun KeywordManagerSection(
     onRemove: (String) -> Unit,
     onReorder: (List<String>) -> Unit,
     enabled: Boolean,
-    color: Color = Color(0xFFD0BCFF)
+    color: Color,
 ) {
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingKeyword by remember { mutableStateOf<String?>(null) }
