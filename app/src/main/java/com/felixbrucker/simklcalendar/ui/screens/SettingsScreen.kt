@@ -2310,6 +2310,7 @@ fun SettingsAppLogsSection(
     }
 }
 
+@Suppress("CyclomaticComplexMethod", "LongParameterList", "LongMethod")
 @Composable
 fun KeywordManagerSection(
     title: String,

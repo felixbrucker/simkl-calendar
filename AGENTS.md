@@ -258,7 +258,7 @@ fun testUpdateItemStateSuccess() = runTest {
 
 ### 9.3 Lint and Detekt
 Modifying or adding issues to the detekt-baseline.xml and lint-baseline.xml is PROHIBITED. If you produce code that triggers lint or detekt issues, fix them instead of ignoring them.
-Only deleting issues from the baseline files is allowed (fixing ignored issues).
+Only deleting issues from the baseline files is allowed (fixing ignored issues). Adding @Suppress to new code to silence issues is PROHIBITED.
 
 ---
 
