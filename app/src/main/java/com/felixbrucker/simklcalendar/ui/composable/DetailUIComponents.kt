@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -50,7 +49,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -711,7 +709,6 @@ private fun DetailHeaderOpenSimklButton(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadSettingsCard(
     simklId: Int,
@@ -1019,7 +1016,6 @@ private fun DownloadSubdirectorySection(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DownloadSubdirectoryHeader(
     selectedSubdirectory: String,
@@ -1070,7 +1066,6 @@ private fun DownloadSubdirectoryHeader(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DownloadSubdirectoryChipList(
     defaultSubdirectory: String,
@@ -1098,7 +1093,6 @@ private fun DownloadSubdirectoryChipList(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetectTitleDialog(
     initialTitle: String,

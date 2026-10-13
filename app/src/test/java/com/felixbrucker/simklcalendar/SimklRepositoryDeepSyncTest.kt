@@ -8,7 +8,6 @@ import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.data.repository.*
 import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import io.mockk.*
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -22,7 +21,6 @@ import org.junit.Test
 import retrofit2.Response
 import java.io.File
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class SimklRepositoryDeepSyncTest {
 
     private lateinit var context: Context

@@ -13,7 +13,6 @@ import com.felixbrucker.simklcalendar.data.preferences.*
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.felixbrucker.simklcalendar.receiver.alarm.makeItemAiredAlarmIntent
 import io.mockk.*
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -23,7 +22,6 @@ import org.junit.Before
 import org.junit.Test
 import java.time.Instant
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class AlarmSchedulerTest {
 
     private lateinit var context: Context

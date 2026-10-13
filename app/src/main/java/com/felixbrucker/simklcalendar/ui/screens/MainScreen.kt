@@ -6,7 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -83,7 +82,7 @@ private enum class SearchBarDisplayMode {
     DOCKED
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MainScreen(
     viewModel: CalendarViewModel,
@@ -374,7 +373,7 @@ fun MainScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Results for \"$searchQuery\" (${totalFilteredCalendarItems})",
+                            text = "Results for \"$searchQuery\" ($totalFilteredCalendarItems)",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = PurpleLight
@@ -755,7 +754,6 @@ private fun MainMobileViewModeToggle(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainFilterBar(
     viewMode: ViewMode,

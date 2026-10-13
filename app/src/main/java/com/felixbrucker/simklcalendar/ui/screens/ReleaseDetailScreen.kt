@@ -165,7 +165,7 @@ fun ReleaseDetailScreen(
     }
 
     val setting by viewModel.getSettingForSimklIdFlow(activeItem?.simklId ?: 0).collectAsState(null)
-    val notificationSetting = setting  // Required for smart casting
+    val notificationSetting = setting // Required for smart casting
 
     val notificationPrefs by viewModel.notificationPreferences.collectAsState()
     val defaultAiring = notificationPrefs.defaultNotifyAiring

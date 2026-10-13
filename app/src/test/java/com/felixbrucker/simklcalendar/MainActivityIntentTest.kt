@@ -27,7 +27,6 @@ import io.mockk.spyk
 import io.mockk.unmockkConstructor
 import io.mockk.unmockkStatic
 import io.mockk.verify
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -35,7 +34,6 @@ import org.junit.Before
 import org.junit.Test
 import java.time.Instant
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class MainActivityIntentTest {
 
     private lateinit var context: Context

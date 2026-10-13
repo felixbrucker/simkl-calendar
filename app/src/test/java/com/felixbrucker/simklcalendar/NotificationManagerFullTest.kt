@@ -47,7 +47,6 @@ import io.mockk.unmockkConstructor
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -58,7 +57,6 @@ import org.junit.Before
 import org.junit.Test
 import java.time.Instant
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class NotificationManagerFullTest {
 
     private lateinit var context: Context
