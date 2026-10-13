@@ -2,6 +2,7 @@ package com.felixbrucker.simklcalendar.data.repository
 
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
+import com.felixbrucker.simklcalendar.data.database.SimklCalendarStats
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
@@ -16,10 +17,11 @@ import javax.inject.Singleton
 @Singleton
 class CalendarRepository @Inject constructor(
     private val calendarDao: CalendarItemDao,
-    watchlistDao: WatchlistDao,
+    private val watchlistDao: WatchlistDao,
     private val mediaStatusResolver: MediaStatusResolver,
 ) {
     val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()
+    val simklCalendarStats: Flow<List<SimklCalendarStats>> = calendarDao.getSimklCalendarStats()
     val wantedCalendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getWantedCalendarItems()
     val downloadingCalendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getDownloadingCalendarItemsFlow()
     val watchlistItems: Flow<List<TrackedWatchlistItem>> = watchlistDao.getAllTrackedItemsFlow()
@@ -42,6 +44,8 @@ class CalendarRepository @Inject constructor(
     ): List<CalendarItemWithWatchlist> = withContext(Dispatchers.IO) {
         calendarDao.getItemsInSeasonOrRelatedItems(simklId, season)
     }
+
+    fun getWatchlistItemFlow(simklId: Int): Flow<TrackedWatchlistItem?> = watchlistDao.getItemFlow(simklId)
 
     suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus) = withContext(Dispatchers.IO) {
         calendarDao.updateMediaStatus(primaryKey, status)

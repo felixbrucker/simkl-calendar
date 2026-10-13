@@ -23,6 +23,23 @@ interface UserTokenDao {
 
 @Dao
 interface CalendarItemDao {
+    @Query("""
+        SELECT
+            ci.simklId AS simklId,
+            CAST(SUM(CASE WHEN ci.watchedAt IS NULL THEN 1 ELSE 0 END) AS INTEGER) AS unwatchedCount,
+            CAST(SUM(CASE WHEN ci.watchedAt IS NULL AND ci.date <= (strftime('%s', 'now') * 1000) THEN 1 ELSE 0 END) AS INTEGER) AS unwatchedReleasedCount,
+            MIN(CASE WHEN ci.date > (strftime('%s', 'now') * 1000) THEN ci.date ELSE NULL END) AS nextEpisodeDate,
+            MAX(CASE WHEN ci.date <= (strftime('%s', 'now') * 1000) THEN ci.date ELSE NULL END) AS lastAiredDate,
+            CAST(COALESCE(SUM(CASE WHEN ci.date <= (strftime('%s', 'now') * 1000) AND ci.watchedAt IS NOT NULL THEN 1 ELSE 0 END), 0) AS INTEGER) AS watchedReleasedCount,
+            CAST(COALESCE(SUM(CASE WHEN ci.date <= (strftime('%s', 'now') * 1000) THEN 1 ELSE 0 END), 0) AS INTEGER) AS totalReleasedCount,
+            CAST(COALESCE(SUM(CASE WHEN ci.date <= (strftime('%s', 'now') * 1000) AND lis.mediaStatus = 'DOWNLOADED' THEN 1 ELSE 0 END), 0) AS INTEGER) AS downloadedReleasedCount,
+            CAST(COALESCE(SUM(CASE WHEN ci.date <= (strftime('%s', 'now') * 1000) AND (lis.mediaStatus = 'WANTED' OR lis.mediaStatus = 'DOWNLOADING' OR lis.mediaStatus = 'DOWNLOADED') THEN 1 ELSE 0 END), 0) AS INTEGER) AS totalDownloadableReleasedCount
+        FROM calendar_items ci
+        LEFT JOIN local_item_state lis ON ci.primaryKey = lis.primaryKey
+        GROUP BY ci.simklId
+    """)
+    fun getSimklCalendarStats(): Flow<List<SimklCalendarStats>>
+
     @Transaction
     @Query("""
         SELECT ci.* FROM calendar_items ci
@@ -65,6 +82,7 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC")
     suspend fun getItemsForSimklId(simklId: Int): List<CalendarItemWithWatchlist>
 
+    @Transaction
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY season ASC, episodeNumber ASC, date ASC")
     fun getSortedItemsForSimklIdFlow(simklId: Int): Flow<List<CalendarItemWithWatchlist>>
 
@@ -91,6 +109,7 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
     suspend fun findItem(primaryKey: String): CalendarItemWithWatchlist?
 
+    @Transaction
     @Query("SELECT * FROM calendar_items WHERE primaryKey = :primaryKey LIMIT 1")
     fun getItemFlow(primaryKey: String): Flow<CalendarItemWithWatchlist?>
 
@@ -208,6 +227,9 @@ interface WatchlistDao {
 
     @Query("SELECT * FROM tracked_watchlist_items WHERE simklId = :simklId LIMIT 1")
     suspend fun getItem(simklId: Int): TrackedWatchlistItem?
+
+    @Query("SELECT * FROM tracked_watchlist_items WHERE simklId = :simklId LIMIT 1")
+    fun getItemFlow(simklId: Int): Flow<TrackedWatchlistItem?>
 
     @Query("SELECT * FROM tracked_watchlist_items WHERE simklId IN (:simklIds)")
     suspend fun getTrackedItemsBySimklIds(simklIds: List<Int>): List<TrackedWatchlistItem>

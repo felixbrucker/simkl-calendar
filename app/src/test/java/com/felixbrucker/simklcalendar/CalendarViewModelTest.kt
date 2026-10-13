@@ -7,6 +7,7 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.LocalItemState
+import com.felixbrucker.simklcalendar.data.database.SimklCalendarStats
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
@@ -70,6 +71,7 @@ class CalendarViewModelTest {
     private lateinit var notificationSettingRepositoryMock: NotificationSettingRepository
 
     private val calendarItemsFlow = MutableStateFlow<List<CalendarItemWithWatchlist>>(emptyList())
+    private val simklCalendarStatsFlow = MutableStateFlow<List<SimklCalendarStats>>(emptyList())
     private val wantedCalendarItemsFlow = MutableStateFlow<List<CalendarItemWithWatchlist>>(emptyList())
     private val userTokenFlow = MutableStateFlow<UserToken?>(null)
     private val watchlistItemsFlow = MutableStateFlow<List<TrackedWatchlistItem>>(emptyList())
@@ -97,6 +99,7 @@ class CalendarViewModelTest {
 
         userTokenFlow.value = null
         calendarItemsFlow.value = emptyList()
+        simklCalendarStatsFlow.value = emptyList()
         wantedCalendarItemsFlow.value = emptyList()
         watchlistItemsFlow.value = emptyList()
         customSearchLinksFlow.value = emptyList()
@@ -132,6 +135,7 @@ class CalendarViewModelTest {
         every { application.applicationContext } returns application
 
         every { calendarRepositoryMock.calendarItems } returns calendarItemsFlow
+        every { calendarRepositoryMock.simklCalendarStats } returns simklCalendarStatsFlow
         every { calendarRepositoryMock.wantedCalendarItems } returns wantedCalendarItemsFlow
         every { userRepositoryMock.activeUserToken } returns userTokenFlow
         every { calendarRepositoryMock.watchlistItems } returns watchlistItemsFlow
@@ -709,39 +713,30 @@ class CalendarViewModelTest {
         watchlistItemsFlow.value = listOf(watchlistItem1, watchlistItem2, watchlistItem3)
 
         val now = Instant.now()
-        val calItem1 = CalendarItemWithWatchlist(
-            calendarItem = CalendarItem(
-                primaryKey = "v2_1_1_1",
+        simklCalendarStatsFlow.value = listOf(
+            SimklCalendarStats(
                 simklId = 1,
-                episodeTitle = "Ep 1",
-                season = 1,
-                episodeNumber = 1,
-                date = now.minusSeconds(7200),
-                movieReleaseType = null,
-                isSeasonPremiere = true,
-                isSeasonFinale = false,
-                watchedAt = null
+                unwatchedCount = 1,
+                unwatchedReleasedCount = 1,
+                nextEpisodeDate = null,
+                lastAiredDate = now.minusSeconds(7200),
+                watchedReleasedCount = 0,
+                totalReleasedCount = 1,
+                downloadedReleasedCount = 1,
+                totalDownloadableReleasedCount = 1
             ),
-            watchlistItem = watchlistItem1,
-            localState = LocalItemState(primaryKey = "v2_1_1_1", mediaStatus = MediaStatus.DOWNLOADED)
-        )
-        val calItem2 = CalendarItemWithWatchlist(
-            calendarItem = CalendarItem(
-                primaryKey = "v2_2_1_1",
+            SimklCalendarStats(
                 simklId = 2,
-                episodeTitle = "Ep 1",
-                season = 1,
-                episodeNumber = 1,
-                date = now.plusSeconds(7200),
-                movieReleaseType = null,
-                isSeasonPremiere = true,
-                isSeasonFinale = false,
-                watchedAt = null
-            ),
-            watchlistItem = watchlistItem2,
-            localState = LocalItemState(primaryKey = "v2_2_1_1", mediaStatus = MediaStatus.WANTED)
+                unwatchedCount = 1,
+                unwatchedReleasedCount = 0,
+                nextEpisodeDate = now.plusSeconds(7200),
+                lastAiredDate = null,
+                watchedReleasedCount = 0,
+                totalReleasedCount = 0,
+                downloadedReleasedCount = 0,
+                totalDownloadableReleasedCount = 0
+            )
         )
-        calendarItemsFlow.value = listOf(calItem1, calItem2)
 
         val viewModel = createViewModel()
 

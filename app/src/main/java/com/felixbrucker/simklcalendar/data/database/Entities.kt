@@ -406,5 +406,21 @@ data class ItemDownloadSettings(
     val episodeSearchStyle: EpisodeSearchStyle? = null
 )
 
+@Immutable
+data class SimklCalendarStats(
+    val simklId: Int,
+    val unwatchedCount: Int,
+    val unwatchedReleasedCount: Int,
+    val nextEpisodeDate: Instant?,
+    val lastAiredDate: Instant?,
+    val watchedReleasedCount: Int,
+    val totalReleasedCount: Int,
+    val downloadedReleasedCount: Int,
+    val totalDownloadableReleasedCount: Int
+) {
+    val hasUnwatched: Boolean get() = unwatchedCount > 0
+    val hasUnwatchedReleased: Boolean get() = unwatchedReleasedCount > 0
+}
+
 
 

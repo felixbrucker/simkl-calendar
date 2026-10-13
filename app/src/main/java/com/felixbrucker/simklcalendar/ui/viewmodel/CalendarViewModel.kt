@@ -7,6 +7,7 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.NotificationSetting
+import com.felixbrucker.simklcalendar.data.database.SimklCalendarStats
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisode
@@ -106,8 +107,6 @@ class CalendarViewModel @Inject constructor(
     private val torrentServiceHelper: TorrentServiceHelper,
     defaultDispatcher: CoroutineDispatcher
 ) : ViewModel() {
-
-    val watchlistItems: Flow<List<TrackedWatchlistItem>> = calendarRepository.watchlistItems
     val customSearchLinks: StateFlow<List<CustomSearchLink>> = customSearchLinkRepository.customSearchLinks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -348,14 +347,14 @@ class CalendarViewModel @Inject constructor(
     @Suppress("UNCHECKED_CAST")
     val watchlistTableItems: StateFlow<List<WatchlistTableItem>> = combine(
         calendarRepository.watchlistItems,
-        calendarRepository.calendarItems,
+        calendarRepository.simklCalendarStats,
         searchQuery,
         uiPreferences,
         tableSortField,
         tableSortDirection
     ) { flows ->
         val watchlist = flows[0] as List<TrackedWatchlistItem>
-        val calendar = flows[1] as List<CalendarItemWithWatchlist>
+        val statsList = flows[1] as List<SimklCalendarStats>
         val query = flows[2] as String
         val ui = flows[3] as UiPreferences
         val sortField = flows[4] as TableSortField
@@ -366,11 +365,9 @@ class CalendarViewModel @Inject constructor(
         val movies = ui.filterShowMovies
         val onlyUnwatchedReleased = ui.filterOnlyUnwatched
 
-        // Pre-group calendar items by simklId upfront to convert lookup complexity from O(N*M) to O(N+M).
-        val calendarBySimklId = calendar.groupBy { it.simklId }
-        val now = Instant.now()
+        val statsBySimklId = statsList.associateBy { it.simklId }
 
-        // Filter watchlist items by category & search query BEFORE running calendar episode loops and object allocations.
+        // Filter watchlist items by category & search query BEFORE mapping stats and object allocations.
         watchlist.filter { item ->
             val matchesCategory = when (item.type) {
                 MediaType.TV -> tv
@@ -385,52 +382,16 @@ class CalendarViewModel @Inject constructor(
                 item.titleRomaji?.contains(query, ignoreCase = true) == true
             }
         }.mapNotNull { item ->
-            val itemCalendar = calendarBySimklId[item.simklId] ?: emptyList()
+            val stats = statsBySimklId[item.simklId]
 
-            // Single pass over itemCalendar without intermediate list allocations
-            var hasUnwatched = false
-            var hasUnwatchedReleased = false
-            var nextEp: Instant? = null
-            var lastAired: Instant? = null
-            var watchedReleasedCount = 0
-            var totalReleasedCount = 0
-            var downloadedReleasedCount = 0
-            var totalDownloadableReleasedCount = 0
-
-            for (calItem in itemCalendar) {
-                val calDate = calItem.date
-                val isReleased = calDate.isBefore(now)
-
-                if (!calItem.isWatched) {
-                    hasUnwatched = true
-                    if (isReleased) {
-                        hasUnwatchedReleased = true
-                    }
-                }
-
-                if (isReleased) {
-                    totalReleasedCount++
-                    if (calItem.isWatched) {
-                        watchedReleasedCount++
-                    }
-                    if (calItem.mediaStatus == MediaStatus.DOWNLOADED) {
-                        downloadedReleasedCount++
-                    }
-                    if (calItem.mediaStatus == MediaStatus.WANTED ||
-                        calItem.mediaStatus == MediaStatus.DOWNLOADING ||
-                        calItem.mediaStatus == MediaStatus.DOWNLOADED
-                    ) {
-                        totalDownloadableReleasedCount++
-                    }
-                    if (lastAired == null || calDate.isAfter(lastAired)) {
-                        lastAired = calDate
-                    }
-                } else if (calDate.isAfter(now)) {
-                    if (nextEp == null || calDate.isBefore(nextEp)) {
-                        nextEp = calDate
-                    }
-                }
-            }
+            val hasUnwatched = stats?.hasUnwatched ?: false
+            val hasUnwatchedReleased = stats?.hasUnwatchedReleased ?: false
+            val nextEp = stats?.nextEpisodeDate
+            val lastAired = stats?.lastAiredDate
+            val watchedReleasedCount = stats?.watchedReleasedCount ?: 0
+            val totalReleasedCount = stats?.totalReleasedCount ?: 0
+            val downloadedReleasedCount = stats?.downloadedReleasedCount ?: 0
+            val totalDownloadableReleasedCount = stats?.totalDownloadableReleasedCount ?: 0
 
             if (onlyUnwatchedReleased && !hasUnwatchedReleased) {
                 return@mapNotNull null
@@ -477,6 +438,10 @@ class CalendarViewModel @Inject constructor(
 
     fun getSettingForSimklIdFlow(simklId: Int): Flow<NotificationSetting?> {
         return notificationSettingRepository.getSettingForSimklIdFlow(simklId).flowOn(Dispatchers.IO)
+    }
+
+    fun getWatchlistItemFlow(simklId: Int): Flow<TrackedWatchlistItem?> {
+        return calendarRepository.getWatchlistItemFlow(simklId).flowOn(Dispatchers.IO)
     }
 
     fun saveItemDownloadSettings(settings: ItemDownloadSettings) {

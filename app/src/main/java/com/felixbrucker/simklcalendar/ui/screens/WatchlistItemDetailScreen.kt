@@ -63,7 +63,6 @@ fun WatchlistItemDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEpisode: (String) -> Unit
 ) {
-    val watchlistItems by viewModel.watchlistItems.collectAsState(initial = emptyList())
     val tableItems by viewModel.watchlistTableItems.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
     val torrentDownloads by viewModel.torrentDownloads.collectAsState()
@@ -90,11 +89,10 @@ fun WatchlistItemDetailScreen(
     }
 
     val setting by viewModel.getSettingForSimklIdFlow(simklId).collectAsState(null)
-    val notificationSetting = setting  // Required for smart casting
+    val notificationSetting = setting // Required for smart casting
 
-    val watchlistItem = remember(watchlistItems, simklId) {
-        watchlistItems.find { it.simklId == simklId }
-    }
+    val watchlistItemDelegate by viewModel.getWatchlistItemFlow(simklId).collectAsState(null)
+    val watchlistItem = watchlistItemDelegate // Required for smart casting
 
     val tableItem = remember(tableItems, simklId) {
         tableItems.find { it.watchlistItem.simklId == simklId }
