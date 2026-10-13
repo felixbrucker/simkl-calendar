@@ -39,7 +39,7 @@ formatting:
   FinalNewline:
     active: true
   ImportOrdering:
-    active: true
+    active: false
 
 complexity:
   active: true
