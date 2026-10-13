@@ -44,9 +44,30 @@ interface CalendarItemDao {
     @Query("""
         SELECT ci.* FROM calendar_items ci
         INNER JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
+        WHERE ci.watchedAt IS NULL
+        AND twi.type IN (:allowedTypes)
+        AND (
+            (:hasSubtypeFilter = 0) OR
+            (:premieres = 1 AND ci.isSeasonPremiere = 1) OR
+            (:finales = 1 AND ci.isSeasonFinale = 1) OR
+            (:digitalDvd = 1 AND twi.type = 'movie' AND ci.movieReleaseType = 'DIGITAL')
+        )
+        AND (
+            :query = '' OR
+            twi.title LIKE '%' || :query || '%' OR
+            (twi.titleRomaji IS NOT NULL AND twi.titleRomaji LIKE '%' || :query || '%') OR
+            (ci.episodeTitle IS NOT NULL AND ci.episodeTitle LIKE '%' || :query || '%')
+        )
         ORDER BY ci.date ASC, twi.title ASC
     """)
-    fun getAllCalendarItems(): Flow<List<CalendarItemWithWatchlist>>
+    fun getFilteredCalendarItems(
+        allowedTypes: List<String>,
+        hasSubtypeFilter: Boolean,
+        premieres: Boolean,
+        finales: Boolean,
+        digitalDvd: Boolean,
+        query: String
+    ): Flow<List<CalendarItemWithWatchlist>>
 
     @Transaction
     @Query("""

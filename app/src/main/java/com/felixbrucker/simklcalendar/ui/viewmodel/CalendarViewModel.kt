@@ -13,7 +13,6 @@ import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisode
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
-import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
@@ -24,6 +23,7 @@ import com.felixbrucker.simklcalendar.data.preferences.UiPreferences
 import com.felixbrucker.simklcalendar.data.preferences.UiRepository
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
+import com.felixbrucker.simklcalendar.data.repository.CalendarFilterParams
 import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository
 import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
 import com.felixbrucker.simklcalendar.data.repository.NotificationSettingRepository
@@ -55,6 +55,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -660,57 +661,23 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    // Combined filtered calendar list reactive flow
-    @Suppress("UNCHECKED_CAST")
+    // Combined filtered calendar list reactive flow via DB query
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val filteredCalendarItems: StateFlow<List<CalendarItemWithWatchlist>> = combine(
-        calendarRepository.calendarItems,
         uiPreferences,
         searchQuery
-    ) { flows ->
-        val items = flows[0] as List<CalendarItemWithWatchlist>
-        val ui = flows[1] as UiPreferences
-        val query = (flows[2] as String).trim()
-
-        val tv = ui.filterShowTv
-        val anime = ui.filterShowAnime
-        val movies = ui.filterShowMovies
-        val premieres = ui.filterOnlyPremieres
-        val finales = ui.filterOnlyFinales
-        val digitalDvd = ui.filterOnlyDigitalDvd
-
-        items.filter { item ->
-            // Always exclude watched episodes / releases first (fastest short-circuit)
-            if (item.isWatched) return@filter false
-
-            // Category filter
-            val matchesCategory = when (item.type) {
-                MediaType.TV -> tv
-                MediaType.ANIME -> anime
-                MediaType.MOVIE -> movies
-            }
-            if (!matchesCategory) return@filter false
-
-            // Premiere / Finale / Digital-DVD Subtype filter
-            val hasSubtypeFilter = premieres || finales || digitalDvd
-            if (hasSubtypeFilter) {
-                val matchesType = (premieres && item.isSeasonPremiere) ||
-                        (finales && item.isSeasonFinale) ||
-                        (digitalDvd && item.type == MediaType.MOVIE && item.movieReleaseType == MovieReleaseType.DIGITAL)
-                if (!matchesType) return@filter false
-            }
-
-            // Search query filter matching show/movie title, romaji title, or episode title
-            if (query.isNotEmpty()) {
-                val matchesQuery = item.title.contains(query, ignoreCase = true) ||
-                        (item.titleRomaji?.contains(query, ignoreCase = true) == true) ||
-                        (item.episodeTitle?.contains(query, ignoreCase = true) == true)
-                if (!matchesQuery) return@filter false
-            }
-
-            true
-        }
+    ) { ui, query ->
+        CalendarFilterParams(
+            showTv = ui.filterShowTv,
+            showAnime = ui.filterShowAnime,
+            showMovies = ui.filterShowMovies,
+            filterOnlyPremiers = ui.filterOnlyPremieres,
+            filterOnlyFinales = ui.filterOnlyFinales,
+            filterOnlyDigitalDvd = ui.filterOnlyDigitalDvd,
+            query = query.trim()
+        )
     }
-        .flowOn(defaultDispatcher)
+        .flatMapLatest { calendarRepository.getFilteredCalendarItems(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val totalFilteredCalendarItems: StateFlow<Int> = filteredCalendarItems

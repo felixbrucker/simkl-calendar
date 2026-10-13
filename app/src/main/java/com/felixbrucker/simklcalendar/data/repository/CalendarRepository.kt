@@ -6,13 +6,35 @@ import com.felixbrucker.simklcalendar.data.database.SimklCalendarStats
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
+
+data class CalendarFilterParams(
+    val showTv: Boolean,
+    val showAnime: Boolean,
+    val showMovies: Boolean,
+    val filterOnlyPremiers: Boolean,
+    val filterOnlyFinales: Boolean,
+    val filterOnlyDigitalDvd: Boolean,
+    val query: String
+) {
+    val hasSubtypeFilter: Boolean = filterOnlyPremiers || filterOnlyFinales || filterOnlyDigitalDvd
+    val allowedTypes: List<String> = buildList {
+        if (showTv) add(MediaType.TV.key)
+        if (showAnime) add(MediaType.ANIME.key)
+        if (showMovies) add(MediaType.MOVIE.key)
+        if (isEmpty()) {
+            add("__NONE__")
+        }
+    }
+}
 
 @Singleton
 class CalendarRepository @Inject constructor(
@@ -20,7 +42,6 @@ class CalendarRepository @Inject constructor(
     private val watchlistDao: WatchlistDao,
     private val mediaStatusResolver: MediaStatusResolver,
 ) {
-    val calendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getAllCalendarItems()
     val simklCalendarStats: Flow<List<SimklCalendarStats>> = calendarDao.getSimklCalendarStats()
     val wantedCalendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getWantedCalendarItems()
     val downloadingCalendarItems: Flow<List<CalendarItemWithWatchlist>> = calendarDao.getDownloadingCalendarItemsFlow()
@@ -69,5 +90,18 @@ class CalendarRepository @Inject constructor(
 
     suspend fun deleteCalendarItem(primaryKey: String) = withContext(Dispatchers.IO) {
         calendarDao.deleteCalendarItemByPrimaryKey(primaryKey)
+    }
+
+    fun getFilteredCalendarItems(params: CalendarFilterParams): Flow<List<CalendarItemWithWatchlist>> {
+        return calendarDao
+            .getFilteredCalendarItems(
+                allowedTypes = params.allowedTypes,
+                hasSubtypeFilter = params.hasSubtypeFilter,
+                premieres = params.filterOnlyPremiers,
+                finales = params.filterOnlyFinales,
+                digitalDvd = params.filterOnlyDigitalDvd,
+                query = params.query
+            )
+            .flowOn(Dispatchers.IO)
     }
 }

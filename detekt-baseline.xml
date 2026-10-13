@@ -962,6 +962,7 @@
     <ID>TooGenericExceptionThrown:TorrentServiceHelper.kt$TorrentServiceHelper$throw Exception("Service not available")</ID>
     <ID>TooManyFunctions:AppDatabase.kt$Converters</ID>
     <ID>TooManyFunctions:AutoDownloadPreferences.kt$AutoDownloadRepository</ID>
+    <ID>TooManyFunctions:CalendarRepository.kt$CalendarRepository</ID>
     <ID>TooManyFunctions:CalendarViewModel.kt$CalendarViewModel : ViewModel</ID>
     <ID>TooManyFunctions:Daos.kt$CalendarItemDao</ID>
     <ID>TooManyFunctions:Daos.kt$WatchlistDao</ID>

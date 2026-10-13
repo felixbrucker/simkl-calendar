@@ -126,7 +126,6 @@ class NotificationManagerFullTest {
         every { packageManager.getPackageInfo(any<String>(), any<Int>()) } returns PackageInfo()
 
         every { userTokenDao.getUserToken() } returns flowOf(null)
-        every { calendarDao.getAllCalendarItems() } returns flowOf(emptyList())
         every { settingDao.getAllSettings() } returns flowOf(emptyList())
         every { watchedDao.getAllWatchedEpisodesFlow() } returns flowOf(emptyList())
         every { searchLinkDao.getAllSearchLinks() } returns flowOf(emptyList())

@@ -70,7 +70,7 @@ class CalendarViewModelTest {
     private lateinit var customSearchLinkRepositoryMock: CustomSearchLinkRepository
     private lateinit var notificationSettingRepositoryMock: NotificationSettingRepository
 
-    private val calendarItemsFlow = MutableStateFlow<List<CalendarItemWithWatchlist>>(emptyList())
+    private val filteredCalendarItemsFlow = MutableStateFlow<List<CalendarItemWithWatchlist>>(emptyList())
     private val simklCalendarStatsFlow = MutableStateFlow<List<SimklCalendarStats>>(emptyList())
     private val wantedCalendarItemsFlow = MutableStateFlow<List<CalendarItemWithWatchlist>>(emptyList())
     private val userTokenFlow = MutableStateFlow<UserToken?>(null)
@@ -98,7 +98,7 @@ class CalendarViewModelTest {
         every { Environment.getExternalStoragePublicDirectory(any<String>()) } returns File("/non_existent_dir_for_test")
 
         userTokenFlow.value = null
-        calendarItemsFlow.value = emptyList()
+        filteredCalendarItemsFlow.value = emptyList()
         simklCalendarStatsFlow.value = emptyList()
         wantedCalendarItemsFlow.value = emptyList()
         watchlistItemsFlow.value = emptyList()
@@ -134,7 +134,6 @@ class CalendarViewModelTest {
 
         every { application.applicationContext } returns application
 
-        every { calendarRepositoryMock.calendarItems } returns calendarItemsFlow
         every { calendarRepositoryMock.simklCalendarStats } returns simklCalendarStatsFlow
         every { calendarRepositoryMock.wantedCalendarItems } returns wantedCalendarItemsFlow
         every { userRepositoryMock.activeUserToken } returns userTokenFlow
@@ -145,6 +144,8 @@ class CalendarViewModelTest {
         every { torrentServiceHelper.isBound } returns MutableStateFlow(false)
         every { torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
         coEvery { downloadRepositoryMock.searchAndDownloadEpisode(any()) } returns Result.failure(Exception("No torrents"))
+
+        every { calendarRepositoryMock.getFilteredCalendarItems(any()) } returns filteredCalendarItemsFlow
     }
 
     private fun createViewModel(): CalendarViewModel {
@@ -564,7 +565,7 @@ class CalendarViewModelTest {
             localState = LocalItemState(primaryKey = "v2_1_1_1", mediaStatus = MediaStatus.WANTED),
             downloadSettings = null
         )
-        calendarItemsFlow.value = listOf(itemWithWatchlist)
+        filteredCalendarItemsFlow.value = listOf(itemWithWatchlist)
 
         viewModel.updateMediaStatus("v2_1_1_1", MediaStatus.WANTED)
         viewModel.updateSeasonMediaStatus(1, 1, MediaStatus.WANTED)
@@ -602,7 +603,7 @@ class CalendarViewModelTest {
             watchlistItem = watchlistItem,
             downloadSettings = null
         )
-        calendarItemsFlow.value = listOf(itemWithWatchlist)
+        filteredCalendarItemsFlow.value = listOf(itemWithWatchlist)
         coEvery { downloadRepositoryMock.searchAndDownloadEpisode(itemWithWatchlist) } returns Result.failure(Exception("No torrent results found"))
 
         var episodeResultOk = true
@@ -755,62 +756,5 @@ class CalendarViewModelTest {
         assertTrue(itemsSortNextEp.isNotEmpty())
         assertTrue(itemsSortWatched.isNotEmpty())
         assertTrue(itemsSortDownloaded.isNotEmpty())
-    }
-
-    @Test
-    fun testFilteredCalendarItems() = runTest {
-        val now = Instant.now()
-        val watchlistItem = TrackedWatchlistItem(
-            simklId = 1,
-            type = MediaType.TV,
-            title = "Super Show",
-            titleRomaji = "Super Romaji",
-            poster = "poster.jpg"
-        )
-        val calItem1 = CalendarItemWithWatchlist(
-            calendarItem = CalendarItem(
-                primaryKey = "v2_1_1_1",
-                simklId = 1,
-                episodeTitle = "Special Premiere",
-                season = 1,
-                episodeNumber = 1,
-                date = now.minusSeconds(3600),
-                movieReleaseType = null,
-                isSeasonPremiere = true,
-                isSeasonFinale = false,
-                watchedAt = null
-            ),
-            watchlistItem = watchlistItem,
-            localState = LocalItemState(primaryKey = "v2_1_1_1", mediaStatus = MediaStatus.WANTED)
-        )
-        val calItem2 = CalendarItemWithWatchlist(
-            calendarItem = CalendarItem(
-                primaryKey = "v2_1_1_10",
-                simklId = 1,
-                episodeTitle = "Grand Finale",
-                season = 1,
-                episodeNumber = 10,
-                date = now.plusSeconds(3600),
-                movieReleaseType = null,
-                isSeasonPremiere = false,
-                isSeasonFinale = true,
-                watchedAt = null
-            ),
-            watchlistItem = watchlistItem,
-            localState = LocalItemState(primaryKey = "v2_1_1_10", mediaStatus = MediaStatus.WANTED)
-        )
-        calendarItemsFlow.value = listOf(calItem1, calItem2)
-
-        val viewModel = createViewModel()
-
-        val allItems = viewModel.filteredCalendarItems.first()
-        viewModel.setSearchQuery("Grand")
-        val searchItems = viewModel.filteredCalendarItems.first()
-        viewModel.setSearchQuery("Super Romaji")
-        val romajiItems = viewModel.filteredCalendarItems.first()
-
-        assertEquals(2, allItems.size)
-        assertEquals(1, searchItems.size)
-        assertEquals(2, romajiItems.size)
     }
 }
