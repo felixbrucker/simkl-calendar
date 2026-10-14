@@ -1,0 +1,88 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Select version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GH_COMMIT_TOKEN }}
+
+      - name: Configure Git User
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Modify version, commit, tag and push
+        run: |
+          echo "Updating version..."
+          
+          BUILD_FILE="app/build.gradle.kts" # Change to "app/build.gradle" if using Groovy
+          
+          # Extract current versionCode and versionName from the build file
+          CURRENT_VERSION_CODE=$(grep -E 'versionCode\s*=\s*[0-9]+' "$BUILD_FILE" | grep -oE '[0-9]+')
+          CURRENT_VERSION_NAME=$(grep -E 'versionName\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"' "$BUILD_FILE" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          
+          if [ -z "$CURRENT_VERSION_CODE" ] || [ -z "$CURRENT_VERSION_NAME" ]; then
+            echo "Error: Could not parse versionCode or versionName from $BUILD_FILE"
+            exit 1
+          fi
+          
+          # Parse major, minor, patch from current versionName
+          MAJOR=$(echo $CURRENT_VERSION_NAME | cut -d. -f1)
+          MINOR=$(echo $CURRENT_VERSION_NAME | cut -d. -f2)
+          PATCH=$(echo $CURRENT_VERSION_NAME | cut -d. -f3)
+          
+          # Determine bump type from user choice
+          BUMP_TYPE="${{ github.event.inputs.bump_type }}"
+          
+          if [ "$BUMP_TYPE" == "major" ]; then
+            NEW_MAJOR=$((MAJOR + 1))
+            NEW_MINOR=0
+            NEW_PATCH=0
+          elif [ "$BUMP_TYPE" == "minor" ]; then
+            NEW_MAJOR=$MAJOR
+            NEW_MINOR=$((MINOR + 1))
+            NEW_PATCH=0
+          else # patch
+            NEW_MAJOR=$MAJOR
+            NEW_MINOR=$MINOR
+            NEW_PATCH=$((PATCH + 1))
+          fi
+          
+          TARGET_TAG="${NEW_MAJOR}.${NEW_MINOR}.${NEW_PATCH}"
+          NEW_VERSION_NAME="$TARGET_TAG"
+          NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+          
+          echo "Bumping versionCode: $CURRENT_VERSION_CODE -> $NEW_VERSION_CODE"
+          echo "Bumping versionName: $CURRENT_VERSION_NAME -> $NEW_VERSION_NAME"
+          
+          sed -i "s/versionCode = [0-9]*/versionCode = $NEW_VERSION_CODE/" "$BUILD_FILE"
+          sed -i "s/versionName = \"[0-9]*\.[0-9]*\.[0-9]*\"/versionName = \"$NEW_VERSION_NAME\"/" "$BUILD_FILE"
+          
+          # Stage, commit, tag, and push
+          git add "$BUILD_FILE"
+          git commit -m "chore(release): bump version to $NEW_VERSION_NAME"
+          
+          git tag "$TARGET_TAG"
+          git push origin HEAD
+          git push origin "$TARGET_TAG"
+          
+          echo "Successfully updated version to $NEW_VERSION_NAME and created tag $TARGET_TAG"
