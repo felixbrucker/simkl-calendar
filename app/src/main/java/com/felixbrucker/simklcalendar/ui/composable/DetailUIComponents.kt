@@ -420,7 +420,7 @@ fun EpisodeDownloadProgress(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
