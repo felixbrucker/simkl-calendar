@@ -185,6 +185,102 @@ class SimklRepositoryDeepSyncTest {
     }
 
     @Test
+    fun testSyncWatchlistReturnsNewlyCreatedWatchlistItemIds() = runTest {
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+        coEvery { authenticatedApiService.getSyncActivities() } returns SyncActivitiesResponse("2026-03-30T10:00:00Z")
+        val syncResponse = SyncAllItemsResponse(
+            shows = listOf(
+                SyncShowItem(
+                    status = "watching",
+                    show = SimklMedia("New Show", "poster.jpg", SimklIds(simkl = 505))
+                )
+            )
+        )
+        coEvery { authenticatedApiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns syncResponse
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(505)) } returns emptyList()
+
+        val syncResult = syncRepository.syncWatchlist(forceFullSync = true)
+
+        val newlyCreatedIds = syncResult.newlyCreatedWatchlistItemIds
+        val hasWatchlistItemChanges = syncResult.hasWatchlistItemChanges
+        assertTrue(hasWatchlistItemChanges)
+        assertEquals(setOf(505), newlyCreatedIds)
+    }
+
+    @Test
+    fun testBackfillPastEpisodesTargetedBackfill() = runTest {
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+        val trackedShows = listOf(
+            TrackedWatchlistItem(simklId = 101, type = MediaType.TV, title = "TV Show 101", poster = null),
+            TrackedWatchlistItem(simklId = 102, type = MediaType.TV, title = "TV Show 102", poster = null)
+        )
+        coEvery { watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME)) } returns trackedShows
+        val episodes101 = listOf(
+            SimklEpisodeResponse(title = "Ep 1", season = 1, episode = 1, type = "episode", aired = true, date = "2026-02-01T20:00:00Z")
+        )
+        coEvery { publicApiService.getTvEpisodes(101) } returns episodes101
+        val nowMillis = System.currentTimeMillis()
+
+        val result = syncRepository.backfillPastEpisodes(lastSyncTimestamp = nowMillis, targetSimklIds = setOf(101))
+
+        val hasChanges = result.hasCalendarItemChanges
+        assertTrue(hasChanges)
+        coVerify(exactly = 1) { publicApiService.getTvEpisodes(101) }
+        coVerify(exactly = 0) { publicApiService.getTvEpisodes(102) }
+    }
+
+    @Test
+    fun testSyncCalendarForcesCalendarJsonSyncWhenNewItemsCreated() = runTest {
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+        coEvery { authenticatedApiService.getSyncActivities() } returns SyncActivitiesResponse("2026-03-30T10:00:00Z")
+        val syncResponse = SyncAllItemsResponse(
+            shows = listOf(
+                SyncShowItem(
+                    status = "watching",
+                    show = SimklMedia("New Show 707", "poster.jpg", SimklIds(simkl = 707))
+                )
+            )
+        )
+        coEvery { authenticatedApiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns syncResponse
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(any()) } returns emptyList()
+        coEvery { watchlistDao.getAllTrackedIds() } returns listOf(707)
+        val trackedItem = TrackedWatchlistItem(simklId = 707, type = MediaType.TV, title = "New Show 707")
+        coEvery { watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME)) } returns listOf(
+            trackedItem
+        )
+        val calendarEntry = SimklV2CalendarEntry(
+            simklId = 707,
+            date = "2026-04-10T20:00:00Z",
+            episode = SimklV2Episode(season = 1, episode = 1, title = "Ep 1")
+        )
+        val calendarResponse = SimklV2CalendarResponse(
+            calendar = listOf(calendarEntry),
+            metadata = mapOf("707" to SimklV2Metadata(title = "New Show 707"))
+        )
+        coEvery {
+            publicApiService.getV2Calendar(any(), any(), eq("tv"), any())
+        } returns Response.success(calendarResponse)
+        val emptyCalendarResponse = SimklV2CalendarResponse(emptyList(), emptyMap())
+        coEvery {
+            publicApiService.getV2Calendar(any(), any(), neq("tv"), any())
+        } returns Response.success(emptyCalendarResponse)
+        val episodeResponse = SimklEpisodeResponse(
+            title = "Ep 1",
+            season = 1,
+            episode = 1,
+            type = "episode",
+            aired = true,
+            date = "2026-01-01T20:00:00Z"
+        )
+        coEvery { publicApiService.getTvEpisodes(707) } returns listOf(episodeResponse)
+
+        syncRepository.syncCalendar(force = false)
+
+        coVerify { publicApiService.getV2Calendar(any(), any(), eq("tv"), null) }
+        coVerify { publicApiService.getTvEpisodes(707) }
+    }
+
+    @Test
     fun testSyncCalendarJsons() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
         coEvery { watchlistDao.getAllTrackedIds() } returns listOf(101, 303)

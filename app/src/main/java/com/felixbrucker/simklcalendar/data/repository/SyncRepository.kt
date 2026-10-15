@@ -45,6 +45,7 @@ internal data class SyncResult(
     val hasWatchlistItemChanges: Boolean = false,
     val hasCalendarItemChanges: Boolean = false,
     val hasWantedItems: Boolean = false,
+    val newlyCreatedWatchlistItemIds: Set<Int> = emptySet(),
 )
 
 private data class SyncItemDetailResult(
@@ -78,10 +79,17 @@ class SyncRepository @Inject constructor(
         val watchlistSyncResult = syncWatchlist(forceFullSync = force)
         val detailsSyncResult = syncWatchlistItemDetails(force = force)
         val lastJsonSyncTimestamp = syncMetadataRepo.preferencesFlow.first().lastCalendarJsonSync
+        val newlyCreatedIds = watchlistSyncResult.newlyCreatedWatchlistItemIds
+        val forceCalendarJsonSync = force || newlyCreatedIds.isNotEmpty()
         // If calendar jsons haven't been synced in >6h, sync calendar jsons
-        val calendarJsonSyncResult = syncCalendarJsons(forceFullSync = force)
-        // Backfill missing past episodes if month changed and > 1 day since last sync
-        val backfillSyncResult = backfillPastEpisodes(lastSyncTimestamp = if (force) 0L else lastJsonSyncTimestamp)
+        // (or force if newly created watchlist items exist)
+        val calendarJsonSyncResult = syncCalendarJsons(forceFullSync = forceCalendarJsonSync)
+        // Backfill missing past episodes for newly created items (if any)
+        // and if month changed and > 1 day since last sync
+        val backfillSyncResult = backfillPastEpisodes(
+            lastSyncTimestamp = if (force) 0L else lastJsonSyncTimestamp,
+            targetSimklIds = newlyCreatedIds
+        )
         if (watchlistSyncResult.hasWantedItems || detailsSyncResult.hasWantedItems || calendarJsonSyncResult.hasWantedItems || backfillSyncResult.hasWantedItems) {
             downloadRepository.searchAndDownloadWantedItems()
         }
@@ -102,6 +110,7 @@ class SyncRepository @Inject constructor(
             return@withContext SyncResult()
         }
         var changesDetected = false
+        val newlyCreatedIds = mutableSetOf<Int>()
 
         try {
             // Phase 1: Check /sync/activities to see if any library changes occurred
@@ -215,6 +224,7 @@ class SyncRepository @Inject constructor(
 
                 if (trackedToInsert.isNotEmpty()) {
                     watchlistDao.insertItems(trackedToInsert.values.toList())
+                    newlyCreatedIds.addAll(trackedToInsert.keys)
                     Timber.d("Inserted ${trackedToInsert.size} new tracked watchlist items into DB")
 
                     // Initialize default notification settings for newly inserted shows
@@ -303,6 +313,7 @@ class SyncRepository @Inject constructor(
 
         SyncResult(
             hasWatchlistItemChanges = changesDetected,
+            newlyCreatedWatchlistItemIds = newlyCreatedIds,
         )
     }
 
@@ -630,12 +641,30 @@ class SyncRepository @Inject constructor(
      * that are missing from the CDN calendar V2 JSONs (which only cover 4 months).
      *
      * @param lastSyncTimestamp The global JSON calendar sync timestamp from BEFORE the current sync run.
+     * @param targetSimklIds Optional set of specific watchlist item IDs to backfill targeted episodes for first.
      */
     internal suspend fun backfillPastEpisodes(
-        lastSyncTimestamp: Long
+        lastSyncTimestamp: Long,
+        targetSimklIds: Set<Int> = emptySet()
     ): SyncResult = withContext(Dispatchers.IO) {
         val userToken = tokenDao.getActiveToken()
         if (userToken == null || userToken.accessToken.isEmpty()) return@withContext SyncResult()
+
+        val allTrackedShows = watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME))
+        if (allTrackedShows.isEmpty()) return@withContext SyncResult()
+
+        var hasCalendarItemChanges = false
+        var hasWantedItems = false
+
+        if (targetSimklIds.isNotEmpty()) {
+            val targetedShows = allTrackedShows.filter { it.simklId in targetSimklIds }
+            if (targetedShows.isNotEmpty()) {
+                Timber.d("Starting targeted backfill for ${targetedShows.size} shows...")
+                val targetedResult = performBackfillForShows(targetedShows)
+                hasCalendarItemChanges = hasCalendarItemChanges || targetedResult.hasCalendarItemChanges
+                hasWantedItems = hasWantedItems || targetedResult.hasWantedItems
+            }
+        }
 
         val now = Instant.now()
         val lastSyncInstant = Instant.ofEpochMilli(lastSyncTimestamp)
@@ -649,17 +678,30 @@ class SyncRepository @Inject constructor(
         val oneDayAgo = now.minus(1, ChronoUnit.DAYS)
         val moreThanOneDayAgo = lastSyncInstant.isBefore(oneDayAgo)
 
-        // Logic: Sync when month changed AND more than 1 day since last sync
-        if (sameMonth || !moreThanOneDayAgo) {
-            Timber.d("Backfill skipped: same month or < 1 day since last sync")
-            return@withContext SyncResult()
+        if (!sameMonth && moreThanOneDayAgo) {
+            val remainingShows = if (targetSimklIds.isNotEmpty()) {
+                allTrackedShows.filter { it.simklId !in targetSimklIds }
+            } else {
+                allTrackedShows
+            }
+            if (remainingShows.isNotEmpty()) {
+                Timber.d("Starting backfill for ${remainingShows.size} shows...")
+                val remainingResult = performBackfillForShows(remainingShows)
+                hasCalendarItemChanges = hasCalendarItemChanges || remainingResult.hasCalendarItemChanges
+                hasWantedItems = hasWantedItems || remainingResult.hasWantedItems
+            }
+        } else {
+            Timber.d("Full backfill skipped: same month or < 1 day since last sync")
         }
 
-        Timber.d("Starting backfill for past episodes...")
+        SyncResult(
+            hasCalendarItemChanges = hasCalendarItemChanges,
+            hasWantedItems = hasWantedItems,
+        )
+    }
 
-        val trackedShows = watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME))
-        if (trackedShows.isEmpty()) return@withContext SyncResult()
-
+    private suspend fun performBackfillForShows(trackedShows: List<TrackedWatchlistItem>): SyncResult {
+        val now = Instant.now()
         val trackedIds = trackedShows.map { it.simklId }
 
         // Fetch targeted data from DB
@@ -783,7 +825,7 @@ class SyncRepository @Inject constructor(
         Timber.d("Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         val hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }
 
-        SyncResult(
+        return SyncResult(
             hasCalendarItemChanges = itemsToInsert.isNotEmpty() || itemsToUpdate.isNotEmpty(),
             hasWantedItems = hasWantedItems,
         )
@@ -1056,6 +1098,7 @@ internal fun TrackedWatchlistItem.Companion.fromShowItem(item: SyncShowItem, typ
         poster = media.poster
     )
 }
+
 
 internal fun TrackedWatchlistItem.Companion.fromMovieItem(item: SyncMovieItem): TrackedWatchlistItem {
     val media = item.movie
