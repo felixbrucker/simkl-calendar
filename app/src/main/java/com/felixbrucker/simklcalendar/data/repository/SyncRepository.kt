@@ -700,6 +700,7 @@ class SyncRepository @Inject constructor(
         )
     }
 
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     private suspend fun performBackfillForShows(trackedShows: List<TrackedWatchlistItem>): SyncResult {
         val now = Instant.now()
         val trackedIds = trackedShows.map { it.simklId }
@@ -1098,7 +1099,6 @@ internal fun TrackedWatchlistItem.Companion.fromShowItem(item: SyncShowItem, typ
         poster = media.poster
     )
 }
-
 
 internal fun TrackedWatchlistItem.Companion.fromMovieItem(item: SyncMovieItem): TrackedWatchlistItem {
     val media = item.movie
