@@ -667,6 +667,7 @@ fun EpisodesTable(
                     Box(
                         contentAlignment = Alignment.CenterStart,
                         modifier = Modifier
+                            .fillMaxHeight()
                             .clickable { onNavigateToEpisode(episode.primaryKey) }
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
@@ -674,16 +675,20 @@ fun EpisodesTable(
                             0 -> Text(text = episode.episodeNumber?.toString() ?: "-", fontSize = 13.sp, color = Color.White)
                             1 -> FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
                                     text = episode.episodeTitle ?: "TBA",
                                     fontSize = 13.sp,
                                     color = Color.White,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.align(Alignment.CenterVertically)
                                 )
                                 if (episode.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
-                                    EpisodeDownloadProgress(downloadProgress = downloadProgress)
+                                    EpisodeDownloadProgress(
+                                        downloadProgress = downloadProgress,
+                                        modifier = Modifier.align(Alignment.CenterVertically)
+                                    )
                                 }
                             }
                             2 -> Text(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)
@@ -729,16 +734,18 @@ fun MovieReleasesTable(
                 val downloadProgress = torrentDownloads[release.downloadTaskId]
 
                 Box(
+                    contentAlignment = Alignment.CenterStart,
                     modifier = Modifier
+                        .fillMaxHeight()
                         .clickable { onNavigateToEpisode(release.primaryKey) }
                         .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Column {
+                        Column(modifier = Modifier.align(Alignment.CenterVertically)) {
                             Text(
                                 text = release.movieReleaseType?.displayName ?: "Release",
                                 fontSize = 15.sp,
@@ -753,7 +760,10 @@ fun MovieReleasesTable(
                             )
                         }
                         if (release.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
-                            EpisodeDownloadProgress(downloadProgress = downloadProgress)
+                            EpisodeDownloadProgress(
+                                downloadProgress = downloadProgress,
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            )
                         }
                     }
                 }

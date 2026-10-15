@@ -892,9 +892,9 @@ private fun ScheduledReleaseTitleAndProgress(
 
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column {
+        Column(modifier = Modifier.align(Alignment.CenterVertically)) {
             Text(
                 text = titleText,
                 color = TextPrimary,
@@ -908,7 +908,10 @@ private fun ScheduledReleaseTitleAndProgress(
             )
         }
         if (epItem.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
-            EpisodeDownloadProgress(downloadProgress = downloadProgress)
+            EpisodeDownloadProgress(
+                downloadProgress = downloadProgress,
+                modifier = Modifier.align(Alignment.CenterVertically)
+            )
         }
     }
 }
