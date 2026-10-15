@@ -892,7 +892,7 @@ private fun ScheduledReleaseTitleAndProgress(
 
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)
     ) {
         Column {
             Text(

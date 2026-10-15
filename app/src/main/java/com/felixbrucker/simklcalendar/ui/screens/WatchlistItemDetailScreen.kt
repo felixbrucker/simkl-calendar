@@ -665,6 +665,7 @@ fun EpisodesTable(
                     val downloadProgress = torrentDownloads[episode.downloadTaskId]
 
                     Box(
+                        contentAlignment = Alignment.CenterStart,
                         modifier = Modifier
                             .clickable { onNavigateToEpisode(episode.primaryKey) }
                             .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -673,7 +674,7 @@ fun EpisodesTable(
                             0 -> Text(text = episode.episodeNumber?.toString() ?: "-", fontSize = 13.sp, color = Color.White)
                             1 -> FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)
                             ) {
                                 Text(
                                     text = episode.episodeTitle ?: "TBA",
@@ -735,7 +736,7 @@ fun MovieReleasesTable(
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)
                     ) {
                         Column {
                             Text(
