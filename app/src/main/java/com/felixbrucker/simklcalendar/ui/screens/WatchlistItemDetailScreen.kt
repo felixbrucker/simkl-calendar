@@ -19,7 +19,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +34,7 @@ import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
+import com.felixbrucker.simklcalendar.ui.composable.EpisodeDownloadProgress
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
@@ -49,8 +49,6 @@ import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
 import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
-import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
-import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
@@ -664,45 +662,33 @@ fun EpisodesTable(
                 } else {
                     // Row
                     val episode = episodes[row - 1]
-                    val context = LocalContext.current
                     val downloadProgress = torrentDownloads[episode.downloadTaskId]
 
                     Box(
+                        contentAlignment = Alignment.CenterStart,
                         modifier = Modifier
+                            .fillMaxHeight()
                             .clickable { onNavigateToEpisode(episode.primaryKey) }
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
                         when (column) {
                             0 -> Text(text = episode.episodeNumber?.toString() ?: "-", fontSize = 13.sp, color = Color.White)
-                            1 -> Column {
-                                Text(text = episode.episodeTitle ?: "TBA", fontSize = 13.sp, color = Color.White, maxLines = 1, fontWeight = FontWeight.Medium)
+                            1 -> FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = episode.episodeTitle ?: "TBA",
+                                    fontSize = 13.sp,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                )
                                 if (episode.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    val progress = if (downloadProgress.totalBytes > 0) downloadProgress.bytesDownloaded.toFloat() / downloadProgress.totalBytes else 0f
-                                    val percentage = (progress * 100).toInt()
-                                    val speedStr = android.text.format.Formatter.formatFileSize(context, downloadProgress.downloadSpeed.toLong()) + "/s"
-                                    val downloaded = android.text.format.Formatter.formatFileSize(context, downloadProgress.bytesDownloaded)
-                                    val total = android.text.format.Formatter.formatFileSize(context, downloadProgress.totalBytes)
-
-                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            LinearProgressIndicator(
-                                                progress = { progress },
-                                                modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
-                                                color = PurpleLight,
-                                                trackColor = SurfacePurple
-                                            )
-                                            Text(text = "$percentage%", fontSize = 9.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
-                                            Text(text = "$downloaded / $total", fontSize = 8.sp, color = TextGrey)
-                                        }
-
-                                        if (downloadProgress.downloadSpeed > 0) {
-                                            val remainingBytes = downloadProgress.totalBytes - downloadProgress.bytesDownloaded
-                                            val remainingSeconds = (remainingBytes / downloadProgress.downloadSpeed).toLong()
-                                            val eta = DateUtil.formatDuration(remainingSeconds)
-                                            Text(text = "$speedStr • ETA: $eta", fontSize = 9.sp, color = TextSubtle)
-                                        }
-                                    }
+                                    EpisodeDownloadProgress(
+                                        downloadProgress = downloadProgress,
+                                        modifier = Modifier.align(Alignment.CenterVertically)
+                                    )
                                 }
                             }
                             2 -> Text(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)
@@ -745,45 +731,39 @@ fun MovieReleasesTable(
                     .padding(bottom = 8.dp)
             ) { row, _ ->
                 val release = releases[row]
-                val context = LocalContext.current
                 val downloadProgress = torrentDownloads[release.downloadTaskId]
 
                 Box(
+                    contentAlignment = Alignment.CenterStart,
                     modifier = Modifier
+                        .fillMaxHeight()
                         .clickable { onNavigateToEpisode(release.primaryKey) }
                         .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(text = release.movieReleaseType?.displayName ?: "Release", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
-                        Text(text = DateUtil.formatDisplayDateTime(release.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)
-
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Column(modifier = Modifier.align(Alignment.CenterVertically)) {
+                            Text(
+                                text = release.movieReleaseType?.displayName ?: "Release",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = DateUtil.formatDisplayDateTime(release.date),
+                                fontSize = 12.sp,
+                                color = TextSubtle,
+                                maxLines = 1
+                            )
+                        }
                         if (release.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            val progress = if (downloadProgress.totalBytes > 0) downloadProgress.bytesDownloaded.toFloat() / downloadProgress.totalBytes else 0f
-                            val percentage = (progress * 100).toInt()
-                            val speedStr = android.text.format.Formatter.formatFileSize(context, downloadProgress.downloadSpeed.toLong()) + "/s"
-                            val downloaded = android.text.format.Formatter.formatFileSize(context, downloadProgress.bytesDownloaded)
-                            val total = android.text.format.Formatter.formatFileSize(context, downloadProgress.totalBytes)
-
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    LinearProgressIndicator(
-                                        progress = { progress },
-                                        modifier = Modifier.width(100.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
-                                        color = PurpleLight,
-                                        trackColor = SurfacePurple
-                                    )
-                                    Text(text = "$percentage%", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
-                                    Text(text = "$downloaded / $total", fontSize = 10.sp, color = TextGrey)
-                                }
-
-                                if (downloadProgress.downloadSpeed > 0) {
-                                    val remainingBytes = downloadProgress.totalBytes - downloadProgress.bytesDownloaded
-                                    val remainingSeconds = (remainingBytes / downloadProgress.downloadSpeed).toLong()
-                                    val eta = DateUtil.formatDuration(remainingSeconds)
-                                    Text(text = "$speedStr • ETA: $eta", fontSize = 11.sp, color = TextSubtle)
-                                }
-                            }
+                            EpisodeDownloadProgress(
+                                downloadProgress = downloadProgress,
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            )
                         }
                     }
                 }

@@ -59,6 +59,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
+import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedItemLabel
@@ -68,6 +69,7 @@ import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
+import com.felixbrucker.simklcalendar.ui.composable.EpisodeDownloadProgress
 import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
@@ -92,6 +94,7 @@ fun ReleaseDetailScreen(
 
     val isMarkingWatched by viewModel.isMarkingWatched.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
+    val torrentDownloads by viewModel.torrentDownloads.collectAsState()
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
     val autoDownloadPrefs by viewModel.autoDownloadPreferences.collectAsState()
     val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
@@ -413,10 +416,13 @@ fun ReleaseDetailScreen(
                     // Scheduled Episodes / Releases selector card
                     if (showScheduleItems.size > 1) {
                         ScheduledReleasesCard(
-                            activeItem = activeItem,
-                            showScheduleItems = showScheduleItems,
-                            isSmallScreen = isSmallScreen,
-                            updatingWatchKeys = updatingWatchKeys,
+                            state = ScheduledReleasesState(
+                                activeItem = activeItem,
+                                showScheduleItems = showScheduleItems,
+                                isSmallScreen = isSmallScreen,
+                                updatingWatchKeys = updatingWatchKeys,
+                                torrentDownloads = torrentDownloads
+                            ),
                             onSelectActiveItemKey = { activeItemKey = it },
                             onWatchedStatusChange = { epItem, watched ->
                                 if (epItem.type == MediaType.MOVIE) {
@@ -725,12 +731,18 @@ fun SelectedEpisodeDetailsCard(
     }
 }
 
+@Immutable
+data class ScheduledReleasesState(
+    val activeItem: CalendarItemWithWatchlist,
+    val showScheduleItems: List<CalendarItemWithWatchlist>,
+    val isSmallScreen: Boolean,
+    val updatingWatchKeys: Set<String>,
+    val torrentDownloads: Map<String, DownloadProgress> = emptyMap()
+)
+
 @Composable
 fun ScheduledReleasesCard(
-    activeItem: CalendarItemWithWatchlist,
-    showScheduleItems: List<CalendarItemWithWatchlist>,
-    isSmallScreen: Boolean,
-    updatingWatchKeys: Set<String>,
+    state: ScheduledReleasesState,
     onSelectActiveItemKey: (String) -> Unit,
     onWatchedStatusChange: (CalendarItemWithWatchlist, Boolean) -> Unit,
     onMediaStatusChange: (String, MediaStatus) -> Unit,
@@ -743,126 +755,204 @@ fun ScheduledReleasesCard(
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            val titleText = if (state.activeItem.type == MediaType.MOVIE) {
+                "Scheduled Releases (${state.showScheduleItems.size})"
+            } else {
+                "Scheduled Episodes (${state.showScheduleItems.size})"
+            }
             Text(
-                text = if (activeItem.type == MediaType.MOVIE) "Scheduled Releases (${showScheduleItems.size})" else "Scheduled Episodes (${showScheduleItems.size})",
+                text = titleText,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary,
                 fontSize = 15.sp
             )
             Spacer(modifier = Modifier.height(10.dp))
 
-            showScheduleItems.forEach { epItem ->
-                val isSelected = epItem.primaryKey == activeItem.primaryKey
-                val epTag = if (epItem.type == MediaType.MOVIE) {
-                    if (epItem.movieReleaseType == MovieReleaseType.THEATER) "THEATER" else "DIGITAL / DVD"
-                } else {
-                    epItem.formattedEpisodeCode
-                }
-                val epDate = if (epItem.type == MediaType.MOVIE) DateUtil.formatDisplayDate(epItem.date) else DateUtil.formatDisplayDateTime(epItem.date)
-
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) SurfacePrimaryVariant.copy(alpha = 0.4f) else SurfaceDark,
-                    border = BorderStroke(
-                        1.dp,
-                        if (isSelected) PurpleLight else SurfaceVariantGrey
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .clickable { onSelectActiveItemKey(epItem.primaryKey) }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = if (isSelected) PurpleLight else SurfacePurple,
-                                contentColor = if (isSelected) SurfacePurple else PurpleContainerSoft
-                            ) {
-                                Text(
-                                    text = epTag,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-
-                            Column {
-                                Text(
-                                    text = if (epItem.type == MediaType.MOVIE) {
-                                         epItem.movieReleaseType?.displayName ?: "Movie Release"
-                                    } else {
-                                        epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
-                                    },
-                                    color = TextPrimary,
-                                    fontSize = 13.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = epDate,
-                                    color = TextGreyLight,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-
-                        if (activeItem.type != MediaType.MOVIE) {
-                            if (isSmallScreen) {
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                    horizontalAlignment = Alignment.End
-                                ) {
-                                    ItemWatchedStatusDropdown(
-                                        item = epItem,
-                                        onWatchedStatusChange = { watched -> onWatchedStatusChange(epItem, watched) },
-                                        updatingWatchKeys = updatingWatchKeys
-                                    )
-                                    ItemMediaStatusDropdown(
-                                        item = epItem,
-                                        onStatusChange = { newStatus -> onMediaStatusChange(epItem.primaryKey, newStatus) }
-                                    )
-                                }
-                            } else {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    ItemWatchedStatusDropdown(
-                                        item = epItem,
-                                        onWatchedStatusChange = { watched -> onWatchedStatusChange(epItem, watched) },
-                                        updatingWatchKeys = updatingWatchKeys
-                                    )
-                                    ItemMediaStatusDropdown(
-                                        item = epItem,
-                                        onStatusChange = { newStatus -> onMediaStatusChange(epItem.primaryKey, newStatus) }
-                                    )
-                                }
-                            }
-                        }
-
-                        if (isSelected) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Currently Selected",
-                                tint = PurpleLight,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
+            state.showScheduleItems.forEach { epItem ->
+                ScheduledReleaseRow(
+                    epItem = epItem,
+                    state = state,
+                    onSelectActiveItemKey = onSelectActiveItemKey,
+                    onWatchedStatusChange = onWatchedStatusChange,
+                    onMediaStatusChange = onMediaStatusChange
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun ScheduledReleaseRow(
+    epItem: CalendarItemWithWatchlist,
+    state: ScheduledReleasesState,
+    onSelectActiveItemKey: (String) -> Unit,
+    onWatchedStatusChange: (CalendarItemWithWatchlist, Boolean) -> Unit,
+    onMediaStatusChange: (String, MediaStatus) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isSelected = epItem.primaryKey == state.activeItem.primaryKey
+    val downloadProgress = state.torrentDownloads[epItem.downloadTaskId]
+
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = if (isSelected) SurfacePrimaryVariant.copy(alpha = 0.4f) else SurfaceDark,
+        border = BorderStroke(
+            1.dp,
+            if (isSelected) PurpleLight else SurfaceVariantGrey
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable { onSelectActiveItemKey(epItem.primaryKey) }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                ScheduledReleaseTagBadge(epItem = epItem, isSelected = isSelected)
+                ScheduledReleaseTitleAndProgress(
+                    epItem = epItem,
+                    isSelected = isSelected,
+                    downloadProgress = downloadProgress
+                )
+            }
+
+            if (state.activeItem.type != MediaType.MOVIE) {
+                ScheduledReleaseRowDropdowns(
+                    epItem = epItem,
+                    isSmallScreen = state.isSmallScreen,
+                    updatingWatchKeys = state.updatingWatchKeys,
+                    onWatchedStatusChange = onWatchedStatusChange,
+                    onMediaStatusChange = onMediaStatusChange
+                )
+            }
+
+            if (isSelected) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Currently Selected",
+                    tint = PurpleLight,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScheduledReleaseTagBadge(
+    epItem: CalendarItemWithWatchlist,
+    isSelected: Boolean
+) {
+    val epTag = if (epItem.type == MediaType.MOVIE) {
+        if (epItem.movieReleaseType == MovieReleaseType.THEATER) "THEATER" else "DIGITAL / DVD"
+    } else {
+        epItem.formattedEpisodeCode
+    }
+
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = if (isSelected) PurpleLight else SurfacePurple,
+        contentColor = if (isSelected) SurfacePurple else PurpleContainerSoft
+    ) {
+        Text(
+            text = epTag,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
+private fun ScheduledReleaseTitleAndProgress(
+    epItem: CalendarItemWithWatchlist,
+    isSelected: Boolean,
+    downloadProgress: DownloadProgress?
+) {
+    val epDate = if (epItem.type == MediaType.MOVIE) {
+        DateUtil.formatDisplayDate(epItem.date)
+    } else {
+        DateUtil.formatDisplayDateTime(epItem.date)
+    }
+    val titleText = if (epItem.type == MediaType.MOVIE) {
+        epItem.movieReleaseType?.displayName ?: "Movie Release"
+    } else {
+        epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
+    }
+
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Column(modifier = Modifier.align(Alignment.CenterVertically)) {
+            Text(
+                text = titleText,
+                color = TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+            )
+            Text(
+                text = epDate,
+                color = TextGreyLight,
+                fontSize = 11.sp
+            )
+        }
+        if (epItem.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
+            EpisodeDownloadProgress(
+                downloadProgress = downloadProgress,
+                modifier = Modifier.align(Alignment.CenterVertically)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ScheduledReleaseRowDropdowns(
+    epItem: CalendarItemWithWatchlist,
+    isSmallScreen: Boolean,
+    updatingWatchKeys: Set<String>,
+    onWatchedStatusChange: (CalendarItemWithWatchlist, Boolean) -> Unit,
+    onMediaStatusChange: (String, MediaStatus) -> Unit
+) {
+    if (isSmallScreen) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.End
+        ) {
+            ItemWatchedStatusDropdown(
+                item = epItem,
+                onWatchedStatusChange = { watched -> onWatchedStatusChange(epItem, watched) },
+                updatingWatchKeys = updatingWatchKeys
+            )
+            ItemMediaStatusDropdown(
+                item = epItem,
+                onStatusChange = { newStatus -> onMediaStatusChange(epItem.primaryKey, newStatus) }
+            )
+        }
+    } else {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ItemWatchedStatusDropdown(
+                item = epItem,
+                onWatchedStatusChange = { watched -> onWatchedStatusChange(epItem, watched) },
+                updatingWatchKeys = updatingWatchKeys
+            )
+            ItemMediaStatusDropdown(
+                item = epItem,
+                onStatusChange = { newStatus -> onMediaStatusChange(epItem.primaryKey, newStatus) }
+            )
         }
     }
 }

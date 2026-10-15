@@ -53,6 +53,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -75,6 +76,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -94,6 +96,8 @@ import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
+import com.felixbrucker.simklcalendar.data.util.DateUtil
+import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
@@ -119,8 +123,10 @@ import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkBlue
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
+import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
 import com.felixbrucker.simklcalendar.ui.theme.TextGreyLight
 import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
@@ -394,6 +400,65 @@ fun ItemMediaStatusDropdown(
         currentStatus = item.mediaStatus,
         onStatusChange = onStatusChange
     )
+}
+
+@Composable
+fun EpisodeDownloadProgress(
+    downloadProgress: DownloadProgress,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val progress = if (downloadProgress.totalBytes > 0) {
+        downloadProgress.bytesDownloaded.toFloat() / downloadProgress.totalBytes
+    } else {
+        0f
+    }
+    val percentage = (progress * 100).toInt()
+    val speedStr = Formatter.formatFileSize(context, downloadProgress.downloadSpeed.toLong()) + "/s"
+    val downloaded = Formatter.formatFileSize(context, downloadProgress.bytesDownloaded)
+    val total = Formatter.formatFileSize(context, downloadProgress.totalBytes)
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .width(60.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                color = PurpleLight,
+                trackColor = SurfacePurple
+            )
+            Text(
+                text = "$percentage%",
+                fontSize = 9.sp,
+                color = TextSubtle,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "$downloaded / $total",
+                fontSize = 8.sp,
+                color = TextGrey
+            )
+        }
+
+        if (downloadProgress.downloadSpeed > 0) {
+            val remainingBytes = downloadProgress.totalBytes - downloadProgress.bytesDownloaded
+            val remainingSeconds = (remainingBytes / downloadProgress.downloadSpeed).toLong()
+            val eta = DateUtil.formatDuration(remainingSeconds)
+            Text(
+                text = "$speedStr • ETA: $eta",
+                fontSize = 9.sp,
+                color = TextSubtle
+            )
+        }
+    }
 }
 
 fun getTableItemColor(x: Int, y: Int): Color {
