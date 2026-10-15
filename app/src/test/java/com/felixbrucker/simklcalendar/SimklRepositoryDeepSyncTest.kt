@@ -214,7 +214,11 @@ class SimklRepositoryDeepSyncTest {
             TrackedWatchlistItem(simklId = 101, type = MediaType.TV, title = "TV Show 101", poster = null),
             TrackedWatchlistItem(simklId = 102, type = MediaType.TV, title = "TV Show 102", poster = null)
         )
-        coEvery { watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME)) } returns trackedShows
+        coEvery { watchlistDao.getTrackedIdsByTypes(any()) } returns listOf(101, 102)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(any()) } answers {
+            val ids = firstArg<List<Int>>()
+            trackedShows.filter { it.simklId in ids }
+        }
         val episodes101 = listOf(
             SimklEpisodeResponse(title = "Ep 1", season = 1, episode = 1, type = "episode", aired = true, date = "2026-02-01T20:00:00Z")
         )
@@ -242,12 +246,15 @@ class SimklRepositoryDeepSyncTest {
             )
         )
         coEvery { authenticatedApiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns syncResponse
-        coEvery { watchlistDao.getTrackedItemsBySimklIds(any()) } returns emptyList()
         coEvery { watchlistDao.getAllTrackedIds() } returns listOf(707)
         val trackedItem = TrackedWatchlistItem(simklId = 707, type = MediaType.TV, title = "New Show 707")
-        coEvery { watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME)) } returns listOf(
-            trackedItem
-        )
+        var isInserted = false
+        coEvery { watchlistDao.insertItems(any()) } answers { isInserted = true }
+        coEvery { watchlistDao.getTrackedIdsByTypes(any()) } returns listOf(707)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(any()) } answers {
+            val ids = firstArg<List<Int>>()
+            if (isInserted && ids.contains(707)) listOf(trackedItem) else emptyList()
+        }
         val calendarEntry = SimklV2CalendarEntry(
             simklId = 707,
             date = "2026-04-10T20:00:00Z",
@@ -351,7 +358,8 @@ class SimklRepositoryDeepSyncTest {
         val trackedShows = listOf(
             TrackedWatchlistItem(simklId = 101, type = MediaType.TV, title = "TV Show 1", poster = null)
         )
-        coEvery { watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME)) } returns trackedShows
+        coEvery { watchlistDao.getTrackedIdsByTypes(any()) } returns listOf(101)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(any()) } returns trackedShows
         val episodes = listOf(
             SimklEpisodeResponse(title = "Ep 1", season = 1, episode = 1, type = "episode", aired = true, date = "2026-02-01T20:00:00Z"),
             SimklEpisodeResponse(title = "Ep 2", season = 1, episode = 2, type = "episode", aired = true, date = "2026-02-08T20:00:00Z")
@@ -371,7 +379,8 @@ class SimklRepositoryDeepSyncTest {
         val trackedShows = listOf(
             TrackedWatchlistItem(simklId = 101, type = MediaType.TV, title = "TV Show 1", poster = null)
         )
-        coEvery { watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME)) } returns trackedShows
+        coEvery { watchlistDao.getTrackedIdsByTypes(any()) } returns listOf(101)
+        coEvery { watchlistDao.getTrackedItemsBySimklIds(any()) } returns trackedShows
         val episodes = listOf(
             SimklEpisodeResponse(title = "Ep 1", season = 1, episode = 1, type = "episode", aired = true, date = "2026-02-01T20:00:00Z"),
             SimklEpisodeResponse(title = "Ep 2", season = 1, episode = 2, type = "episode", aired = true, date = "2026-02-08T20:00:00Z"),

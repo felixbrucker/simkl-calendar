@@ -650,17 +650,17 @@ class SyncRepository @Inject constructor(
         val userToken = tokenDao.getActiveToken()
         if (userToken == null || userToken.accessToken.isEmpty()) return@withContext SyncResult()
 
-        val allTrackedShows = watchlistDao.getTrackedItemsByTypes(listOf(MediaType.TV, MediaType.ANIME))
-        if (allTrackedShows.isEmpty()) return@withContext SyncResult()
+        val allTrackedIds = watchlistDao.getTrackedIdsByTypes(listOf(MediaType.TV, MediaType.ANIME))
+        if (allTrackedIds.isEmpty()) return@withContext SyncResult()
 
         var hasCalendarItemChanges = false
         var hasWantedItems = false
 
         if (targetSimklIds.isNotEmpty()) {
-            val targetedShows = allTrackedShows.filter { it.simklId in targetSimklIds }
-            if (targetedShows.isNotEmpty()) {
-                Timber.d("Starting targeted backfill for ${targetedShows.size} shows...")
-                val targetedResult = performBackfillForShows(targetedShows)
+            val targetedIds = allTrackedIds.filter { it in targetSimklIds }
+            if (targetedIds.isNotEmpty()) {
+                Timber.d("Starting targeted backfill for ${targetedIds.size} shows...")
+                val targetedResult = performBackfillForShows(targetedIds)
                 hasCalendarItemChanges = hasCalendarItemChanges || targetedResult.hasCalendarItemChanges
                 hasWantedItems = hasWantedItems || targetedResult.hasWantedItems
             }
@@ -679,14 +679,14 @@ class SyncRepository @Inject constructor(
         val moreThanOneDayAgo = lastSyncInstant.isBefore(oneDayAgo)
 
         if (!sameMonth && moreThanOneDayAgo) {
-            val remainingShows = if (targetSimklIds.isNotEmpty()) {
-                allTrackedShows.filter { it.simklId !in targetSimklIds }
+            val remainingIds = if (targetSimklIds.isNotEmpty()) {
+                allTrackedIds.filter { it !in targetSimklIds }
             } else {
-                allTrackedShows
+                allTrackedIds
             }
-            if (remainingShows.isNotEmpty()) {
-                Timber.d("Starting backfill for ${remainingShows.size} shows...")
-                val remainingResult = performBackfillForShows(remainingShows)
+            if (remainingIds.isNotEmpty()) {
+                Timber.d("Starting backfill for ${remainingIds.size} shows...")
+                val remainingResult = performBackfillForShows(remainingIds)
                 hasCalendarItemChanges = hasCalendarItemChanges || remainingResult.hasCalendarItemChanges
                 hasWantedItems = hasWantedItems || remainingResult.hasWantedItems
             }
@@ -701,133 +701,147 @@ class SyncRepository @Inject constructor(
     }
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
-    private suspend fun performBackfillForShows(trackedShows: List<TrackedWatchlistItem>): SyncResult {
+    private suspend fun performBackfillForShows(trackedIds: List<Int>): SyncResult {
         val now = Instant.now()
-        val trackedIds = trackedShows.map { it.simklId }
-
-        // Fetch targeted data from DB
-        val existingDbItems = calendarDao.getCalendarEntitiesForSimklIds(trackedIds)
-        val existingItemsMap = existingDbItems.associateBy { it.primaryKey }
-        val watchedLookup = watchedDao.getWatchedEpisodesForSimklIds(trackedIds).groupBy { it.simklId }
-        val settingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(trackedIds).associateBy { it.simklId }
-
         val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
-        val itemsToInsert = mutableMapOf<String, CalendarItem>()
-        val itemsToUpdate = mutableMapOf<String, CalendarItem>()
-        val localStatesToInsert = mutableListOf<LocalItemState>()
+        var hasCalendarItemChanges = false
+        var hasWantedItems = false
 
-        fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
-            val existing = existingItemsMap[newItem.primaryKey]
-            if (existing == null) {
-                val currentInsert = itemsToInsert[newItem.primaryKey]
-                itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
-                localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
-                return
+        for (chunk in trackedIds.chunked(16)) {
+            val trackedShows = watchlistDao.getTrackedItemsBySimklIds(chunk)
+            if (trackedShows.isEmpty()) continue
+
+            val trackedSimklIds = trackedShows.map { it.simklId }
+
+            // Fetch targeted data from DB
+            val existingDbItems = calendarDao.getCalendarEntitiesForSimklIds(trackedSimklIds)
+            val existingItemsMap = existingDbItems.associateBy { it.primaryKey }
+            val watchedLookup = watchedDao.getWatchedEpisodesForSimklIds(trackedSimklIds).groupBy { it.simklId }
+            val settingsMap = itemDownloadSettingsDao.getSettingsBySimklIds(trackedSimklIds).associateBy { it.simklId }
+
+            val itemsToInsert = mutableMapOf<String, CalendarItem>()
+            val itemsToUpdate = mutableMapOf<String, CalendarItem>()
+            val localStatesToInsert = mutableListOf<LocalItemState>()
+
+            fun processCalendarItem(newItem: CalendarItem, initialStatus: MediaStatus) {
+                val existing = existingItemsMap[newItem.primaryKey]
+                if (existing == null) {
+                    val currentInsert = itemsToInsert[newItem.primaryKey]
+                    itemsToInsert[newItem.primaryKey] = currentInsert?.updatedWith(newItem) ?: newItem
+                    localStatesToInsert.add(LocalItemState(newItem.primaryKey, initialStatus))
+                    return
+                }
+
+                val base = itemsToUpdate[newItem.primaryKey] ?: existing
+                val updated = base.updatedWith(newItem)
+                if (updated != base) {
+                    itemsToUpdate[newItem.primaryKey] = updated
+                }
             }
 
-            val base = itemsToUpdate[newItem.primaryKey] ?: existing
-            val updated = base.updatedWith(newItem)
-            if (updated != base) {
-                itemsToUpdate[newItem.primaryKey] = updated
-            }
-        }
-
-        coroutineScope {
-            val deferred = trackedShows.map { show ->
-                async {
-                    try {
-                        val episodes = if (show.type == MediaType.TV) {
-                            publicSimklApiService.getTvEpisodes(show.simklId)
-                        } else {
-                            publicSimklApiService.getAnimeEpisodes(show.simklId)
+            coroutineScope {
+                val deferred = trackedShows.map { show ->
+                    async {
+                        try {
+                            val episodes = if (show.type == MediaType.TV) {
+                                publicSimklApiService.getTvEpisodes(show.simklId)
+                            } else {
+                                publicSimklApiService.getAnimeEpisodes(show.simklId)
+                            }
+                            show to episodes
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed backfill for ${show.simklId}")
+                            show to null
                         }
-                        show to episodes
-                    } catch (e: Exception) {
-                        Timber.e(e, "Failed backfill for ${show.simklId}")
-                        show to null
+                    }
+                }
+
+                val results = deferred.awaitAll()
+                val oneMonthAgo = now.minus(30, ChronoUnit.DAYS)
+
+                for ((show, episodes) in results) {
+                    if (episodes == null) continue
+
+                    val maxEpPerSeason = episodes
+                        .filter { it.type == "episode" && it.episode != null }
+                        .groupBy { it.season ?: 1 }
+                        .mapValues { (_, seasonEpisodes) -> seasonEpisodes.maxOf { it.episode!! } }
+
+                    val showWatchedList = watchedLookup[show.simklId]
+
+                    for (ep in episodes) {
+                        // Only regular episodes (no specials) and already aired
+                        if (ep.type != "episode" || !ep.aired) continue
+
+                        val instant = DateUtil.parseToInstant(ep.date) ?: continue
+                        val seasonNum = ep.season ?: 1
+                        val epNum = ep.episode ?: continue
+                        val epTitle = ep.title
+
+                        val keyUnique = "v2_${show.simklId}_${seasonNum}_$epNum"
+
+                        val watchedEntry = showWatchedList?.firstOrNull {
+                            it.season == seasonNum && it.episodeNumber == epNum
+                        }
+                        val epWatchedTimestamp = watchedEntry?.watchedAt
+
+                        // Automatic cleanup filter: Omit episodes that have already been watched over 1 month ago
+                        if (epWatchedTimestamp != null && epWatchedTimestamp.isBefore(oneMonthAgo)) {
+                            continue
+                        }
+
+                        val status = mediaStatusResolver.resolve(
+                            airDate = instant,
+                            settings = settingsMap[show.simklId],
+                            mediaType = show.type,
+                            isTheaterRelease = false,
+                            isWatched = epWatchedTimestamp != null,
+                            autoDownloadSettings = autoDownloadPrefs,
+                            now = now,
+                        )
+
+                        val maxEp = maxEpPerSeason[seasonNum]
+                        val isFinale = maxEp != null && epNum == maxEp
+
+                        processCalendarItem(
+                            CalendarItem(
+                                primaryKey = keyUnique,
+                                simklId = show.simklId,
+                                episodeTitle = epTitle,
+                                season = seasonNum,
+                                episodeNumber = epNum,
+                                date = instant,
+                                movieReleaseType = null,
+                                isSeasonPremiere = epNum == 1,
+                                isSeasonFinale = isFinale,
+                                watchedAt = epWatchedTimestamp,
+                            ),
+                            initialStatus = status
+                        )
                     }
                 }
             }
 
-            val results = deferred.awaitAll()
-            val oneMonthAgo = now.minus(30, ChronoUnit.DAYS)
+            if (itemsToInsert.isNotEmpty()) {
+                calendarDao.insertCalendarItems(itemsToInsert.values.toList())
+                calendarDao.insertLocalItemStates(localStatesToInsert)
+            }
+            if (itemsToUpdate.isNotEmpty()) {
+                calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
+            }
 
-            for ((show, episodes) in results) {
-                if (episodes == null) continue
-
-                val maxEpPerSeason = episodes
-                    .filter { it.type == "episode" && it.episode != null }
-                    .groupBy { it.season ?: 1 }
-                    .mapValues { (_, seasonEpisodes) -> seasonEpisodes.maxOf { it.episode!! } }
-
-                val showWatchedList = watchedLookup[show.simklId]
-
-                for (ep in episodes) {
-                    // Only regular episodes (no specials) and already aired
-                    if (ep.type != "episode" || !ep.aired) continue
-
-                    val instant = DateUtil.parseToInstant(ep.date) ?: continue
-                    val seasonNum = ep.season ?: 1
-                    val epNum = ep.episode ?: continue
-                    val epTitle = ep.title
-
-                    val keyUnique = "v2_${show.simklId}_${seasonNum}_$epNum"
-
-                    val watchedEntry = showWatchedList?.firstOrNull {
-                        it.season == seasonNum && it.episodeNumber == epNum
-                    }
-                    val epWatchedTimestamp = watchedEntry?.watchedAt
-
-                    // Automatic cleanup filter: Omit episodes that have already been watched over 1 month ago
-                    if (epWatchedTimestamp != null && epWatchedTimestamp.isBefore(oneMonthAgo)) {
-                        continue
-                    }
-
-                    val status = mediaStatusResolver.resolve(
-                        airDate = instant,
-                        settings = settingsMap[show.simklId],
-                        mediaType = show.type,
-                        isTheaterRelease = false,
-                        isWatched = epWatchedTimestamp != null,
-                        autoDownloadSettings = autoDownloadPrefs,
-                        now = now,
-                    )
-
-                    val maxEp = maxEpPerSeason[seasonNum]
-                    val isFinale = maxEp != null && epNum == maxEp
-
-                    processCalendarItem(
-                        CalendarItem(
-                            primaryKey = keyUnique,
-                            simklId = show.simklId,
-                            episodeTitle = epTitle,
-                            season = seasonNum,
-                            episodeNumber = epNum,
-                            date = instant,
-                            movieReleaseType = null,
-                            isSeasonPremiere = epNum == 1,
-                            isSeasonFinale = isFinale,
-                            watchedAt = epWatchedTimestamp,
-                        ),
-                        initialStatus = status
-                    )
-                }
+            if (itemsToInsert.isNotEmpty() || itemsToUpdate.isNotEmpty()) {
+                hasCalendarItemChanges = true
+            }
+            if (localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }) {
+                hasWantedItems = true
             }
         }
 
-        if (itemsToInsert.isNotEmpty()) {
-            calendarDao.insertCalendarItems(itemsToInsert.values.toList())
-            calendarDao.insertLocalItemStates(localStatesToInsert)
-        }
-        if (itemsToUpdate.isNotEmpty()) {
-            calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
-        }
-
-        Timber.d("Backfill complete: applied ${itemsToInsert.size + itemsToUpdate.size} DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
-        val hasWantedItems = localStatesToInsert.any { it.mediaStatus == MediaStatus.WANTED }
+        Timber.d("Backfill complete for ${trackedIds.size} shows")
 
         return SyncResult(
-            hasCalendarItemChanges = itemsToInsert.isNotEmpty() || itemsToUpdate.isNotEmpty(),
+            hasCalendarItemChanges = hasCalendarItemChanges,
             hasWantedItems = hasWantedItems,
         )
     }
