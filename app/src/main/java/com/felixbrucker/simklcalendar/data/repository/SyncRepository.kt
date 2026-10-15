@@ -678,20 +678,25 @@ class SyncRepository @Inject constructor(
         val oneDayAgo = now.minus(1, ChronoUnit.DAYS)
         val moreThanOneDayAgo = lastSyncInstant.isBefore(oneDayAgo)
 
-        if (!sameMonth && moreThanOneDayAgo) {
-            val remainingIds = if (targetSimklIds.isNotEmpty()) {
-                allTrackedIds.filter { it !in targetSimklIds }
-            } else {
-                allTrackedIds
-            }
-            if (remainingIds.isNotEmpty()) {
-                Timber.d("Starting backfill for ${remainingIds.size} shows...")
-                val remainingResult = performBackfillForShows(remainingIds)
-                hasCalendarItemChanges = hasCalendarItemChanges || remainingResult.hasCalendarItemChanges
-                hasWantedItems = hasWantedItems || remainingResult.hasWantedItems
-            }
-        } else {
+        // Logic: Sync when month changed AND more than 1 day since last sync
+        if (sameMonth || !moreThanOneDayAgo) {
             Timber.d("Full backfill skipped: same month or < 1 day since last sync")
+            return@withContext SyncResult(
+                hasCalendarItemChanges = hasCalendarItemChanges,
+                hasWantedItems = hasWantedItems,
+            )
+        }
+
+        val remainingIds = if (targetSimklIds.isNotEmpty()) {
+            allTrackedIds.filter { it !in targetSimklIds }
+        } else {
+            allTrackedIds
+        }
+        if (remainingIds.isNotEmpty()) {
+            Timber.d("Starting backfill for ${remainingIds.size} shows...")
+            val remainingResult = performBackfillForShows(remainingIds)
+            hasCalendarItemChanges = hasCalendarItemChanges || remainingResult.hasCalendarItemChanges
+            hasWantedItems = hasWantedItems || remainingResult.hasWantedItems
         }
 
         SyncResult(
@@ -706,6 +711,8 @@ class SyncRepository @Inject constructor(
         val autoDownloadPrefs = autoDownloadRepo.preferencesFlow.first()
         var hasCalendarItemChanges = false
         var hasWantedItems = false
+        var totalInserted = 0
+        var totalUpdated = 0
 
         for (chunk in trackedIds.chunked(16)) {
             val trackedShows = watchlistDao.getTrackedItemsBySimklIds(chunk)
@@ -825,9 +832,11 @@ class SyncRepository @Inject constructor(
             if (itemsToInsert.isNotEmpty()) {
                 calendarDao.insertCalendarItems(itemsToInsert.values.toList())
                 calendarDao.insertLocalItemStates(localStatesToInsert)
+                totalInserted += itemsToInsert.size
             }
             if (itemsToUpdate.isNotEmpty()) {
                 calendarDao.updateCalendarItems(itemsToUpdate.values.toList())
+                totalUpdated += itemsToUpdate.size
             }
 
             if (itemsToInsert.isNotEmpty() || itemsToUpdate.isNotEmpty()) {
@@ -838,7 +847,15 @@ class SyncRepository @Inject constructor(
             }
         }
 
-        Timber.d("Backfill complete for ${trackedIds.size} shows")
+        val totalMutations = totalInserted + totalUpdated
+        if (totalMutations == 0) {
+            Timber.d("Backfill complete: no changes detected, skipped DB writes")
+        } else {
+            Timber.d(
+                "Backfill complete: applied $totalMutations DB mutations " +
+                    "($totalInserted inserted, $totalUpdated updated)"
+            )
+        }
 
         return SyncResult(
             hasCalendarItemChanges = hasCalendarItemChanges,
