@@ -225,7 +225,7 @@
     <ID>CyclomaticComplexMethod:ReleaseDetailScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ReleaseDetailScreen( viewModel: CalendarViewModel, itemKey: String, onNavigateBack: () -&gt; Unit, onNavigateToWatchlistItem: (Int) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable fun SettingsCustomSearchLinksCard( localLinks: List&lt;CustomSearchLink&gt;, onOpenAddDialog: () -&gt; Unit, onOpenEditDialog: (CustomSearchLink) -&gt; Unit, onDeleteLink: (CustomSearchLink) -&gt; Unit, onReorderLinks: (List&lt;CustomSearchLink&gt;) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>CyclomaticComplexMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel(), onNavigateBack: () -&gt; Unit, onNavigateToLogViewer: () -&gt; Unit = {} )</ID>
-    <ID>CyclomaticComplexMethod:SyncRepository.kt$SyncRepository$internal suspend fun backfillPastEpisodes( lastSyncTimestamp: Long ): SyncResult</ID>
+    <ID>CyclomaticComplexMethod:SyncRepository.kt$SyncRepository$internal suspend fun backfillPastEpisodes( lastSyncTimestamp: Long, targetSimklIds: Set&lt;Int&gt; = emptySet() ): SyncResult</ID>
     <ID>CyclomaticComplexMethod:SyncRepository.kt$SyncRepository$internal suspend fun syncCalendarJsons(forceFullSync: Boolean = false): SyncResult</ID>
     <ID>CyclomaticComplexMethod:SyncRepository.kt$SyncRepository$internal suspend fun syncWatchlist(forceFullSync: Boolean = false): SyncResult</ID>
     <ID>CyclomaticComplexMethod:SyncRepository.kt$SyncRepository$internal suspend fun syncWatchlistItemDetails(force: Boolean = false): SyncResult</ID>
@@ -328,7 +328,7 @@
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsSyncIntervalCard( syncIntervalHours: Float, onSyncIntervalChange: (Float) -&gt; Unit, onSyncIntervalChangeFinished: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsWatchlistResyncCard( isForceSyncing: Boolean, onForceSync: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel(), onNavigateBack: () -&gt; Unit, onNavigateToLogViewer: () -&gt; Unit = {} )</ID>
-    <ID>LongMethod:SyncRepository.kt$SyncRepository$internal suspend fun backfillPastEpisodes( lastSyncTimestamp: Long ): SyncResult</ID>
+    <ID>LongMethod:SyncRepository.kt$SyncRepository$internal suspend fun backfillPastEpisodes( lastSyncTimestamp: Long, targetSimklIds: Set&lt;Int&gt; = emptySet() ): SyncResult</ID>
     <ID>LongMethod:SyncRepository.kt$SyncRepository$internal suspend fun syncCalendarJsons(forceFullSync: Boolean = false): SyncResult</ID>
     <ID>LongMethod:SyncRepository.kt$SyncRepository$internal suspend fun syncWatchlist(forceFullSync: Boolean = false): SyncResult</ID>
     <ID>LongMethod:SyncRepository.kt$SyncRepository$internal suspend fun syncWatchlistItemDetails(force: Boolean = false): SyncResult</ID>

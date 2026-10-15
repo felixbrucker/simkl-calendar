@@ -82,6 +82,9 @@ android {
       "TypographyQuotes",
       "VectorPath"
     )
+    disable += setOf(
+      "NewerVersionAvailable"
+    )
   }
 }
 
