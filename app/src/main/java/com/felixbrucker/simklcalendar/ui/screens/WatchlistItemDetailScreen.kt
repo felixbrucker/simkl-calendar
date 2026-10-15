@@ -732,22 +732,28 @@ fun MovieReleasesTable(
                         .clickable { onNavigateToEpisode(release.primaryKey) }
                         .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Column {
                             Text(
                                 text = release.movieReleaseType?.displayName ?: "Release",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
-                            if (release.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
-                                EpisodeDownloadProgress(downloadProgress = downloadProgress)
-                            }
+                            Text(
+                                text = DateUtil.formatDisplayDateTime(release.date),
+                                fontSize = 12.sp,
+                                color = TextSubtle,
+                                maxLines = 1
+                            )
                         }
-                        Text(text = DateUtil.formatDisplayDateTime(release.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)
+                        if (release.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
+                            EpisodeDownloadProgress(downloadProgress = downloadProgress)
+                        }
                     }
                 }
             }

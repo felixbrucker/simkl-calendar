@@ -890,26 +890,26 @@ private fun ScheduledReleaseTitleAndProgress(
         epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
     }
 
-    Column {
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Column {
             Text(
                 text = titleText,
                 color = TextPrimary,
                 fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             )
-            if (epItem.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
-                EpisodeDownloadProgress(downloadProgress = downloadProgress)
-            }
+            Text(
+                text = epDate,
+                color = TextGreyLight,
+                fontSize = 11.sp
+            )
         }
-        Text(
-            text = epDate,
-            color = TextGreyLight,
-            fontSize = 11.sp
-        )
+        if (epItem.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
+            EpisodeDownloadProgress(downloadProgress = downloadProgress)
+        }
     }
 }
 
