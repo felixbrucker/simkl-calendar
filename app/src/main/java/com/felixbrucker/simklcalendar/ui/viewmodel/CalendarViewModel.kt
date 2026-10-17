@@ -863,13 +863,17 @@ class CalendarViewModel @Inject constructor(
                                     if (!isTorrentServiceBound.value) {
                                         return@launch
                                     }
-                                    val stats = torrentServiceHelper.getProgress(taskId)
+                                    var stats = torrentServiceHelper.getProgress(taskId)
+                                    if (stats == null) {
+                                      // Wait a few seconds to allow completion intent to be processed
+                                      // or progress to become available
+                                      delay(3.seconds)
+                                      stats = torrentServiceHelper.getProgress(taskId)
+                                    }
                                     if (stats != null) {
                                         torrentServiceHelper.updateDownloadProgress(taskId, stats)
                                     } else {
                                         // Task was removed from downloader
-                                        // Wait a few seconds to allow completion intent to be processed
-                                        delay(3.seconds)
                                         // Fetch current items from repository flow
                                         val currentEntity = calendarRepository.findCalendarItem(item.primaryKey)
                                         if (currentEntity?.mediaStatus == MediaStatus.DOWNLOADING && currentEntity.downloadTaskId == taskId) {
