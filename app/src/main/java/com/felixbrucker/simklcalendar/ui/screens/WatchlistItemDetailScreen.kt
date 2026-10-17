@@ -5,22 +5,47 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -31,22 +56,21 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
-import com.felixbrucker.simklcalendar.ui.composable.EpisodeDownloadProgress
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
+import com.felixbrucker.simklcalendar.ui.composable.EpisodeListActions
+import com.felixbrucker.simklcalendar.ui.composable.EpisodeListCard
+import com.felixbrucker.simklcalendar.ui.composable.EpisodeListState
 import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.MediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
-import com.felixbrucker.simklcalendar.ui.composable.Table
 import com.felixbrucker.simklcalendar.ui.composable.WatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
 import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
-import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
 import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
@@ -100,10 +124,8 @@ fun WatchlistItemDetailScreen(
         .getSortedCalendarItemsForSimklIdFlow(simklId)
         .collectAsState(emptyList())
 
-    val (seasons, sortedSeasons) = remember(episodes) {
-        val grouped = episodes.groupBy { it.season ?: 1 }
-        val keys = grouped.keys.sorted()
-        grouped to keys
+    val seasons = remember(episodes) {
+        episodes.groupBy { it.season ?: 1 }
     }
 
     val isMovie = watchlistItem?.type == MediaType.MOVIE
@@ -227,58 +249,46 @@ fun WatchlistItemDetailScreen(
 
                 // 3. Content Card (Episode list or Movie Releases)
                 item {
-                    Card(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
-                        border = BorderStroke(1.dp, OutlineVariant)
-                    ) {
-                        Column {
-                            if (isMovie) {
-                                Box(modifier = Modifier.padding(16.dp)) {
-                                    Text("Release Information", fontWeight = FontWeight.Bold, color = PurpleLight, fontSize = 16.sp)
-                                }
-                                MovieReleasesTable(
-                                    releases = episodes,
-                                    torrentDownloads = torrentDownloads,
-                                    onNavigateToEpisode = onNavigateToEpisode
-                                )
-                            } else {
-                                val showSeasonHeaders = !isAnimeSeasonOneOnly
-                                sortedSeasons.forEach { season ->
-                                    val seasonEpisodes = seasons[season] ?: emptyList()
-                                    if (showSeasonHeaders) {
-                                        SeasonSectionHeader(
-                                            season = season,
-                                            count = seasonEpisodes.size,
-                                            episodes = seasonEpisodes,
-                                            updatingWatchKeys = updatingWatchKeys,
-                                            onMarkSeasonWatched = { sNum -> viewModel.markSeasonWatched(simklId, sNum, watchlistItem.type) },
-                                            onMarkSeasonUnwatched = { sNum -> viewModel.markSeasonUnwatched(simklId, sNum, watchlistItem.type) },
-                                            onUpdateSeasonMediaStatus = { sNum, status -> viewModel.updateSeasonMediaStatus(simklId, sNum, status) }
-                                        )
-                                    }
+                    val density = LocalDensity.current
+                    val windowInfo = LocalWindowInfo.current
+                    val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 600.dp
 
-                                    EpisodesTable(
-                                        episodes = seasonEpisodes,
-                                        updatingWatchKeys = updatingWatchKeys,
-                                        torrentDownloads = torrentDownloads,
-                                        onItemWatchedStatusChange = { ep, watched ->
-                                            if (watched) {
-                                                viewModel.markEpisodeWatched(ep.simklId, ep.season, ep.episodeNumber ?: 1, ep.type, ep.primaryKey, ep.title) { _, _ -> }
-                                            } else {
-                                                viewModel.markEpisodeUnwatched(ep.simklId, ep.season, ep.episodeNumber ?: 1, ep.type, ep.primaryKey, ep.title) { _, _ -> }
-                                            }
-                                        },
-                                        onItemMediaStatusChange = { itemKey, status ->
-                                            viewModel.updateMediaStatus(itemKey, status)
-                                        },
-                                        onNavigateToEpisode = onNavigateToEpisode
-                                    )
+                    EpisodeListCard(
+                        state = EpisodeListState(
+                            items = episodes,
+                            mediaType = watchlistItem.type,
+                            isSmallScreen = isSmallScreen,
+                            updatingWatchKeys = updatingWatchKeys,
+                            torrentDownloads = torrentDownloads,
+                            showSeasonHeaders = !isAnimeSeasonOneOnly,
+                            cardTitle = if (isMovie) "Release Information" else null
+                        ),
+                        actions = EpisodeListActions(
+                            onItemClick = { ep -> onNavigateToEpisode(ep.primaryKey) },
+                            onWatchedStatusChange = { ep, watched ->
+                                if (ep.type == MediaType.MOVIE) {
+                                    if (watched) {
+                                        viewModel.markMovieWatched(ep.simklId, ep.primaryKey, ep.title) { _, _ -> }
+                                    } else {
+                                        viewModel.markMovieUnwatched(ep.simklId, ep.primaryKey, ep.title) { _, _ -> }
+                                    }
+                                } else {
+                                    if (watched) {
+                                        viewModel.markEpisodeWatched(ep.simklId, ep.season, ep.episodeNumber ?: 1, ep.type, ep.primaryKey, ep.title) { _, _ -> }
+                                    } else {
+                                        viewModel.markEpisodeUnwatched(ep.simklId, ep.season, ep.episodeNumber ?: 1, ep.type, ep.primaryKey, ep.title) { _, _ -> }
+                                    }
                                 }
-                            }
-                        }
-                    }
+                            },
+                            onMediaStatusChange = { itemKey, status ->
+                                viewModel.updateMediaStatus(itemKey, status)
+                            },
+                            onMarkSeasonWatched = { sNum -> viewModel.markSeasonWatched(simklId, sNum, watchlistItem.type) },
+                            onMarkSeasonUnwatched = { sNum -> viewModel.markSeasonUnwatched(simklId, sNum, watchlistItem.type) },
+                            onUpdateSeasonMediaStatus = { sNum, status -> viewModel.updateSeasonMediaStatus(simklId, sNum, status) },
+                        ),
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
 
                 // 4. Notification Settings
@@ -563,211 +573,5 @@ fun StatItem(label: String, value: String, modifier: Modifier = Modifier, valueC
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = label, fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
         Text(text = value, fontSize = 13.sp, color = valueColor, fontWeight = FontWeight.SemiBold, maxLines = 2, textAlign = TextAlign.Center)
-    }
-}
-
-@Composable
-fun SeasonSectionHeader(
-    season: Int,
-    count: Int,
-    episodes: List<CalendarItemWithWatchlist>,
-    updatingWatchKeys: Set<String>,
-    onMarkSeasonWatched: (season: Int) -> Unit,
-    onMarkSeasonUnwatched: (season: Int) -> Unit,
-    onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit
-) {
-    val commonStatus = remember(episodes) {
-        val first = episodes.firstOrNull()?.mediaStatus
-        if (first != null && episodes.all { it.mediaStatus == first }) first else null
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(SurfaceDark.copy(alpha = 0.5f))
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = "Season $season ($count)",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = PurpleLight
-        )
-
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val isWatched = episodes.all { it.isWatched }
-            val isLoading = episodes.any { updatingWatchKeys.contains(it.primaryKey) }
-
-            WatchedStatusDropdown(
-                isWatched = isWatched,
-                onStatusChange = { watched ->
-                    if (watched) {
-                        onMarkSeasonWatched(season)
-                    } else {
-                        onMarkSeasonUnwatched(season)
-                    }
-                },
-                isLoading = isLoading
-            )
-
-            MediaStatusDropdown(
-                currentStatus = commonStatus ?: MediaStatus.IGNORED,
-                onStatusChange = { onUpdateSeasonMediaStatus(season, it) }
-            )
-        }
-    }
-}
-
-@Composable
-fun EpisodesTable(
-    episodes: List<CalendarItemWithWatchlist>,
-    updatingWatchKeys: Set<String>,
-    torrentDownloads: Map<String, DownloadProgress>,
-    onItemWatchedStatusChange: (item: CalendarItemWithWatchlist, isWatched: Boolean) -> Unit,
-    onItemMediaStatusChange: (itemKey: String, newStatus: MediaStatus) -> Unit,
-    onNavigateToEpisode: (String) -> Unit
-) {
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val minTableWidth = maxWidth
-        Box(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-            Table(
-                rows = episodes.size + 1,
-                columns = 5,
-                columnWeightIndex = 1,
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalAlignment = Alignment.Start,
-                modifier = Modifier
-                    .widthIn(min = minTableWidth)
-                    .padding(bottom = 8.dp)
-            ) { row, column ->
-                if (row == 0) {
-                    // Header
-                    val label = when (column) {
-                        0 -> "Ep"
-                        1 -> "Title"
-                        2 -> "Air Date"
-                        3 -> "Watched"
-                        4 -> "Status"
-                        else -> ""
-                    }
-                    Text(
-                        text = label,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextSubtle,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                } else {
-                    // Row
-                    val episode = episodes[row - 1]
-                    val downloadProgress = torrentDownloads[episode.downloadTaskId]
-
-                    Box(
-                        contentAlignment = Alignment.CenterStart,
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .clickable { onNavigateToEpisode(episode.primaryKey) }
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
-                    ) {
-                        when (column) {
-                            0 -> Text(text = episode.episodeNumber?.toString() ?: "-", fontSize = 13.sp, color = Color.White)
-                            1 -> FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = episode.episodeTitle ?: "TBA",
-                                    fontSize = 13.sp,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.align(Alignment.CenterVertically)
-                                )
-                                if (episode.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
-                                    EpisodeDownloadProgress(
-                                        downloadProgress = downloadProgress,
-                                        modifier = Modifier.align(Alignment.CenterVertically)
-                                    )
-                                }
-                            }
-                            2 -> Text(text = DateUtil.formatDisplayDateTime(episode.date), fontSize = 12.sp, color = TextSubtle, maxLines = 1)
-                            3 -> ItemWatchedStatusDropdown(
-                                item = episode,
-                                onWatchedStatusChange = { isWatched -> onItemWatchedStatusChange(episode, isWatched) },
-                                updatingWatchKeys = updatingWatchKeys
-                            )
-                            4 -> Row(verticalAlignment = Alignment.CenterVertically) {
-                                ItemMediaStatusDropdown(
-                                    item = episode,
-                                    onStatusChange = { newStatus -> onItemMediaStatusChange(episode.primaryKey, newStatus) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MovieReleasesTable(
-    releases: List<CalendarItemWithWatchlist>,
-    torrentDownloads: Map<String, DownloadProgress>,
-    onNavigateToEpisode: (String) -> Unit
-) {
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val minTableWidth = maxWidth
-        Box(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-            Table(
-                rows = releases.size,
-                columns = 1,
-                columnWeightIndex = 0,
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalAlignment = Alignment.Start,
-                modifier = Modifier
-                    .widthIn(min = minTableWidth)
-                    .padding(bottom = 8.dp)
-            ) { row, _ ->
-                val release = releases[row]
-                val downloadProgress = torrentDownloads[release.downloadTaskId]
-
-                Box(
-                    contentAlignment = Alignment.CenterStart,
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .clickable { onNavigateToEpisode(release.primaryKey) }
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                ) {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Column(modifier = Modifier.align(Alignment.CenterVertically)) {
-                            Text(
-                                text = release.movieReleaseType?.displayName ?: "Release",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = DateUtil.formatDisplayDateTime(release.date),
-                                fontSize = 12.sp,
-                                color = TextSubtle,
-                                maxLines = 1
-                            )
-                        }
-                        if (release.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
-                            EpisodeDownloadProgress(
-                                downloadProgress = downloadProgress,
-                                modifier = Modifier.align(Alignment.CenterVertically)
-                            )
-                        }
-                    }
-                }
-            }
-        }
     }
 }
