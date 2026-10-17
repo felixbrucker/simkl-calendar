@@ -41,7 +41,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
             return
         }
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
-        val firstFilePath = intent.getStringArrayExtra(EXTRA_FILE_PATHS)?.firstOrNull()
+        val firstFilePath = intent.getStringArrayListExtra(EXTRA_FILE_PATHS)?.firstOrNull()
         val pendingResult = goAsync()
         scope.launch {
             try {
