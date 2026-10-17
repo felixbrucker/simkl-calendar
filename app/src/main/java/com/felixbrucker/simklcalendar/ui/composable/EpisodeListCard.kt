@@ -98,9 +98,9 @@ private fun EpisodeListCardHeader(
     itemCount: Int,
 ) {
     val titleText = title ?: if (mediaType == MediaType.MOVIE) {
-        "Scheduled Releases ($itemCount)"
+        "Releases ($itemCount)"
     } else {
-        "Scheduled Episodes ($itemCount)"
+        "Episodes ($itemCount)"
     }
     Text(
         text = titleText,
