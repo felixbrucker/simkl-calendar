@@ -7,8 +7,17 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,8 +27,34 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,35 +66,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
-import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
-import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
-import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
-import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
-import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
-import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
-import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
-import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
-import com.felixbrucker.simklcalendar.ui.theme.SuccessLight
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkGreenVariant
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenBright
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenDeep
-import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
-import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedWine
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
-import com.felixbrucker.simklcalendar.ui.theme.TextGreyLight
-import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
-import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedItemLabel
@@ -69,10 +79,33 @@ import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
-import com.felixbrucker.simklcalendar.ui.composable.EpisodeDownloadProgress
+import com.felixbrucker.simklcalendar.ui.composable.EpisodeListActions
+import com.felixbrucker.simklcalendar.ui.composable.EpisodeListCard
+import com.felixbrucker.simklcalendar.ui.composable.EpisodeListState
 import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
+import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
+import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
+import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
+import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
+import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
+import com.felixbrucker.simklcalendar.ui.theme.SuccessLight
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkGreenVariant
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenBright
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenDeep
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedWine
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
+import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
+import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import kotlinx.coroutines.launch
 
@@ -415,33 +448,56 @@ fun ReleaseDetailScreen(
 
                     // Scheduled Episodes / Releases selector card
                     if (showScheduleItems.size > 1) {
-                        ScheduledReleasesCard(
-                            state = ScheduledReleasesState(
-                                activeItem = activeItem,
-                                showScheduleItems = showScheduleItems,
+                        EpisodeListCard(
+                            state = EpisodeListState(
+                                items = showScheduleItems,
+                                mediaType = activeItem.type,
                                 isSmallScreen = isSmallScreen,
+                                activeItemKey = activeItem.primaryKey,
                                 updatingWatchKeys = updatingWatchKeys,
-                                torrentDownloads = torrentDownloads
+                                torrentDownloads = torrentDownloads,
+                                showSeasonHeaders = showScheduleItems.groupBy { it.season ?: 1 }.size > 1
                             ),
-                            onSelectActiveItemKey = { activeItemKey = it },
-                            onWatchedStatusChange = { epItem, watched ->
-                                if (epItem.type == MediaType.MOVIE) {
-                                    if (watched) {
-                                        viewModel.markMovieWatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
+                            actions = EpisodeListActions(
+                                onItemClick = { epItem -> activeItemKey = epItem.primaryKey },
+                                onWatchedStatusChange = { epItem, watched ->
+                                    if (epItem.type == MediaType.MOVIE) {
+                                        if (watched) {
+                                            viewModel.markMovieWatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
+                                        } else {
+                                            viewModel.markMovieUnwatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
+                                        }
                                     } else {
-                                        viewModel.markMovieUnwatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
+                                        if (watched) {
+                                            viewModel.markEpisodeWatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
+                                        } else {
+                                            viewModel.markEpisodeUnwatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
+                                        }
                                     }
-                                } else {
-                                    if (watched) {
-                                        viewModel.markEpisodeWatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
-                                    } else {
-                                        viewModel.markEpisodeUnwatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
-                                    }
+                                },
+                                onMediaStatusChange = { epKey, newStatus ->
+                                    viewModel.updateMediaStatus(epKey, newStatus)
+                                },
+                                onMarkSeasonWatched = { season ->
+                                    viewModel.markSeasonWatched(
+                                        simklId = activeItem.simklId,
+                                        season = season,
+                                        mediaType = activeItem.type,
+                                        showTitle = activeItem.title
+                                    ) { _, _ -> }
+                                },
+                                onMarkSeasonUnwatched = { season ->
+                                    viewModel.markSeasonUnwatched(
+                                        simklId = activeItem.simklId,
+                                        season = season,
+                                        mediaType = activeItem.type,
+                                        showTitle = activeItem.title
+                                    ) { _, _ -> }
+                                },
+                                onUpdateSeasonMediaStatus = { season, status ->
+                                    viewModel.updateSeasonMediaStatus(activeItem.simklId, season, status)
                                 }
-                            },
-                            onMediaStatusChange = { epKey, newStatus ->
-                                viewModel.updateMediaStatus(epKey, newStatus)
-                            }
+                            )
                         )
                     }
 
@@ -727,232 +783,6 @@ fun SelectedEpisodeDetailsCard(
                     }
                 }
             }
-        }
-    }
-}
-
-@Immutable
-data class ScheduledReleasesState(
-    val activeItem: CalendarItemWithWatchlist,
-    val showScheduleItems: List<CalendarItemWithWatchlist>,
-    val isSmallScreen: Boolean,
-    val updatingWatchKeys: Set<String>,
-    val torrentDownloads: Map<String, DownloadProgress> = emptyMap()
-)
-
-@Composable
-fun ScheduledReleasesCard(
-    state: ScheduledReleasesState,
-    onSelectActiveItemKey: (String) -> Unit,
-    onWatchedStatusChange: (CalendarItemWithWatchlist, Boolean) -> Unit,
-    onMediaStatusChange: (String, MediaStatus) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
-        border = BorderStroke(1.dp, OutlineVariant),
-        modifier = modifier
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            val titleText = if (state.activeItem.type == MediaType.MOVIE) {
-                "Scheduled Releases (${state.showScheduleItems.size})"
-            } else {
-                "Scheduled Episodes (${state.showScheduleItems.size})"
-            }
-            Text(
-                text = titleText,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                fontSize = 15.sp
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            state.showScheduleItems.forEach { epItem ->
-                ScheduledReleaseRow(
-                    epItem = epItem,
-                    state = state,
-                    onSelectActiveItemKey = onSelectActiveItemKey,
-                    onWatchedStatusChange = onWatchedStatusChange,
-                    onMediaStatusChange = onMediaStatusChange
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ScheduledReleaseRow(
-    epItem: CalendarItemWithWatchlist,
-    state: ScheduledReleasesState,
-    onSelectActiveItemKey: (String) -> Unit,
-    onWatchedStatusChange: (CalendarItemWithWatchlist, Boolean) -> Unit,
-    onMediaStatusChange: (String, MediaStatus) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isSelected = epItem.primaryKey == state.activeItem.primaryKey
-    val downloadProgress = state.torrentDownloads[epItem.downloadTaskId]
-
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = if (isSelected) SurfacePrimaryVariant.copy(alpha = 0.4f) else SurfaceDark,
-        border = BorderStroke(
-            1.dp,
-            if (isSelected) PurpleLight else SurfaceVariantGrey
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable { onSelectActiveItemKey(epItem.primaryKey) }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                ScheduledReleaseTagBadge(epItem = epItem, isSelected = isSelected)
-                ScheduledReleaseTitleAndProgress(
-                    epItem = epItem,
-                    isSelected = isSelected,
-                    downloadProgress = downloadProgress
-                )
-            }
-
-            if (state.activeItem.type != MediaType.MOVIE) {
-                ScheduledReleaseRowDropdowns(
-                    epItem = epItem,
-                    isSmallScreen = state.isSmallScreen,
-                    updatingWatchKeys = state.updatingWatchKeys,
-                    onWatchedStatusChange = onWatchedStatusChange,
-                    onMediaStatusChange = onMediaStatusChange
-                )
-            }
-
-            if (isSelected) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Currently Selected",
-                    tint = PurpleLight,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ScheduledReleaseTagBadge(
-    epItem: CalendarItemWithWatchlist,
-    isSelected: Boolean
-) {
-    val epTag = if (epItem.type == MediaType.MOVIE) {
-        if (epItem.movieReleaseType == MovieReleaseType.THEATER) "THEATER" else "DIGITAL / DVD"
-    } else {
-        epItem.formattedEpisodeCode
-    }
-
-    Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = if (isSelected) PurpleLight else SurfacePurple,
-        contentColor = if (isSelected) SurfacePurple else PurpleContainerSoft
-    ) {
-        Text(
-            text = epTag,
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-        )
-    }
-}
-
-@Composable
-private fun ScheduledReleaseTitleAndProgress(
-    epItem: CalendarItemWithWatchlist,
-    isSelected: Boolean,
-    downloadProgress: DownloadProgress?
-) {
-    val epDate = if (epItem.type == MediaType.MOVIE) {
-        DateUtil.formatDisplayDate(epItem.date)
-    } else {
-        DateUtil.formatDisplayDateTime(epItem.date)
-    }
-    val titleText = if (epItem.type == MediaType.MOVIE) {
-        epItem.movieReleaseType?.displayName ?: "Movie Release"
-    } else {
-        epItem.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
-    }
-
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Column(modifier = Modifier.align(Alignment.CenterVertically)) {
-            Text(
-                text = titleText,
-                color = TextPrimary,
-                fontSize = 13.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-            )
-            Text(
-                text = epDate,
-                color = TextGreyLight,
-                fontSize = 11.sp
-            )
-        }
-        if (epItem.mediaStatus == MediaStatus.DOWNLOADING && downloadProgress != null) {
-            EpisodeDownloadProgress(
-                downloadProgress = downloadProgress,
-                modifier = Modifier.align(Alignment.CenterVertically)
-            )
-        }
-    }
-}
-
-@Composable
-private fun ScheduledReleaseRowDropdowns(
-    epItem: CalendarItemWithWatchlist,
-    isSmallScreen: Boolean,
-    updatingWatchKeys: Set<String>,
-    onWatchedStatusChange: (CalendarItemWithWatchlist, Boolean) -> Unit,
-    onMediaStatusChange: (String, MediaStatus) -> Unit
-) {
-    if (isSmallScreen) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            horizontalAlignment = Alignment.End
-        ) {
-            ItemWatchedStatusDropdown(
-                item = epItem,
-                onWatchedStatusChange = { watched -> onWatchedStatusChange(epItem, watched) },
-                updatingWatchKeys = updatingWatchKeys
-            )
-            ItemMediaStatusDropdown(
-                item = epItem,
-                onStatusChange = { newStatus -> onMediaStatusChange(epItem.primaryKey, newStatus) }
-            )
-        }
-    } else {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ItemWatchedStatusDropdown(
-                item = epItem,
-                onWatchedStatusChange = { watched -> onWatchedStatusChange(epItem, watched) },
-                updatingWatchKeys = updatingWatchKeys
-            )
-            ItemMediaStatusDropdown(
-                item = epItem,
-                onStatusChange = { newStatus -> onMediaStatusChange(epItem.primaryKey, newStatus) }
-            )
         }
     }
 }
