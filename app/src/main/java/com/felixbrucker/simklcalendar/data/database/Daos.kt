@@ -181,6 +181,29 @@ interface CalendarItemDao {
         performUpdateDownloadTaskId(primaryKey, taskId, status)
     }
 
+    @Query("""
+        UPDATE local_item_state 
+        SET mediaStatus = :status, downloadTaskId = :taskId, filePath = :filePath 
+        WHERE primaryKey = :primaryKey
+    """)
+    suspend fun performUpdateDownloadCompleted(
+        primaryKey: String,
+        taskId: String?,
+        status: MediaStatus,
+        filePath: String?
+    )
+
+    @Transaction
+    suspend fun updateDownloadCompleted(
+        primaryKey: String,
+        taskId: String?,
+        status: MediaStatus,
+        filePath: String?
+    ) {
+        ensureLocalStateExists(primaryKey)
+        performUpdateDownloadCompleted(primaryKey, taskId, status, filePath)
+    }
+
     @Query("UPDATE calendar_items SET watchedAt = :watchedAt WHERE simklId = :simklId AND season = :season AND episodeNumber = :episodeNumber")
     suspend fun markEpisodeWatched(simklId: Int, season: Int?, episodeNumber: Int, watchedAt: Instant?)
 

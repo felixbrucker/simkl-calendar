@@ -125,6 +125,7 @@ class DownloadCompletedReceiverTest {
         val intent = mockk<Intent>()
         every { intent.action } returns DownloadCompletedReceiver.ACTION_DOWNLOAD_COMPLETED
         every { intent.getStringExtra(DownloadCompletedReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_100_1_1"
+        every { intent.getStringArrayExtra(DownloadCompletedReceiver.EXTRA_FILE_PATHS) } returns null
         val calItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, false, false, false, null)
         val watchItem = TrackedWatchlistItem(100, MediaType.TV, "Show", null, null)
         val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.DOWNLOADED))
@@ -136,6 +137,13 @@ class DownloadCompletedReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { repositoryMock.updateDownloadTaskId("v2_100_1_1", null, MediaStatus.DOWNLOADED) }
+        coVerify(timeout = 3000) {
+            repositoryMock.updateDownloadCompleted(
+                "v2_100_1_1",
+                null,
+                MediaStatus.DOWNLOADED,
+                null
+            )
+        }
     }
 }

@@ -51,6 +51,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
@@ -117,6 +118,29 @@ fun SettingsScreen(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
         hasExactAlarmPermission = PermissionUtil.hasExactAlarmPermission(context)
+    }
+
+    var hasAllFilesAccessPermission by remember {
+        mutableStateOf(PermissionUtil.hasAllFilesAccessPermission())
+    }
+
+    val allFilesPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        hasAllFilesAccessPermission = PermissionUtil.hasAllFilesAccessPermission()
+    }
+
+    val permissionState = remember(hasAllFilesAccessPermission) {
+        AllFilesPermissionState(
+            hasPermission = hasAllFilesAccessPermission,
+            onGrant = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    allFilesPermissionLauncher.launch(
+                        PermissionUtil.getAllFilesAccessPermissionIntent(context)
+                    )
+                }
+            }
+        )
     }
 
     fun checkAndRequestPermission() {
@@ -273,6 +297,7 @@ fun SettingsScreen(
                     SettingsDownloadsCategorySection(
                         isDownloaderInstalled = isDownloaderInstalled,
                         autoDownloadPrefs = autoDownloadPrefs,
+                        permissionState = permissionState,
                         searchIntervalHours = searchIntervalHours,
                         onSearchIntervalChange = { searchIntervalHours = it },
                         viewModel = viewModel,
@@ -348,6 +373,7 @@ fun SettingsScreen(
                 SettingsDownloadsCategorySection(
                     isDownloaderInstalled = isDownloaderInstalled,
                     autoDownloadPrefs = autoDownloadPrefs,
+                    permissionState = permissionState,
                     searchIntervalHours = searchIntervalHours,
                     onSearchIntervalChange = { searchIntervalHours = it },
                     viewModel = viewModel
@@ -646,49 +672,74 @@ fun SettingsNotificationsCategorySection(
     }
 }
 
+data class AutoDownloadActions(
+    val onUpdateQuality: (String) -> Unit,
+    val onUpdatePreferHevc: (Boolean) -> Unit,
+    val onUpdateUnwatchedTv: (Boolean) -> Unit,
+    val onUpdateUnwatchedAnime: (Boolean) -> Unit,
+    val onUpdateUnwatchedMovie: (Boolean) -> Unit,
+    val onUpdateSeasonUnwatchedTv: (Boolean) -> Unit,
+    val onUpdateSeasonUnwatchedAnime: (Boolean) -> Unit,
+    val onUpdateDeleteFileOnWatched: (Boolean) -> Unit,
+    val onUpdateDeleteEmptyParentDirectory: (Boolean) -> Unit,
+    val onAddPreferredKeyword: (String) -> Unit,
+    val onRemovePreferredKeyword: (String) -> Unit,
+    val onReorderPreferredKeywords: (List<String>) -> Unit,
+    val onAddIgnoreKeyword: (String) -> Unit,
+    val onRemoveIgnoreKeyword: (String) -> Unit,
+    val onReorderIgnoreKeywords: (List<String>) -> Unit
+)
+
+data class AllFilesPermissionState(
+    val hasPermission: Boolean,
+    val onGrant: () -> Unit
+)
+
 @Composable
 fun SettingsDownloadsCategorySection(
     isDownloaderInstalled: Boolean,
-    autoDownloadPrefs: com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences,
+    autoDownloadPrefs: AutoDownloadPreferences,
+    permissionState: AllFilesPermissionState,
     searchIntervalHours: Float,
     onSearchIntervalChange: (Float) -> Unit,
     viewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        SettingsAutomaticDownloadsCard(
-            isDownloaderInstalled = isDownloaderInstalled,
-            autoQuality = autoDownloadPrefs.quality,
-            autoPreferHevc = autoDownloadPrefs.preferHevc,
-            autoDownloadUnwatchedTv = autoDownloadPrefs.autoDownloadUnwatchedTv,
-            autoDownloadUnwatchedAnime = autoDownloadPrefs.autoDownloadUnwatchedAnime,
-            autoDownloadUnwatchedMovie = autoDownloadPrefs.autoDownloadUnwatchedMovie,
-            autoDownloadSeasonUnwatchedTv = autoDownloadPrefs.autoDownloadSeasonUnwatchedTv,
-            autoDownloadSeasonUnwatchedAnime = autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime,
-            searchIntervalHours = searchIntervalHours,
-            autoPreferredKeywords = autoDownloadPrefs.preferredKeywords,
-            autoIgnoreKeywords = autoDownloadPrefs.ignoreKeywords,
-            onUpdateAutoDownloadQuality = { viewModel.updateAutoDownloadQuality(it) },
-            onUpdateAutoDownloadPreferHevc = { viewModel.updateAutoDownloadPreferHevc(it) },
-            onUpdateAutoDownloadUnwatchedTv = { viewModel.updateAutoDownloadUnwatchedTv(it) },
-            onUpdateAutoDownloadUnwatchedAnime = { viewModel.updateAutoDownloadUnwatchedAnime(it) },
-            onUpdateAutoDownloadUnwatchedMovie = { viewModel.updateAutoDownloadUnwatchedMovie(it) },
-            onUpdateAutoDownloadSeasonUnwatchedTv = { viewModel.updateAutoDownloadSeasonUnwatchedTv(it) },
-            onUpdateAutoDownloadSeasonUnwatchedAnime = { viewModel.updateAutoDownloadSeasonUnwatchedAnime(it) },
-            onSearchIntervalHoursChange = onSearchIntervalChange,
-            onSearchIntervalHoursChangeFinished = {
-                val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
-                viewModel.updateSearchInterval(roundedHours)
-            },
+    val actions = remember(viewModel) {
+        AutoDownloadActions(
+            onUpdateQuality = { viewModel.updateAutoDownloadQuality(it) },
+            onUpdatePreferHevc = { viewModel.updateAutoDownloadPreferHevc(it) },
+            onUpdateUnwatchedTv = { viewModel.updateAutoDownloadUnwatchedTv(it) },
+            onUpdateUnwatchedAnime = { viewModel.updateAutoDownloadUnwatchedAnime(it) },
+            onUpdateUnwatchedMovie = { viewModel.updateAutoDownloadUnwatchedMovie(it) },
+            onUpdateSeasonUnwatchedTv = { viewModel.updateAutoDownloadSeasonUnwatchedTv(it) },
+            onUpdateSeasonUnwatchedAnime = { viewModel.updateAutoDownloadSeasonUnwatchedAnime(it) },
+            onUpdateDeleteFileOnWatched = { viewModel.updateDeleteFileOnWatched(it) },
+            onUpdateDeleteEmptyParentDirectory = { viewModel.updateDeleteEmptyParentDirectory(it) },
             onAddPreferredKeyword = { viewModel.addPreferredKeyword(it) },
             onRemovePreferredKeyword = { viewModel.removePreferredKeyword(it) },
             onReorderPreferredKeywords = { viewModel.updatePreferredKeywordsOrder(it) },
             onAddIgnoreKeyword = { viewModel.addIgnoreKeyword(it) },
             onRemoveIgnoreKeyword = { viewModel.removeIgnoreKeyword(it) },
             onReorderIgnoreKeywords = { viewModel.updateIgnoreKeywordsOrder(it) }
+        )
+    }
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        SettingsAutomaticDownloadsCard(
+            isDownloaderInstalled = isDownloaderInstalled,
+            autoDownloadPrefs = autoDownloadPrefs,
+            permissionState = permissionState,
+            searchIntervalHours = searchIntervalHours,
+            onSearchIntervalChange = onSearchIntervalChange,
+            onSearchIntervalHoursChangeFinished = {
+                val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
+                viewModel.updateSearchInterval(roundedHours)
+            },
+            actions = actions
         )
     }
 }
@@ -1697,33 +1748,234 @@ fun SettingsBatteryOptimizationCard(
 }
 
 @Composable
+fun SettingsPermissionWarningCard(
+    title: String,
+    message: String,
+    onGrantPermission: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceSettingsBrownDark),
+        border = BorderStroke(1.dp, ErrorPink),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = ErrorPink,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    title,
+                    fontWeight = FontWeight.Bold,
+                    color = ErrorPink,
+                    fontSize = 14.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                message,
+                color = TextSubtle,
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = onGrantPermission,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SurfaceRedDeep,
+                    contentColor = ErrorPink
+                ),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Grant Permission", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsAutoDownloadToggles(
+    autoDownloadPrefs: AutoDownloadPreferences,
+    isDownloaderInstalled: Boolean,
+    permissionState: AllFilesPermissionState,
+    actions: AutoDownloadActions,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Prefer HEVC / x265", color = TextPrimary, fontSize = 15.sp)
+                Text("Prioritize high efficiency video coding results.", color = TextSubtle, fontSize = 12.sp)
+            }
+            Switch(
+                checked = autoDownloadPrefs.preferHevc,
+                onCheckedChange = actions.onUpdatePreferHevc,
+                enabled = isDownloaderInstalled
+            )
+        }
+
+        HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Download Unwatched TV Shows", color = TextPrimary, fontSize = 15.sp)
+                Text("Default setting for newly tracked TV Shows.", color = TextSubtle, fontSize = 12.sp)
+            }
+            Switch(
+                checked = autoDownloadPrefs.autoDownloadUnwatchedTv,
+                onCheckedChange = actions.onUpdateUnwatchedTv,
+                enabled = isDownloaderInstalled
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Download Unwatched Anime", color = TextPrimary, fontSize = 15.sp)
+                Text("Default setting for newly tracked Anime.", color = TextSubtle, fontSize = 12.sp)
+            }
+            Switch(
+                checked = autoDownloadPrefs.autoDownloadUnwatchedAnime,
+                onCheckedChange = actions.onUpdateUnwatchedAnime,
+                enabled = isDownloaderInstalled
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Download Unwatched Movies", color = TextPrimary, fontSize = 15.sp)
+                Text("Default setting for newly tracked Movies.", color = TextSubtle, fontSize = 12.sp)
+            }
+            Switch(
+                checked = autoDownloadPrefs.autoDownloadUnwatchedMovie,
+                onCheckedChange = actions.onUpdateUnwatchedMovie,
+                enabled = isDownloaderInstalled
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Download Season Unwatched TV Shows", color = TextPrimary, fontSize = 15.sp)
+                Text("Default setting for newly tracked TV Shows.", color = TextSubtle, fontSize = 12.sp)
+            }
+            Switch(
+                checked = autoDownloadPrefs.autoDownloadSeasonUnwatchedTv,
+                onCheckedChange = actions.onUpdateSeasonUnwatchedTv,
+                enabled = isDownloaderInstalled
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Download Season Unwatched Anime", color = TextPrimary, fontSize = 15.sp)
+                Text("Default setting for newly tracked Anime.", color = TextSubtle, fontSize = 12.sp)
+            }
+            Switch(
+                checked = autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime,
+                onCheckedChange = actions.onUpdateSeasonUnwatchedAnime,
+                enabled = isDownloaderInstalled
+            )
+        }
+
+        HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Delete downloaded file when watched", color = TextPrimary, fontSize = 15.sp)
+                Text(
+                    "Automatically delete downloaded video files when marked as watched.",
+                    color = TextSubtle,
+                    fontSize = 12.sp
+                )
+            }
+            Switch(
+                checked = autoDownloadPrefs.deleteFileOnWatched,
+                onCheckedChange = { enabled ->
+                    if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !permissionState.hasPermission) {
+                        permissionState.onGrant()
+                    }
+                    actions.onUpdateDeleteFileOnWatched(enabled)
+                },
+                enabled = isDownloaderInstalled
+            )
+        }
+
+        if (autoDownloadPrefs.deleteFileOnWatched && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !permissionState.hasPermission) {
+            Spacer(modifier = Modifier.height(12.dp))
+            SettingsPermissionWarningCard(
+                title = "All Files Access Required",
+                message = "To delete downloaded files written by other apps, " +
+                    "the application requires All Files Access permission.",
+                onGrantPermission = permissionState.onGrant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Delete empty parent directory", color = TextPrimary, fontSize = 15.sp)
+                Text(
+                    "Delete parent directory if empty " +
+                        "(excludes top-level 'movies', 'anime', and 'series' folders).",
+                    color = TextSubtle,
+                    fontSize = 12.sp
+                )
+            }
+            Switch(
+                checked = autoDownloadPrefs.deleteEmptyParentDirectory,
+                onCheckedChange = actions.onUpdateDeleteEmptyParentDirectory,
+                enabled = isDownloaderInstalled && autoDownloadPrefs.deleteFileOnWatched
+            )
+        }
+    }
+}
+
+@Suppress("LongParameterList")
+@Composable
 fun SettingsAutomaticDownloadsCard(
     isDownloaderInstalled: Boolean,
-    autoQuality: String,
-    autoPreferHevc: Boolean,
-    autoDownloadUnwatchedTv: Boolean,
-    autoDownloadUnwatchedAnime: Boolean,
-    autoDownloadUnwatchedMovie: Boolean,
-    autoDownloadSeasonUnwatchedTv: Boolean,
-    autoDownloadSeasonUnwatchedAnime: Boolean,
+    autoDownloadPrefs: AutoDownloadPreferences,
+    permissionState: AllFilesPermissionState,
     searchIntervalHours: Float,
-    autoPreferredKeywords: List<String>,
-    autoIgnoreKeywords: List<String>,
-    onUpdateAutoDownloadQuality: (String) -> Unit,
-    onUpdateAutoDownloadPreferHevc: (Boolean) -> Unit,
-    onUpdateAutoDownloadUnwatchedTv: (Boolean) -> Unit,
-    onUpdateAutoDownloadUnwatchedAnime: (Boolean) -> Unit,
-    onUpdateAutoDownloadUnwatchedMovie: (Boolean) -> Unit,
-    onUpdateAutoDownloadSeasonUnwatchedTv: (Boolean) -> Unit,
-    onUpdateAutoDownloadSeasonUnwatchedAnime: (Boolean) -> Unit,
-    onSearchIntervalHoursChange: (Float) -> Unit,
+    onSearchIntervalChange: (Float) -> Unit,
     onSearchIntervalHoursChangeFinished: () -> Unit,
-    onAddPreferredKeyword: (String) -> Unit,
-    onRemovePreferredKeyword: (String) -> Unit,
-    onReorderPreferredKeywords: (List<String>) -> Unit,
-    onAddIgnoreKeyword: (String) -> Unit,
-    onRemoveIgnoreKeyword: (String) -> Unit,
-    onReorderIgnoreKeywords: (List<String>) -> Unit,
+    actions: AutoDownloadActions,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -1806,113 +2058,22 @@ fun SettingsAutomaticDownloadsCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf("4K", "1080p", "720p").forEach { quality ->
-                    val isSelected = autoQuality == quality
+                    val isSelected = autoDownloadPrefs.quality == quality
                     FilterChip(
                         selected = isSelected,
-                        onClick = { onUpdateAutoDownloadQuality(quality) },
+                        onClick = { actions.onUpdateQuality(quality) },
                         label = { Text(quality) },
                         enabled = isDownloaderInstalled
                     )
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Prefer HEVC / x265", color = TextPrimary, fontSize = 15.sp)
-                    Text("Prioritize high efficiency video coding results.", color = TextSubtle, fontSize = 12.sp)
-                }
-                Switch(
-                    checked = autoPreferHevc,
-                    onCheckedChange = onUpdateAutoDownloadPreferHevc,
-                    enabled = isDownloaderInstalled
-                )
-            }
-
-            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Unwatched TV Shows", color = TextPrimary, fontSize = 15.sp)
-                    Text("Default setting for newly tracked TV Shows.", color = TextSubtle, fontSize = 12.sp)
-                }
-                Switch(
-                    checked = autoDownloadUnwatchedTv,
-                    onCheckedChange = onUpdateAutoDownloadUnwatchedTv,
-                    enabled = isDownloaderInstalled
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Unwatched Anime", color = TextPrimary, fontSize = 15.sp)
-                    Text("Default setting for newly tracked Anime.", color = TextSubtle, fontSize = 12.sp)
-                }
-                Switch(
-                    checked = autoDownloadUnwatchedAnime,
-                    onCheckedChange = onUpdateAutoDownloadUnwatchedAnime,
-                    enabled = isDownloaderInstalled
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Unwatched Movies", color = TextPrimary, fontSize = 15.sp)
-                    Text("Default setting for newly tracked Movies.", color = TextSubtle, fontSize = 12.sp)
-                }
-                Switch(
-                    checked = autoDownloadUnwatchedMovie,
-                    onCheckedChange = onUpdateAutoDownloadUnwatchedMovie,
-                    enabled = isDownloaderInstalled
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Season Unwatched TV Shows", color = TextPrimary, fontSize = 15.sp)
-                    Text("Default setting for newly tracked TV Shows.", color = TextSubtle, fontSize = 12.sp)
-                }
-                Switch(
-                    checked = autoDownloadSeasonUnwatchedTv,
-                    onCheckedChange = onUpdateAutoDownloadSeasonUnwatchedTv,
-                    enabled = isDownloaderInstalled
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Download Season Unwatched Anime", color = TextPrimary, fontSize = 15.sp)
-                    Text("Default setting for newly tracked Anime.", color = TextSubtle, fontSize = 12.sp)
-                }
-                Switch(
-                    checked = autoDownloadSeasonUnwatchedAnime,
-                    onCheckedChange = onUpdateAutoDownloadSeasonUnwatchedAnime,
-                    enabled = isDownloaderInstalled
-                )
-            }
+            SettingsAutoDownloadToggles(
+                autoDownloadPrefs = autoDownloadPrefs,
+                isDownloaderInstalled = isDownloaderInstalled,
+                permissionState = permissionState,
+                actions = actions
+            )
 
             HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 
@@ -1954,7 +2115,7 @@ fun SettingsAutomaticDownloadsCard(
 
                 Slider(
                     value = searchIntervalHours,
-                    onValueChange = onSearchIntervalHoursChange,
+                    onValueChange = onSearchIntervalChange,
                     onValueChangeFinished = onSearchIntervalHoursChangeFinished,
                     enabled = isDownloaderInstalled,
                     valueRange = 1f..24f,
@@ -1984,10 +2145,10 @@ fun SettingsAutomaticDownloadsCard(
             KeywordManagerSection(
                 title = "Preferred Keywords",
                 subtitle = "Torrents containing these tags will be prioritized. First items take precedence.",
-                keywords = autoPreferredKeywords,
-                onAdd = onAddPreferredKeyword,
-                onRemove = onRemovePreferredKeyword,
-                onReorder = onReorderPreferredKeywords,
+                keywords = autoDownloadPrefs.preferredKeywords,
+                onAdd = actions.onAddPreferredKeyword,
+                onRemove = actions.onRemovePreferredKeyword,
+                onReorder = actions.onReorderPreferredKeywords,
                 enabled = isDownloaderInstalled,
                 color = PurpleLight
             )
@@ -1997,10 +2158,10 @@ fun SettingsAutomaticDownloadsCard(
             KeywordManagerSection(
                 title = "Ignore Keywords",
                 subtitle = "Torrents containing these tags will be skipped.",
-                keywords = autoIgnoreKeywords,
-                onAdd = onAddIgnoreKeyword,
-                onRemove = onRemoveIgnoreKeyword,
-                onReorder = onReorderIgnoreKeywords,
+                keywords = autoDownloadPrefs.ignoreKeywords,
+                onAdd = actions.onAddIgnoreKeyword,
+                onRemove = actions.onRemoveIgnoreKeyword,
+                onReorder = actions.onReorderIgnoreKeywords,
                 enabled = isDownloaderInstalled,
                 color = ErrorPink
             )

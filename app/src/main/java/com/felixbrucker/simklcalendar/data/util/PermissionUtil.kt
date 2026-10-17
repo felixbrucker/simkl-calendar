@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import androidx.core.net.toUri
 
@@ -33,6 +34,29 @@ object PermissionUtil {
             }
         } else {
             throw UnsupportedOperationException("getExactAlarmPermissionIntent is only available for Android 12+ (API 31+)")
+        }
+    }
+
+    /**
+     * Checks if the app has MANAGE_EXTERNAL_STORAGE permission on Android 11+ (API 30+).
+     */
+    fun hasAllFilesAccessPermission(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager()
+    }
+
+    /**
+     * Returns an intent to the system settings page where the user can grant
+     * all files access (MANAGE_EXTERNAL_STORAGE) permission.
+     */
+    fun getAllFilesAccessPermissionIntent(context: Context): Intent {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                data = "package:${context.packageName}".toUri()
+            }
+        } else {
+            throw UnsupportedOperationException(
+                "getAllFilesAccessPermissionIntent is only available on Android 11+ (API 30+)"
+            )
         }
     }
 }

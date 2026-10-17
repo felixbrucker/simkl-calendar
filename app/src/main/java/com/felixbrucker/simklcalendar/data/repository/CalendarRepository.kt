@@ -80,6 +80,10 @@ class CalendarRepository @Inject constructor(
         calendarDao.updateDownloadTaskId(primaryKey, taskId, status)
     }
 
+    suspend fun updateDownloadCompleted(primaryKey: String, taskId: String?, status: MediaStatus, filePath: String?) = withContext(Dispatchers.IO) {
+        calendarDao.updateDownloadCompleted(primaryKey, taskId, status, filePath)
+    }
+
     suspend fun updateItemAiredStatus(item: CalendarItemWithWatchlist) = withContext(Dispatchers.IO) {
         val calendarItem = item.calendarItem
         if (item.mediaStatus != MediaStatus.NOT_AIRED_YET) return@withContext

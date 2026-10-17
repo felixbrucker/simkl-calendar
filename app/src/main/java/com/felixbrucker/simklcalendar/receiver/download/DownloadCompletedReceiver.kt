@@ -32,6 +32,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
         private const val TAG = "DownloadCompletedReceiver"
         const val ACTION_DOWNLOAD_COMPLETED = "com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_COMPLETED"
         const val EXTRA_ITEM_PRIMARY_KEY = "extra_item_primary_key"
+        const val EXTRA_FILE_PATHS = "EXTRA_FILE_PATHS"
     }
 
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -40,11 +41,20 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
             return
         }
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
+        val firstFilePath = intent.getStringArrayExtra(EXTRA_FILE_PATHS)?.firstOrNull()
         val pendingResult = goAsync()
         scope.launch {
             try {
-                calendarRepository.updateDownloadTaskId(itemPrimaryKey, null, MediaStatus.DOWNLOADED)
-                Timber.tag(TAG).d("Updated item $itemPrimaryKey to DOWNLOADED status and cleared taskId")
+                calendarRepository.updateDownloadCompleted(
+                    itemPrimaryKey,
+                    null,
+                    MediaStatus.DOWNLOADED,
+                    firstFilePath
+                )
+                Timber.tag(TAG).d(
+                    "Updated item $itemPrimaryKey to DOWNLOADED status, " +
+                        "cleared taskId, and persisted filePath=$firstFilePath"
+                )
 
                 val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 

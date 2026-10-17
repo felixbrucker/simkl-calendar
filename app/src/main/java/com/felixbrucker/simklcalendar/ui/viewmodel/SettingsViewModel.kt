@@ -169,6 +169,21 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateDeleteFileOnWatched(enabled: Boolean) {
+        viewModelScope.launch {
+            autoDownloadRepo.setDeleteFileOnWatched(enabled)
+            if (!enabled) {
+                autoDownloadRepo.setDeleteEmptyParentDirectory(false)
+            }
+        }
+    }
+
+    fun updateDeleteEmptyParentDirectory(enabled: Boolean) {
+        viewModelScope.launch {
+            autoDownloadRepo.setDeleteEmptyParentDirectory(enabled)
+        }
+    }
+
     fun addPreferredKeyword(keyword: String) {
         viewModelScope.launch {
             val current = autoDownloadPreferences.value.preferredKeywords.toMutableList()

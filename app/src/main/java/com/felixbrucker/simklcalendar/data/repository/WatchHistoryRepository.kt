@@ -12,18 +12,23 @@ import com.felixbrucker.simklcalendar.data.network.SyncHistoryMovieItem
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryRequest
 import com.felixbrucker.simklcalendar.data.network.SyncHistorySeasonItem
 import com.felixbrucker.simklcalendar.data.network.SyncHistoryShowItem
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.collections.isEmpty
 
 @Singleton
 class WatchHistoryRepository @Inject constructor(
     private val calendarDao: CalendarItemDao,
     private val watchedDao: WatchedEpisodeDao,
-    private val authenticatedSimklApiService: AuthenticatedSimklApiService
+    private val authenticatedSimklApiService: AuthenticatedSimklApiService,
+    private val autoDownloadRepository: AutoDownloadRepository
 ) {
     fun getWatchedEpisodesForSimklIdFlow(simklId: Int): Flow<List<WatchedEpisode>> =
         watchedDao.getWatchedEpisodesForSimklIdFlow(simklId)
@@ -93,6 +98,8 @@ class WatchHistoryRepository @Inject constructor(
                 episodeNumber = episodeNumber,
                 watchedAt = now
             )
+
+            checkAndDeleteDownloadedFiles(simklId, season, episodeNumber)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -193,6 +200,8 @@ class WatchHistoryRepository @Inject constructor(
                 watchedAt = now
             )
 
+            checkAndDeleteDownloadedFiles(simklId, season = season)
+
             Result.success(shouldMarkCompleted)
         } catch (e: Exception) {
             Timber.tag("WatchHistoryRepository").e(e, "Failed to mark season $season as watched for simklId $simklId")
@@ -220,10 +229,44 @@ class WatchHistoryRepository @Inject constructor(
             val now = Instant.now()
             calendarDao.markMovieWatched(simklId = simklId, watchedAt = now)
 
+            checkAndDeleteDownloadedFiles(simklId, isMovie = true)
+
             Result.success(Unit)
         } catch (e: Exception) {
             Timber.tag("WatchHistoryRepository").e(e, "Failed to mark movie as watched for simklId $simklId")
             Result.failure(e)
+        }
+    }
+
+    private suspend fun checkAndDeleteDownloadedFiles(
+        simklId: Int,
+        season: Int? = null,
+        episodeNumber: Int? = null,
+        isMovie: Boolean = false
+    ) {
+        try {
+            val autoPrefs = autoDownloadRepository.preferencesFlow.first()
+            if (!autoPrefs.deleteFileOnWatched) return
+
+            val items = calendarDao.getItemsForSimklId(simklId)
+            val matchingItems = when {
+                isMovie -> items.filter { it.season == null }
+                episodeNumber != null -> items.filter { it.season == season && it.episodeNumber == episodeNumber }
+                season != null -> items.filter { it.season == season }
+                else -> items
+            }
+
+            matchingItems.forEach { item ->
+                val path = item.filePath
+                if (!path.isNullOrBlank()) {
+                    File(path).deleteWith(removeEmptyParent = autoPrefs.deleteEmptyParentDirectory)
+                }
+            }
+        } catch (e: Exception) {
+            Timber.tag("WatchHistoryRepository").e(
+                e,
+                "Error checking and deleting downloaded files for simklId $simklId"
+            )
         }
     }
 
@@ -377,4 +420,35 @@ class WatchHistoryRepository @Inject constructor(
             Result.failure(e)
         }
     }
+}
+
+internal fun File.deleteWith(removeEmptyParent: Boolean) {
+    if (!exists()) return
+    delete()
+    Timber.tag("WatchHistoryRepository").d("Deleted downloaded file: $absolutePath")
+    if (removeEmptyParent) {
+        parentFile?.deleteIfEmptyNonExcludedDirectory(
+            excludedDirNames = listOf("anime", "series", "movies")
+        )
+    }
+}
+
+internal fun File.deleteIfEmptyNonExcludedDirectory(excludedDirNames: List<String>) {
+    val isExcluded = excludedDirNames.any { it == name }
+    if (isExcluded) {
+        return
+    }
+    if (!isEmptyDirectory()) {
+        return
+    }
+    delete()
+    Timber.tag("WatchHistoryRepository").d("Deleted empty directory: $absolutePath")
+}
+
+internal fun File.isEmptyDirectory(): Boolean {
+    if (!isDirectory) return false
+    require(exists()) { "File $absolutePath does not exist" }
+    val children = listFiles()
+
+    return children != null && children.isEmpty()
 }

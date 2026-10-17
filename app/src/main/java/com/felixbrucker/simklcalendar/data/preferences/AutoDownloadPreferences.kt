@@ -37,6 +37,8 @@ data class AutoDownloadPreferences(
     val autoDownloadUnwatchedMovie: Boolean = false,
     val autoDownloadSeasonUnwatchedTv: Boolean = false,
     val autoDownloadSeasonUnwatchedAnime: Boolean = false,
+    val deleteFileOnWatched: Boolean = false,
+    val deleteEmptyParentDirectory: Boolean = false,
     val preferredKeywords: List<String> = emptyList(),
     val ignoreKeywords: List<String> = emptyList(),
     val searchIntervalHours: Int = 12
@@ -56,6 +58,8 @@ class AutoDownloadRepository @Inject constructor(
         private val KEY_UNWATCHED_MOVIE = booleanPreferencesKey("auto_download_unwatched_movie")
         private val KEY_SEASON_UNWATCHED_TV = booleanPreferencesKey("auto_download_season_unwatched_tv")
         private val KEY_SEASON_UNWATCHED_ANIME = booleanPreferencesKey("auto_download_season_unwatched_anime")
+        private val KEY_DELETE_FILE_ON_WATCHED = booleanPreferencesKey("delete_file_on_watched")
+        private val KEY_DELETE_EMPTY_PARENT_DIRECTORY = booleanPreferencesKey("delete_empty_parent_directory")
         private val KEY_PREFERRED_KEYWORDS = stringPreferencesKey("preferred_keywords")
         private val KEY_IGNORE_KEYWORDS = stringPreferencesKey("ignore_keywords")
         private val KEY_SEARCH_INTERVAL_HOURS = intPreferencesKey("search_interval_hours")
@@ -70,6 +74,8 @@ class AutoDownloadRepository @Inject constructor(
             autoDownloadUnwatchedMovie = preferences[KEY_UNWATCHED_MOVIE] ?: false,
             autoDownloadSeasonUnwatchedTv = preferences[KEY_SEASON_UNWATCHED_TV] ?: false,
             autoDownloadSeasonUnwatchedAnime = preferences[KEY_SEASON_UNWATCHED_ANIME] ?: false,
+            deleteFileOnWatched = preferences[KEY_DELETE_FILE_ON_WATCHED] ?: false,
+            deleteEmptyParentDirectory = preferences[KEY_DELETE_EMPTY_PARENT_DIRECTORY] ?: false,
             preferredKeywords = preferences[KEY_PREFERRED_KEYWORDS]?.split("\n")?.filter { it.isNotBlank() } ?: emptyList(),
             ignoreKeywords = preferences[KEY_IGNORE_KEYWORDS]?.split("\n")?.filter { it.isNotBlank() } ?: emptyList(),
             searchIntervalHours = preferences[KEY_SEARCH_INTERVAL_HOURS] ?: 12
@@ -102,6 +108,14 @@ class AutoDownloadRepository @Inject constructor(
 
     suspend fun setAutoDownloadSeasonUnwatchedAnime(enabled: Boolean) {
         dataStore.edit { it[KEY_SEASON_UNWATCHED_ANIME] = enabled }
+    }
+
+    suspend fun setDeleteFileOnWatched(enabled: Boolean) {
+        dataStore.edit { it[KEY_DELETE_FILE_ON_WATCHED] = enabled }
+    }
+
+    suspend fun setDeleteEmptyParentDirectory(enabled: Boolean) {
+        dataStore.edit { it[KEY_DELETE_EMPTY_PARENT_DIRECTORY] = enabled }
     }
 
     suspend fun setPreferredKeywords(keywords: List<String>) {

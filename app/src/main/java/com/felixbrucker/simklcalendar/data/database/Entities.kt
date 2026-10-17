@@ -96,7 +96,8 @@ data class CalendarItem(
 data class LocalItemState(
     @PrimaryKey val primaryKey: String, // Reference to CalendarItem.primaryKey
     @ColumnInfo(defaultValue = "NOT_AIRED_YET") val mediaStatus: MediaStatus = MediaStatus.NOT_AIRED_YET,
-    val downloadTaskId: String? = null
+    val downloadTaskId: String? = null,
+    val filePath: String? = null
 )
 
 @Entity(
@@ -204,6 +205,7 @@ data class CalendarItemWithWatchlist(
     val isWatched: Boolean get() = calendarItem.isWatched
     val mediaStatus: MediaStatus get() = localState?.mediaStatus ?: MediaStatus.NOT_AIRED_YET
     val downloadTaskId: String? get() = localState?.downloadTaskId
+    val filePath: String? get() = localState?.filePath
     val notificationId: Int get() = abs(primaryKey.hashCode())
 }
 

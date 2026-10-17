@@ -44,7 +44,8 @@ class SimklRepositoryMarkTest {
         repository = WatchHistoryRepository(
             calendarDao = calendarDao,
             watchedDao = watchedDao,
-            authenticatedSimklApiService = authenticatedApiService
+            authenticatedSimklApiService = authenticatedApiService,
+            autoDownloadRepository = mockk(relaxed = true)
         )
     }
 
