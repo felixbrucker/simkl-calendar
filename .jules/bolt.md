@@ -64,8 +64,8 @@
 
 **Action:** Always attach `.flowOn(defaultDispatcher)` to complex `combine` or `map` flow transformations in ViewModels that process large collections or perform string matching and sorting.
 
-## 2027-03-24 - Single-Pass Character Scanning for Heavy String Normalization
+## 2027-03-24 - Single-Pass Character Scanning for Anime Title Normalization (Rejected)
 
-**Learning:** Chaining multiple Regex operations (`replace(REGEX, "")`) followed by `.split(WHITESPACE_REGEX)` and multiple `.filter { ... }` predicates on strings allocates multiple `Regex` matchers, full-length intermediate string copies, intermediate `ArrayList`s, and lowercased string copies per word token. Replacing this pipeline with a single-pass character scanner using `StringBuilder` and $O(1)$ character/length predicate checks eliminates all intermediate `Regex` matchers, full-string replacements, lowercased string copies, and intermediate `List` allocations.
+**Learning:** Optimizing `String.toNormalizedAnimeTitle()` with a custom single-pass character scanner was rejected as unnecessary complexity for minimal gain because title normalization is executed infrequently (only when initiating search query generation or displaying detail titles) and is not on a hot scrolling or batch processing path.
 
-**Action:** Replace chained regex replacement and collection filtering on string processing hot paths with single-pass `StringBuilder` character scanners and $O(1)$ predicate checks.
+**Action:** Avoid replacing readable regex/collection string pipelines with custom character scanners unless profiling proves the string normalization is executed repeatedly in a hot path (e.g., UI rendering or batch loops).
