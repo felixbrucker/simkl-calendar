@@ -69,5 +69,3 @@ fun String.toNormalizedAnimeTitle(): String {
     val finalWords = filteredWords.ifEmpty { wordTokens.ifEmpty { words } }
     return finalWords.joinToString(" ")
 }
-
-

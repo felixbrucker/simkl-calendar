@@ -63,3 +63,9 @@
 **Learning:** Reactive `combine` flow transformations inside ViewModels default to executing on `Dispatchers.Main` when collected by UI state flows (`stateIn`). Performing complex list transformations, string pattern matching, statistics calculation, and multi-criterion collection sorting directly on `Dispatchers.Main` causes UI thread jank and frame drops during search query typing or filter updates. Attaching `.flowOn(defaultDispatcher)` before `.stateIn(...)` offloads heavy collection computations to `Dispatchers.Default` background threads. Injecting `defaultDispatcher: CoroutineDispatcher = Dispatchers.Default` via Hilt provides clean testability without requiring static dispatcher mocking.
 
 **Action:** Always attach `.flowOn(defaultDispatcher)` to complex `combine` or `map` flow transformations in ViewModels that process large collections or perform string matching and sorting.
+
+## 2027-03-24 - Single-Pass Character Scanning for Anime Title Normalization (Rejected)
+
+**Learning:** Optimizing `String.toNormalizedAnimeTitle()` with a custom single-pass character scanner was rejected as unnecessary complexity for minimal gain because title normalization is executed infrequently (only when initiating search query generation or displaying detail titles) and is not on a hot scrolling or batch processing path.
+
+**Action:** Avoid replacing readable regex/collection string pipelines with custom character scanners unless profiling proves the string normalization is executed repeatedly in a hot path (e.g., UI rendering or batch loops).
