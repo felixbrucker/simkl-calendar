@@ -1,6 +1,7 @@
 package com.felixbrucker.simklcalendar.extensions
 
 import com.felixbrucker.simklcalendar.data.util.PosterSize
+import java.util.Locale
 
 /**
  * Extension method on String to convert a Simkl poster fragment to a full poster URL.
@@ -35,14 +36,42 @@ fun String.cleanedForUseAsPath(): String {
     return result.replace(MULTIPLE_WHITESPACES_REGEX, " ")
 }
 
-private val QUOTES_AND_BRACKETS_REGEX = Regex("""['"‘’“”`()\[\]{}⟨⟩「」『』【】〔〕（）«»]""")
-private val NON_ALPHANUMERIC_SPACE_OR_DASH_REGEX = Regex("""[^\p{L}\p{N}\s\-\u2010\u2013\u2014\u2015]""")
-private val WHITESPACE_REGEX = Regex("""\s+""")
+private const val QUOTES_AND_BRACKETS = "'\"‘’“”`()[]{}⟨⟩「」『』【】〔〕（）«»"
 
 private val JAPANESE_PARTICLES = setOf(
     "wa", "ga", "o", "wo", "ni", "de", "no", "to", "mo", "ka", "ha", "ya", "e",
     "kara", "made", "yori"
 )
+
+private fun isQuoteOrBracket(ch: Char): Boolean = QUOTES_AND_BRACKETS.indexOf(ch) >= 0
+
+private fun isDash(ch: Char): Boolean = when (ch) {
+    '-', '\u2010', '\u2013', '\u2014', '\u2015' -> true
+    else -> false
+}
+
+private fun isJapaneseParticle(word: String): Boolean {
+    return word.lowercase(Locale.ROOT) in JAPANESE_PARTICLES
+}
+
+private fun processWordBuffer(
+    wordBuilder: StringBuilder,
+    hasLetterOrDigit: Boolean,
+    words: MutableList<String>,
+    wordTokens: MutableList<String>,
+    filteredWords: MutableList<String>
+) {
+    if (wordBuilder.isEmpty()) return
+    val word = wordBuilder.toString()
+    words.add(word)
+    if (hasLetterOrDigit) {
+        wordTokens.add(word)
+        if (!isJapaneseParticle(word)) {
+            filteredWords.add(word)
+        }
+    }
+    wordBuilder.clear()
+}
 
 /**
  * Normalizes an anime title for search queries by:
@@ -51,23 +80,43 @@ private val JAPANESE_PARTICLES = setOf(
  * - Preserving internal word hyphens/dashes while omitting standalone dashes
  * - Dropping common standalone Japanese particles
  * - Cleaning extra whitespace
+ *
+ * Single-pass character scanner with O(1) predicate checks to avoid Regex allocations.
  */
 fun String.toNormalizedAnimeTitle(): String {
-    val withoutQuotesOrBrackets = replace(QUOTES_AND_BRACKETS_REGEX, "")
-    val replacedSpecialChars = withoutQuotesOrBrackets.replace(NON_ALPHANUMERIC_SPACE_OR_DASH_REGEX, " ")
-    val words = replacedSpecialChars.split(WHITESPACE_REGEX).filter { it.isNotEmpty() }
+    val words = ArrayList<String>()
+    val wordTokens = ArrayList<String>()
+    val filteredWords = ArrayList<String>()
+
+    val wordBuilder = StringBuilder()
+    var hasLetterOrDigit = false
+
+    for (i in 0 until length) {
+        val ch = this[i]
+        if (isQuoteOrBracket(ch)) continue
+
+        if (ch.isLetterOrDigit() || isDash(ch)) {
+            wordBuilder.append(ch)
+            if (ch.isLetterOrDigit()) {
+                hasLetterOrDigit = true
+            }
+        } else {
+            processWordBuffer(wordBuilder, hasLetterOrDigit, words, wordTokens, filteredWords)
+            hasLetterOrDigit = false
+        }
+    }
+
+    processWordBuffer(wordBuilder, hasLetterOrDigit, words, wordTokens, filteredWords)
+
     if (words.isEmpty()) {
         return this.trim()
     }
 
-    val wordTokens = words.filter { token -> token.any { it.isLetterOrDigit() } }
-
-    val filteredWords = wordTokens.filter { word ->
-        word.lowercase() !in JAPANESE_PARTICLES
+    val finalWords = when {
+        filteredWords.isNotEmpty() -> filteredWords
+        wordTokens.isNotEmpty() -> wordTokens
+        else -> words
     }
 
-    val finalWords = filteredWords.ifEmpty { wordTokens.ifEmpty { words } }
     return finalWords.joinToString(" ")
 }
-
-

@@ -63,3 +63,9 @@
 **Learning:** Reactive `combine` flow transformations inside ViewModels default to executing on `Dispatchers.Main` when collected by UI state flows (`stateIn`). Performing complex list transformations, string pattern matching, statistics calculation, and multi-criterion collection sorting directly on `Dispatchers.Main` causes UI thread jank and frame drops during search query typing or filter updates. Attaching `.flowOn(defaultDispatcher)` before `.stateIn(...)` offloads heavy collection computations to `Dispatchers.Default` background threads. Injecting `defaultDispatcher: CoroutineDispatcher = Dispatchers.Default` via Hilt provides clean testability without requiring static dispatcher mocking.
 
 **Action:** Always attach `.flowOn(defaultDispatcher)` to complex `combine` or `map` flow transformations in ViewModels that process large collections or perform string matching and sorting.
+
+## 2027-03-24 - Single-Pass Character Scanning for Heavy String Normalization
+
+**Learning:** Chaining multiple Regex operations (`replace(REGEX, "")`) followed by `.split(WHITESPACE_REGEX)` and multiple `.filter { ... }` predicates on strings allocates multiple `Regex` matchers, full-length intermediate string copies, intermediate `ArrayList`s, and lowercased string copies per word token. Replacing this pipeline with a single-pass character scanner using `StringBuilder` and $O(1)$ character/length predicate checks eliminates all intermediate `Regex` matchers, full-string replacements, lowercased string copies, and intermediate `List` allocations.
+
+**Action:** Replace chained regex replacement and collection filtering on string processing hot paths with single-pass `StringBuilder` character scanners and $O(1)$ predicate checks.
