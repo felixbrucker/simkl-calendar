@@ -10,6 +10,7 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
 import com.felixbrucker.simklcalendar.extensions.ensureAdded
+import com.felixbrucker.simklcalendar.extensions.toAnimeSeasonTokens
 import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import com.felixbrucker.torrent_search_api.Category
 import com.felixbrucker.torrent_search_api.NyaaProvider
@@ -40,21 +41,39 @@ class TorrentSearchManager @Inject constructor(
     private val tpbProvider = TpbProvider()
 
     suspend fun search(item: CalendarItemWithWatchlist): List<SearchResultItem> {
+        return searchEpisode(item)
+    }
+
+    suspend fun searchEpisode(
+        item: CalendarItemWithWatchlist,
+        customTitle: String? = null,
+        includeSeasonToken: Boolean = false
+    ): List<SearchResultItem> {
         val simklId = item.simklId
         val season = item.season ?: 1
         val episode = item.episodeNumber ?: 1
-
         val itemSettings = itemSettingsDao.getSettings(simklId)
 
-        val titleOverride = itemSettings?.titleOverride?.takeIf { it.isNotBlank() }
-        val searchTitle = if (titleOverride != null) {
-            titleOverride
+        var searchTitle = if (!customTitle.isNullOrBlank()) {
+            customTitle.trim()
         } else {
-            val baseTitle = item.titleRomaji ?: item.title
-            if (item.type == MediaType.ANIME) {
-                baseTitle.toNormalizedAnimeTitle()
+            val titleOverride = itemSettings?.titleOverride?.takeIf { it.isNotBlank() }
+            if (titleOverride != null) {
+                titleOverride
             } else {
-                baseTitle
+                val baseTitle = item.titleRomaji ?: item.title
+                if (item.type == MediaType.ANIME) {
+                    baseTitle.toNormalizedAnimeTitle()
+                } else {
+                    baseTitle
+                }
+            }
+        }
+
+        if (includeSeasonToken && item.type == MediaType.ANIME) {
+            val animeSeason = item.watchlistItem?.animeSeason ?: season
+            if (animeSeason > 0) {
+                searchTitle = "$searchTitle ${animeSeason.toAnimeSeasonTokens()}"
             }
         }
 
@@ -64,7 +83,54 @@ class TorrentSearchManager @Inject constructor(
             episode = episode,
             itemDate = item.date,
             mediaType = item.type,
-            itemSettings = itemSettings
+            itemSettings = itemSettings,
+            isSeasonSearch = false
+        )
+    }
+
+    suspend fun searchSeason(
+        simklId: Int,
+        season: Int,
+        customTitle: String? = null,
+        includeSeasonToken: Boolean = false
+    ): List<SearchResultItem> {
+        val watchlistItem = watchlistDao.getItem(simklId)
+            ?: throw IllegalStateException("Watchlist item not found for simklId $simklId")
+        val baseItem = calendarDao.findFirstItemForSimklId(simklId)
+        val itemSettings = itemSettingsDao.getSettings(simklId)
+        val itemDate = baseItem?.date ?: Instant.now()
+
+        var searchTitle = if (!customTitle.isNullOrBlank()) {
+            customTitle.trim()
+        } else {
+            val titleOverride = itemSettings?.titleOverride?.takeIf { it.isNotBlank() }
+            if (titleOverride != null) {
+                titleOverride
+            } else {
+                val baseTitle = watchlistItem.titleRomaji ?: watchlistItem.title
+                if (watchlistItem.type == MediaType.ANIME) {
+                    baseTitle.toNormalizedAnimeTitle()
+                } else {
+                    baseTitle
+                }
+            }
+        }
+
+        if (includeSeasonToken && watchlistItem.type == MediaType.ANIME) {
+            val animeSeason = watchlistItem.animeSeason ?: season
+            if (animeSeason > 0) {
+                searchTitle = "$searchTitle ${animeSeason.toAnimeSeasonTokens()}"
+            }
+        }
+
+        return searchInternal(
+            searchTitle = searchTitle,
+            season = season,
+            episode = null,
+            itemDate = itemDate,
+            mediaType = watchlistItem.type,
+            itemSettings = itemSettings,
+            isSeasonSearch = true
         )
     }
 
@@ -86,17 +152,19 @@ class TorrentSearchManager @Inject constructor(
             episode = episode,
             itemDate = itemDate,
             mediaType = watchlistItem.type,
-            itemSettings = itemSettings
+            itemSettings = itemSettings,
+            isSeasonSearch = false
         )
     }
 
     private suspend fun searchInternal(
         searchTitle: String,
         season: Int,
-        episode: Int,
+        episode: Int?,
         itemDate: Instant,
         mediaType: MediaType,
-        itemSettings: ItemDownloadSettings?
+        itemSettings: ItemDownloadSettings?,
+        isSeasonSearch: Boolean
     ): List<SearchResultItem> {
         val searchSeason = itemSettings?.seasonOverrides?.get(season) ?: season
 
@@ -123,25 +191,25 @@ class TorrentSearchManager @Inject constructor(
 
         val searchStyle = itemSettings?.episodeSearchStyle ?: mediaType.defaultEpisodeSearchStyle
 
-        val seasonAndEpisodeTerm = "S${formatTwoDigits(searchSeason)}E${formatTwoDigits(episode)}"
-        val episodeTerm = formatTwoDigits(episode)
-        val episodeSearchTerm = when (mediaType) {
-            MediaType.MOVIE -> ""
-            else -> when (searchStyle) {
-                EpisodeSearchStyle.SeasonAndEpisode -> seasonAndEpisodeTerm
-                EpisodeSearchStyle.Episode -> episodeTerm
-            }
-        }
-        var term = if (episodeSearchTerm.isNotEmpty()) {
-            "$searchTitle $episodeSearchTerm"
+        val seasonAndEpisodeTerm = if (episode != null) {
+            "S${formatTwoDigits(searchSeason)}E${formatTwoDigits(episode)}"
         } else {
-            searchTitle
+            "S${formatTwoDigits(searchSeason)}"
         }
+        val episodeTerm = episode?.let { formatTwoDigits(it) } ?: ""
+
+        val baseTerm = buildSearchTerm(
+            searchTitle = searchTitle,
+            searchSeason = searchSeason,
+            episodeTerm = episodeTerm,
+            seasonAndEpisodeTerm = seasonAndEpisodeTerm,
+            mediaType = mediaType,
+            searchStyle = searchStyle,
+            isSeasonSearch = isSeasonSearch
+        )
 
         val quality = itemSettings?.qualityOverride ?: globalQuality
-        if (quality.isNotEmpty()) {
-            term += " $quality"
-        }
+        val term = if (quality.isNotEmpty()) "$baseTerm $quality" else baseTerm
 
         val provider = if (mediaType == MediaType.ANIME) nyaaProvider else tpbProvider
         val category = if (mediaType == MediaType.ANIME) Category.ANIME_ENGLISH_TRANSLATED else Category.VIDEO
@@ -158,25 +226,55 @@ class TorrentSearchManager @Inject constructor(
             .filterByReleaseDate(itemDate, RELEASE_DATE_BUFFER_MONTHS)
             .sortedUsing(preferredKeywords)
 
-        // Only anime episode search terms are generic enough to match partially, filter out invalid
-        // matches
-        val finalResults = if (mediaType == MediaType.ANIME) {
-            val keyword = Keyword(
-                variants = listOf(
-                    " $episodeTerm ",
-                    " ${episodeTerm}v",
-                    seasonAndEpisodeTerm
-                ),
-                ignoreCase = true
-            )
-
-            filteredResults.including(listOf(keyword))
-        } else {
-            filteredResults
-        }
+        val finalResults = filterAnimeEpisodeResults(
+            mediaType = mediaType,
+            isSeasonSearch = isSeasonSearch,
+            episodeTerm = episodeTerm,
+            seasonAndEpisodeTerm = seasonAndEpisodeTerm,
+            filteredResults = filteredResults
+        )
 
         Timber.tag(TAG).d("Torrent search returned ${finalResults.size} results for term '$term' (${rawResults.size} raw results)")
         return finalResults
+    }
+
+    private fun buildSearchTerm(
+        searchTitle: String,
+        searchSeason: Int,
+        episodeTerm: String,
+        seasonAndEpisodeTerm: String,
+        mediaType: MediaType,
+        searchStyle: EpisodeSearchStyle,
+        isSeasonSearch: Boolean
+    ): String {
+        return when {
+            mediaType == MediaType.MOVIE -> searchTitle
+            isSeasonSearch -> "$searchTitle S${formatTwoDigits(searchSeason)}"
+            searchStyle == EpisodeSearchStyle.SeasonAndEpisode -> "$searchTitle $seasonAndEpisodeTerm"
+            episodeTerm.isNotEmpty() -> "$searchTitle $episodeTerm"
+            else -> searchTitle
+        }
+    }
+
+    private fun filterAnimeEpisodeResults(
+        mediaType: MediaType,
+        isSeasonSearch: Boolean,
+        episodeTerm: String,
+        seasonAndEpisodeTerm: String,
+        filteredResults: List<SearchResultItem>
+    ): List<SearchResultItem> {
+        if (mediaType != MediaType.ANIME || isSeasonSearch || episodeTerm.isEmpty()) {
+            return filteredResults
+        }
+        val keyword = Keyword(
+            variants = listOf(
+                " $episodeTerm ",
+                " ${episodeTerm}v",
+                seasonAndEpisodeTerm
+            ),
+            ignoreCase = true
+        )
+        return filteredResults.including(listOf(keyword))
     }
 }
 
