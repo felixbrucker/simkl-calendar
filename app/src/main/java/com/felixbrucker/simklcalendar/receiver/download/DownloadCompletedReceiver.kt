@@ -4,8 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
+import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +30,9 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
     lateinit var calendarItemDao: CalendarItemDao
 
     @Inject
+    lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
+
+    @Inject
     lateinit var notificationManager: NotificationManager
 
     companion object {
@@ -41,40 +48,110 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
             return
         }
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
-        val firstFilePath = intent.getStringArrayListExtra(EXTRA_FILE_PATHS)?.firstOrNull()
+        val filePaths = intent.getStringArrayListExtra(EXTRA_FILE_PATHS) ?: emptyList<String>()
         val pendingResult = goAsync()
         scope.launch {
             try {
-                calendarRepository.updateDownloadCompleted(
-                    itemPrimaryKey,
-                    null,
-                    MediaStatus.DOWNLOADED,
-                    firstFilePath
-                )
-                Timber.tag(TAG).d(
-                    "Updated item $itemPrimaryKey to DOWNLOADED status, " +
-                        "cleared taskId, and persisted filePath=$firstFilePath"
-                )
+                val primaryItem = calendarItemDao.findItem(itemPrimaryKey)
+                val taskId = primaryItem?.downloadTaskId
 
-                val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
+                val itemsToProcess = if (!taskId.isNullOrEmpty()) {
+                    val taskItems = calendarItemDao.getItemsForDownloadTaskId(taskId)
+                    if (taskItems.isNotEmpty()) taskItems else listOfNotNull(primaryItem)
+                } else {
+                    listOfNotNull(primaryItem)
+                }
 
-                // Update notification for the item that was just downloaded (if active)
-                notificationManager.updateNotification(item)
+                if (itemsToProcess.isEmpty()) {
+                    calendarRepository.updateDownloadCompleted(
+                        itemPrimaryKey,
+                        null,
+                        MediaStatus.DOWNLOADED,
+                        filePaths.firstOrNull()
+                    )
+                    return@launch
+                }
 
-                // If it's a TV show/anime episode, also check if there's an active season finale
-                // notification that needs updating to reflect the new aggregate download status.
-                val season = item.season
-                if (season != null) {
-                    val finaleItem = calendarItemDao.getSeasonFinaleItem(item.simklId, season)
-                    if (finaleItem != null && finaleItem.primaryKey != item.primaryKey) {
-                        notificationManager.updateNotification(finaleItem)
-                    }
+                for (epItem in itemsToProcess) {
+                    processCompletedEpisodeItem(epItem, itemsToProcess.size, filePaths)
                 }
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error handling download completion")
             } finally {
                 pendingResult.finish()
             }
+        }
+    }
+
+    private suspend fun processCompletedEpisodeItem(
+        epItem: CalendarItemWithWatchlist,
+        totalItemsCount: Int,
+        filePaths: List<String>
+    ) {
+        val settings = itemDownloadSettingsDao.getSettings(epItem.simklId)
+        val searchStyle = settings?.episodeSearchStyle ?: epItem.type.defaultEpisodeSearchStyle
+        val season = settings?.seasonOverrides?.get(epItem.season ?: 1) ?: (epItem.season ?: 1)
+        val episode = epItem.episodeNumber ?: 1
+
+        val matchedFilePath = matchFilePathForEpisode(
+            filePaths = filePaths,
+            season = season,
+            episode = episode,
+            searchStyle = searchStyle
+        ) ?: if (totalItemsCount == 1) filePaths.firstOrNull() else null
+
+        calendarRepository.updateDownloadCompleted(
+            epItem.primaryKey,
+            null,
+            MediaStatus.DOWNLOADED,
+            matchedFilePath
+        )
+        Timber.tag(TAG).d(
+            "Updated item %s to DOWNLOADED status, filePath=%s",
+            epItem.primaryKey,
+            matchedFilePath
+        )
+
+        val updatedItem = calendarItemDao.findItem(epItem.primaryKey) ?: epItem
+        notificationManager.updateNotification(updatedItem)
+
+        val itemSeason = updatedItem.season
+        if (itemSeason != null) {
+            val finaleItem = calendarItemDao.getSeasonFinaleItem(updatedItem.simklId, itemSeason)
+            if (finaleItem != null && finaleItem.primaryKey != updatedItem.primaryKey) {
+                notificationManager.updateNotification(finaleItem)
+            }
+        }
+    }
+
+    internal fun matchFilePathForEpisode(
+        filePaths: List<String>,
+        season: Int,
+        episode: Int,
+        searchStyle: EpisodeSearchStyle
+    ): String? {
+        if (filePaths.isEmpty()) {
+            return null
+        }
+
+        val seasonAndEpisodeTerm = "S${formatTwoDigits(season)}E${formatTwoDigits(episode)}"
+        val exactMatch = filePaths.find { it.contains(seasonAndEpisodeTerm, ignoreCase = true) }
+
+        return when {
+            exactMatch != null -> exactMatch
+            searchStyle == EpisodeSearchStyle.SeasonAndEpisode -> null
+            else -> findByEpisodeVariants(filePaths, formatTwoDigits(episode))
+        }
+    }
+
+    private fun findByEpisodeVariants(filePaths: List<String>, episodeTerm: String): String? {
+        val variants = listOf(
+            " $episodeTerm ", " $episodeTerm.", " $episodeTerm-", " ${episodeTerm}_",
+            " ${episodeTerm}v", "E$episodeTerm", "e$episodeTerm", "[$episodeTerm]", "($episodeTerm)"
+        )
+        return filePaths.find { path ->
+            val fileName = path.substringAfterLast('/').substringAfterLast('\\')
+            variants.any { variant -> fileName.contains(variant, ignoreCase = true) }
         }
     }
 }

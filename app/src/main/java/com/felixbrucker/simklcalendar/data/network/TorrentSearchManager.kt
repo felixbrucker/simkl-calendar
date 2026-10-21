@@ -96,9 +96,12 @@ class TorrentSearchManager @Inject constructor(
     ): List<SearchResultItem> {
         val watchlistItem = watchlistDao.getItem(simklId)
             ?: throw IllegalStateException("Watchlist item not found for simklId $simklId")
-        val baseItem = calendarDao.findFirstItemForSimklId(simklId)
+        val seasonItems = calendarDao.getItemsInSeasonOrRelatedItems(simklId, season)
+            .filter { (it.season ?: 1) == season }
         val itemSettings = itemSettingsDao.getSettings(simklId)
-        val itemDate = baseItem?.date ?: Instant.now()
+        val itemDate = seasonItems.maxOfOrNull { it.date }
+            ?: calendarDao.findFirstItemForSimklId(simklId)?.date
+            ?: Instant.now()
 
         var searchTitle = if (!customTitle.isNullOrBlank()) {
             customTitle.trim()
