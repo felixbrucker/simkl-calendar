@@ -25,14 +25,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -75,11 +74,11 @@ import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedItemLabel
 import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
 import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
+import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
-import androidx.compose.material.icons.filled.Search
 import com.felixbrucker.simklcalendar.ui.composable.EpisodeListActions
 import com.felixbrucker.simklcalendar.ui.composable.EpisodeListCard
 import com.felixbrucker.simklcalendar.ui.composable.EpisodeListState
@@ -87,10 +86,10 @@ import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ManualSearchDialog
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
+import com.felixbrucker.simklcalendar.ui.composable.SeasonWatchButton
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
 import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
-import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
 import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
 import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
 import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
@@ -98,14 +97,12 @@ import com.felixbrucker.simklcalendar.ui.theme.SuccessLight
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkGreenVariant
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenBright
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenDeep
 import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedWine
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
 import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
 import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
@@ -324,26 +321,6 @@ fun ReleaseDetailScreen(
                     ) {
                         val list = mutableListOf<@Composable (Modifier) -> Unit>()
 
-                        list.add { mod ->
-                            Button(
-                                onClick = { showEpisodeManualSearchDialog = true },
-                                modifier = mod.height(48.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = SurfacePrimaryVariant,
-                                    contentColor = PurpleContainerSoft
-                                ),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Search manually", fontWeight = FontWeight.Bold, maxLines = 1)
-                            }
-                        }
-
                         if (activeItem.type != MediaType.MOVIE) {
                             val sNum = activeItem.season ?: 1
                             val seasonLabel = activeItem.formattedSeasonLabel
@@ -386,6 +363,28 @@ fun ReleaseDetailScreen(
                                     },
                                     modifier = mod
                                 )
+                            }
+                        }
+
+                        if (activeItem.mediaStatus == MediaStatus.IGNORED || activeItem.mediaStatus == MediaStatus.WANTED) {
+                            list.add { mod ->
+                                Button(
+                                    onClick = { showEpisodeManualSearchDialog = true },
+                                    modifier = mod.height(48.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = SurfacePrimaryVariant,
+                                        contentColor = PurpleContainerSoft
+                                    ),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Search manually", fontWeight = FontWeight.Bold, maxLines = 1)
+                                }
                             }
                         }
 
@@ -434,10 +433,20 @@ fun ReleaseDetailScreen(
                     }
 
                     if (showEpisodeManualSearchDialog) {
+                        val initialSearchTitle = remember(activeItem, itemSettings) {
+                            itemSettings?.titleOverride
+                                ?: if (activeItem.type == MediaType.ANIME) {
+                                    val romajiTitle = activeItem.titleRomaji?.takeIf { it.isNotBlank() }
+                                    val baseTitle = romajiTitle ?: activeItem.title
+                                    baseTitle.toNormalizedAnimeTitle()
+                                } else {
+                                    activeItem.title
+                                }
+                        }
                         ManualSearchDialog(
-                            initialTitle = activeItem.title,
+                            initialTitle = initialSearchTitle,
                             mediaType = activeItem.type,
-                            animeSeason = activeItem.watchlistItem?.animeSeason ?: activeItem.season,
+                            animeSeason = activeItem.season ?: activeItem.watchlistItem?.animeSeason,
                             dialogTitle = "Search Episode Manually",
                             onPerformSearch = { customTitle, includeSeasonToken ->
                                 viewModel.searchEpisodeTorrents(
@@ -461,10 +470,20 @@ fun ReleaseDetailScreen(
 
                     if (manualSearchSeasonNum != null) {
                         val sNum = manualSearchSeasonNum!!
+                        val initialSeasonSearchTitle = remember(activeItem, itemSettings) {
+                            itemSettings?.titleOverride
+                                ?: if (activeItem.type == MediaType.ANIME) {
+                                    val romajiTitle = activeItem.titleRomaji?.takeIf { it.isNotBlank() }
+                                    val baseTitle = romajiTitle ?: activeItem.title
+                                    baseTitle.toNormalizedAnimeTitle()
+                                } else {
+                                    activeItem.title
+                                }
+                        }
                         ManualSearchDialog(
-                            initialTitle = activeItem.title,
+                            initialTitle = initialSeasonSearchTitle,
                             mediaType = activeItem.type,
-                            animeSeason = activeItem.watchlistItem?.animeSeason ?: sNum,
+                            animeSeason = sNum,
                             dialogTitle = "Search Season $sNum Manually",
                             onPerformSearch = { customTitle, includeSeasonToken ->
                                 viewModel.searchSeasonTorrents(
@@ -870,60 +889,6 @@ fun SelectedEpisodeDetailsCard(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun SeasonWatchButton(
-    isMarkingWatched: Boolean,
-    isSeasonFullyWatched: Boolean,
-    seasonLabel: String,
-    onMarkSeasonWatched: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onMarkSeasonWatched,
-        enabled = !isMarkingWatched && !isSeasonFullyWatched,
-        modifier = modifier.height(48.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSeasonFullyWatched) SurfaceGreenDeep else SurfacePrimaryVariant,
-            contentColor = if (isSeasonFullyWatched) GreenSuccess else PurpleContainerSoft,
-            disabledContainerColor = if (isSeasonFullyWatched) SurfaceGreen else SurfaceVariantGrey,
-            disabledContentColor = if (isSeasonFullyWatched) GreenSuccess else OutlineGrey
-        ),
-        shape = RoundedCornerShape(10.dp)
-    ) {
-        if (isMarkingWatched) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-                color = PurpleContainerSoft
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
-        } else if (isSeasonFullyWatched) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "$seasonLabel Watched",
-                fontWeight = FontWeight.Bold
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Mark $seasonLabel as Watched",
-                fontWeight = FontWeight.Bold
-            )
         }
     }
 }

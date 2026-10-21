@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,10 +64,10 @@ data class EpisodeListActions(
     val onItemClick: (CalendarItemWithWatchlist) -> Unit,
     val onWatchedStatusChange: (CalendarItemWithWatchlist, Boolean) -> Unit,
     val onMediaStatusChange: (String, MediaStatus) -> Unit,
-    val onMarkSeasonWatched: ((season: Int) -> Unit)? = null,
-    val onMarkSeasonUnwatched: ((season: Int) -> Unit)? = null,
-    val onUpdateSeasonMediaStatus: ((season: Int, status: MediaStatus) -> Unit)? = null,
-    val onSearchSeasonManually: ((season: Int) -> Unit)? = null,
+    val onMarkSeasonWatched: (season: Int) -> Unit,
+    val onMarkSeasonUnwatched: (season: Int) -> Unit,
+    val onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit,
+    val onSearchSeasonManually: (season: Int) -> Unit,
 )
 
 @Composable
@@ -165,10 +164,10 @@ data class SeasonHeaderState(
     val season: Int,
     val episodes: List<CalendarItemWithWatchlist>,
     val updatingWatchKeys: Set<String>,
-    val onMarkSeasonWatched: ((season: Int) -> Unit)? = null,
-    val onMarkSeasonUnwatched: ((season: Int) -> Unit)? = null,
-    val onUpdateSeasonMediaStatus: ((season: Int, status: MediaStatus) -> Unit)? = null,
-    val onSearchSeasonManually: ((season: Int) -> Unit)? = null,
+    val onMarkSeasonWatched: (season: Int) -> Unit,
+    val onMarkSeasonUnwatched: (season: Int) -> Unit,
+    val onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit,
+    val onSearchSeasonManually: (season: Int) -> Unit,
 )
 
 @Composable
@@ -211,47 +210,53 @@ private fun SeasonHeaderActions(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        val searchAction = state.onSearchSeasonManually
-        if (searchAction != null) {
-            IconButton(
-                onClick = { searchAction(state.season) },
-                modifier = Modifier.size(28.dp)
+        val hasSearchableEpisode = remember(state.episodes) {
+            state.episodes.any { it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED }
+        }
+
+        if (hasSearchableEpisode) {
+            androidx.compose.material3.OutlinedButton(
+                onClick = { state.onSearchSeasonManually(state.season) },
+                shape = RoundedCornerShape(6.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
+                modifier = Modifier.height(28.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Search season manually",
+                    contentDescription = null,
                     tint = PurpleLight,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Search manually",
+                    fontSize = 11.sp,
+                    color = PurpleLight,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
 
-        val markWatchedAction = state.onMarkSeasonWatched
-        val markUnwatchedAction = state.onMarkSeasonUnwatched
-        if (markWatchedAction != null && markUnwatchedAction != null) {
-            val isWatched = state.episodes.all { it.isWatched }
-            val isLoading = state.episodes.any { state.updatingWatchKeys.contains(it.primaryKey) }
+        val isWatched = state.episodes.all { it.isWatched }
+        val isLoading = state.episodes.any { state.updatingWatchKeys.contains(it.primaryKey) }
 
-            WatchedStatusDropdown(
-                isWatched = isWatched,
-                onStatusChange = { watched ->
-                    if (watched) {
-                        markWatchedAction(state.season)
-                    } else {
-                        markUnwatchedAction(state.season)
-                    }
-                },
-                isLoading = isLoading
-            )
-        }
+        WatchedStatusDropdown(
+            isWatched = isWatched,
+            onStatusChange = { watched ->
+                if (watched) {
+                    state.onMarkSeasonWatched(state.season)
+                } else {
+                    state.onMarkSeasonUnwatched(state.season)
+                }
+            },
+            isLoading = isLoading
+        )
 
-        val updateStatusAction = state.onUpdateSeasonMediaStatus
-        if (updateStatusAction != null) {
-            MediaStatusDropdown(
-                currentStatus = commonStatus ?: MediaStatus.IGNORED,
-                onStatusChange = { updateStatusAction(state.season, it) }
-            )
-        }
+        MediaStatusDropdown(
+            currentStatus = commonStatus ?: MediaStatus.IGNORED,
+            onStatusChange = { state.onUpdateSeasonMediaStatus(state.season, it) }
+        )
     }
 }
 

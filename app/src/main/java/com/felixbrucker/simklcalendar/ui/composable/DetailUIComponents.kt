@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Block
@@ -116,18 +117,21 @@ import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
 import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
 import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
 import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
 import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
 import com.felixbrucker.simklcalendar.ui.theme.PurplePrimaryDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkBlue
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenDeep
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
 import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
-import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
+import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.TextGreyLight
 import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
 import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
@@ -1445,6 +1449,60 @@ fun DetectTitleDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SeasonWatchButton(
+    isMarkingWatched: Boolean,
+    isSeasonFullyWatched: Boolean,
+    seasonLabel: String,
+    onMarkSeasonWatched: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onMarkSeasonWatched,
+        enabled = !isMarkingWatched && !isSeasonFullyWatched,
+        modifier = modifier.height(48.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSeasonFullyWatched) SurfaceGreenDeep else SurfacePrimaryVariant,
+            contentColor = if (isSeasonFullyWatched) GreenSuccess else PurpleContainerSoft,
+            disabledContainerColor = if (isSeasonFullyWatched) SurfaceGreen else SurfaceVariantGrey,
+            disabledContentColor = if (isSeasonFullyWatched) GreenSuccess else OutlineGrey
+        ),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        if (isMarkingWatched) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = PurpleContainerSoft
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
+        } else if (isSeasonFullyWatched) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "$seasonLabel Watched",
+                fontWeight = FontWeight.Bold
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Mark $seasonLabel as Watched",
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

@@ -16,10 +16,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -32,6 +37,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
+import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
+import com.felixbrucker.simklcalendar.ui.composable.ManualSearchDialog
+import com.felixbrucker.simklcalendar.ui.composable.SeasonWatchButton
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -146,6 +157,9 @@ fun WatchlistItemDetailScreen(
             ?: (if (isMovie) defaultMovieDigital else defaultSeasonFinished))
     }
 
+    var manualSearchSeasonNum by remember { mutableStateOf<Int?>(null) }
+    val isMarkingWatched by viewModel.isMarkingWatched.collectAsState()
+
     LaunchedEffect(notificationSetting) {
         if (notificationSetting != null) {
             notifyEveryEpisode = notificationSetting.notifyEveryEpisode
@@ -194,8 +208,58 @@ fun WatchlistItemDetailScreen(
                     )
                 }
 
-                // 2. Summary Stats Bar (Hidden for movies)
+                // 2. Single Season Action Button Row / Summary Stats Bar
                 if (!isMovie) {
+                    if (isAnimeSeasonOneOnly || seasons.size == 1) {
+                        item {
+                            val targetSeason = seasons.keys.firstOrNull() ?: 1
+                            val targetEpisodes = seasons[targetSeason] ?: emptyList()
+                            val isSeasonFullyWatched = targetEpisodes.isNotEmpty() &&
+                                targetEpisodes.all { it.isWatched }
+                            val hasSearchableEpisode = targetEpisodes.any {
+                                it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                SeasonWatchButton(
+                                    isMarkingWatched = isMarkingWatched,
+                                    isSeasonFullyWatched = isSeasonFullyWatched,
+                                    seasonLabel = "Season $targetSeason",
+                                    onMarkSeasonWatched = {
+                                        viewModel.markSeasonWatched(simklId, targetSeason, watchlistItem.type)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                if (hasSearchableEpisode) {
+                                    Button(
+                                        onClick = { manualSearchSeasonNum = targetSeason },
+                                        modifier = Modifier.height(48.dp).weight(1f),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = SurfacePrimaryVariant,
+                                            contentColor = PurpleContainerSoft
+                                        ),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Search manually", fontWeight = FontWeight.Bold, maxLines = 1)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     item {
                         WatchlistItemSummaryStats(
                             item = tableItem,
@@ -286,9 +350,51 @@ fun WatchlistItemDetailScreen(
                             onMarkSeasonWatched = { sNum -> viewModel.markSeasonWatched(simklId, sNum, watchlistItem.type) },
                             onMarkSeasonUnwatched = { sNum -> viewModel.markSeasonUnwatched(simklId, sNum, watchlistItem.type) },
                             onUpdateSeasonMediaStatus = { sNum, status -> viewModel.updateSeasonMediaStatus(simklId, sNum, status) },
+                            onSearchSeasonManually = { sNum -> manualSearchSeasonNum = sNum }
                         ),
                         modifier = Modifier.padding(16.dp)
                     )
+                }
+
+                if (manualSearchSeasonNum != null) {
+                    item {
+                        val sNum = manualSearchSeasonNum!!
+                        val initialSeasonSearchTitle = remember(watchlistItem, itemSettings) {
+                            itemSettings?.titleOverride
+                                ?: if (watchlistItem.type == MediaType.ANIME) {
+                                    val romajiTitle = watchlistItem.titleRomaji?.takeIf { it.isNotBlank() }
+                                    val baseTitle = romajiTitle ?: watchlistItem.title
+                                    baseTitle.toNormalizedAnimeTitle()
+                                } else {
+                                    watchlistItem.title
+                                }
+                        }
+                        ManualSearchDialog(
+                            initialTitle = initialSeasonSearchTitle,
+                            mediaType = watchlistItem.type,
+                            animeSeason = sNum,
+                            dialogTitle = "Search Season $sNum Manually",
+                            onPerformSearch = { customTitle, includeSeasonToken ->
+                                viewModel.searchSeasonTorrents(
+                                    simklId = simklId,
+                                    season = sNum,
+                                    customTitle = customTitle,
+                                    includeSeasonToken = includeSeasonToken
+                                )
+                            },
+                            onSelectResult = { selectedResult ->
+                                viewModel.downloadSeasonResult(
+                                    simklId = simklId,
+                                    season = sNum,
+                                    resultItem = selectedResult,
+                                    onResult = { _, msg ->
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
+                                )
+                            },
+                            onDismiss = { manualSearchSeasonNum = null }
+                        )
+                    }
                 }
 
                 // 4. Notification Settings
