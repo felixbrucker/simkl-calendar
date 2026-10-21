@@ -79,11 +79,13 @@ import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
+import androidx.compose.material.icons.filled.Search
 import com.felixbrucker.simklcalendar.ui.composable.EpisodeListActions
 import com.felixbrucker.simklcalendar.ui.composable.EpisodeListCard
 import com.felixbrucker.simklcalendar.ui.composable.EpisodeListState
 import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
+import com.felixbrucker.simklcalendar.ui.composable.ManualSearchDialog
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
@@ -209,6 +211,8 @@ fun ReleaseDetailScreen(
     val defaultMovieTheater = notificationPrefs.defaultNotifyMovieTheater
     val defaultMovieDigital = notificationPrefs.defaultNotifyMovieDigital
     val isMovie = activeItem?.type == MediaType.MOVIE
+    var showEpisodeManualSearchDialog by remember { mutableStateOf(false) }
+    var manualSearchSeasonNum by remember { mutableStateOf<Int?>(null) }
 
     // Individual notification toggle flows
     var notifyEveryEpisode by remember(notificationSetting, defaultAiring, defaultMovieTheater, isMovie) {
@@ -312,8 +316,33 @@ fun ReleaseDetailScreen(
                     )
 
                     // Dynamic Action Buttons Section (Max 2 per row)
-                    val actions = remember(activeItem, showWatched, isMarkingWatched, appSettingsPrefs.showDebugActions) {
+                    val actions = remember(
+                        activeItem,
+                        showWatched,
+                        isMarkingWatched,
+                        appSettingsPrefs.showDebugActions
+                    ) {
                         val list = mutableListOf<@Composable (Modifier) -> Unit>()
+
+                        list.add { mod ->
+                            Button(
+                                onClick = { showEpisodeManualSearchDialog = true },
+                                modifier = mod.height(48.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = SurfacePrimaryVariant,
+                                    contentColor = PurpleContainerSoft
+                                ),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Search manually", fontWeight = FontWeight.Bold, maxLines = 1)
+                            }
+                        }
 
                         if (activeItem.type != MediaType.MOVIE) {
                             val sNum = activeItem.season ?: 1
@@ -402,6 +431,61 @@ fun ReleaseDetailScreen(
                                 }
                             }
                         }
+                    }
+
+                    if (showEpisodeManualSearchDialog) {
+                        ManualSearchDialog(
+                            initialTitle = activeItem.title,
+                            mediaType = activeItem.type,
+                            animeSeason = activeItem.watchlistItem?.animeSeason ?: activeItem.season,
+                            dialogTitle = "Search Episode Manually",
+                            onPerformSearch = { customTitle, includeSeasonToken ->
+                                viewModel.searchEpisodeTorrents(
+                                    item = activeItem,
+                                    customTitle = customTitle,
+                                    includeSeasonToken = includeSeasonToken
+                                )
+                            },
+                            onSelectResult = { selectedResult ->
+                                viewModel.downloadEpisodeResult(
+                                    item = activeItem,
+                                    resultItem = selectedResult,
+                                    onResult = { _, msg ->
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
+                                )
+                            },
+                            onDismiss = { showEpisodeManualSearchDialog = false }
+                        )
+                    }
+
+                    if (manualSearchSeasonNum != null) {
+                        val sNum = manualSearchSeasonNum!!
+                        ManualSearchDialog(
+                            initialTitle = activeItem.title,
+                            mediaType = activeItem.type,
+                            animeSeason = activeItem.watchlistItem?.animeSeason ?: sNum,
+                            dialogTitle = "Search Season $sNum Manually",
+                            onPerformSearch = { customTitle, includeSeasonToken ->
+                                viewModel.searchSeasonTorrents(
+                                    simklId = activeItem.simklId,
+                                    season = sNum,
+                                    customTitle = customTitle,
+                                    includeSeasonToken = includeSeasonToken
+                                )
+                            },
+                            onSelectResult = { selectedResult ->
+                                viewModel.downloadSeasonResult(
+                                    simklId = activeItem.simklId,
+                                    season = sNum,
+                                    resultItem = selectedResult,
+                                    onResult = { _, msg ->
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
+                                )
+                            },
+                            onDismiss = { manualSearchSeasonNum = null }
+                        )
                     }
 
                     if (showDeleteConfirmation) {
@@ -496,6 +580,9 @@ fun ReleaseDetailScreen(
                                 },
                                 onUpdateSeasonMediaStatus = { season, status ->
                                     viewModel.updateSeasonMediaStatus(activeItem.simklId, season, status)
+                                },
+                                onSearchSeasonManually = { season ->
+                                    manualSearchSeasonNum = season
                                 }
                             )
                         )

@@ -1159,6 +1159,190 @@ private fun DownloadSubdirectoryChipList(
 }
 
 @Composable
+fun SearchTermInputField(
+    titleInput: String,
+    onTitleChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    isLoading: Boolean,
+) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
+    val handleSearch = {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        onSearch()
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = titleInput,
+            onValueChange = onTitleChange,
+            label = { Text("Title Search Term") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { handleSearch() }),
+            modifier = Modifier.weight(1f),
+        )
+        FilledIconButton(
+            onClick = handleSearch,
+            modifier = Modifier.padding(top = 6.dp),
+            enabled = !isLoading,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+            )
+        }
+    }
+}
+
+@Composable
+fun SeasonCheckbox(
+    includeSeason: Boolean,
+    animeSeason: Int?,
+    onIncludeSeasonChange: (Boolean) -> Unit
+) {
+    val isEnabled = animeSeason != null && animeSeason > 0
+    val labelText = "Include season"
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = isEnabled) { onIncludeSeasonChange(!includeSeason) }
+    ) {
+        Checkbox(
+            checked = includeSeason,
+            onCheckedChange = onIncludeSeasonChange,
+            enabled = isEnabled
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = labelText,
+            fontSize = 13.sp,
+            color = if (isEnabled) TextPrimary else OutlineGrey
+        )
+    }
+}
+
+@Composable
+fun TorrentSearchResultsTable(
+    results: List<SearchResultItem>,
+    isLoading: Boolean,
+    tableHeaderTitle: String = "Search Results",
+    onSelectResult: ((SearchResultItem) -> Unit)? = null
+) {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 280.dp)
+    ) {
+        Text(
+            text = tableHeaderTitle,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            color = TextSubtle,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            }
+        } else if (results.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No torrents found", fontSize = 12.sp, color = TextSubtle)
+            }
+        } else {
+            TorrentResultsTableHeader()
+            HorizontalDivider(color = OutlineVariant, thickness = 0.5.dp)
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                items(results) { item ->
+                    TorrentSearchResultRow(
+                        item = item,
+                        context = context,
+                        onClick = onSelectResult?.let { callback -> { callback(item) } }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TorrentResultsTableHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Title", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.weight(1f))
+        Text("Size", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(65.dp))
+        Text("Seeders", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(45.dp), textAlign = TextAlign.End)
+    }
+}
+
+@Composable
+private fun TorrentSearchResultRow(
+    item: SearchResultItem,
+    context: Context,
+    onClick: (() -> Unit)? = null
+) {
+    val formattedSize = remember(item.sizeInBytes) {
+        Formatter.formatFileSize(context, item.sizeInBytes)
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = item.name,
+            fontSize = 11.sp,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = formattedSize,
+            fontSize = 11.sp,
+            color = TextSubtle,
+            modifier = Modifier.width(65.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = "${item.seeder}",
+            fontSize = 11.sp,
+            color = PurpleLight,
+            modifier = Modifier.width(45.dp),
+            textAlign = TextAlign.End
+        )
+    }
+}
+
+@Composable
 fun DetectTitleDialog(
     initialTitle: String,
     mediaType: MediaType,
@@ -1223,7 +1407,7 @@ fun DetectTitleDialog(
                     fontWeight = FontWeight.Bold
                 )
 
-                DetectTitleSearchField(
+                SearchTermInputField(
                     titleInput = titleInput,
                     onTitleChange = { titleInput = it },
                     onSearch = { performSearch() },
@@ -1231,16 +1415,17 @@ fun DetectTitleDialog(
                 )
 
                 if (mediaType == MediaType.ANIME) {
-                    DetectSeasonCheckbox(
+                    SeasonCheckbox(
                         includeSeason = includeSeason,
                         animeSeason = animeSeason,
                         onIncludeSeasonChange = { includeSeason = it }
                     )
                 }
 
-                DetectSearchResultsTable(
+                TorrentSearchResultsTable(
                     results = results,
-                    isLoading = isLoading
+                    isLoading = isLoading,
+                    tableHeaderTitle = "First Episode Search Results"
                 )
 
                 Row(
@@ -1265,177 +1450,99 @@ fun DetectTitleDialog(
 }
 
 @Composable
-private fun DetectTitleSearchField(
-    titleInput: String,
-    onTitleChange: (String) -> Unit,
-    onSearch: () -> Unit,
-    isLoading: Boolean,
+fun ManualSearchDialog(
+    initialTitle: String,
+    mediaType: MediaType,
+    animeSeason: Int?,
+    dialogTitle: String = "Search Torrents Manually",
+    onPerformSearch: (suspend (title: String, includeSeason: Boolean) -> List<SearchResultItem>),
+    onSelectResult: (SearchResultItem) -> Unit,
+    onDismiss: () -> Unit
 ) {
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
+    var titleInput by remember { mutableStateOf(initialTitle) }
+    var includeSeason by remember { mutableStateOf(false) }
+    var results by remember { mutableStateOf<List<SearchResultItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
-    val handleSearch = {
-        keyboardController?.hide()
-        focusManager.clearFocus()
-        onSearch()
-    }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        OutlinedTextField(
-            value = titleInput,
-            onValueChange = onTitleChange,
-            label = { Text("Title Search Term") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { handleSearch() }),
-            modifier = Modifier.weight(1f),
-        )
-        FilledIconButton(
-            onClick = handleSearch,
-            modifier = Modifier.padding(top = 6.dp),
-            enabled = !isLoading,
-        ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-            )
+    fun performSearch() {
+        if (titleInput.isNotBlank()) {
+            coroutineScope.launch {
+                isLoading = true
+                results = onPerformSearch(titleInput, includeSeason)
+                isLoading = false
+            }
         }
     }
-}
 
-@Composable
-private fun DetectSeasonCheckbox(
-    includeSeason: Boolean,
-    animeSeason: Int?,
-    onIncludeSeasonChange: (Boolean) -> Unit
-) {
-    val isEnabled = animeSeason != null && animeSeason > 0
-    val labelText = "Include season"
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = isEnabled) { onIncludeSeasonChange(!includeSeason) }
-    ) {
-        Checkbox(
-            checked = includeSeason,
-            onCheckedChange = onIncludeSeasonChange,
-            enabled = isEnabled
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = labelText,
-            fontSize = 13.sp,
-            color = if (isEnabled) TextPrimary else OutlineGrey
-        )
+    LaunchedEffect(Unit) {
+        performSearch()
     }
-}
 
-@Composable
-private fun DetectSearchResultsTable(
-    results: List<SearchResultItem>,
-    isLoading: Boolean
-) {
-    val context = LocalContext.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 280.dp)
+    LaunchedEffect(includeSeason) {
+        performSearch()
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Text(
-            text = "First Episode Search Results",
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
-            color = TextSubtle,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-        if (isLoading) {
-            Box(
+        Card(
+            modifier = Modifier
+                .widthIn(min = 360.dp, max = 900.dp)
+                .fillMaxWidth(0.96f),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+            border = BorderStroke(1.dp, OutlineVariant)
+        ) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp),
-                contentAlignment = Alignment.Center
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-            }
-        } else if (results.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No torrents found", fontSize = 12.sp, color = TextSubtle)
-            }
-        } else {
-            DetectResultsTableHeader()
-            HorizontalDivider(color = OutlineVariant, thickness = 0.5.dp)
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                items(results) { item ->
-                    DetectSearchResultRow(item = item, context = context)
+                Text(
+                    text = dialogTitle,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+
+                SearchTermInputField(
+                    titleInput = titleInput,
+                    onTitleChange = { titleInput = it },
+                    onSearch = { performSearch() },
+                    isLoading = isLoading,
+                )
+
+                if (mediaType == MediaType.ANIME) {
+                    SeasonCheckbox(
+                        includeSeason = includeSeason,
+                        animeSeason = animeSeason,
+                        onIncludeSeasonChange = { includeSeason = it }
+                    )
+                }
+
+                TorrentSearchResultsTable(
+                    results = results,
+                    isLoading = isLoading,
+                    tableHeaderTitle = "Select a result to download:",
+                    onSelectResult = { selectedItem ->
+                        onSelectResult(selectedItem)
+                        onDismiss()
+                    }
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun DetectResultsTableHeader() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("Title", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.weight(1f))
-        Text("Size", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(65.dp))
-        Text("Seeders", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(45.dp), textAlign = TextAlign.End)
-    }
-}
-
-@Composable
-private fun DetectSearchResultRow(
-    item: SearchResultItem,
-    context: Context
-) {
-    val formattedSize = remember(item.sizeInBytes) {
-        Formatter.formatFileSize(context, item.sizeInBytes)
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = item.name,
-            fontSize = 11.sp,
-            color = Color.White,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = formattedSize,
-            fontSize = 11.sp,
-            color = TextSubtle,
-            modifier = Modifier.width(65.dp)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = "${item.seeder}",
-            fontSize = 11.sp,
-            color = PurpleLight,
-            modifier = Modifier.width(45.dp),
-            textAlign = TextAlign.End
-        )
     }
 }

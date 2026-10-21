@@ -116,7 +116,8 @@ class DownloadRepository @Inject constructor(
             ?: return@withContext Result.failure(Exception("Watchlist item not found for simklId $simklId"))
         val itemSettings = itemDownloadSettingsDao.getSettings(simklId)
         val destinationSubdirectory = watchlistItem.destinationSubdirectory(itemSettings)
-        val completionUri = generateSeasonCompletionIntentUri(simklId, season)
+        val primaryKeys = targetItems.map { it.primaryKey }
+        val completionUri = generateSeasonCompletionIntentUri(simklId, season, primaryKeys)
 
         val result = torrentServiceHelper.addTorrent(
             uri = resultItem.uri.toString(),
@@ -200,11 +201,12 @@ class DownloadRepository @Inject constructor(
         return intent.toUri(Intent.URI_INTENT_SCHEME)
     }
 
-    private fun generateSeasonCompletionIntentUri(simklId: Int, season: Int): String {
+    private fun generateSeasonCompletionIntentUri(simklId: Int, season: Int, primaryKeys: List<String>): String {
         val intent = Intent(DownloadCompletedReceiver.ACTION_SEASON_DOWNLOAD_COMPLETED).apply {
             setClassName(context.packageName, DownloadCompletedReceiver::class.java.name)
             putExtra(DownloadCompletedReceiver.EXTRA_SIMKL_ID, simklId)
             putExtra(DownloadCompletedReceiver.EXTRA_SEASON, season)
+            putStringArrayListExtra(DownloadCompletedReceiver.EXTRA_ITEM_PRIMARY_KEYS, ArrayList(primaryKeys))
         }
         return intent.toUri(Intent.URI_INTENT_SCHEME)
     }
