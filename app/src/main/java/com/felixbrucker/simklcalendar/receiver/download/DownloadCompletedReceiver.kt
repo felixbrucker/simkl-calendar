@@ -38,48 +38,80 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
     companion object {
         private const val TAG = "DownloadCompletedReceiver"
         const val ACTION_DOWNLOAD_COMPLETED = "com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_COMPLETED"
+        const val ACTION_SEASON_DOWNLOAD_COMPLETED = "com.felixbrucker.simklcalendar.ACTION_SEASON_DOWNLOAD_COMPLETED"
         const val EXTRA_ITEM_PRIMARY_KEY = "extra_item_primary_key"
+        const val EXTRA_SIMKL_ID = "extra_simkl_id"
+        const val EXTRA_SEASON = "extra_season"
         const val EXTRA_FILE_PATHS = "EXTRA_FILE_PATHS"
     }
 
     override fun onReceive(context: Context?, intent: Intent?) {
         if (context == null || intent == null) return
-        if (intent.action != ACTION_DOWNLOAD_COMPLETED) {
+        val action = intent.action ?: return
+        if (action != ACTION_DOWNLOAD_COMPLETED && action != ACTION_SEASON_DOWNLOAD_COMPLETED) {
             return
         }
-        val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
-        val filePaths = intent.getStringArrayListExtra(EXTRA_FILE_PATHS) ?: emptyList<String>()
-        val pendingResult = goAsync()
+
+        val pendingResult = try {
+            goAsync()
+        } catch (_: Exception) {
+            null
+        }
         scope.launch {
             try {
-                val primaryItem = calendarItemDao.findItem(itemPrimaryKey)
-                val taskId = primaryItem?.downloadTaskId
-
-                val itemsToProcess = if (!taskId.isNullOrEmpty()) {
-                    val taskItems = calendarItemDao.getItemsForDownloadTaskId(taskId)
-                    if (taskItems.isNotEmpty()) taskItems else listOfNotNull(primaryItem)
+                if (action == ACTION_SEASON_DOWNLOAD_COMPLETED) {
+                    handleSeasonDownloadCompleted(intent)
                 } else {
-                    listOfNotNull(primaryItem)
-                }
-
-                if (itemsToProcess.isEmpty()) {
-                    calendarRepository.updateDownloadCompleted(
-                        itemPrimaryKey,
-                        null,
-                        MediaStatus.DOWNLOADED,
-                        filePaths.firstOrNull()
-                    )
-                    return@launch
-                }
-
-                for (epItem in itemsToProcess) {
-                    processCompletedEpisodeItem(epItem, itemsToProcess.size, filePaths)
+                    handleSingleDownloadCompleted(intent)
                 }
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error handling download completion")
             } finally {
-                pendingResult.finish()
+                pendingResult?.finish()
             }
+        }
+    }
+
+    private suspend fun handleSingleDownloadCompleted(intent: Intent) {
+        val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
+        val filePaths = intent.getStringArrayListExtra(EXTRA_FILE_PATHS) ?: emptyList<String>()
+        val primaryItem = calendarItemDao.findItem(itemPrimaryKey)
+        val taskId = primaryItem?.downloadTaskId
+
+        val itemsToProcess = if (!taskId.isNullOrEmpty()) {
+            val taskItems = calendarItemDao.getItemsForDownloadTaskId(taskId)
+            if (taskItems.isNotEmpty()) taskItems else listOfNotNull(primaryItem)
+        } else {
+            listOfNotNull(primaryItem)
+        }
+
+        if (itemsToProcess.isEmpty()) {
+            calendarRepository.updateDownloadCompleted(
+                itemPrimaryKey,
+                null,
+                MediaStatus.DOWNLOADED,
+                filePaths.firstOrNull()
+            )
+            return
+        }
+
+        for (epItem in itemsToProcess) {
+            processCompletedEpisodeItem(epItem, itemsToProcess.size, filePaths)
+        }
+    }
+
+    private suspend fun handleSeasonDownloadCompleted(intent: Intent) {
+        val simklId = intent.getIntExtra(EXTRA_SIMKL_ID, -1)
+        val season = intent.getIntExtra(EXTRA_SEASON, -1)
+        val filePaths = intent.getStringArrayListExtra(EXTRA_FILE_PATHS) ?: emptyList<String>()
+
+        if (simklId == -1 || season == -1) return
+
+        val seasonEpisodes = calendarItemDao.getItemsInSeasonOrRelatedItems(simklId, season)
+            .filter { (it.season ?: 1) == season }
+
+        for (epItem in seasonEpisodes) {
+            processCompletedEpisodeItem(epItem, seasonEpisodes.size, filePaths)
         }
     }
 

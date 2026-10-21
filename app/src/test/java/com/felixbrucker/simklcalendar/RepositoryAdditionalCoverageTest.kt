@@ -44,6 +44,7 @@ class RepositoryAdditionalCoverageTest {
         downloadRepository = DownloadRepository(
             context = context,
             calendarDao = calendarDao,
+            watchlistDao = mockk(relaxed = true),
             itemDownloadSettingsDao = itemDownloadSettingsDao,
             torrentSearchManager = mockk(relaxed = true),
             torrentServiceHelper = mockk(relaxed = true),

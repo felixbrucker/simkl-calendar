@@ -107,6 +107,7 @@ class SimklRepositoryTest {
         downloadRepository = DownloadRepository(
             context = context,
             calendarDao = calendarDao,
+            watchlistDao = watchlistDao,
             itemDownloadSettingsDao = itemDownloadSettingsDao,
             torrentSearchManager = TorrentSearchManager(calendarDao, watchlistDao, itemDownloadSettingsDao, autoDownloadRepo),
             torrentServiceHelper = torrentServiceHelper,

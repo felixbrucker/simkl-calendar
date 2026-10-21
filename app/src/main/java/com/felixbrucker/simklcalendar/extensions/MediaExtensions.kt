@@ -1,6 +1,7 @@
 package com.felixbrucker.simklcalendar.extensions
 
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 
@@ -19,6 +20,11 @@ fun CalendarItemWithWatchlist.destinationSubdirectory(): String {
 
 fun CalendarItemWithWatchlist.defaultDestinationSubdirectory(): String {
     return watchlistItem?.defaultDestinationSubdirectory() ?: throw IllegalArgumentException("No watchlist item found for simklId $simklId")
+}
+
+fun TrackedWatchlistItem.destinationSubdirectory(itemSettings: ItemDownloadSettings?): String {
+    itemSettings?.downloadSubdirectoryOverride?.let { return it }
+    return defaultDestinationSubdirectory()
 }
 
 fun TrackedWatchlistItem.defaultDestinationSubdirectory(): String {

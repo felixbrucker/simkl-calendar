@@ -6,6 +6,7 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
@@ -30,6 +31,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class DownloadRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val calendarDao: CalendarItemDao,
+    private val watchlistDao: WatchlistDao,
     private val itemDownloadSettingsDao: ItemDownloadSettingsDao,
     private val torrentSearchManager: TorrentSearchManager,
     private val torrentServiceHelper: TorrentServiceHelper,
@@ -98,9 +100,7 @@ class DownloadRepository @Inject constructor(
         season: Int,
         resultItem: SearchResultItem
     ): Result<String> = withContext(Dispatchers.IO) {
-        val targetItems = calendarDao.getUnwatchedDownloadableSeasonItems(simklId, season).ifEmpty {
-            calendarDao.getItemsInSeasonOrRelatedItems(simklId, season).filter { (it.season ?: 1) == season }
-        }
+        val targetItems = calendarDao.getUnwatchedDownloadableSeasonItems(simklId, season)
 
         if (targetItems.isEmpty()) {
             return@withContext Result.failure(Exception("No downloadable items found in season $season."))
@@ -112,13 +112,16 @@ class DownloadRepository @Inject constructor(
             }
         }
 
-        val representativeItem = targetItems.first()
-        val completionUri = generateCompletionIntentUri(representativeItem.primaryKey)
+        val watchlistItem = watchlistDao.getItem(simklId)
+            ?: return@withContext Result.failure(Exception("Watchlist item not found for simklId $simklId"))
+        val itemSettings = itemDownloadSettingsDao.getSettings(simklId)
+        val destinationSubdirectory = watchlistItem.destinationSubdirectory(itemSettings)
+        val completionUri = generateSeasonCompletionIntentUri(simklId, season)
 
         val result = torrentServiceHelper.addTorrent(
             uri = resultItem.uri.toString(),
             name = resultItem.name,
-            destinationSubdirectory = representativeItem.destinationSubdirectory(),
+            destinationSubdirectory = destinationSubdirectory,
             createSubfolderByName = false,
             notifyOnCompletion = true,
             fileSelectionMode = "ALL",
@@ -148,6 +151,12 @@ class DownloadRepository @Inject constructor(
     suspend fun searchAndDownloadEpisode(
         item: CalendarItemWithWatchlist
     ): Result<String> = withContext(Dispatchers.IO) {
+        // 1. Set status to WANTED (if not already)
+        if (item.mediaStatus != MediaStatus.WANTED) {
+            calendarDao.updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
+        }
+
+        // 2. Search torrents
         val results = try {
             torrentSearchManager.search(item)
         } catch (e: Exception) {
@@ -158,6 +167,7 @@ class DownloadRepository @Inject constructor(
             return@withContext Result.failure(Exception("No torrent results found for this episode."))
         }
 
+        // 3. Select first result and start download
         downloadEpisodeResult(item, results.first())
     }
 
@@ -186,6 +196,15 @@ class DownloadRepository @Inject constructor(
         val intent = Intent(DownloadCompletedReceiver.ACTION_DOWNLOAD_COMPLETED).apply {
             setClassName(context.packageName, DownloadCompletedReceiver::class.java.name)
             putExtra(DownloadCompletedReceiver.EXTRA_ITEM_PRIMARY_KEY, primaryKey)
+        }
+        return intent.toUri(Intent.URI_INTENT_SCHEME)
+    }
+
+    private fun generateSeasonCompletionIntentUri(simklId: Int, season: Int): String {
+        val intent = Intent(DownloadCompletedReceiver.ACTION_SEASON_DOWNLOAD_COMPLETED).apply {
+            setClassName(context.packageName, DownloadCompletedReceiver::class.java.name)
+            putExtra(DownloadCompletedReceiver.EXTRA_SIMKL_ID, simklId)
+            putExtra(DownloadCompletedReceiver.EXTRA_SEASON, season)
         }
         return intent.toUri(Intent.URI_INTENT_SCHEME)
     }
