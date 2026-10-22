@@ -164,4 +164,47 @@ class MediaExtensionsTest {
         assertEquals("Season 3", itemLabel)
         assertEquals("Season 3", calendarLabel)
     }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testCalendarItemWithWatchlistDefaultDestinationSubdirectoryNullWatchlistItemThrows() {
+        val calendarItem = CalendarItem(
+            primaryKey = "v2_200_1_1",
+            simklId = 200,
+            episodeTitle = "Pilot",
+            season = 1,
+            episodeNumber = 1,
+            date = Instant.now(),
+            movieReleaseType = null,
+            isSeasonPremiere = true,
+            isSeasonFinale = false
+        )
+        val itemWithWatchlist = CalendarItemWithWatchlist(
+            calendarItem = calendarItem,
+            watchlistItem = null,
+            downloadSettings = null
+        )
+
+        itemWithWatchlist.defaultDestinationSubdirectory()
+    }
+
+    @Test
+    fun testTrackedWatchlistItemDestinationSubdirectory() {
+        val watchlistItem = TrackedWatchlistItem(
+            simklId = 200,
+            type = MediaType.TV,
+            title = "Breaking Bad",
+            titleRomaji = null,
+            poster = "poster.jpg"
+        )
+        val settingsWithOverride = ItemDownloadSettings(
+            simklId = 200,
+            downloadSubdirectoryOverride = "custom/tv"
+        )
+
+        val defaultSubdir = watchlistItem.destinationSubdirectory(null)
+        val overrideSubdir = watchlistItem.destinationSubdirectory(settingsWithOverride)
+
+        assertEquals("series/Breaking Bad", defaultSubdir)
+        assertEquals("custom/tv", overrideSubdir)
+    }
 }

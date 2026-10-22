@@ -76,7 +76,7 @@ class TorrentSearchManagerTest {
         val manager = TorrentSearchManager(calendarDao, watchlistDao, dao, autoDownloadRepository)
         val calendarItem = CalendarItem("v2_200_1_5", 200, "Ep 5", 1, 5, Instant.now(), null, false, false)
         val watchlistItem = TrackedWatchlistItem(200, MediaType.ANIME, "Anime Show", "Anime Romaji", null)
-        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null, customSettings)
 
         val results = manager.search(item)
 
@@ -105,12 +105,11 @@ class TorrentSearchManagerTest {
         val manager = TorrentSearchManager(calendarDao, watchlistDao, dao, autoDownloadRepository)
         val calendarItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, Instant.now(), null, true, false)
         val watchlistItem = TrackedWatchlistItem(100, MediaType.TV, "Test Show", null, null)
-        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null, customSettings)
 
         val results = manager.search(item)
-        val isEmpty = results.isEmpty()
 
-        assertTrue(isEmpty)
+        assertTrue(results.isEmpty())
         coVerify { anyConstructed<TpbProvider>().search(term = "Test Show 01 1080p", category = any(), orderBy = any()) }
     }
 
@@ -124,12 +123,11 @@ class TorrentSearchManagerTest {
         val manager = TorrentSearchManager(calendarDao, watchlistDao, dao, autoDownloadRepository)
         val calendarItem = CalendarItem("v2_200_1_5", 200, "Ep 5", 1, 5, Instant.now(), null, false, false)
         val watchlistItem = TrackedWatchlistItem(200, MediaType.ANIME, "Anime Show", "Anime Romaji", null)
-        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null, customSettings)
 
         val results = manager.search(item)
-        val isEmpty = results.isEmpty()
 
-        assertTrue(isEmpty)
+        assertTrue(results.isEmpty())
         coVerify { anyConstructed<NyaaProvider>().search(term = "Anime Romaji S01E05 1080p", category = any(), orderBy = any()) }
     }
 
@@ -271,12 +269,11 @@ class TorrentSearchManagerTest {
         val manager = TorrentSearchManager(calendarDao, watchlistDao, dao, autoDownloadRepository)
         val calendarItem = CalendarItem("v2_200_1_5", 200, "Ep 5", 1, 5, Instant.now(), null, false, false)
         val watchlistItem = TrackedWatchlistItem(200, MediaType.ANIME, "Fate/stay night", "Fate/stay night", null)
-        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null, customSettings)
 
         val results = manager.search(item)
-        val isEmpty = results.isEmpty()
 
-        assertTrue(isEmpty)
+        assertTrue(results.isEmpty())
         coVerify { anyConstructed<NyaaProvider>().search(term = "Fate/stay night [UBW] 05 1080p", category = any(), orderBy = any()) }
     }
 
@@ -328,5 +325,43 @@ class TorrentSearchManagerTest {
         assertEquals(1, resultsSize)
         assertEquals(mockResult, firstResult)
         coVerify { anyConstructed<TpbProvider>().search(term = "Custom TV Title [1080p] S01E01 1080p", category = any(), orderBy = any()) }
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun testSearchSeasonThrowsWhenNotFound() = runTest {
+        val manager = TorrentSearchManager(calendarDao, watchlistDao, dao, autoDownloadRepository)
+        coEvery { watchlistDao.getItem(999) } returns null
+
+        manager.searchSeason(999, 1)
+    }
+
+    @Test
+    fun testSearchSeasonSuccess() = runTest {
+        val manager = TorrentSearchManager(calendarDao, watchlistDao, dao, autoDownloadRepository)
+        val now = Instant.now()
+        val watchlistItem = TrackedWatchlistItem(100, MediaType.TV, "Test Show", null, null)
+        val calendarItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, now, null, true, false)
+        val calendarItemWithWatchlist = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+        coEvery { watchlistDao.getItem(100) } returns watchlistItem
+        coEvery { calendarDao.findLastItemForSimklIdInSeason(100, 1) } returns calendarItemWithWatchlist
+        val mockResult = mockk<SearchResultItem>()
+        every { mockResult.name } returns "Test Show Season 1 1080p"
+        every { mockResult.uploadedAt } returns now
+        coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
+            PaginatedSearchResult(listOf(mockResult), 1, false)
+        )
+
+        val results = manager.searchSeason(100, 1)
+
+        assertEquals(1, results.size)
+        assertEquals(mockResult, results[0])
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun testDetectTorrentsThrowsWhenNotFound() = runTest {
+        val manager = TorrentSearchManager(calendarDao, watchlistDao, dao, autoDownloadRepository)
+        coEvery { watchlistDao.getItem(999) } returns null
+
+        manager.detectTorrents(999, "Title")
     }
 }
