@@ -6,12 +6,10 @@ import android.content.Intent
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
-import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
 import com.felixbrucker.simklcalendar.data.util.Keyword
 import com.felixbrucker.simklcalendar.data.util.contains
-import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -153,34 +151,6 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
             } finally {
                 pendingResult.finish()
             }
-        }
-    }
-
-    internal fun matchFilePathForEpisode(
-        filePaths: List<String>,
-        season: Int,
-        episode: Int,
-        searchStyle: EpisodeSearchStyle
-    ): String? {
-        if (filePaths.isEmpty()) {
-            return null
-        }
-
-        val seasonAndEpisodeTerm = "S${formatTwoDigits(season)}E${formatTwoDigits(episode)}"
-        val exactMatch = filePaths.find { it.contains(seasonAndEpisodeTerm, ignoreCase = true) }
-
-        return when {
-            exactMatch != null -> exactMatch
-            searchStyle == EpisodeSearchStyle.SeasonAndEpisode -> null
-            else -> findByAnimeEpisodeVariant(filePaths, formatTwoDigits(episode))
-        }
-    }
-
-    private fun findByAnimeEpisodeVariant(filePaths: List<String>, episodeTerm: String): String? {
-        val variants = listOf(" $episodeTerm ", " ${episodeTerm}v")
-        return filePaths.find { path ->
-            val fileName = path.substringAfterLast('/').substringAfterLast('\\')
-            variants.any { variant -> fileName.contains(variant, ignoreCase = true) }
         }
     }
 }

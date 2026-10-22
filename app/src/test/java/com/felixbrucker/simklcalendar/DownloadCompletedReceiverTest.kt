@@ -12,7 +12,6 @@ import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
-import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
@@ -150,39 +149,5 @@ class DownloadCompletedReceiverTest {
                 null
             )
         }
-    }
-
-    @Test
-    fun testMatchFilePathForEpisodeExactMatch() {
-        val receiver = DownloadCompletedReceiver()
-        val filePaths = listOf(
-            "/downloads/Show.S03E04.1080p.mkv",
-            "/downloads/Show.S03E05.1080p.mkv"
-        )
-        val match = receiver.matchFilePathForEpisode(
-            filePaths = filePaths,
-            season = 3,
-            episode = 4,
-            searchStyle = EpisodeSearchStyle.SeasonAndEpisode
-        )
-
-        assertEquals("/downloads/Show.S03E04.1080p.mkv", match)
-    }
-
-    @Test
-    fun testMatchFilePathForEpisodeEpisodeOnlyMatch() {
-        val receiver = DownloadCompletedReceiver()
-        val filePaths = listOf(
-            "/downloads/[SubGroup] Anime Title - 04 [1080p].mkv",
-            "/downloads/[SubGroup] Anime Title - 05 [1080p].mkv"
-        )
-        val match = receiver.matchFilePathForEpisode(
-            filePaths = filePaths,
-            season = 1,
-            episode = 4,
-            searchStyle = EpisodeSearchStyle.Episode
-        )
-
-        assertEquals("/downloads/[SubGroup] Anime Title - 04 [1080p].mkv", match)
     }
 }
