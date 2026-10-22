@@ -111,6 +111,7 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC LIMIT 1")
     suspend fun findFirstItemForSimklId(simklId: Int): CalendarItemWithWatchlist?
 
+    @Transaction
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId AND season = :season ORDER BY date DESC LIMIT 1")
     suspend fun findLastItemForSimklIdInSeason(simklId: Int, season: Int): CalendarItemWithWatchlist?
 
@@ -265,6 +266,7 @@ interface CalendarItemDao {
     """)
     suspend fun getUnwatchedDownloadableSeasonItems(simklId: Int, season: Int): List<CalendarItemWithWatchlist>
 
+    @Transaction
     @Query("""
         SELECT ci.* FROM calendar_items ci
         WHERE ci.simklId = :simklId

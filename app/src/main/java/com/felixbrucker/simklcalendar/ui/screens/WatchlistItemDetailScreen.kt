@@ -208,7 +208,6 @@ fun WatchlistItemDetailScreen(
                     )
                 }
 
-
                 if (!isMovie) {
                     // 2. Summary Stats Bar (Hidden for movies)
                     item {

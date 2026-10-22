@@ -604,7 +604,9 @@ class CalendarViewModelTest {
             downloadSettings = null
         )
         filteredCalendarItemsFlow.value = listOf(itemWithWatchlist)
-        coEvery { downloadRepositoryMock.searchAndDownloadItem(itemWithWatchlist) } returns Result.failure(Exception("No torrent results found"))
+        coEvery {
+            downloadRepositoryMock.searchAndDownloadItem(itemWithWatchlist)
+        } returns Result.failure(Exception("No torrent results found"))
 
         var episodeResultOk = true
         var episodeResultMsg = ""

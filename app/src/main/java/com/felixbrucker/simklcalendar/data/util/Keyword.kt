@@ -5,7 +5,6 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.network.getSeasonAndEpisodeTerm
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter.makeEpisodeTerm
 
-
 data class Keyword(
     val variants: List<String>,
     val ignoreCase: Boolean = false,
