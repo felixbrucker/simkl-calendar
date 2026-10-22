@@ -43,14 +43,6 @@ interface CalendarItemDao {
     @Transaction
     @Query("""
         SELECT ci.* FROM calendar_items ci
-        INNER JOIN local_item_state lis ON ci.primaryKey = lis.primaryKey
-        WHERE lis.downloadTaskId = :taskId
-    """)
-    suspend fun getItemsForDownloadTaskId(taskId: String): List<CalendarItemWithWatchlist>
-
-    @Transaction
-    @Query("""
-        SELECT ci.* FROM calendar_items ci
         INNER JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
         WHERE ci.watchedAt IS NULL
         AND twi.type IN (:allowedTypes)

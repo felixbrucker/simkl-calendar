@@ -9,8 +9,10 @@ import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
+import com.felixbrucker.simklcalendar.data.util.Keyword
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter.makeEpisodeTerm
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter.makeSeasonAndEpisodeTerm
+import com.felixbrucker.simklcalendar.data.util.contains
 import com.felixbrucker.simklcalendar.extensions.asSearchTitleWithSeason
 import com.felixbrucker.simklcalendar.extensions.ensureAdded
 import com.felixbrucker.torrent_search_api.Category
@@ -176,7 +178,7 @@ typealias SearchResultFilter = (List<SearchResultItem>) -> List<SearchResultItem
 internal fun CalendarItemWithWatchlist.makeInvalidAnimeEpisodeFilter(): SearchResultFilter {
     return type.makeInvalidAnimeEpisodeFilter(
         settings = downloadSettings,
-        season = season ?: 1,
+        season = animeSeason ?: season ?: 1,
         episode = episodeNumber ?: 1
     )
 }
@@ -189,17 +191,8 @@ internal fun MediaType.makeInvalidAnimeEpisodeFilter(
     if (this != MediaType.ANIME) {
         return { it }
     }
-    val seasonAndEpisodeTerm = settings.getSeasonAndEpisodeTerm(season, episode)
-    val episodeTerm = makeEpisodeTerm(episode)
+    val keyword = Keyword.makeEpisodeVariant(season, episode, this, settings)
 
-    val keyword = Keyword(
-        variants = listOf(
-            " $episodeTerm ",
-            " ${episodeTerm}v",
-            seasonAndEpisodeTerm
-        ),
-        ignoreCase = true
-    )
     return { it.including(listOf(keyword)) }
 }
 
@@ -262,19 +255,6 @@ internal fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<Keyword>
             }.sum()
         }
     )
-}
-
-private fun String.contains(keyword: Keyword): Boolean {
-    return keyword.variants.any { contains(it, ignoreCase = keyword.ignoreCase) }
-}
-
-internal data class Keyword(
-    val variants: List<String>,
-    val ignoreCase: Boolean = false,
-) {
-    companion object {
-        fun single(variant: String, ignoreCase: Boolean = false) = Keyword(listOf(variant), ignoreCase)
-    }
 }
 
 internal fun makeItemSearchTerm(item: CalendarItemWithWatchlist, customTitle: String? = null): String {

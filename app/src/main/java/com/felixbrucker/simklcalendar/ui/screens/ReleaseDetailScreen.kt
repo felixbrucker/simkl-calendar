@@ -364,7 +364,7 @@ fun ReleaseDetailScreen(
                             }
                         }
 
-                        if (activeItem.mediaStatus == MediaStatus.IGNORED || activeItem.mediaStatus == MediaStatus.WANTED) {
+                        if (activeItem.mediaStatus.isSearchable) {
                             list.add { mod ->
                                 Button(
                                     onClick = { showEpisodeManualSearchDialog = true },

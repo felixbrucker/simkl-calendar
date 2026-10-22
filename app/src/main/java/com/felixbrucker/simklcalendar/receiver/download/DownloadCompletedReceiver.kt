@@ -9,6 +9,8 @@ import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
+import com.felixbrucker.simklcalendar.data.util.Keyword
+import com.felixbrucker.simklcalendar.data.util.contains
 import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -17,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.io.File
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -109,31 +112,29 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                 require(watchlistItem != null) { "Watchlist item not found for simklId $simklId" }
                 val seasonItems = calendarItemDao.getSeasonItems(simklId, season)
                 val settings = itemDownloadSettingsDao.getSettings(simklId)
-                val searchStyle = settings?.episodeSearchStyle ?: watchlistItem.type.defaultEpisodeSearchStyle
+                val seasonWithAnimeSeason = watchlistItem.animeSeason ?: season
 
                 for (item in seasonItems) {
-                    val seasonOfItem = item.season ?: 1
-                    val seasonWithAnimeSeason = watchlistItem.animeSeason ?: seasonOfItem
-                    val season = settings?.seasonOverrides?.get(seasonWithAnimeSeason) ?: seasonWithAnimeSeason
-                    val episode = item.episodeNumber ?: 1
-
-                    val matchedFilePath = matchFilePathForEpisode(
-                        filePaths = filePaths,
-                        season = season,
-                        episode = episode,
-                        searchStyle = searchStyle
+                    val keyword = Keyword.makeEpisodeVariant(
+                        season = seasonWithAnimeSeason,
+                        episode = item.episodeNumber ?: 1,
+                        mediaType = watchlistItem.type,
+                        settings = settings
                     )
+                    val matchingFilePath = filePaths.firstOrNull {
+                        File(it).name.contains(keyword)
+                    }
 
                     calendarRepository.updateDownloadCompleted(
                         item.primaryKey,
                         null,
                         MediaStatus.DOWNLOADED,
-                        matchedFilePath
+                        matchingFilePath
                     )
                     Timber.tag(TAG).d(
                         "Updated item %s to DOWNLOADED status, filePath=%s",
                         item.primaryKey,
-                        matchedFilePath
+                        matchingFilePath
                     )
 
                     val updatedItem = calendarItemDao.findItem(item.primaryKey) ?: item
@@ -147,6 +148,8 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                         }
                     }
                 }
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Error handling download completion for simkl_id=$simklId season=$season")
             } finally {
                 pendingResult.finish()
             }

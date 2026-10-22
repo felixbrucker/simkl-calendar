@@ -214,7 +214,7 @@ private fun SeasonHeaderActions(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         val hasSearchableEpisode = remember(state.episodes) {
-            state.episodes.any { it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED }
+            state.episodes.any { it.mediaStatus.isSearchable }
         }
 
         if (hasSearchableEpisode) {
