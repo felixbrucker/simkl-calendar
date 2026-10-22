@@ -64,6 +64,10 @@ enum class MediaStatus(val displayName: String) {
             return entries.firstOrNull { it.name.equals(str, ignoreCase = true) } ?: IGNORED
         }
     }
+
+    val isSearchable: Boolean get() {
+        return this == IGNORED || this == WANTED
+    }
 }
 
 enum class EpisodeSearchStyle {

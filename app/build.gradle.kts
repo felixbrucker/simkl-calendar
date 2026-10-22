@@ -83,7 +83,9 @@ android {
       "VectorPath"
     )
     disable += setOf(
-      "NewerVersionAvailable"
+      "NewerVersionAvailable",
+      "GradleDependency",
+      "AndroidGradlePluginVersion"
     )
   }
 }

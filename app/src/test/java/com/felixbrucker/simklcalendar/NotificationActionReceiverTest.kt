@@ -87,7 +87,7 @@ class NotificationActionReceiverTest {
         coEvery { watchHistoryRepositoryMock.markEpisodeWatched(any(), any(), any(), any()) } returns Result.success(Unit)
         coEvery { watchHistoryRepositoryMock.markSeasonWatched(any(), any(), any()) } returns Result.success(true)
         coEvery { repositoryMock.updateMediaStatus(any(), any()) } returns Unit
-        coEvery { downloadRepositoryMock.searchAndDownloadEpisode(any()) } returns Result.success("task1")
+        coEvery { downloadRepositoryMock.searchAndDownloadItem(any()) } returns Result.success("task1")
         coEvery { downloadRepositoryMock.searchAndDownloadWantedItems() } returns Unit
 
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.notification.NotificationActionReceiver_GeneratedInjector>(relaxed = true)
@@ -267,7 +267,7 @@ class NotificationActionReceiverTest {
         receiver.onReceive(context, intent)
 
         verify(timeout = 3000) { pendingResult.finish() }
-        coVerify(timeout = 3000) { downloadRepositoryMock.searchAndDownloadEpisode(item) }
+        coVerify(timeout = 3000) { downloadRepositoryMock.searchAndDownloadItem(item) }
         verify(timeout = 3000) { torrentServiceHelper.unbind() }
     }
 

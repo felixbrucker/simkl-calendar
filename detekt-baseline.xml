@@ -2,6 +2,9 @@
 <SmellBaseline>
   <ManuallySuppressedIssues>
     <ID>UseRequire:WatchHistoryRepository.kt$throw IllegalArgumentException("File $this does not exist")</ID>
+    <ID>MaxLineLength:TorrentSearchManager.kt$EpisodeSearchStyle.SeasonAndEpisode -> "$searchTitle S${formatTwoDigits(searchSeason)}E${formatTwoDigits(episode)}"</ID>
+    <ID>TooManyFunctions:TorrentSearchManager.kt$com.felixbrucker.simklcalendar.data.network.TorrentSearchManager.kt</ID>
+    <ID>CyclomaticComplexMethod:DetailUIComponents.kt$@Composable fun DownloadSettingsCard( watchlistItem: TrackedWatchlistItem, autoDownloadPrefs: AutoDownloadPreferences, itemSettings: ItemDownloadSettings?, isDownloaderInstalled: Boolean, availableSubdirectories: List&lt;String>, onSaveItemDownloadSettings: (ItemDownloadSettings) -> Unit, onSearchTorrents: (suspend (String) -> List&lt;SearchResultItem>), modifier: Modifier = Modifier, )</ID>
   </ManuallySuppressedIssues>
   <CurrentIssues>
     <ID>ArgumentListWrapping:AlarmReceiver.kt$AlarmReceiver$("Season finale aired for '${item.title}', downloading unwatched season ${calendarItem.season}")</ID>

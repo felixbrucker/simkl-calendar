@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Block
@@ -96,6 +97,7 @@ import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
+import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
@@ -104,8 +106,9 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
+import com.felixbrucker.simklcalendar.extensions.asSearchTitleWithSeason
+import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.extensions.toAnimeSeasonTokens
-import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.theme.BlueAccent
 import com.felixbrucker.simklcalendar.ui.theme.BlueLight
@@ -116,18 +119,21 @@ import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
 import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
 import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
 import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
+import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
 import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
 import com.felixbrucker.simklcalendar.ui.theme.PurplePrimaryDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkBlue
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreen
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDark
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreenDeep
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
 import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
+import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
-import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
+import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.TextGreyLight
 import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
 import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
@@ -252,7 +258,7 @@ fun MediaStatusDropdown(
 
     Box {
         Surface(
-            shape = RoundedCornerShape(4.dp),
+            shape = RoundedCornerShape(6.dp),
             color = backgroundColor,
             contentColor = textColor,
             border = BorderStroke(1.dp, textColor.copy(alpha = 0.3f)),
@@ -260,7 +266,7 @@ fun MediaStatusDropdown(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
@@ -326,7 +332,7 @@ fun WatchedStatusDropdown(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
@@ -776,12 +782,7 @@ private fun DetailHeaderOpenSimklButton(
 
 @Composable
 fun DownloadSettingsCard(
-    simklId: Int,
-    itemTitle: String,
-    itemTitleRomaji: String?,
-    animeSeason: Int?,
-    mediaType: MediaType,
-    defaultSubdirectory: String,
+    watchlistItem: TrackedWatchlistItem,
     autoDownloadPrefs: AutoDownloadPreferences,
     itemSettings: ItemDownloadSettings?,
     isDownloaderInstalled: Boolean,
@@ -790,6 +791,9 @@ fun DownloadSettingsCard(
     onSearchTorrents: (suspend (String) -> List<SearchResultItem>),
     modifier: Modifier = Modifier,
 ) {
+    val mediaType = watchlistItem.type
+    val simklId = watchlistItem.simklId
+    val searchTitle = watchlistItem.getSearchTitle(itemSettings)
     val globalUnwatched = when (mediaType) {
         MediaType.TV -> autoDownloadPrefs.autoDownloadUnwatchedTv
         MediaType.ANIME -> autoDownloadPrefs.autoDownloadUnwatchedAnime
@@ -887,7 +891,7 @@ fun DownloadSettingsCard(
             // Download Subdirectory Override
             DownloadSubdirectorySection(
                 simklId = simklId,
-                defaultSubdirectory = defaultSubdirectory,
+                defaultSubdirectory = watchlistItem.defaultDestinationSubdirectory(),
                 itemSettings = itemSettings,
                 isDownloaderInstalled = isDownloaderInstalled,
                 availableSubdirectories = availableSubdirectories,
@@ -942,7 +946,7 @@ fun DownloadSettingsCard(
                             value = tempTitle,
                             onValueChange = { tempTitle = it },
                             label = { Text("Custom Title") },
-                            placeholder = { Text(itemTitle) },
+                            placeholder = { Text(searchTitle) },
                             singleLine = true
                         )
                     },
@@ -957,13 +961,9 @@ fun DownloadSettingsCard(
             }
             if (showDetectDialog) {
                 DetectTitleDialog(
-                    initialTitle = if (mediaType == MediaType.ANIME) {
-                        (itemTitleRomaji?.takeIf { it.isNotBlank() } ?: itemTitle).toNormalizedAnimeTitle()
-                    } else {
-                        itemTitle
-                    },
+                    initialTitle = searchTitle,
                     mediaType = mediaType,
-                    animeSeason = animeSeason,
+                    animeSeason = watchlistItem.animeSeason,
                     onSearchTorrents = onSearchTorrents,
                     onSave = { detectedTitle ->
                         onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(titleOverride = detectedTitle.trim().takeIf { it.isNotBlank() }))
@@ -1159,6 +1159,190 @@ private fun DownloadSubdirectoryChipList(
 }
 
 @Composable
+fun SearchTermInputField(
+    titleInput: String,
+    onTitleChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    isLoading: Boolean,
+) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
+    val handleSearch = {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        onSearch()
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = titleInput,
+            onValueChange = onTitleChange,
+            label = { Text("Title Search Term") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { handleSearch() }),
+            modifier = Modifier.weight(1f),
+        )
+        FilledIconButton(
+            onClick = handleSearch,
+            modifier = Modifier.padding(top = 6.dp),
+            enabled = !isLoading,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+            )
+        }
+    }
+}
+
+@Composable
+fun SeasonCheckbox(
+    includeSeason: Boolean,
+    season: Int?,
+    onIncludeSeasonChange: (Boolean) -> Unit
+) {
+    val isEnabled = season != null && season > 0
+    val labelText = "Include season"
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = isEnabled) { onIncludeSeasonChange(!includeSeason) }
+    ) {
+        Checkbox(
+            checked = includeSeason,
+            onCheckedChange = onIncludeSeasonChange,
+            enabled = isEnabled
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = labelText,
+            fontSize = 13.sp,
+            color = if (isEnabled) TextPrimary else OutlineGrey
+        )
+    }
+}
+
+@Composable
+fun TorrentSearchResultsTable(
+    results: List<SearchResultItem>,
+    isLoading: Boolean,
+    tableHeaderTitle: String = "Search Results",
+    onSelectResult: ((SearchResultItem) -> Unit)? = null
+) {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 280.dp)
+    ) {
+        Text(
+            text = tableHeaderTitle,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            color = TextSubtle,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            }
+        } else if (results.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No torrents found", fontSize = 12.sp, color = TextSubtle)
+            }
+        } else {
+            TorrentResultsTableHeader()
+            HorizontalDivider(color = OutlineVariant, thickness = 0.5.dp)
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                items(results) { item ->
+                    TorrentSearchResultRow(
+                        item = item,
+                        context = context,
+                        onClick = onSelectResult?.let { callback -> { callback(item) } }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TorrentResultsTableHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Title", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.weight(1f))
+        Text("Size", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(65.dp))
+        Text("Seeders", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(45.dp), textAlign = TextAlign.End)
+    }
+}
+
+@Composable
+private fun TorrentSearchResultRow(
+    item: SearchResultItem,
+    context: Context,
+    onClick: (() -> Unit)? = null
+) {
+    val formattedSize = remember(item.sizeInBytes) {
+        Formatter.formatFileSize(context, item.sizeInBytes)
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = item.name,
+            fontSize = 11.sp,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = formattedSize,
+            fontSize = 11.sp,
+            color = TextSubtle,
+            modifier = Modifier.width(65.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = "${item.seeder}",
+            fontSize = 11.sp,
+            color = PurpleLight,
+            modifier = Modifier.width(45.dp),
+            textAlign = TextAlign.End
+        )
+    }
+}
+
+@Composable
 fun DetectTitleDialog(
     initialTitle: String,
     mediaType: MediaType,
@@ -1223,7 +1407,7 @@ fun DetectTitleDialog(
                     fontWeight = FontWeight.Bold
                 )
 
-                DetectTitleSearchField(
+                SearchTermInputField(
                     titleInput = titleInput,
                     onTitleChange = { titleInput = it },
                     onSearch = { performSearch() },
@@ -1231,16 +1415,17 @@ fun DetectTitleDialog(
                 )
 
                 if (mediaType == MediaType.ANIME) {
-                    DetectSeasonCheckbox(
+                    SeasonCheckbox(
                         includeSeason = includeSeason,
-                        animeSeason = animeSeason,
+                        season = animeSeason,
                         onIncludeSeasonChange = { includeSeason = it }
                     )
                 }
 
-                DetectSearchResultsTable(
+                TorrentSearchResultsTable(
                     results = results,
-                    isLoading = isLoading
+                    isLoading = isLoading,
+                    tableHeaderTitle = "First Episode Search Results"
                 )
 
                 Row(
@@ -1265,177 +1450,164 @@ fun DetectTitleDialog(
 }
 
 @Composable
-private fun DetectTitleSearchField(
-    titleInput: String,
-    onTitleChange: (String) -> Unit,
-    onSearch: () -> Unit,
-    isLoading: Boolean,
+fun SeasonWatchButton(
+    isMarkingWatched: Boolean,
+    isSeasonFullyWatched: Boolean,
+    seasonLabel: String,
+    onMarkSeasonWatched: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-
-    val handleSearch = {
-        keyboardController?.hide()
-        focusManager.clearFocus()
-        onSearch()
-    }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
+    Button(
+        onClick = onMarkSeasonWatched,
+        enabled = !isMarkingWatched && !isSeasonFullyWatched,
+        modifier = modifier.height(48.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSeasonFullyWatched) SurfaceGreenDeep else SurfacePrimaryVariant,
+            contentColor = if (isSeasonFullyWatched) GreenSuccess else PurpleContainerSoft,
+            disabledContainerColor = if (isSeasonFullyWatched) SurfaceGreen else SurfaceVariantGrey,
+            disabledContentColor = if (isSeasonFullyWatched) GreenSuccess else OutlineGrey
+        ),
+        shape = RoundedCornerShape(10.dp)
     ) {
-        OutlinedTextField(
-            value = titleInput,
-            onValueChange = onTitleChange,
-            label = { Text("Title Search Term") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { handleSearch() }),
-            modifier = Modifier.weight(1f),
-        )
-        FilledIconButton(
-            onClick = handleSearch,
-            modifier = Modifier.padding(top = 6.dp),
-            enabled = !isLoading,
-        ) {
+        if (isMarkingWatched) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = PurpleContainerSoft
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
+        } else if (isSeasonFullyWatched) {
             Icon(
-                imageVector = Icons.Default.Search,
+                imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "$seasonLabel Watched",
+                fontWeight = FontWeight.Bold
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Mark $seasonLabel as Watched",
+                fontWeight = FontWeight.Bold
             )
         }
     }
 }
 
 @Composable
-private fun DetectSeasonCheckbox(
-    includeSeason: Boolean,
-    animeSeason: Int?,
-    onIncludeSeasonChange: (Boolean) -> Unit
+fun ManualSearchDialog(
+    initialTitle: String,
+    mediaType: MediaType,
+    animeSeasonOrSeason: Int?,
+    initialIncludeSeason: Boolean,
+    itemSettings: ItemDownloadSettings?,
+    dialogTitle: String = "Search Torrents Manually",
+    onPerformSearch: (suspend (title: String) -> List<SearchResultItem>),
+    onSelectResult: (SearchResultItem) -> Unit,
+    onDismiss: () -> Unit
 ) {
-    val isEnabled = animeSeason != null && animeSeason > 0
-    val labelText = "Include season"
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = isEnabled) { onIncludeSeasonChange(!includeSeason) }
-    ) {
-        Checkbox(
-            checked = includeSeason,
-            onCheckedChange = onIncludeSeasonChange,
-            enabled = isEnabled
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = labelText,
-            fontSize = 13.sp,
-            color = if (isEnabled) TextPrimary else OutlineGrey
-        )
-    }
-}
+    var titleInput by remember { mutableStateOf(initialTitle) }
+    var includeSeason by remember { mutableStateOf(initialIncludeSeason) }
+    var results by remember { mutableStateOf<List<SearchResultItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
-@Composable
-private fun DetectSearchResultsTable(
-    results: List<SearchResultItem>,
-    isLoading: Boolean
-) {
-    val context = LocalContext.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 280.dp)
-    ) {
-        Text(
-            text = "First Episode Search Results",
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
-            color = TextSubtle,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+    fun performSearch() {
+        if (titleInput.isNotBlank()) {
+            val searchTitle = if (includeSeason && animeSeasonOrSeason != null && animeSeasonOrSeason > 0) {
+                titleInput.trim().asSearchTitleWithSeason(
+                    season = animeSeasonOrSeason,
+                    type = mediaType,
+                    settings = itemSettings
+                )
+            } else {
+                titleInput.trim()
             }
-        } else if (results.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No torrents found", fontSize = 12.sp, color = TextSubtle)
-            }
-        } else {
-            DetectResultsTableHeader()
-            HorizontalDivider(color = OutlineVariant, thickness = 0.5.dp)
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                items(results) { item ->
-                    DetectSearchResultRow(item = item, context = context)
-                }
+            coroutineScope.launch {
+                isLoading = true
+                results = onPerformSearch(searchTitle)
+                isLoading = false
             }
         }
     }
-}
 
-@Composable
-private fun DetectResultsTableHeader() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("Title", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.weight(1f))
-        Text("Size", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(65.dp))
-        Text("Seeders", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextSubtle, modifier = Modifier.width(45.dp), textAlign = TextAlign.End)
+    LaunchedEffect(Unit) {
+        performSearch()
     }
-}
 
-@Composable
-private fun DetectSearchResultRow(
-    item: SearchResultItem,
-    context: Context
-) {
-    val formattedSize = remember(item.sizeInBytes) {
-        Formatter.formatFileSize(context, item.sizeInBytes)
+    LaunchedEffect(includeSeason) {
+        performSearch()
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Text(
-            text = item.name,
-            fontSize = 11.sp,
-            color = Color.White,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = formattedSize,
-            fontSize = 11.sp,
-            color = TextSubtle,
-            modifier = Modifier.width(65.dp)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = "${item.seeder}",
-            fontSize = 11.sp,
-            color = PurpleLight,
-            modifier = Modifier.width(45.dp),
-            textAlign = TextAlign.End
-        )
+        Card(
+            modifier = Modifier
+                .widthIn(min = 360.dp, max = 900.dp)
+                .fillMaxWidth(0.96f),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+            border = BorderStroke(1.dp, OutlineVariant)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = dialogTitle,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+
+                SearchTermInputField(
+                    titleInput = titleInput,
+                    onTitleChange = { titleInput = it },
+                    onSearch = { performSearch() },
+                    isLoading = isLoading,
+                )
+
+                if (mediaType != MediaType.MOVIE) {
+                    SeasonCheckbox(
+                        includeSeason = includeSeason,
+                        season = animeSeasonOrSeason,
+                        onIncludeSeasonChange = { includeSeason = it }
+                    )
+                }
+
+                TorrentSearchResultsTable(
+                    results = results,
+                    isLoading = isLoading,
+                    tableHeaderTitle = "Select a result to download:",
+                    onSelectResult = { selectedItem ->
+                        onSelectResult(selectedItem)
+                        onDismiss()
+                    }
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        }
     }
 }

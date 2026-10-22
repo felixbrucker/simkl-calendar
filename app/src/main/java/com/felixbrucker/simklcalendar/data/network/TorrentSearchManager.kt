@@ -4,13 +4,17 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
-import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
+import com.felixbrucker.simklcalendar.data.util.Keyword
+import com.felixbrucker.simklcalendar.data.util.MediaFormatter.makeEpisodeTerm
+import com.felixbrucker.simklcalendar.data.util.MediaFormatter.makeSeasonAndEpisodeTerm
+import com.felixbrucker.simklcalendar.data.util.contains
+import com.felixbrucker.simklcalendar.extensions.asSearchTitleWithSeason
 import com.felixbrucker.simklcalendar.extensions.ensureAdded
-import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import com.felixbrucker.torrent_search_api.Category
 import com.felixbrucker.torrent_search_api.NyaaProvider
 import com.felixbrucker.torrent_search_api.OrderBy
@@ -19,7 +23,9 @@ import com.felixbrucker.torrent_search_api.TpbProvider
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
 import java.time.Instant
+import java.time.Instant.now
 import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,32 +45,44 @@ class TorrentSearchManager @Inject constructor(
     private val nyaaProvider = NyaaProvider()
     private val tpbProvider = TpbProvider()
 
-    suspend fun search(item: CalendarItemWithWatchlist): List<SearchResultItem> {
+    suspend fun search(
+        item: CalendarItemWithWatchlist,
+        customTitle: String? = null,
+    ): List<SearchResultItem> {
         val simklId = item.simklId
-        val season = item.season ?: 1
-        val episode = item.episodeNumber ?: 1
-
         val itemSettings = itemSettingsDao.getSettings(simklId)
 
-        val titleOverride = itemSettings?.titleOverride?.takeIf { it.isNotBlank() }
-        val searchTitle = if (titleOverride != null) {
-            titleOverride
-        } else {
-            val baseTitle = item.titleRomaji ?: item.title
-            if (item.type == MediaType.ANIME) {
-                baseTitle.toNormalizedAnimeTitle()
-            } else {
-                baseTitle
-            }
-        }
+        return searchInternal(
+            baseSearchTermBuilder = { makeItemSearchTerm(item, customTitle) },
+            releaseDate = item.date,
+            mediaType = item.type,
+            itemSettings = itemSettings,
+            searchResultFilter = item.makeInvalidAnimeEpisodeFilter(),
+        )
+    }
+
+    suspend fun searchSeason(
+        simklId: Int,
+        season: Int,
+        customTitle: String? = null,
+    ): List<SearchResultItem> {
+        val watchlistItem = watchlistDao.getItem(simklId)
+            ?: throw IllegalStateException("Watchlist item not found for simklId $simklId")
+        val itemSettings = itemSettingsDao.getSettings(simklId)
+        val itemDate = calendarDao.findLastItemForSimklIdInSeason(simklId, season)?.date ?: now()
 
         return searchInternal(
-            searchTitle = searchTitle,
-            season = season,
-            episode = episode,
-            itemDate = item.date,
-            mediaType = item.type,
-            itemSettings = itemSettings
+            baseSearchTermBuilder = {
+                makeSeasonSearchTerm(
+                    watchlistItem = watchlistItem,
+                    settings = itemSettings,
+                    season = watchlistItem.animeSeason ?: season,
+                    customTitle = customTitle
+                )
+            },
+            releaseDate = itemDate,
+            mediaType = watchlistItem.type,
+            itemSettings = itemSettings,
         )
     }
 
@@ -76,30 +94,37 @@ class TorrentSearchManager @Inject constructor(
             ?: throw IllegalStateException("Watchlist item not found for simklId $simklId")
         val baseItem = calendarDao.findFirstItemForSimklId(simklId)
         val itemSettings = itemSettingsDao.getSettings(simklId)
-        val season = baseItem?.season ?: 1
-        val episode = baseItem?.episodeNumber ?: 1
-        val itemDate = baseItem?.date ?: Instant.now()
+        val itemDate = baseItem?.date ?: now().minus(3, ChronoUnit.MONTHS)
 
         return searchInternal(
-            searchTitle = customTitle,
-            season = season,
-            episode = episode,
-            itemDate = itemDate,
+            baseSearchTermBuilder = {
+                baseItem?.let { makeItemSearchTerm(it, customTitle) } ?: makeItemSearchTerm(
+                    watchlistItem = watchlistItem,
+                    settings = itemSettings,
+                    season = 1,
+                    episode = 1,
+                    customTitle = customTitle
+                )
+            },
+            releaseDate = itemDate,
             mediaType = watchlistItem.type,
-            itemSettings = itemSettings
+            itemSettings = itemSettings,
+            searchResultFilter = baseItem?.makeInvalidAnimeEpisodeFilter()
+                ?: watchlistItem.type.makeInvalidAnimeEpisodeFilter(
+                    settings = itemSettings,
+                    season = 1,
+                    episode = 1,
+                ),
         )
     }
 
     private suspend fun searchInternal(
-        searchTitle: String,
-        season: Int,
-        episode: Int,
-        itemDate: Instant,
+        baseSearchTermBuilder: () -> String,
+        releaseDate: Instant,
         mediaType: MediaType,
-        itemSettings: ItemDownloadSettings?
+        itemSettings: ItemDownloadSettings?,
+        searchResultFilter: SearchResultFilter = { it },
     ): List<SearchResultItem> {
-        val searchSeason = itemSettings?.seasonOverrides?.get(season) ?: season
-
         val prefs = autoDownloadDataSource.preferencesFlow.first()
         val globalQuality = prefs.quality
         val globalPreferHevc = prefs.preferHevc
@@ -120,28 +145,10 @@ class TorrentSearchManager @Inject constructor(
             Keyword(listOf("DCPRip")),
             Keyword(listOf("DVDScr")),
         )
-
-        val searchStyle = itemSettings?.episodeSearchStyle ?: mediaType.defaultEpisodeSearchStyle
-
-        val seasonAndEpisodeTerm = "S${formatTwoDigits(searchSeason)}E${formatTwoDigits(episode)}"
-        val episodeTerm = formatTwoDigits(episode)
-        val episodeSearchTerm = when (mediaType) {
-            MediaType.MOVIE -> ""
-            else -> when (searchStyle) {
-                EpisodeSearchStyle.SeasonAndEpisode -> seasonAndEpisodeTerm
-                EpisodeSearchStyle.Episode -> episodeTerm
-            }
-        }
-        var term = if (episodeSearchTerm.isNotEmpty()) {
-            "$searchTitle $episodeSearchTerm"
-        } else {
-            searchTitle
-        }
+        val baseTerm = baseSearchTermBuilder()
 
         val quality = itemSettings?.qualityOverride ?: globalQuality
-        if (quality.isNotEmpty()) {
-            term += " $quality"
-        }
+        val term = if (quality.isNotEmpty()) "$baseTerm $quality" else baseTerm
 
         val provider = if (mediaType == MediaType.ANIME) nyaaProvider else tpbProvider
         val category = if (mediaType == MediaType.ANIME) Category.ANIME_ENGLISH_TRANSLATED else Category.VIDEO
@@ -153,31 +160,49 @@ class TorrentSearchManager @Inject constructor(
             .getOrThrow()
             .results
 
-        val filteredResults = rawResults
+        val finalResults = rawResults
             .excluding(ignoreKeywords)
-            .filterByReleaseDate(itemDate, RELEASE_DATE_BUFFER_MONTHS)
+            .filterByReleaseDate(releaseDate, RELEASE_DATE_BUFFER_MONTHS)
             .sortedUsing(preferredKeywords)
-
-        // Only anime episode search terms are generic enough to match partially, filter out invalid
-        // matches
-        val finalResults = if (mediaType == MediaType.ANIME) {
-            val keyword = Keyword(
-                variants = listOf(
-                    " $episodeTerm ",
-                    " ${episodeTerm}v",
-                    seasonAndEpisodeTerm
-                ),
-                ignoreCase = true
-            )
-
-            filteredResults.including(listOf(keyword))
-        } else {
-            filteredResults
-        }
+            .let { searchResultFilter(it) }
 
         Timber.tag(TAG).d("Torrent search returned ${finalResults.size} results for term '$term' (${rawResults.size} raw results)")
         return finalResults
     }
+}
+
+typealias SearchResultFilter = (List<SearchResultItem>) -> List<SearchResultItem>
+
+// Only anime episode search terms are generic enough to match partially, filter out invalid
+// matches
+internal fun CalendarItemWithWatchlist.makeInvalidAnimeEpisodeFilter(): SearchResultFilter {
+    return type.makeInvalidAnimeEpisodeFilter(
+        settings = downloadSettings,
+        season = animeSeason ?: season ?: 1,
+        episode = episodeNumber ?: 1
+    )
+}
+
+internal fun MediaType.makeInvalidAnimeEpisodeFilter(
+    settings: ItemDownloadSettings?,
+    season: Int,
+    episode: Int
+): SearchResultFilter {
+    if (this != MediaType.ANIME) {
+        return { it }
+    }
+    val keyword = Keyword.makeEpisodeVariant(season, episode, this, settings)
+
+    return { it.including(listOf(keyword)) }
+}
+
+internal fun ItemDownloadSettings?.getSeasonAndEpisodeTerm(season: Int, episode: Int): String {
+    val season = this?.getSearchSeason(season) ?: season
+    return makeSeasonAndEpisodeTerm(season, episode)
+}
+
+internal fun ItemDownloadSettings.getSearchSeason(season: Int): Int {
+    return seasonOverrides?.get(season) ?: season
 }
 
 internal fun List<SearchResultItem>.filterByReleaseDate(
@@ -232,15 +257,62 @@ internal fun List<SearchResultItem>.sortedUsing(preferredKeywords: List<Keyword>
     )
 }
 
-private fun String.contains(keyword: Keyword): Boolean {
-    return keyword.variants.any { contains(it, ignoreCase = keyword.ignoreCase) }
+internal fun makeItemSearchTerm(item: CalendarItemWithWatchlist, customTitle: String? = null): String {
+    require(item.watchlistItem != null) { "WatchlistItem not found for item ${item.primaryKey}" }
+
+    return makeItemSearchTerm(
+        watchlistItem = item.watchlistItem,
+        settings = item.downloadSettings,
+        season = item.season ?: 1,
+        episode = item.episodeNumber ?: 1,
+        customTitle = customTitle
+    )
 }
 
-internal data class Keyword(
-    val variants: List<String>,
-    val ignoreCase: Boolean = false,
-) {
-    companion object {
-        fun single(variant: String, ignoreCase: Boolean = false) = Keyword(listOf(variant), ignoreCase)
+internal fun makeItemSearchTerm(
+    watchlistItem: TrackedWatchlistItem,
+    settings: ItemDownloadSettings?,
+    season: Int,
+    episode: Int,
+    customTitle: String? = null
+): String {
+    val searchTitle = if (!customTitle.isNullOrBlank()) {
+        customTitle.trim()
+    } else {
+        watchlistItem.getSearchTitle(settings)
     }
+    val searchStyle = settings?.episodeSearchStyle ?: watchlistItem.type.defaultEpisodeSearchStyle
+    val searchSeason = settings?.seasonOverrides?.get(season) ?: season
+
+    return watchlistItem.type.makeSearchTerm(searchTitle, searchStyle, searchSeason, episode)
+}
+
+internal fun MediaType.makeSearchTerm(
+    searchTitle: String,
+    searchStyle: EpisodeSearchStyle,
+    searchSeason: Int,
+    episode: Int
+): String {
+    return when (this) {
+        MediaType.MOVIE -> searchTitle
+        else -> when (searchStyle) {
+            EpisodeSearchStyle.SeasonAndEpisode -> "$searchTitle ${makeSeasonAndEpisodeTerm(searchSeason, episode)}"
+            EpisodeSearchStyle.Episode -> "$searchTitle ${makeEpisodeTerm(episode)}"
+        }
+    }
+}
+
+internal fun makeSeasonSearchTerm(
+    watchlistItem: TrackedWatchlistItem,
+    settings: ItemDownloadSettings?,
+    season: Int,
+    customTitle: String? = null
+): String {
+    if (!customTitle.isNullOrBlank()) {
+        return customTitle.trim()
+    }
+
+    return watchlistItem
+        .getSearchTitle(settings)
+        .asSearchTitleWithSeason(season, watchlistItem.type, settings)
 }

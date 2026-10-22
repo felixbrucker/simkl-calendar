@@ -10,6 +10,13 @@ import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
  * Ensures consistent handling across notifications, detail screens, calendar cards, and toasts.
  */
 object MediaFormatter {
+    fun makeSeasonAndEpisodeTerm(season: Int, episode: Int): String {
+        return "S${formatTwoDigits(season)}E${formatTwoDigits(episode)}"
+    }
+
+    fun makeEpisodeTerm(episode: Int): String {
+        return formatTwoDigits(episode)
+    }
 
     /**
      * Checks if this media item is an Anime and belongs to Season 1 (or season is unspecified).

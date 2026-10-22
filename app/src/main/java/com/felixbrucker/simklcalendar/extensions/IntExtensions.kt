@@ -1,5 +1,7 @@
 package com.felixbrucker.simklcalendar.extensions
 
+import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
+
 fun Int.toOrdinal(): String {
     val rem100 = this % 100
     if (rem100 in 11..13) return "${this}th"
@@ -28,4 +30,8 @@ fun Int.toRomanNumeral(): String {
 
 fun Int.toAnimeSeasonTokens(): String {
     return "(S$this | ${toOrdinal()} | ${toRomanNumeral()})"
+}
+
+fun Int.toTvSeasonTokens(): String {
+    return "(S${formatTwoDigits(this)})"
 }

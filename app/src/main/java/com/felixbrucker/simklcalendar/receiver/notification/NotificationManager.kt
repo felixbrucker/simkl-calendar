@@ -296,7 +296,7 @@ class NotificationManager @Inject constructor(
             if (item.type == MediaType.MOVIE) {
                 val digitalRelease =
                     itemsInSeasonOrRelatedItems.find { it.movieReleaseType == MovieReleaseType.DIGITAL }
-                if (digitalRelease != null && (digitalRelease.mediaStatus == MediaStatus.IGNORED || digitalRelease.mediaStatus == MediaStatus.WANTED)) {
+                if (digitalRelease != null && (digitalRelease.mediaStatus.isSearchable)) {
                     actions.add(
                         NotificationActionInfo(
                             action = NotificationActionReceiver.ACTION_DOWNLOAD_ITEM,
@@ -309,7 +309,7 @@ class NotificationManager @Inject constructor(
                 }
             } else {
                 val hasDownloadableEpisodes = itemsInSeasonOrRelatedItems.any {
-                    it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED
+                    it.mediaStatus.isSearchable
                 }
                 if (hasDownloadableEpisodes) {
                     if (item.isSeasonFinale) {
@@ -322,7 +322,7 @@ class NotificationManager @Inject constructor(
                                 intent = item.makeDownloadSeasonMissingEpisodesBroadcastIntent(context)
                             )
                         )
-                    } else if (item.mediaStatus == MediaStatus.IGNORED || item.mediaStatus == MediaStatus.WANTED) {
+                    } else if (item.mediaStatus.isSearchable) {
                         actions.add(
                             NotificationActionInfo(
                                 action = NotificationActionReceiver.ACTION_DOWNLOAD_ITEM,

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,9 +16,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -63,9 +66,10 @@ data class EpisodeListActions(
     val onItemClick: (CalendarItemWithWatchlist) -> Unit,
     val onWatchedStatusChange: (CalendarItemWithWatchlist, Boolean) -> Unit,
     val onMediaStatusChange: (String, MediaStatus) -> Unit,
-    val onMarkSeasonWatched: ((season: Int) -> Unit)? = null,
-    val onMarkSeasonUnwatched: ((season: Int) -> Unit)? = null,
-    val onUpdateSeasonMediaStatus: ((season: Int, status: MediaStatus) -> Unit)? = null,
+    val onMarkSeasonWatched: (season: Int) -> Unit,
+    val onMarkSeasonUnwatched: (season: Int) -> Unit,
+    val onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit,
+    val onSearchSeasonManually: (season: Int) -> Unit,
 )
 
 @Composable
@@ -134,12 +138,15 @@ fun EpisodeListContent(
             grouped.forEach { (season, seasonEpisodes) ->
                 if (state.showSeasonHeaders) {
                     SeasonSectionHeader(
-                        season = season,
-                        episodes = seasonEpisodes,
-                        updatingWatchKeys = state.updatingWatchKeys,
-                        onMarkSeasonWatched = actions.onMarkSeasonWatched,
-                        onMarkSeasonUnwatched = actions.onMarkSeasonUnwatched,
-                        onUpdateSeasonMediaStatus = actions.onUpdateSeasonMediaStatus
+                        state = SeasonHeaderState(
+                            season = season,
+                            episodes = seasonEpisodes,
+                            updatingWatchKeys = state.updatingWatchKeys,
+                            onMarkSeasonWatched = actions.onMarkSeasonWatched,
+                            onMarkSeasonUnwatched = actions.onMarkSeasonUnwatched,
+                            onUpdateSeasonMediaStatus = actions.onUpdateSeasonMediaStatus,
+                            onSearchSeasonManually = actions.onSearchSeasonManually
+                        )
                     )
                 }
                 seasonEpisodes.forEach { epItem ->
@@ -154,19 +161,25 @@ fun EpisodeListContent(
     }
 }
 
+@Immutable
+data class SeasonHeaderState(
+    val season: Int,
+    val episodes: List<CalendarItemWithWatchlist>,
+    val updatingWatchKeys: Set<String>,
+    val onMarkSeasonWatched: (season: Int) -> Unit,
+    val onMarkSeasonUnwatched: (season: Int) -> Unit,
+    val onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit,
+    val onSearchSeasonManually: (season: Int) -> Unit,
+)
+
 @Composable
 fun SeasonSectionHeader(
-    season: Int,
-    episodes: List<CalendarItemWithWatchlist>,
-    updatingWatchKeys: Set<String>,
+    state: SeasonHeaderState,
     modifier: Modifier = Modifier,
-    onMarkSeasonWatched: ((season: Int) -> Unit)? = null,
-    onMarkSeasonUnwatched: ((season: Int) -> Unit)? = null,
-    onUpdateSeasonMediaStatus: ((season: Int, status: MediaStatus) -> Unit)? = null,
 ) {
-    val commonStatus = remember(episodes) {
-        val first = episodes.firstOrNull()?.mediaStatus
-        if (first != null && episodes.all { it.mediaStatus == first }) first else null
+    val commonStatus = remember(state.episodes) {
+        val first = state.episodes.firstOrNull()?.mediaStatus
+        if (first != null && state.episodes.all { it.mediaStatus == first }) first else null
     }
 
     Row(
@@ -177,50 +190,67 @@ fun SeasonSectionHeader(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = "Season $season (${episodes.size})",
+            text = "Season ${state.season} (${state.episodes.size})",
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             color = PurpleLight
         )
 
-        if (onMarkSeasonWatched != null && onMarkSeasonUnwatched != null && onUpdateSeasonMediaStatus != null) {
-            SeasonHeaderActions(
-                season = season,
-                episodes = episodes,
-                commonStatus = commonStatus,
-                updatingWatchKeys = updatingWatchKeys,
-                onMarkSeasonWatched = onMarkSeasonWatched,
-                onMarkSeasonUnwatched = onMarkSeasonUnwatched,
-                onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus
-            )
-        }
+        SeasonHeaderActions(
+            state = state,
+            commonStatus = commonStatus
+        )
     }
 }
 
 @Composable
 private fun SeasonHeaderActions(
-    season: Int,
-    episodes: List<CalendarItemWithWatchlist>,
+    state: SeasonHeaderState,
     commonStatus: MediaStatus?,
-    updatingWatchKeys: Set<String>,
-    onMarkSeasonWatched: (season: Int) -> Unit,
-    onMarkSeasonUnwatched: (season: Int) -> Unit,
-    onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    FlowRow(
+        itemVerticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        val isWatched = episodes.all { it.isWatched }
-        val isLoading = episodes.any { updatingWatchKeys.contains(it.primaryKey) }
+        val hasSearchableEpisode = remember(state.episodes) {
+            state.episodes.any { it.mediaStatus.isSearchable }
+        }
+
+        if (hasSearchableEpisode) {
+            OutlinedButton(
+                onClick = { state.onSearchSeasonManually(state.season) },
+                shape = RoundedCornerShape(6.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = PurpleLight,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Search manually",
+                    fontSize = 11.sp,
+                    color = PurpleLight,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        val isWatched = state.episodes.all { it.isWatched }
+        val isLoading = state.episodes.any { state.updatingWatchKeys.contains(it.primaryKey) }
 
         WatchedStatusDropdown(
             isWatched = isWatched,
             onStatusChange = { watched ->
                 if (watched) {
-                    onMarkSeasonWatched(season)
+                    state.onMarkSeasonWatched(state.season)
                 } else {
-                    onMarkSeasonUnwatched(season)
+                    state.onMarkSeasonUnwatched(state.season)
                 }
             },
             isLoading = isLoading
@@ -228,7 +258,7 @@ private fun SeasonHeaderActions(
 
         MediaStatusDropdown(
             currentStatus = commonStatus ?: MediaStatus.IGNORED,
-            onStatusChange = { onUpdateSeasonMediaStatus(season, it) }
+            onStatusChange = { state.onUpdateSeasonMediaStatus(state.season, it) }
         )
     }
 }

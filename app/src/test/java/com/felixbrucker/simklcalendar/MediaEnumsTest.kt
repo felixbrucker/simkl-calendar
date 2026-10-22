@@ -57,4 +57,18 @@ class MediaEnumsTest {
         assertEquals(EpisodeSearchStyle.Episode, animeDefault)
         assertEquals(EpisodeSearchStyle.SeasonAndEpisode, movieDefault)
     }
+
+    @Test
+    fun testMediaStatusIsSearchable() {
+        org.junit.Assert.assertTrue(MediaStatus.IGNORED.isSearchable)
+        org.junit.Assert.assertTrue(MediaStatus.WANTED.isSearchable)
+        org.junit.Assert.assertFalse(MediaStatus.NOT_AIRED_YET.isSearchable)
+        org.junit.Assert.assertFalse(MediaStatus.DOWNLOADING.isSearchable)
+        org.junit.Assert.assertFalse(MediaStatus.DOWNLOADED.isSearchable)
+    }
+
+    @Test
+    fun testWatchlistStatusFromString() {
+        assertEquals(WatchlistStatus.WATCHING, WatchlistStatus.fromString("watching"))
+    }
 }

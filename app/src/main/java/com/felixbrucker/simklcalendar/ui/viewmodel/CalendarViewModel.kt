@@ -458,6 +458,56 @@ class CalendarViewModel @Inject constructor(
         return downloadRepository.detectTorrents(simklId, customTitle)
     }
 
+    suspend fun searchTorrents(
+        item: CalendarItemWithWatchlist,
+        customTitle: String? = null,
+    ): List<SearchResultItem> {
+        return downloadRepository.search(item, customTitle)
+    }
+
+    suspend fun searchSeasonTorrents(
+        simklId: Int,
+        season: Int,
+        customTitle: String? = null,
+    ): List<SearchResultItem> {
+        return downloadRepository.searchSeason(simklId, season, customTitle)
+    }
+
+    fun downloadEpisodeResult(
+        item: CalendarItemWithWatchlist,
+        resultItem: SearchResultItem,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            _isSearchingTorrents.value = true
+            val result = downloadRepository.downloadItemResult(item, resultItem)
+            result.onSuccess {
+                onResult(true, "Download started")
+            }.onFailure {
+                onResult(false, it.message ?: "Error starting download")
+            }
+            _isSearchingTorrents.value = false
+        }
+    }
+
+    fun downloadSeasonResult(
+        simklId: Int,
+        season: Int,
+        resultItem: SearchResultItem,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            _isSearchingTorrents.value = true
+            val result = downloadRepository.downloadSeasonResult(simklId, season, resultItem)
+            result.onSuccess {
+                onResult(true, "Season download started")
+            }.onFailure {
+                onResult(false, it.message ?: "Error starting season download")
+            }
+            _isSearchingTorrents.value = false
+        }
+    }
+
     fun getItemDownloadSettingsFlow(simklId: Int): Flow<ItemDownloadSettings?> {
         return downloadRepository.getItemDownloadSettingsFlow(simklId)
     }
@@ -806,7 +856,7 @@ class CalendarViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _isSearchingTorrents.value = true
-            val result = downloadRepository.searchAndDownloadEpisode(item)
+            val result = downloadRepository.searchAndDownloadItem(item)
             result.onSuccess {
                 onResult(true, "Download started")
             }.onFailure {
@@ -825,7 +875,7 @@ class CalendarViewModel @Inject constructor(
             val airedEpisodes = seasonEpisodes.filter { it.date.isBefore(now) }
 
             airedEpisodes.forEach { item ->
-                downloadRepository.searchAndDownloadEpisode(item)
+                downloadRepository.searchAndDownloadItem(item)
             }
             _isSearchingTorrents.value = false
         }

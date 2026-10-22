@@ -177,7 +177,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
                 // Trigger search and download
                 try {
-                    downloadRepository.searchAndDownloadEpisode(item)
+                    downloadRepository.searchAndDownloadItem(item)
                 } finally {
                     torrentServiceHelper.unbind()
                 }

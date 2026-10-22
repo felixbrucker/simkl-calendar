@@ -97,7 +97,7 @@ class AlarmReceiverTest {
         notificationRepo = mockk(relaxed = true)
 
         coEvery { repositoryMock.updateItemAiredStatus(any()) } returns Unit
-        coEvery { downloadRepositoryMock.searchAndDownloadEpisode(any()) } returns Result.success("taskId")
+        coEvery { downloadRepositoryMock.searchAndDownloadItem(any()) } returns Result.success("taskId")
         coEvery { downloadRepositoryMock.searchAndDownloadSeason(any(), any()) } returns Unit
 
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
