@@ -125,7 +125,7 @@ class MainActivityIntentTest {
         mainActivity.handleNotificationNavigation(intent)
 
         coVerify(exactly = 0) { notificationManager.removeActiveNotification(any()) }
-        assertEquals(mainActivity.pendingReleaseDetailKey.value, null)
+        assertEquals(null, mainActivity.pendingReleaseDetailKey.value)
     }
 
     @Test
@@ -137,7 +137,7 @@ class MainActivityIntentTest {
         mainActivity.handleNotificationNavigation(intent)
 
         coVerify { notificationManager.dismissNotification("v2_100_1_1") }
-        assertEquals(mainActivity.pendingReleaseDetailKey.value, "v2_100_1_1")
+        assertEquals("v2_100_1_1", mainActivity.pendingReleaseDetailKey.value)
     }
 
     @Test

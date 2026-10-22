@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -37,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
-import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import com.felixbrucker.simklcalendar.ui.composable.ManualSearchDialog
 import com.felixbrucker.simklcalendar.ui.composable.SeasonWatchButton
 import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
@@ -67,7 +68,6 @@ import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
-import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
@@ -208,39 +208,65 @@ fun WatchlistItemDetailScreen(
                     )
                 }
 
-                // 2. Single Season Action Button Row / Summary Stats Bar
+
                 if (!isMovie) {
-                    if (isAnimeSeasonOneOnly || seasons.size == 1) {
+                    // 2. Summary Stats Bar (Hidden for movies)
+                    item {
+                        WatchlistItemSummaryStats(
+                            item = tableItem,
+                            episodes = episodes,
+                            isAnimeSeasonOneOnly = isAnimeSeasonOneOnly,
+                            updatingWatchKeys = updatingWatchKeys,
+                            onMarkSeasonWatched = { season -> viewModel.markSeasonWatched(simklId, season, watchlistItem.type) },
+                            onMarkSeasonUnwatched = { season -> viewModel.markSeasonUnwatched(simklId, season, watchlistItem.type) },
+                            onUpdateSeasonMediaStatus = { season, status -> viewModel.updateSeasonMediaStatus(simklId, season, status) }
+                        )
+                    }
+
+                    // 3. Single Season Action Button Row
+                    if (seasons.size == 1) {
                         item {
-                            val targetSeason = seasons.keys.firstOrNull() ?: 1
-                            val targetEpisodes = seasons[targetSeason] ?: emptyList()
-                            val isSeasonFullyWatched = targetEpisodes.isNotEmpty() &&
-                                targetEpisodes.all { it.isWatched }
-                            val hasSearchableEpisode = targetEpisodes.any {
-                                it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED
+                            val seasonOfItems = remember(seasons) {
+                                seasons.keys.firstOrNull() ?: 1
+                            }
+                            val targetEpisodes = remember(seasons, seasonOfItems) {
+                                seasons[seasonOfItems] ?: emptyList()
+                            }
+                            val isSeasonFullyWatched = remember(targetEpisodes) {
+                                targetEpisodes.isNotEmpty() &&
+                                    targetEpisodes.all { it.isWatched }
+                            }
+                            val hasSearchableEpisode = remember(targetEpisodes) {
+                                targetEpisodes.any { it.mediaStatus.isSearchable }
                             }
 
-                            Row(
+                            FlowRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                itemVerticalAlignment = Alignment.CenterVertically
                             ) {
                                 SeasonWatchButton(
                                     isMarkingWatched = isMarkingWatched,
                                     isSeasonFullyWatched = isSeasonFullyWatched,
-                                    seasonLabel = "Season $targetSeason",
+                                    seasonLabel = "Season $seasonOfItems",
                                     onMarkSeasonWatched = {
-                                        viewModel.markSeasonWatched(simklId, targetSeason, watchlistItem.type)
+                                        viewModel.markSeasonWatched(simklId, seasonOfItems, watchlistItem.type)
                                     },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .widthIn(min = 250.dp),
                                 )
 
                                 if (hasSearchableEpisode) {
                                     Button(
-                                        onClick = { manualSearchSeasonNum = targetSeason },
-                                        modifier = Modifier.height(48.dp).weight(1f),
+                                        onClick = { manualSearchSeasonNum = seasonOfItems },
+                                        modifier = Modifier
+                                            .height(48.dp)
+                                            .weight(1f)
+                                            .widthIn(min = 250.dp),
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = SurfacePrimaryVariant,
                                             contentColor = PurpleContainerSoft
@@ -258,18 +284,6 @@ fun WatchlistItemDetailScreen(
                                 }
                             }
                         }
-                    }
-
-                    item {
-                        WatchlistItemSummaryStats(
-                            item = tableItem,
-                            episodes = episodes,
-                            isAnimeSeasonOneOnly = isAnimeSeasonOneOnly,
-                            updatingWatchKeys = updatingWatchKeys,
-                            onMarkSeasonWatched = { season -> viewModel.markSeasonWatched(simklId, season, watchlistItem.type) },
-                            onMarkSeasonUnwatched = { season -> viewModel.markSeasonUnwatched(simklId, season, watchlistItem.type) },
-                            onUpdateSeasonMediaStatus = { season, status -> viewModel.updateSeasonMediaStatus(simklId, season, status) }
-                        )
                     }
                 } else {
                     // Movie shared actions
@@ -311,7 +325,7 @@ fun WatchlistItemDetailScreen(
                     )
                 }
 
-                // 3. Content Card (Episode list or Movie Releases)
+                // 4. Content Card (Episode list or Movie Releases)
                 item {
                     val density = LocalDensity.current
                     val windowInfo = LocalWindowInfo.current
@@ -356,48 +370,7 @@ fun WatchlistItemDetailScreen(
                     )
                 }
 
-                if (manualSearchSeasonNum != null) {
-                    item {
-                        val sNum = manualSearchSeasonNum!!
-                        val initialSeasonSearchTitle = remember(watchlistItem, itemSettings) {
-                            itemSettings?.titleOverride
-                                ?: if (watchlistItem.type == MediaType.ANIME) {
-                                    val romajiTitle = watchlistItem.titleRomaji?.takeIf { it.isNotBlank() }
-                                    val baseTitle = romajiTitle ?: watchlistItem.title
-                                    baseTitle.toNormalizedAnimeTitle()
-                                } else {
-                                    watchlistItem.title
-                                }
-                        }
-                        ManualSearchDialog(
-                            initialTitle = initialSeasonSearchTitle,
-                            mediaType = watchlistItem.type,
-                            animeSeason = sNum,
-                            dialogTitle = "Search Season $sNum Manually",
-                            onPerformSearch = { customTitle, includeSeasonToken ->
-                                viewModel.searchSeasonTorrents(
-                                    simklId = simklId,
-                                    season = sNum,
-                                    customTitle = customTitle,
-                                    includeSeasonToken = includeSeasonToken
-                                )
-                            },
-                            onSelectResult = { selectedResult ->
-                                viewModel.downloadSeasonResult(
-                                    simklId = simklId,
-                                    season = sNum,
-                                    resultItem = selectedResult,
-                                    onResult = { _, msg ->
-                                        scope.launch { snackbarHostState.showSnackbar(msg) }
-                                    }
-                                )
-                            },
-                            onDismiss = { manualSearchSeasonNum = null }
-                        )
-                    }
-                }
-
-                // 4. Notification Settings
+                // 5. Notification Settings
                 item {
                     NotificationSettingsCard(
                         isMovie = isMovie,
@@ -424,15 +397,10 @@ fun WatchlistItemDetailScreen(
                     )
                 }
 
-                // 5. Download Settings (Moved to bottom)
+                // 6. Download Settings (Moved to bottom)
                 item {
                     DownloadSettingsCard(
-                        simklId = watchlistItem.simklId,
-                        itemTitle = watchlistItem.title,
-                        itemTitleRomaji = watchlistItem.titleRomaji,
-                        animeSeason = watchlistItem.animeSeason,
-                        mediaType = watchlistItem.type,
-                        defaultSubdirectory = watchlistItem.defaultDestinationSubdirectory(),
+                        watchlistItem = watchlistItem,
                         autoDownloadPrefs = autoDownloadPrefs,
                         itemSettings = itemSettings,
                         isDownloaderInstalled = isDownloaderInstalled,
@@ -442,10 +410,40 @@ fun WatchlistItemDetailScreen(
                         modifier = Modifier.padding(16.dp),
                     )
                 }
+            }
 
-                item {
-                    Spacer(modifier = Modifier.height(32.dp))
+            if (manualSearchSeasonNum != null) {
+                val seasonOfItem = manualSearchSeasonNum!!
+                val initialSearchTitle = remember(watchlistItem, itemSettings) {
+                    watchlistItem.getSearchTitle(itemSettings)
                 }
+                val searchSeason = watchlistItem.animeSeason ?: seasonOfItem
+                ManualSearchDialog(
+                    initialTitle = initialSearchTitle,
+                    mediaType = watchlistItem.type,
+                    animeSeasonOrSeason = searchSeason,
+                    itemSettings = itemSettings,
+                    initialIncludeSeason = true,
+                    dialogTitle = "Search Season $searchSeason Manually",
+                    onPerformSearch = { customTitle ->
+                        viewModel.searchSeasonTorrents(
+                            simklId = simklId,
+                            season = seasonOfItem,
+                            customTitle = customTitle,
+                        )
+                    },
+                    onSelectResult = { selectedResult ->
+                        viewModel.downloadSeasonResult(
+                            simklId = simklId,
+                            season = seasonOfItem,
+                            resultItem = selectedResult,
+                            onResult = { _, msg ->
+                                scope.launch { snackbarHostState.showSnackbar(msg) }
+                            }
+                        )
+                    },
+                    onDismiss = { manualSearchSeasonNum = null }
+                )
             }
         }
     }

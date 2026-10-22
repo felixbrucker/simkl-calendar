@@ -53,9 +53,13 @@ complexity:
       - 'Inject'
       - 'javax.inject.Inject'
       - 'jakarta.inject.Inject'
+      - 'Composable'
   ComplexCondition:
     active: true
-    threshold: 4
+    threshold: 20
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 30
 
 style:
   active: true

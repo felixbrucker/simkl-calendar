@@ -1,5 +1,7 @@
 package com.felixbrucker.simklcalendar.extensions
 
+import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
+import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 
 /**
@@ -68,4 +70,13 @@ fun String.toNormalizedAnimeTitle(): String {
 
     val finalWords = filteredWords.ifEmpty { wordTokens.ifEmpty { words } }
     return finalWords.joinToString(" ")
+}
+
+fun String.asSearchTitleWithSeason(season: Int, type: MediaType, settings: ItemDownloadSettings?): String {
+    val searchSeason = settings?.seasonOverrides?.get(season) ?: season
+    return when(type) {
+        MediaType.ANIME -> "$this ${searchSeason.toAnimeSeasonTokens()}"
+        MediaType.TV -> "$this ${searchSeason.toTvSeasonTokens()}"
+        MediaType.MOVIE -> this
+    }
 }

@@ -112,7 +112,7 @@ class AlarmReceiver: BroadcastReceiver() {
         try {
             if (item.mediaStatus == MediaStatus.WANTED) {
                 Timber.tag(TAG).d("Searching and downloading WANTED episode for '${item.title}'")
-                downloadRepository.searchAndDownloadEpisode(item)
+                downloadRepository.searchAndDownloadItem(item)
                 didSearchAndDownload = true
             }
 

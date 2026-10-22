@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -206,27 +208,28 @@ private fun SeasonHeaderActions(
     state: SeasonHeaderState,
     commonStatus: MediaStatus?,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    FlowRow(
+        itemVerticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         val hasSearchableEpisode = remember(state.episodes) {
             state.episodes.any { it.mediaStatus == MediaStatus.IGNORED || it.mediaStatus == MediaStatus.WANTED }
         }
 
         if (hasSearchableEpisode) {
-            androidx.compose.material3.OutlinedButton(
+            OutlinedButton(
                 onClick = { state.onSearchSeasonManually(state.season) },
                 shape = RoundedCornerShape(6.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                 border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
-                modifier = Modifier.height(28.dp)
+                modifier = Modifier.height(32.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
                     tint = PurpleLight,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(

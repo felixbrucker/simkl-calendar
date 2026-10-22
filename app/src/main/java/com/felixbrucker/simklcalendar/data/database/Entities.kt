@@ -15,6 +15,7 @@ import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
 import java.time.Instant
 import androidx.compose.runtime.Immutable
 import androidx.core.net.toUri
+import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import java.time.Instant.now
 import kotlin.math.abs
 
@@ -65,7 +66,7 @@ data class CalendarItem(
 
     fun updatedWith(newItem: CalendarItem): CalendarItem {
         val isDateRescheduledToFuture = this.date != newItem.date && newItem.date.isAfter(now())
-        val updatedNotified = if (isDateRescheduledToFuture) false else this.isNotified
+        val newIsNotified = if (isDateRescheduledToFuture) false else this.isNotified
 
         return this.copy(
             episodeTitle = newItem.episodeTitle,
@@ -75,7 +76,7 @@ data class CalendarItem(
             movieReleaseType = newItem.movieReleaseType,
             isSeasonPremiere = newItem.isSeasonPremiere,
             isSeasonFinale = newItem.isSeasonFinale,
-            isNotified = updatedNotified,
+            isNotified = newIsNotified,
             watchedAt = newItem.watchedAt
         )
     }
@@ -159,6 +160,21 @@ data class TrackedWatchlistItem(
             lastSyncedAt = newLastSyncedAt
         )
     }
+
+    fun getSearchTitle(settings: ItemDownloadSettings?): String {
+        val titleOverride = settings?.titleOverride?.takeIf { it.isNotBlank() }
+
+        return if (titleOverride != null) {
+            titleOverride
+        } else {
+            val baseTitle = titleRomaji ?: title
+            if (type == MediaType.ANIME) {
+                baseTitle.toNormalizedAnimeTitle()
+            } else {
+                baseTitle
+            }
+        }
+    }
 }
 
 /**
@@ -207,6 +223,12 @@ data class CalendarItemWithWatchlist(
     val downloadTaskId: String? get() = localState?.downloadTaskId
     val filePath: String? get() = localState?.filePath
     val notificationId: Int get() = abs(primaryKey.hashCode())
+
+    fun getSearchTitle(): String {
+        require(watchlistItem != null) { "WatchlistItem not found for simklId $simklId" }
+
+        return watchlistItem.getSearchTitle(downloadSettings)
+    }
 }
 
 @Entity(

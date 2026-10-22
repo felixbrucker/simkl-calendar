@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
@@ -29,6 +30,9 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
     lateinit var calendarItemDao: CalendarItemDao
 
     @Inject
+    lateinit var watchlistDao: WatchlistDao
+
+    @Inject
     lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
 
     @Inject
@@ -39,7 +43,6 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
         const val ACTION_DOWNLOAD_COMPLETED = "com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_COMPLETED"
         const val ACTION_SEASON_DOWNLOAD_COMPLETED = "com.felixbrucker.simklcalendar.ACTION_SEASON_DOWNLOAD_COMPLETED"
         const val EXTRA_ITEM_PRIMARY_KEY = "extra_item_primary_key"
-        const val EXTRA_ITEM_PRIMARY_KEYS = "extra_item_primary_keys"
         const val EXTRA_SIMKL_ID = "extra_simkl_id"
         const val EXTRA_SEASON = "extra_season"
         const val EXTRA_FILE_PATHS = "EXTRA_FILE_PATHS"
@@ -47,108 +50,105 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
         if (context == null || intent == null) return
-        val pendingResult = try {
-            goAsync()
-        } catch (_: Exception) {
-            null
-        }
 
-        if (intent.action == ACTION_DOWNLOAD_COMPLETED) {
-            scope.launch {
-                try {
-                    handleSingleDownloadCompleted(intent)
-                } catch (e: Exception) {
-                    Timber.tag(TAG).e(e, "Error handling download completion")
-                } finally {
-                    pendingResult?.finish()
-                }
-            }
-        } else if (intent.action == ACTION_SEASON_DOWNLOAD_COMPLETED) {
-            scope.launch {
-                try {
-                    handleSeasonDownloadCompleted(intent)
-                } catch (e: Exception) {
-                    Timber.tag(TAG).e(e, "Error handling season download completion")
-                } finally {
-                    pendingResult?.finish()
-                }
-            }
+        when (intent.action) {
+            ACTION_DOWNLOAD_COMPLETED -> handleSingleDownloadCompleted(intent)
+            ACTION_SEASON_DOWNLOAD_COMPLETED -> handleSeasonDownloadCompleted(intent)
         }
     }
 
-    private suspend fun handleSingleDownloadCompleted(intent: Intent) {
+    private fun handleSingleDownloadCompleted(intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
         val firstFilePath = intent.getStringArrayListExtra(EXTRA_FILE_PATHS)?.firstOrNull()
 
-        calendarRepository.updateDownloadCompleted(
-            itemPrimaryKey,
-            null,
-            MediaStatus.DOWNLOADED,
-            firstFilePath
-        )
-        Timber.tag(TAG).d(
-            "Updated item $itemPrimaryKey to DOWNLOADED status, " +
-                "cleared taskId, and persisted filePath=$firstFilePath"
-        )
+        val pendingResult = goAsync()
+        scope.launch {
+            try {
+                calendarRepository.updateDownloadCompleted(
+                    itemPrimaryKey,
+                    null,
+                    MediaStatus.DOWNLOADED,
+                    firstFilePath
+                )
+                Timber.tag(TAG).d(
+                    "Updated item $itemPrimaryKey to DOWNLOADED status, " +
+                        "cleared taskId, and persisted filePath=$firstFilePath"
+                )
 
-        val item = calendarItemDao.findItem(itemPrimaryKey) ?: return
+                val item = calendarItemDao.findItem(itemPrimaryKey) ?: return@launch
 
-        // Update notification for the item that was just downloaded (if active)
-        notificationManager.updateNotification(item)
+                // Update notification for the item that was just downloaded (if active)
+                notificationManager.updateNotification(item)
 
-        // If it's a TV show/anime episode, also check if there's an active season finale
-        // notification that needs updating to reflect the new aggregate download status.
-        val season = item.season
-        if (season != null) {
-            val finaleItem = calendarItemDao.getSeasonFinaleItem(item.simklId, season)
-            if (finaleItem != null && finaleItem.primaryKey != item.primaryKey) {
-                notificationManager.updateNotification(finaleItem)
+                // If it's a TV show/anime episode, also check if there's an active season finale
+                // notification that needs updating to reflect the new aggregate download status.
+                val season = item.season
+                if (season != null) {
+                    val finaleItem = calendarItemDao.getSeasonFinaleItem(item.simklId, season)
+                    if (finaleItem != null && finaleItem.primaryKey != item.primaryKey) {
+                        notificationManager.updateNotification(finaleItem)
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Error handling download completion for item $itemPrimaryKey")
+            } finally {
+                pendingResult.finish()
             }
         }
     }
 
-    private suspend fun handleSeasonDownloadCompleted(intent: Intent) {
-        val primaryKeys = intent.getStringArrayListExtra(EXTRA_ITEM_PRIMARY_KEYS) ?: emptyList<String>()
+    private fun handleSeasonDownloadCompleted(intent: Intent) {
+        val simklId = intent.getIntExtra(EXTRA_SIMKL_ID, 0)
+        val season = intent.getIntExtra(EXTRA_SEASON, 0)
         val filePaths = intent.getStringArrayListExtra(EXTRA_FILE_PATHS) ?: emptyList<String>()
 
-        if (primaryKeys.isEmpty()) return
+        val pendingResult = goAsync()
+        scope.launch {
+            try {
+                val watchlistItem = watchlistDao.getItem(simklId)
+                require(watchlistItem != null) { "Watchlist item not found for simklId $simklId" }
+                val seasonItems = calendarItemDao.getSeasonItems(simklId, season)
+                val settings = itemDownloadSettingsDao.getSettings(simklId)
+                val searchStyle = settings?.episodeSearchStyle ?: watchlistItem.type.defaultEpisodeSearchStyle
 
-        val itemsToProcess = primaryKeys.mapNotNull { calendarItemDao.findItem(it) }
+                for (item in seasonItems) {
+                    val seasonOfItem = item.season ?: 1
+                    val seasonWithAnimeSeason = watchlistItem.animeSeason ?: seasonOfItem
+                    val season = settings?.seasonOverrides?.get(seasonWithAnimeSeason) ?: seasonWithAnimeSeason
+                    val episode = item.episodeNumber ?: 1
 
-        for (epItem in itemsToProcess) {
-            val settings = itemDownloadSettingsDao.getSettings(epItem.simklId)
-            val searchStyle = settings?.episodeSearchStyle ?: epItem.type.defaultEpisodeSearchStyle
-            val season = settings?.seasonOverrides?.get(epItem.season ?: 1) ?: (epItem.season ?: 1)
-            val episode = epItem.episodeNumber ?: 1
+                    val matchedFilePath = matchFilePathForEpisode(
+                        filePaths = filePaths,
+                        season = season,
+                        episode = episode,
+                        searchStyle = searchStyle
+                    )
 
-            val matchedFilePath = matchFilePathForEpisode(
-                filePaths = filePaths,
-                season = season,
-                episode = episode,
-                searchStyle = searchStyle
-            )
+                    calendarRepository.updateDownloadCompleted(
+                        item.primaryKey,
+                        null,
+                        MediaStatus.DOWNLOADED,
+                        matchedFilePath
+                    )
+                    Timber.tag(TAG).d(
+                        "Updated item %s to DOWNLOADED status, filePath=%s",
+                        item.primaryKey,
+                        matchedFilePath
+                    )
 
-            calendarRepository.updateDownloadCompleted(
-                epItem.primaryKey,
-                null,
-                MediaStatus.DOWNLOADED,
-                matchedFilePath
-            )
-            Timber.tag(TAG).d(
-                "Updated item %s to DOWNLOADED status, filePath=%s",
-                epItem.primaryKey,
-                matchedFilePath
-            )
+                    val updatedItem = calendarItemDao.findItem(item.primaryKey) ?: item
+                    notificationManager.updateNotification(updatedItem)
 
-            val updatedItem = calendarItemDao.findItem(epItem.primaryKey) ?: epItem
-            notificationManager.updateNotification(updatedItem)
-
-            val itemSeason = updatedItem.season
-            if (itemSeason != null) {
-                val finaleItem = calendarItemDao.getSeasonFinaleItem(updatedItem.simklId, itemSeason)
-                if (finaleItem != null && finaleItem.primaryKey != updatedItem.primaryKey) {
-                    notificationManager.updateNotification(finaleItem)
+                    val itemSeason = updatedItem.season
+                    if (itemSeason != null) {
+                        val finaleItem = calendarItemDao.getSeasonFinaleItem(updatedItem.simklId, itemSeason)
+                        if (finaleItem != null && finaleItem.primaryKey != updatedItem.primaryKey) {
+                            notificationManager.updateNotification(finaleItem)
+                        }
+                    }
                 }
+            } finally {
+                pendingResult.finish()
             }
         }
     }

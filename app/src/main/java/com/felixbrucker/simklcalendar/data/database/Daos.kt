@@ -119,6 +119,9 @@ interface CalendarItemDao {
     @Query("SELECT * FROM calendar_items WHERE simklId = :simklId ORDER BY date ASC LIMIT 1")
     suspend fun findFirstItemForSimklId(simklId: Int): CalendarItemWithWatchlist?
 
+    @Query("SELECT * FROM calendar_items WHERE simklId = :simklId AND season = :season ORDER BY date DESC LIMIT 1")
+    suspend fun findLastItemForSimklIdInSeason(simklId: Int, season: Int): CalendarItemWithWatchlist?
+
     @Query("SELECT * FROM calendar_items WHERE simklId IN (:simklIds) ORDER BY date ASC")
     suspend fun getCalendarEntitiesForSimklIds(simklIds: List<Int>): List<CalendarItem>
 
@@ -162,7 +165,14 @@ interface CalendarItemDao {
         SELECT primaryKey FROM calendar_items
         WHERE simklId = :simklId AND season = :season AND date <= :now
     """)
-    suspend fun ensureLocalStatesExistForSeason(simklId: Int, season: Int, now: Instant)
+    suspend fun ensureLocalStatesExistForSeasonReleased(simklId: Int, season: Int, now: Instant)
+
+    @Query("""
+        INSERT OR IGNORE INTO local_item_state (primaryKey)
+        SELECT primaryKey FROM calendar_items
+        WHERE simklId = :simklId AND season = :season
+    """)
+    suspend fun ensureLocalStatesExistForSeason(simklId: Int, season: Int)
 
     @Query("""
         UPDATE local_item_state 
@@ -176,7 +186,7 @@ interface CalendarItemDao {
 
     @Transaction
     suspend fun updateSeasonMediaStatus(simklId: Int, season: Int, status: MediaStatus, now: Instant) {
-        ensureLocalStatesExistForSeason(simklId, season, now)
+        ensureLocalStatesExistForSeasonReleased(simklId, season, now)
         performUpdateSeasonMediaStatus(simklId, season, status, now)
     }
 
@@ -187,6 +197,22 @@ interface CalendarItemDao {
     suspend fun updateDownloadTaskId(primaryKey: String, taskId: String?, status: MediaStatus) {
         ensureLocalStateExists(primaryKey)
         performUpdateDownloadTaskId(primaryKey, taskId, status)
+    }
+
+    @Query("""
+        UPDATE local_item_state
+        SET mediaStatus = :status, downloadTaskId = :taskId
+        WHERE primaryKey IN (
+            SELECT primaryKey FROM calendar_items 
+            WHERE simklId = :simklId AND season = :season
+        )
+    """)
+    suspend fun performUpdateSeasonDownloadTaskId(simklId: Int, season: Int, taskId: String?, status: MediaStatus)
+
+    @Transaction
+    suspend fun updateSeasonDownloadTaskId(simklId: Int, season: Int, taskId: String?, status: MediaStatus) {
+        ensureLocalStatesExistForSeason(simklId, season)
+        performUpdateSeasonDownloadTaskId(simklId, season, taskId, status)
     }
 
     @Query("""
@@ -246,6 +272,14 @@ interface CalendarItemDao {
         ORDER BY ci.date ASC
     """)
     suspend fun getUnwatchedDownloadableSeasonItems(simklId: Int, season: Int): List<CalendarItemWithWatchlist>
+
+    @Query("""
+        SELECT ci.* FROM calendar_items ci
+        WHERE ci.simklId = :simklId
+          AND ci.season = :season
+        ORDER BY ci.date ASC
+    """)
+    suspend fun getSeasonItems(simklId: Int, season: Int): List<CalendarItemWithWatchlist>
 }
 
 @Dao

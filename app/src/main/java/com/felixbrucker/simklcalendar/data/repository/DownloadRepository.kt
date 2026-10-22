@@ -52,24 +52,22 @@ class DownloadRepository @Inject constructor(
         torrentSearchManager.detectTorrents(simklId, customTitle)
     }
 
-    suspend fun searchEpisode(
+    suspend fun search(
         item: CalendarItemWithWatchlist,
         customTitle: String? = null,
-        includeSeasonToken: Boolean = false
     ): List<SearchResultItem> = withContext(Dispatchers.IO) {
-        torrentSearchManager.searchEpisode(item, customTitle, includeSeasonToken)
+        torrentSearchManager.search(item, customTitle)
     }
 
     suspend fun searchSeason(
         simklId: Int,
         season: Int,
         customTitle: String? = null,
-        includeSeasonToken: Boolean = false
     ): List<SearchResultItem> = withContext(Dispatchers.IO) {
-        torrentSearchManager.searchSeason(simklId, season, customTitle, includeSeasonToken)
+        torrentSearchManager.searchSeason(simklId, season, customTitle)
     }
 
-    suspend fun downloadEpisodeResult(
+    suspend fun downloadItemResult(
         item: CalendarItemWithWatchlist,
         resultItem: SearchResultItem
     ): Result<String> = withContext(Dispatchers.IO) {
@@ -100,24 +98,11 @@ class DownloadRepository @Inject constructor(
         season: Int,
         resultItem: SearchResultItem
     ): Result<String> = withContext(Dispatchers.IO) {
-        val targetItems = calendarDao.getUnwatchedDownloadableSeasonItems(simklId, season)
-
-        if (targetItems.isEmpty()) {
-            return@withContext Result.failure(Exception("No downloadable items found in season $season."))
-        }
-
-        targetItems.forEach { item ->
-            if (item.mediaStatus != MediaStatus.WANTED) {
-                calendarDao.updateMediaStatus(item.primaryKey, MediaStatus.WANTED)
-            }
-        }
-
         val watchlistItem = watchlistDao.getItem(simklId)
             ?: return@withContext Result.failure(Exception("Watchlist item not found for simklId $simklId"))
         val itemSettings = itemDownloadSettingsDao.getSettings(simklId)
         val destinationSubdirectory = watchlistItem.destinationSubdirectory(itemSettings)
-        val primaryKeys = targetItems.map { it.primaryKey }
-        val completionUri = generateSeasonCompletionIntentUri(simklId, season, primaryKeys)
+        val completionUri = generateSeasonCompletionIntentUri(simklId, season)
 
         val result = torrentServiceHelper.addTorrent(
             uri = resultItem.uri.toString(),
@@ -130,9 +115,7 @@ class DownloadRepository @Inject constructor(
         )
 
         result.onSuccess { taskId ->
-            targetItems.forEach { item ->
-                calendarDao.updateDownloadTaskId(item.primaryKey, taskId, MediaStatus.DOWNLOADING)
-            }
+            calendarDao.updateSeasonDownloadTaskId(simklId, season, taskId, MediaStatus.DOWNLOADING)
         }
 
         result
@@ -145,11 +128,11 @@ class DownloadRepository @Inject constructor(
         }
         unwatchedItems.forEach { item ->
             val updatedItem = calendarDao.findItem(item.primaryKey) ?: item
-            searchAndDownloadEpisode(updatedItem)
+            searchAndDownloadItem(updatedItem)
         }
     }
 
-    suspend fun searchAndDownloadEpisode(
+    suspend fun searchAndDownloadItem(
         item: CalendarItemWithWatchlist
     ): Result<String> = withContext(Dispatchers.IO) {
         // 1. Set status to WANTED (if not already)
@@ -169,7 +152,7 @@ class DownloadRepository @Inject constructor(
         }
 
         // 3. Select first result and start download
-        downloadEpisodeResult(item, results.first())
+        downloadItemResult(item, results.first())
     }
 
     suspend fun searchAndDownloadWantedItems(
@@ -181,7 +164,7 @@ class DownloadRepository @Inject constructor(
         if (wantedItems.isEmpty()) return@withContext
 
         wantedItems.forEachIndexed { index, item ->
-            val result = searchAndDownloadEpisode(item)
+            val result = searchAndDownloadItem(item)
 
             onProgress(index + 1, wantedItems.size, item.formattedAutoDownloadLabel, result.isSuccess)
 
@@ -201,12 +184,11 @@ class DownloadRepository @Inject constructor(
         return intent.toUri(Intent.URI_INTENT_SCHEME)
     }
 
-    private fun generateSeasonCompletionIntentUri(simklId: Int, season: Int, primaryKeys: List<String>): String {
+    private fun generateSeasonCompletionIntentUri(simklId: Int, season: Int): String {
         val intent = Intent(DownloadCompletedReceiver.ACTION_SEASON_DOWNLOAD_COMPLETED).apply {
             setClassName(context.packageName, DownloadCompletedReceiver::class.java.name)
             putExtra(DownloadCompletedReceiver.EXTRA_SIMKL_ID, simklId)
             putExtra(DownloadCompletedReceiver.EXTRA_SEASON, season)
-            putStringArrayListExtra(DownloadCompletedReceiver.EXTRA_ITEM_PRIMARY_KEYS, ArrayList(primaryKeys))
         }
         return intent.toUri(Intent.URI_INTENT_SCHEME)
     }

@@ -661,8 +661,8 @@ class SyncRepository @Inject constructor(
             if (targetedIds.isNotEmpty()) {
                 Timber.d("Starting targeted backfill for ${targetedIds.size} shows...")
                 val targetedResult = performBackfillForShows(targetedIds)
-                hasCalendarItemChanges = hasCalendarItemChanges || targetedResult.hasCalendarItemChanges
-                hasWantedItems = hasWantedItems || targetedResult.hasWantedItems
+                hasCalendarItemChanges = targetedResult.hasCalendarItemChanges
+                hasWantedItems = targetedResult.hasWantedItems
             }
         }
 

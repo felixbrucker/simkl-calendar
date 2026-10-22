@@ -458,21 +458,19 @@ class CalendarViewModel @Inject constructor(
         return downloadRepository.detectTorrents(simklId, customTitle)
     }
 
-    suspend fun searchEpisodeTorrents(
+    suspend fun searchTorrents(
         item: CalendarItemWithWatchlist,
         customTitle: String? = null,
-        includeSeasonToken: Boolean = false
     ): List<SearchResultItem> {
-        return downloadRepository.searchEpisode(item, customTitle, includeSeasonToken)
+        return downloadRepository.search(item, customTitle)
     }
 
     suspend fun searchSeasonTorrents(
         simklId: Int,
         season: Int,
         customTitle: String? = null,
-        includeSeasonToken: Boolean = false
     ): List<SearchResultItem> {
-        return downloadRepository.searchSeason(simklId, season, customTitle, includeSeasonToken)
+        return downloadRepository.searchSeason(simklId, season, customTitle)
     }
 
     fun downloadEpisodeResult(
@@ -482,7 +480,7 @@ class CalendarViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _isSearchingTorrents.value = true
-            val result = downloadRepository.downloadEpisodeResult(item, resultItem)
+            val result = downloadRepository.downloadItemResult(item, resultItem)
             result.onSuccess {
                 onResult(true, "Download started")
             }.onFailure {
@@ -858,7 +856,7 @@ class CalendarViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _isSearchingTorrents.value = true
-            val result = downloadRepository.searchAndDownloadEpisode(item)
+            val result = downloadRepository.searchAndDownloadItem(item)
             result.onSuccess {
                 onResult(true, "Download started")
             }.onFailure {
@@ -877,7 +875,7 @@ class CalendarViewModel @Inject constructor(
             val airedEpisodes = seasonEpisodes.filter { it.date.isBefore(now) }
 
             airedEpisodes.forEach { item ->
-                downloadRepository.searchAndDownloadEpisode(item)
+                downloadRepository.searchAndDownloadItem(item)
             }
             _isSearchingTorrents.value = false
         }

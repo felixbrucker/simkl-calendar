@@ -97,6 +97,7 @@ import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
+import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
@@ -105,8 +106,9 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
+import com.felixbrucker.simklcalendar.extensions.asSearchTitleWithSeason
+import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
 import com.felixbrucker.simklcalendar.extensions.toAnimeSeasonTokens
-import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.theme.BlueAccent
 import com.felixbrucker.simklcalendar.ui.theme.BlueLight
@@ -256,7 +258,7 @@ fun MediaStatusDropdown(
 
     Box {
         Surface(
-            shape = RoundedCornerShape(4.dp),
+            shape = RoundedCornerShape(6.dp),
             color = backgroundColor,
             contentColor = textColor,
             border = BorderStroke(1.dp, textColor.copy(alpha = 0.3f)),
@@ -264,7 +266,7 @@ fun MediaStatusDropdown(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
@@ -330,7 +332,7 @@ fun WatchedStatusDropdown(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
@@ -780,12 +782,7 @@ private fun DetailHeaderOpenSimklButton(
 
 @Composable
 fun DownloadSettingsCard(
-    simklId: Int,
-    itemTitle: String,
-    itemTitleRomaji: String?,
-    animeSeason: Int?,
-    mediaType: MediaType,
-    defaultSubdirectory: String,
+    watchlistItem: TrackedWatchlistItem,
     autoDownloadPrefs: AutoDownloadPreferences,
     itemSettings: ItemDownloadSettings?,
     isDownloaderInstalled: Boolean,
@@ -794,6 +791,9 @@ fun DownloadSettingsCard(
     onSearchTorrents: (suspend (String) -> List<SearchResultItem>),
     modifier: Modifier = Modifier,
 ) {
+    val mediaType = watchlistItem.type
+    val simklId = watchlistItem.simklId
+    val searchTitle = watchlistItem.getSearchTitle(itemSettings)
     val globalUnwatched = when (mediaType) {
         MediaType.TV -> autoDownloadPrefs.autoDownloadUnwatchedTv
         MediaType.ANIME -> autoDownloadPrefs.autoDownloadUnwatchedAnime
@@ -891,7 +891,7 @@ fun DownloadSettingsCard(
             // Download Subdirectory Override
             DownloadSubdirectorySection(
                 simklId = simklId,
-                defaultSubdirectory = defaultSubdirectory,
+                defaultSubdirectory = watchlistItem.defaultDestinationSubdirectory(),
                 itemSettings = itemSettings,
                 isDownloaderInstalled = isDownloaderInstalled,
                 availableSubdirectories = availableSubdirectories,
@@ -946,7 +946,7 @@ fun DownloadSettingsCard(
                             value = tempTitle,
                             onValueChange = { tempTitle = it },
                             label = { Text("Custom Title") },
-                            placeholder = { Text(itemTitle) },
+                            placeholder = { Text(searchTitle) },
                             singleLine = true
                         )
                     },
@@ -961,13 +961,9 @@ fun DownloadSettingsCard(
             }
             if (showDetectDialog) {
                 DetectTitleDialog(
-                    initialTitle = if (mediaType == MediaType.ANIME) {
-                        (itemTitleRomaji?.takeIf { it.isNotBlank() } ?: itemTitle).toNormalizedAnimeTitle()
-                    } else {
-                        itemTitle
-                    },
+                    initialTitle = searchTitle,
                     mediaType = mediaType,
-                    animeSeason = animeSeason,
+                    animeSeason = watchlistItem.animeSeason,
                     onSearchTorrents = onSearchTorrents,
                     onSave = { detectedTitle ->
                         onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(titleOverride = detectedTitle.trim().takeIf { it.isNotBlank() }))
@@ -1208,10 +1204,10 @@ fun SearchTermInputField(
 @Composable
 fun SeasonCheckbox(
     includeSeason: Boolean,
-    animeSeason: Int?,
+    season: Int?,
     onIncludeSeasonChange: (Boolean) -> Unit
 ) {
-    val isEnabled = animeSeason != null && animeSeason > 0
+    val isEnabled = season != null && season > 0
     val labelText = "Include season"
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -1421,7 +1417,7 @@ fun DetectTitleDialog(
                 if (mediaType == MediaType.ANIME) {
                     SeasonCheckbox(
                         includeSeason = includeSeason,
-                        animeSeason = animeSeason,
+                        season = animeSeason,
                         onIncludeSeasonChange = { includeSeason = it }
                     )
                 }
@@ -1511,23 +1507,34 @@ fun SeasonWatchButton(
 fun ManualSearchDialog(
     initialTitle: String,
     mediaType: MediaType,
-    animeSeason: Int?,
+    animeSeasonOrSeason: Int?,
+    initialIncludeSeason: Boolean,
+    itemSettings: ItemDownloadSettings?,
     dialogTitle: String = "Search Torrents Manually",
-    onPerformSearch: (suspend (title: String, includeSeason: Boolean) -> List<SearchResultItem>),
+    onPerformSearch: (suspend (title: String) -> List<SearchResultItem>),
     onSelectResult: (SearchResultItem) -> Unit,
     onDismiss: () -> Unit
 ) {
     var titleInput by remember { mutableStateOf(initialTitle) }
-    var includeSeason by remember { mutableStateOf(false) }
+    var includeSeason by remember { mutableStateOf(initialIncludeSeason) }
     var results by remember { mutableStateOf<List<SearchResultItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     fun performSearch() {
         if (titleInput.isNotBlank()) {
+            val searchTitle = if (includeSeason && animeSeasonOrSeason != null && animeSeasonOrSeason > 0) {
+                titleInput.trim().asSearchTitleWithSeason(
+                    season = animeSeasonOrSeason,
+                    type = mediaType,
+                    settings = itemSettings
+                )
+            } else {
+                titleInput.trim()
+            }
             coroutineScope.launch {
                 isLoading = true
-                results = onPerformSearch(titleInput, includeSeason)
+                results = onPerformSearch(searchTitle)
                 isLoading = false
             }
         }
@@ -1573,10 +1580,10 @@ fun ManualSearchDialog(
                     isLoading = isLoading,
                 )
 
-                if (mediaType == MediaType.ANIME) {
+                if (mediaType != MediaType.MOVIE) {
                     SeasonCheckbox(
                         includeSeason = includeSeason,
-                        animeSeason = animeSeason,
+                        season = animeSeasonOrSeason,
                         onIncludeSeasonChange = { includeSeason = it }
                     )
                 }

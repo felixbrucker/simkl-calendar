@@ -73,8 +73,6 @@ import com.felixbrucker.simklcalendar.data.util.formattedEpisodeCode
 import com.felixbrucker.simklcalendar.data.util.formattedEpisodeSlugHeader
 import com.felixbrucker.simklcalendar.data.util.formattedItemLabel
 import com.felixbrucker.simklcalendar.data.util.formattedSeasonLabel
-import com.felixbrucker.simklcalendar.extensions.defaultDestinationSubdirectory
-import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
@@ -432,27 +430,22 @@ fun ReleaseDetailScreen(
                         }
                     }
 
+                    val initialSearchTitle = remember(activeItem.watchlistItem) {
+                        activeItem.getSearchTitle()
+                    }
+
                     if (showEpisodeManualSearchDialog) {
-                        val initialSearchTitle = remember(activeItem, itemSettings) {
-                            itemSettings?.titleOverride
-                                ?: if (activeItem.type == MediaType.ANIME) {
-                                    val romajiTitle = activeItem.titleRomaji?.takeIf { it.isNotBlank() }
-                                    val baseTitle = romajiTitle ?: activeItem.title
-                                    baseTitle.toNormalizedAnimeTitle()
-                                } else {
-                                    activeItem.title
-                                }
-                        }
                         ManualSearchDialog(
                             initialTitle = initialSearchTitle,
                             mediaType = activeItem.type,
-                            animeSeason = activeItem.season ?: activeItem.watchlistItem?.animeSeason,
+                            animeSeasonOrSeason = activeItem.animeSeason ?: activeItem.season,
+                            itemSettings = itemSettings,
+                            initialIncludeSeason = false,
                             dialogTitle = "Search Episode Manually",
-                            onPerformSearch = { customTitle, includeSeasonToken ->
-                                viewModel.searchEpisodeTorrents(
+                            onPerformSearch = { customTitle ->
+                                viewModel.searchTorrents(
                                     item = activeItem,
                                     customTitle = customTitle,
-                                    includeSeasonToken = includeSeasonToken
                                 )
                             },
                             onSelectResult = { selectedResult ->
@@ -469,34 +462,26 @@ fun ReleaseDetailScreen(
                     }
 
                     if (manualSearchSeasonNum != null) {
-                        val sNum = manualSearchSeasonNum!!
-                        val initialSeasonSearchTitle = remember(activeItem, itemSettings) {
-                            itemSettings?.titleOverride
-                                ?: if (activeItem.type == MediaType.ANIME) {
-                                    val romajiTitle = activeItem.titleRomaji?.takeIf { it.isNotBlank() }
-                                    val baseTitle = romajiTitle ?: activeItem.title
-                                    baseTitle.toNormalizedAnimeTitle()
-                                } else {
-                                    activeItem.title
-                                }
-                        }
+                        val seasonOfItem = manualSearchSeasonNum!!
+                        val season = activeItem.animeSeason ?: seasonOfItem
                         ManualSearchDialog(
-                            initialTitle = initialSeasonSearchTitle,
+                            initialTitle = initialSearchTitle,
                             mediaType = activeItem.type,
-                            animeSeason = sNum,
-                            dialogTitle = "Search Season $sNum Manually",
-                            onPerformSearch = { customTitle, includeSeasonToken ->
+                            animeSeasonOrSeason = season,
+                            itemSettings = itemSettings,
+                            initialIncludeSeason = true,
+                            dialogTitle = "Search Season $season Manually",
+                            onPerformSearch = { customTitle ->
                                 viewModel.searchSeasonTorrents(
                                     simklId = activeItem.simklId,
-                                    season = sNum,
+                                    season = seasonOfItem,
                                     customTitle = customTitle,
-                                    includeSeasonToken = includeSeasonToken
                                 )
                             },
                             onSelectResult = { selectedResult ->
                                 viewModel.downloadSeasonResult(
                                     simklId = activeItem.simklId,
-                                    season = sNum,
+                                    season = seasonOfItem,
                                     resultItem = selectedResult,
                                     onResult = { _, msg ->
                                         scope.launch { snackbarHostState.showSnackbar(msg) }
@@ -632,12 +617,7 @@ fun ReleaseDetailScreen(
                     )
 
                     DownloadSettingsCard(
-                        simklId = activeItem.simklId,
-                        itemTitle = activeItem.title,
-                        itemTitleRomaji = activeItem.titleRomaji,
-                        animeSeason = activeItem.watchlistItem?.animeSeason,
-                        mediaType = activeItem.type,
-                        defaultSubdirectory = activeItem.defaultDestinationSubdirectory(),
+                        watchlistItem = activeItem.watchlistItem!!,
                         autoDownloadPrefs = autoDownloadPrefs,
                         itemSettings = itemSettings,
                         isDownloaderInstalled = isDownloaderInstalled,

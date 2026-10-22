@@ -143,7 +143,7 @@ class CalendarViewModelTest {
         every { torrentServiceHelper.downloads } returns MutableStateFlow(emptyMap())
         every { torrentServiceHelper.isBound } returns MutableStateFlow(false)
         every { torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
-        coEvery { downloadRepositoryMock.searchAndDownloadEpisode(any()) } returns Result.failure(Exception("No torrents"))
+        coEvery { downloadRepositoryMock.searchAndDownloadItem(any()) } returns Result.failure(Exception("No torrents"))
 
         every { calendarRepositoryMock.getFilteredCalendarItems(any()) } returns filteredCalendarItemsFlow
     }
@@ -604,7 +604,7 @@ class CalendarViewModelTest {
             downloadSettings = null
         )
         filteredCalendarItemsFlow.value = listOf(itemWithWatchlist)
-        coEvery { downloadRepositoryMock.searchAndDownloadEpisode(itemWithWatchlist) } returns Result.failure(Exception("No torrent results found"))
+        coEvery { downloadRepositoryMock.searchAndDownloadItem(itemWithWatchlist) } returns Result.failure(Exception("No torrent results found"))
 
         var episodeResultOk = true
         var episodeResultMsg = ""

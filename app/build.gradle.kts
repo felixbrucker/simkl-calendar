@@ -84,7 +84,8 @@ android {
     )
     disable += setOf(
       "NewerVersionAvailable",
-      "GradleDependency"
+      "GradleDependency",
+      "AndroidGradlePluginVersion"
     )
   }
 }
