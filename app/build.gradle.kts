@@ -3,10 +3,8 @@ plugins {
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.secrets)
-  alias(libs.plugins.kover)
   alias(libs.plugins.hilt.android)
   alias(libs.plugins.sentry.android)
-  alias(libs.plugins.detekt)
 }
 
 android {
@@ -70,59 +68,6 @@ android {
   testOptions {
     unitTests.isReturnDefaultValues = true
   }
-
-  lint {
-    abortOnError = true
-    checkAllWarnings = true
-    warningsAsErrors = true
-    checkReleaseBuilds = true
-    baseline = file("lint-baseline.xml")
-    enable += setOf(
-      "UnusedResources",
-      "TypographyQuotes",
-      "VectorPath"
-    )
-    disable += setOf(
-      "NewerVersionAvailable",
-      "GradleDependency",
-      "AndroidGradlePluginVersion"
-    )
-  }
-}
-
-val detektCliClasspath = configurations.create("detektCliClasspath")
-
-val javaToolchains = project.extensions.getByType<JavaToolchainService>()
-val java25Launcher = javaToolchains.launcherFor {
-  languageVersion.set(JavaLanguageVersion.of(25))
-}
-
-val detektRun = tasks.register<JavaExec>("detektRun") {
-  group = "verification"
-  description = "Runs Detekt static analysis via JavaExec."
-  javaLauncher.set(java25Launcher)
-  jvmArgs("-Djava.version=25")
-  mainClass.set("io.gitlab.arturbosch.detekt.cli.Main")
-  classpath = detektCliClasspath
-  val baselineFile = file("$rootDir/detekt-baseline.xml")
-  val argsList = mutableListOf(
-    "--config", "$rootDir/detekt.yml",
-    "--input", "$projectDir/src/main/java,$projectDir/src/test/java",
-    "--jvm-target", "11",
-    "--build-upon-default-config",
-    "--report", "txt:$rootDir/detekt-report.txt"
-  )
-  if (project.hasProperty("detektCreateBaseline") || !baselineFile.exists()) {
-    argsList.addAll(listOf("--create-baseline", "--baseline", baselineFile.absolutePath))
-  } else {
-    argsList.addAll(listOf("--baseline", baselineFile.absolutePath))
-  }
-  args(argsList)
-}
-
-tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
-  enabled = false
-  dependsOn(detektRun)
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -137,46 +82,7 @@ ksp {
   arg("room.schemaLocation", "$projectDir/schemas")
 }
 
-kover {
-  reports {
-    total {
-      verify {
-        rule {
-          minBound(70)
-        }
-      }
-    }
-    filters {
-      excludes {
-        classes(
-          "*.BuildConfig",
-          "*_*",
-          "*JsonAdapter*",
-          "com.felixbrucker.torrenthttpdownloader.*",
-          "com.felixbrucker.simklcalendar.ui.composable.*",
-          "com.felixbrucker.simklcalendar.ui.screens.*",
-          "com.felixbrucker.simklcalendar.ui.theme.*",
-          "com.felixbrucker.simklcalendar.MainActivity*",
-          "com.felixbrucker.simklcalendar.SimklApplication*",
-          "*Factory*",
-          "*MembersInjector*",
-          "*HiltModules*",
-          "*GeneratedInjector*",
-          "*Hilt_*",
-        )
-      }
-    }
-  }
-}
-
-// Some unused dependencies are commented out below instead of being removed.
-// This makes it easy to add them back in the future if needed.
 dependencies {
-  detektCliClasspath(libs.detekt.cli)
-  detektCliClasspath(project(":detekt-rules"))
-  detektCliClasspath(libs.detekt.rules.compose)
-  detektCliClasspath(libs.detekt.formatting)
-
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.browser)

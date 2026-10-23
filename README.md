@@ -27,7 +27,6 @@ Simkl Calendar is a modern Android application that integrates with your [Simkl]
 - **Error Tracking & Monitoring**: [Sentry](https://sentry.io/)
 - **Logging**: [Timber](https://github.com/JakeWharton/timber)
 - **Dependency Management**: Gradle Version Catalog
-- **Code Coverage**: [Kover](https://github.com/Kotlin/kotlinx-kover)
 
 ## 📥 Installation & Updates
 
@@ -48,7 +47,7 @@ You can find the latest APKs in the [Releases](https://github.com/felixbrucker/s
 
 ### Prerequisites
 - Android Studio Ladybug (or newer)
-- Java 25
+- Java 11+
 - Android SDK 37
 
 ### Build Commands
@@ -58,9 +57,6 @@ You can find the latest APKs in the [Releases](https://github.com/felixbrucker/s
 
 # Build debug APK
 ./gradlew assembleDebug
-
-# Generate coverage report
-./gradlew koverHtmlReport
 ```
 
 ## 📄 License

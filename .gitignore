@@ -20,4 +20,3 @@ debug.keystore
 release.keystore
 .idea
 /.artifacts
-detekt-report.txt

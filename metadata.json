@@ -1,6 +1,0 @@
-{
-  "name": "Simkl Calendar",
-  "description": "Log into your Simkl account to view and filter upcoming tracked TV shows, anime, and movies on a single unified calendar with personalized episode alerts.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

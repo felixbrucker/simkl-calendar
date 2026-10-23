@@ -26,7 +26,6 @@ workRuntimeKtx = "2.12.0"
 secretsGradlePlugin = "2.0.1"
 androidxBrowser = "1.10.0"
 junit = "4.13.2"
-kover = "0.9.11"
 hilt = "2.60.1"
 hiltWork = "1.4.0"
 mockk = "1.14.11"
@@ -35,15 +34,8 @@ datastorePreferences = "1.2.1"
 sentryAndroid = "8.60.0"
 sentryAndroidGradle = "6.23.0"
 glance = "1.2.0"
-detekt = "1.23.8"
-composeRules = "0.6.8"
 
 [libraries]
-detekt-api = { group = "io.gitlab.arturbosch.detekt", name = "detekt-api", version.ref = "detekt" }
-detekt-cli = { group = "io.gitlab.arturbosch.detekt", name = "detekt-cli", version.ref = "detekt" }
-detekt-formatting = { group = "io.gitlab.arturbosch.detekt", name = "detekt-formatting", version.ref = "detekt" }
-detekt-test = { group = "io.gitlab.arturbosch.detekt", name = "detekt-test", version.ref = "detekt" }
-detekt-rules-compose = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "composeRules" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesAndroid" }
@@ -94,7 +86,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-devtools-ksp = { id = "com.google.devtools.ksp", version.ref = "googleDevtoolsKsp" }
 secrets = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secretsGradlePlugin" }
-kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 sentry-android = { id = "io.sentry.android.gradle", version.ref = "sentryAndroidGradle" }
-detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
