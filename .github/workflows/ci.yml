@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   test:
-    name: Unit Tests & Coverage Report
+    name: Unit Tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
