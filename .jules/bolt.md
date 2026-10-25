@@ -69,3 +69,9 @@
 **Learning:** Optimizing `String.toNormalizedAnimeTitle()` with a custom single-pass character scanner was rejected as unnecessary complexity for minimal gain because title normalization is executed infrequently (only when initiating search query generation or displaying detail titles) and is not on a hot scrolling or batch processing path.
 
 **Action:** Avoid replacing readable regex/collection string pipelines with custom character scanners unless profiling proves the string normalization is executed repeatedly in a hot path (e.g., UI rendering or batch loops).
+
+## 2027-03-25 - Remembering Season Episode Predicates and Header State Wrappers in Compose List Components
+
+**Learning:** Linear collection scans (`.all { ... }`, `.any { ... }`) executed directly in composables without `remember` run on every recomposition pass of child view items. Wrapping predicate calculations over child lists (`state.episodes`) in `remember(state.episodes)` and remembering parent state wrappers (`SeasonHeaderState`) avoids redundant $O(N)$ list traversals and state wrapper object allocations during recompositions.
+
+**Action:** Always wrap collection predicate calculations (`.all`, `.any`, `.filter`) and state wrapper object instantiations in `remember` blocks when rendering group/section headers in Compose.

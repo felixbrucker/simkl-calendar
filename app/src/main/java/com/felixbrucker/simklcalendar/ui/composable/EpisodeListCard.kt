@@ -137,8 +137,8 @@ fun EpisodeListContent(
         Column(modifier = modifier) {
             grouped.forEach { (season, seasonEpisodes) ->
                 if (state.showSeasonHeaders) {
-                    SeasonSectionHeader(
-                        state = SeasonHeaderState(
+                    val headerState = remember(season, seasonEpisodes, state.updatingWatchKeys, actions) {
+                        SeasonHeaderState(
                             season = season,
                             episodes = seasonEpisodes,
                             updatingWatchKeys = state.updatingWatchKeys,
@@ -147,7 +147,8 @@ fun EpisodeListContent(
                             onUpdateSeasonMediaStatus = actions.onUpdateSeasonMediaStatus,
                             onSearchSeasonManually = actions.onSearchSeasonManually
                         )
-                    )
+                    }
+                    SeasonSectionHeader(state = headerState)
                 }
                 seasonEpisodes.forEach { epItem ->
                     EpisodeListRow(
@@ -241,8 +242,12 @@ private fun SeasonHeaderActions(
             }
         }
 
-        val isWatched = state.episodes.all { it.isWatched }
-        val isLoading = state.episodes.any { state.updatingWatchKeys.contains(it.primaryKey) }
+        val isWatched = remember(state.episodes) {
+            state.episodes.all { it.isWatched }
+        }
+        val isLoading = remember(state.episodes, state.updatingWatchKeys) {
+            state.episodes.any { state.updatingWatchKeys.contains(it.primaryKey) }
+        }
 
         WatchedStatusDropdown(
             isWatched = isWatched,
