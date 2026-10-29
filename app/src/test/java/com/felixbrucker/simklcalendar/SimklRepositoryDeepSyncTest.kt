@@ -313,6 +313,46 @@ class SimklRepositoryDeepSyncTest {
     }
 
     @Test
+    fun testSyncCalendarJsonsIgnoresTotalEpisodesForFinale() = runTest {
+        val insertedSlot = slot<List<CalendarItem>>()
+        coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
+        coEvery { watchlistDao.getAllTrackedIds() } returns listOf(101, 102)
+        val v2CalendarResponse = SimklV2CalendarResponse(
+            calendar = listOf(
+                SimklV2CalendarEntry(
+                    simklId = 101,
+                    date = "2026-04-10T20:00:00Z",
+                    episode = SimklV2Episode(season = 1, episode = 12, title = "Ep 12"),
+                    finaleType = null
+                ),
+                SimklV2CalendarEntry(
+                    simklId = 102,
+                    date = "2026-04-10T20:00:00Z",
+                    episode = SimklV2Episode(season = 1, episode = 12, title = "Ep 12"),
+                    finaleType = 1
+                )
+            ),
+            metadata = mapOf(
+                "101" to SimklV2Metadata(title = "Show 101", totalEpisodes = 12),
+                "102" to SimklV2Metadata(title = "Show 102", totalEpisodes = 12)
+            )
+        )
+        coEvery { publicApiService.getV2Calendar(any(), any(), eq("tv"), any()) } returns Response.success(v2CalendarResponse)
+        coEvery { publicApiService.getV2Calendar(any(), any(), neq("tv"), any()) } returns Response.success(SimklV2CalendarResponse(emptyList(), emptyMap()))
+        coEvery { calendarDao.insertCalendarItems(capture(insertedSlot)) } returns Unit
+
+        syncRepository.syncCalendarJsons(forceFullSync = true)
+        val items = insertedSlot.captured
+        val item101 = items.first { it.simklId == 101 }
+        val item102 = items.first { it.simklId == 102 }
+        val isFinale101 = item101.isSeasonFinale
+        val isFinale102 = item102.isSeasonFinale
+
+        assertFalse(isFinale101)
+        assertTrue(isFinale102)
+    }
+
+    @Test
     fun testSyncCalendarJsonsUpdatesLastSyncedAtForTvButNotForAnime() = runTest {
         coEvery { tokenDao.getActiveToken() } returns UserToken(1, "token_123", "User")
         coEvery { watchlistDao.getAllTrackedIds() } returns listOf(101, 202)
