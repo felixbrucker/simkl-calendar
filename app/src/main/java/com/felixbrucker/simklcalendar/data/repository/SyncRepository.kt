@@ -550,7 +550,12 @@ class SyncRepository @Inject constructor(
                             val epTitle = ep?.title
 
                             val isPremiere = epNum == 1
-                            val isFinale = entry.finaleType != null && entry.finaleType != 0
+                            val isExplicitFinale = entry.finaleType != null && entry.finaleType != 0
+                            val isMetadataFinale = meta?.totalEpisodes != null &&
+                                meta.totalEpisodes > 1 &&
+                                epNum > 1 &&
+                                epNum >= meta.totalEpisodes
+                            val isFinale = isExplicitFinale || isMetadataFinale
 
                             val keyUnique = "v2_${simklId}_${seasonNum}_$epNum"
 
