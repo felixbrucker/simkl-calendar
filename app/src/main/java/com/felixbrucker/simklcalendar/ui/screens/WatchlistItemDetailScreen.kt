@@ -247,10 +247,14 @@ fun WatchlistItemDetailScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 itemVerticalAlignment = Alignment.CenterVertically
                             ) {
+                                val seasonLabel = remember(isAnimeSeasonOneOnly, seasonOfItems) {
+                                    if (isAnimeSeasonOneOnly) "Season" else "Season $seasonOfItems"
+                                }
+
                                 SeasonWatchButton(
                                     isMarkingWatched = isMarkingWatched,
                                     isSeasonFullyWatched = isSeasonFullyWatched,
-                                    seasonLabel = "Season $seasonOfItems",
+                                    seasonLabel = seasonLabel,
                                     onMarkSeasonWatched = {
                                         viewModel.markSeasonWatched(simklId, seasonOfItems, watchlistItem.type)
                                     },
