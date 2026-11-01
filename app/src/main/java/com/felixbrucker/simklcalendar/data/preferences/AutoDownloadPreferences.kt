@@ -41,7 +41,16 @@ data class AutoDownloadPreferences(
     val deleteEmptyParentDirectory: Boolean = false,
     val preferredKeywords: List<String> = emptyList(),
     val ignoreKeywords: List<String> = emptyList(),
-    val searchIntervalHours: Int = 12
+    val searchIntervalHours: Int = 12,
+    val postProcessTvEnabled: Boolean = false,
+    val postProcessAnimeEnabled: Boolean = false,
+    val postProcessMovieEnabled: Boolean = false,
+    val postProcessReplaceSpacesWithDotsTv: Boolean = true,
+    val postProcessReplaceSpacesWithDotsAnime: Boolean = false,
+    val postProcessReplaceSpacesWithDotsMovie: Boolean = true,
+    val postProcessTemplateTv: String = "{title}.{episode_slug}.{resolution}.{source}-{release_group}",
+    val postProcessTemplateAnime: String = "[{release_group}] {title_romaji} - {episode} [{resolution}]",
+    val postProcessTemplateMovie: String = "{title}.{year}.{resolution}.{source}-{release_group}"
 )
 
 @Singleton
@@ -51,6 +60,10 @@ class AutoDownloadRepository @Inject constructor(
     private val dataStore = context.autoDownloadDataStore
 
     companion object {
+        const val DEFAULT_TEMPLATE_TV = "{title}.{episode_slug}.{resolution}.{source}-{release_group}"
+        const val DEFAULT_TEMPLATE_ANIME = "[{release_group}] {title_romaji} - {episode} [{resolution}]"
+        const val DEFAULT_TEMPLATE_MOVIE = "{title}.{year}.{resolution}.{source}-{release_group}"
+
         private val KEY_QUALITY = stringPreferencesKey("quality")
         private val KEY_PREFER_HEVC = booleanPreferencesKey("prefer_hevc")
         private val KEY_UNWATCHED_TV = booleanPreferencesKey("auto_download_unwatched_tv")
@@ -63,6 +76,19 @@ class AutoDownloadRepository @Inject constructor(
         private val KEY_PREFERRED_KEYWORDS = stringPreferencesKey("preferred_keywords")
         private val KEY_IGNORE_KEYWORDS = stringPreferencesKey("ignore_keywords")
         private val KEY_SEARCH_INTERVAL_HOURS = intPreferencesKey("search_interval_hours")
+
+        private val KEY_POST_PROCESS_TV_ENABLED = booleanPreferencesKey("post_process_tv_enabled")
+        private val KEY_POST_PROCESS_ANIME_ENABLED = booleanPreferencesKey("post_process_anime_enabled")
+        private val KEY_POST_PROCESS_MOVIE_ENABLED = booleanPreferencesKey("post_process_movie_enabled")
+        private val KEY_POST_PROCESS_REPLACE_SPACES_WITH_DOTS_TV =
+            booleanPreferencesKey("post_process_replace_spaces_with_dots_tv")
+        private val KEY_POST_PROCESS_REPLACE_SPACES_WITH_DOTS_ANIME =
+            booleanPreferencesKey("post_process_replace_spaces_with_dots_anime")
+        private val KEY_POST_PROCESS_REPLACE_SPACES_WITH_DOTS_MOVIE =
+            booleanPreferencesKey("post_process_replace_spaces_with_dots_movie")
+        private val KEY_POST_PROCESS_TEMPLATE_TV = stringPreferencesKey("post_process_template_tv")
+        private val KEY_POST_PROCESS_TEMPLATE_ANIME = stringPreferencesKey("post_process_template_anime")
+        private val KEY_POST_PROCESS_TEMPLATE_MOVIE = stringPreferencesKey("post_process_template_movie")
     }
 
     val preferencesFlow: Flow<AutoDownloadPreferences> = dataStore.data.map { preferences ->
@@ -78,7 +104,16 @@ class AutoDownloadRepository @Inject constructor(
             deleteEmptyParentDirectory = preferences[KEY_DELETE_EMPTY_PARENT_DIRECTORY] ?: false,
             preferredKeywords = preferences[KEY_PREFERRED_KEYWORDS]?.split("\n")?.filter { it.isNotBlank() } ?: emptyList(),
             ignoreKeywords = preferences[KEY_IGNORE_KEYWORDS]?.split("\n")?.filter { it.isNotBlank() } ?: emptyList(),
-            searchIntervalHours = preferences[KEY_SEARCH_INTERVAL_HOURS] ?: 12
+            searchIntervalHours = preferences[KEY_SEARCH_INTERVAL_HOURS] ?: 12,
+            postProcessTvEnabled = preferences[KEY_POST_PROCESS_TV_ENABLED] ?: false,
+            postProcessAnimeEnabled = preferences[KEY_POST_PROCESS_ANIME_ENABLED] ?: false,
+            postProcessMovieEnabled = preferences[KEY_POST_PROCESS_MOVIE_ENABLED] ?: false,
+            postProcessReplaceSpacesWithDotsTv = preferences[KEY_POST_PROCESS_REPLACE_SPACES_WITH_DOTS_TV] ?: true,
+            postProcessReplaceSpacesWithDotsAnime = preferences[KEY_POST_PROCESS_REPLACE_SPACES_WITH_DOTS_ANIME] ?: false,
+            postProcessReplaceSpacesWithDotsMovie = preferences[KEY_POST_PROCESS_REPLACE_SPACES_WITH_DOTS_MOVIE] ?: true,
+            postProcessTemplateTv = preferences[KEY_POST_PROCESS_TEMPLATE_TV] ?: DEFAULT_TEMPLATE_TV,
+            postProcessTemplateAnime = preferences[KEY_POST_PROCESS_TEMPLATE_ANIME] ?: DEFAULT_TEMPLATE_ANIME,
+            postProcessTemplateMovie = preferences[KEY_POST_PROCESS_TEMPLATE_MOVIE] ?: DEFAULT_TEMPLATE_MOVIE
         )
     }
 
@@ -128,6 +163,42 @@ class AutoDownloadRepository @Inject constructor(
 
     suspend fun setSearchIntervalHours(hours: Int) {
         dataStore.edit { it[KEY_SEARCH_INTERVAL_HOURS] = hours }
+    }
+
+    suspend fun setPostProcessTvEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_POST_PROCESS_TV_ENABLED] = enabled }
+    }
+
+    suspend fun setPostProcessAnimeEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_POST_PROCESS_ANIME_ENABLED] = enabled }
+    }
+
+    suspend fun setPostProcessMovieEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_POST_PROCESS_MOVIE_ENABLED] = enabled }
+    }
+
+    suspend fun setPostProcessReplaceSpacesWithDotsTv(enabled: Boolean) {
+        dataStore.edit { it[KEY_POST_PROCESS_REPLACE_SPACES_WITH_DOTS_TV] = enabled }
+    }
+
+    suspend fun setPostProcessReplaceSpacesWithDotsAnime(enabled: Boolean) {
+        dataStore.edit { it[KEY_POST_PROCESS_REPLACE_SPACES_WITH_DOTS_ANIME] = enabled }
+    }
+
+    suspend fun setPostProcessReplaceSpacesWithDotsMovie(enabled: Boolean) {
+        dataStore.edit { it[KEY_POST_PROCESS_REPLACE_SPACES_WITH_DOTS_MOVIE] = enabled }
+    }
+
+    suspend fun setPostProcessTemplateTv(template: String) {
+        dataStore.edit { it[KEY_POST_PROCESS_TEMPLATE_TV] = template }
+    }
+
+    suspend fun setPostProcessTemplateAnime(template: String) {
+        dataStore.edit { it[KEY_POST_PROCESS_TEMPLATE_ANIME] = template }
+    }
+
+    suspend fun setPostProcessTemplateMovie(template: String) {
+        dataStore.edit { it[KEY_POST_PROCESS_TEMPLATE_MOVIE] = template }
     }
 
     suspend fun clear() {

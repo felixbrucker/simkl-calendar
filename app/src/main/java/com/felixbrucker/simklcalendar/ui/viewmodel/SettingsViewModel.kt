@@ -234,6 +234,60 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updatePostProcessTvEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            autoDownloadRepo.setPostProcessTvEnabled(enabled)
+        }
+    }
+
+    fun updatePostProcessAnimeEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            autoDownloadRepo.setPostProcessAnimeEnabled(enabled)
+        }
+    }
+
+    fun updatePostProcessMovieEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            autoDownloadRepo.setPostProcessMovieEnabled(enabled)
+        }
+    }
+
+    fun updatePostProcessReplaceSpacesWithDotsTv(enabled: Boolean) {
+        viewModelScope.launch {
+            autoDownloadRepo.setPostProcessReplaceSpacesWithDotsTv(enabled)
+        }
+    }
+
+    fun updatePostProcessReplaceSpacesWithDotsAnime(enabled: Boolean) {
+        viewModelScope.launch {
+            autoDownloadRepo.setPostProcessReplaceSpacesWithDotsAnime(enabled)
+        }
+    }
+
+    fun updatePostProcessReplaceSpacesWithDotsMovie(enabled: Boolean) {
+        viewModelScope.launch {
+            autoDownloadRepo.setPostProcessReplaceSpacesWithDotsMovie(enabled)
+        }
+    }
+
+    fun updatePostProcessTemplateTv(template: String) {
+        viewModelScope.launch {
+            autoDownloadRepo.setPostProcessTemplateTv(template)
+        }
+    }
+
+    fun updatePostProcessTemplateAnime(template: String) {
+        viewModelScope.launch {
+            autoDownloadRepo.setPostProcessTemplateAnime(template)
+        }
+    }
+
+    fun updatePostProcessTemplateMovie(template: String) {
+        viewModelScope.launch {
+            autoDownloadRepo.setPostProcessTemplateMovie(template)
+        }
+    }
+
     fun saveCustomSearchLink(link: CustomSearchLink, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             if (link.id == 0L) {

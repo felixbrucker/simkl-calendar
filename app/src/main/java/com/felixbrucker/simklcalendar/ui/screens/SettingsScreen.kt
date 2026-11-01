@@ -53,6 +53,8 @@ import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
+import com.felixbrucker.simklcalendar.ui.composable.PostProcessActions
+import com.felixbrucker.simklcalendar.ui.composable.SettingsPostProcessingCard
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
 import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
@@ -725,6 +727,20 @@ fun SettingsDownloadsCategorySection(
         )
     }
 
+    val postProcessActions = remember(viewModel) {
+        PostProcessActions(
+            onUpdateTvEnabled = { viewModel.updatePostProcessTvEnabled(it) },
+            onUpdateAnimeEnabled = { viewModel.updatePostProcessAnimeEnabled(it) },
+            onUpdateMovieEnabled = { viewModel.updatePostProcessMovieEnabled(it) },
+            onUpdateReplaceSpacesWithDotsTv = { viewModel.updatePostProcessReplaceSpacesWithDotsTv(it) },
+            onUpdateReplaceSpacesWithDotsAnime = { viewModel.updatePostProcessReplaceSpacesWithDotsAnime(it) },
+            onUpdateReplaceSpacesWithDotsMovie = { viewModel.updatePostProcessReplaceSpacesWithDotsMovie(it) },
+            onUpdateTemplateTv = { viewModel.updatePostProcessTemplateTv(it) },
+            onUpdateTemplateAnime = { viewModel.updatePostProcessTemplateAnime(it) },
+            onUpdateTemplateMovie = { viewModel.updatePostProcessTemplateMovie(it) }
+        )
+    }
+
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -740,6 +756,12 @@ fun SettingsDownloadsCategorySection(
                 viewModel.updateSearchInterval(roundedHours)
             },
             actions = actions
+        )
+
+        SettingsPostProcessingCard(
+            isDownloaderInstalled = isDownloaderInstalled,
+            autoDownloadPrefs = autoDownloadPrefs,
+            actions = postProcessActions
         )
     }
 }

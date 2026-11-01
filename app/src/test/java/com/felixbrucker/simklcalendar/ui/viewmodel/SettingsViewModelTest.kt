@@ -127,6 +127,16 @@ class SettingsViewModelTest {
         viewModel.updateAutoDownloadSeasonUnwatchedTv(true)
         viewModel.updateAutoDownloadSeasonUnwatchedAnime(true)
 
+        viewModel.updatePostProcessTvEnabled(true)
+        viewModel.updatePostProcessAnimeEnabled(true)
+        viewModel.updatePostProcessMovieEnabled(true)
+        viewModel.updatePostProcessReplaceSpacesWithDotsTv(false)
+        viewModel.updatePostProcessReplaceSpacesWithDotsAnime(true)
+        viewModel.updatePostProcessReplaceSpacesWithDotsMovie(false)
+        viewModel.updatePostProcessTemplateTv("tv_template")
+        viewModel.updatePostProcessTemplateAnime("anime_template")
+        viewModel.updatePostProcessTemplateMovie("movie_template")
+
         viewModel.addPreferredKeyword("Tag1")
         viewModel.removePreferredKeyword("Tag1")
         viewModel.updatePreferredKeywordsOrder(listOf("Tag2", "Tag1"))
@@ -143,6 +153,15 @@ class SettingsViewModelTest {
         coVerify { autoDownloadRepo.setAutoDownloadUnwatchedMovie(true) }
         coVerify { autoDownloadRepo.setAutoDownloadSeasonUnwatchedTv(true) }
         coVerify { autoDownloadRepo.setAutoDownloadSeasonUnwatchedAnime(true) }
+        coVerify { autoDownloadRepo.setPostProcessTvEnabled(true) }
+        coVerify { autoDownloadRepo.setPostProcessAnimeEnabled(true) }
+        coVerify { autoDownloadRepo.setPostProcessMovieEnabled(true) }
+        coVerify { autoDownloadRepo.setPostProcessReplaceSpacesWithDotsTv(false) }
+        coVerify { autoDownloadRepo.setPostProcessReplaceSpacesWithDotsAnime(true) }
+        coVerify { autoDownloadRepo.setPostProcessReplaceSpacesWithDotsMovie(false) }
+        coVerify { autoDownloadRepo.setPostProcessTemplateTv("tv_template") }
+        coVerify { autoDownloadRepo.setPostProcessTemplateAnime("anime_template") }
+        coVerify { autoDownloadRepo.setPostProcessTemplateMovie("movie_template") }
         coVerify { autoDownloadRepo.setPreferredKeywords(any()) }
         coVerify { autoDownloadRepo.setIgnoreKeywords(any()) }
     }
