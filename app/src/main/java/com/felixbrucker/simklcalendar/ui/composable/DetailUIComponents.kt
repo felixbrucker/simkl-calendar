@@ -1274,7 +1274,7 @@ fun TorrentSearchResultsTable(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                items(results, key = { it.uri.toString() }) { item ->
+                items(results) { item ->
                     TorrentSearchResultRow(
                         item = item,
                         context = context,
