@@ -75,3 +75,9 @@
 **Learning:** Linear collection scans (`.all { ... }`, `.any { ... }`) executed directly in composables without `remember` run on every recomposition pass of child view items. Wrapping predicate calculations over child lists (`state.episodes`) in `remember(state.episodes)` and remembering parent state wrappers (`SeasonHeaderState`) avoids redundant $O(N)$ list traversals and state wrapper object allocations during recompositions.
 
 **Action:** Always wrap collection predicate calculations (`.all`, `.any`, `.filter`) and state wrapper object instantiations in `remember` blocks when rendering group/section headers in Compose.
+
+## 2027-04-12 - Rejection of Non-Guaranteed Unique Keys in External Search Result Lists
+
+**Learning:** Assigning model properties like `SearchResultItem.uri` as explicit item keys in Jetpack Compose `LazyColumn` (`items(results, key = { it.uri.toString() })`) introduces crash risks (`IllegalArgumentException: Key already exists`). In multi-provider or aggregator torrent searches, different sources or mirrors may return duplicate magnet links or identical URI schemes. When an item model lacks an explicitly unique, server-backed primary identifier, falling back to Compose default index keys or ensuring deduplication upstream is required to avoid breaking UI composition.
+
+**Action:** Never use external or third-party entity fields (such as search result download URIs) as Compose `LazyColumn` keys unless uniqueness is strictly guaranteed or enforced via prior deduplication.
