@@ -1,0 +1,2 @@
+# Retain torrent search provider class names for logging
+-keepnames class com.felixbrucker.torrent_search_api.** implements com.felixbrucker.torrent_search_api.TorrentProvider

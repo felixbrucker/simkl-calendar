@@ -62,9 +62,10 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleRelease
 
       - name: Publish Edge Release
         uses: softprops/action-gh-release@v3

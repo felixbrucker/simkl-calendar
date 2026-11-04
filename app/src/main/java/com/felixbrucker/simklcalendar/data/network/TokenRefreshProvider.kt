@@ -18,6 +18,10 @@ class TokenRefreshProvider @Inject constructor(
     private val publicApiService: PublicSimklApiService,
     private val userTokenDao: UserTokenDao,
 ) {
+    companion object {
+        private const val TAG = "TokenRefreshProvider"
+    }
+
     suspend fun performRefreshToken(current: UserToken): UserToken? = withContext(Dispatchers.IO) {
         if (current.refreshToken.isEmpty()) throw Exception("No refresh token available")
         try {
@@ -43,15 +47,15 @@ class TokenRefreshProvider @Inject constructor(
             newToken
         } catch (e: HttpException) {
             if (e.code() == 400 || e.code() == 401) {
-                Timber.tag("TokenRefreshProvider").w(e, "Refresh token is invalid or expired. Resetting user token.")
+                Timber.tag(TAG).w(e, "Refresh token is invalid or expired. Resetting user token.")
                 userTokenDao.clearUserToken()
             } else {
-                Timber.tag("TokenRefreshProvider").e(e, "HTTP exception during token refresh (non-auth error)")
+                Timber.tag(TAG).e(e, "HTTP exception during token refresh (non-auth error)")
             }
 
             null
         } catch (e: Exception) {
-            Timber.tag("TokenRefreshProvider").e(e, "Network or unexpected exception during token refresh")
+            Timber.tag(TAG).e(e, "Network or unexpected exception during token refresh")
 
             null
         }

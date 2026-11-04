@@ -225,37 +225,6 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun testAutoDownloadPreferences() = runTest {
-        val viewModel = createViewModel()
-
-        viewModel.updateAutoDownloadQuality("720p")
-        viewModel.updateAutoDownloadPreferHevc(false)
-        viewModel.updateAutoDownloadUnwatchedTv(true)
-        viewModel.updateAutoDownloadUnwatchedAnime(true)
-        viewModel.updateAutoDownloadUnwatchedMovie(true)
-        viewModel.updateAutoDownloadSeasonUnwatchedTv(true)
-        viewModel.updateAutoDownloadSeasonUnwatchedAnime(true)
-
-        viewModel.addPreferredKeyword("SubsPlease")
-        viewModel.removePreferredKeyword("SubsPlease")
-        viewModel.updatePreferredKeywordsOrder(listOf("B", "A"))
-
-        viewModel.addIgnoreKeyword("RAW")
-        viewModel.removeIgnoreKeyword("RAW")
-        viewModel.updateIgnoreKeywordsOrder(listOf("Y", "X"))
-
-        coVerify { autoDownloadRepo.setQuality("720p") }
-        coVerify { autoDownloadRepo.setPreferHevc(false) }
-        coVerify { autoDownloadRepo.setAutoDownloadUnwatchedTv(true) }
-        coVerify { autoDownloadRepo.setAutoDownloadUnwatchedAnime(true) }
-        coVerify { autoDownloadRepo.setAutoDownloadUnwatchedMovie(true) }
-        coVerify { autoDownloadRepo.setAutoDownloadSeasonUnwatchedTv(true) }
-        coVerify { autoDownloadRepo.setAutoDownloadSeasonUnwatchedAnime(true) }
-        coVerify { autoDownloadRepo.setPreferredKeywords(any()) }
-        coVerify { autoDownloadRepo.setIgnoreKeywords(any()) }
-    }
-
-    @Test
     fun testItemDownloadSettings() = runTest {
         val viewModel = createViewModel()
         val settings = ItemDownloadSettings(simklId = 10, qualityOverride = "1080p")
@@ -678,16 +647,6 @@ class CalendarViewModelTest {
         advanceUntilIdle()
 
         coVerify { notificationSettingRepositoryMock.toggleNotificationSetting(1, true, false) }
-    }
-
-    @Test
-    fun testIsTorrentServiceInstalled() = runTest {
-        val viewModel = createViewModel()
-        every { torrentServiceHelper.isServiceInstalled() } returns true
-
-        val installed = viewModel.isTorrentServiceInstalled()
-
-        assertTrue(installed)
     }
 
     @Test

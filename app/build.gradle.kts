@@ -49,9 +49,11 @@ android {
 
   buildTypes {
     release {
-      isCrunchPngs = false
-      isMinifyEnabled = false
-      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      isMinifyEnabled = true
+      isShrinkResources = true
+      optimization {
+        enable = true
+      }
       signingConfig = signingConfigs.getByName("release")
     }
   }
@@ -106,8 +108,8 @@ dependencies {
   implementation(libs.hilt.android)
   implementation(libs.androidx.hilt.work)
   implementation(libs.androidx.hilt.navigation.compose)
-  "ksp"(libs.hilt.compiler)
-  "ksp"(libs.androidx.hilt.compiler)
+  ksp(libs.hilt.compiler)
+  ksp(libs.androidx.hilt.compiler)
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.kotlinx.coroutines.android)
@@ -125,6 +127,6 @@ dependencies {
   testImplementation(libs.junit)
   testImplementation(libs.mockk)
   testImplementation(libs.kotlinx.coroutines.test)
-  "ksp"(libs.androidx.room.compiler)
-  "ksp"(libs.moshi.kotlin.codegen)
+  ksp(libs.androidx.room.compiler)
+  ksp(libs.moshi.kotlin.codegen)
 }

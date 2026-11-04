@@ -14,12 +14,16 @@ import javax.inject.Singleton
 class SentryManager @Inject constructor(
     @SentryDsn private val dsn: String
 ) {
+    companion object {
+        private const val TAG = "SentryManager"
+    }
+
     val isDsnConfigured: Boolean get() = dsn.isNotBlank()
     val isSentryRunning: Boolean get() = Sentry.isEnabled()
 
     fun updateSentryState(context: Context, isEnabled: Boolean) {
         if (!isDsnConfigured) {
-            Timber.i("Sentry DSN is not configured, not initializing.")
+            Timber.tag(TAG).i("Sentry DSN is not configured, not initializing.")
             return
         }
 
@@ -57,7 +61,7 @@ class SentryManager @Inject constructor(
 
                 options.isEnableUncaughtExceptionHandler = true
             }
-            Timber.i("Sentry initialized")
+            Timber.tag(TAG).i("Sentry initialized")
 
             return
         }

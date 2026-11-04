@@ -6,6 +6,10 @@ import okhttp3.logging.HttpLoggingInterceptor
 import timber.log.Timber
 
 class LoggingInterceptor: Interceptor {
+    companion object {
+        private const val TAG = "OkHttp"
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val url = request.url.toString()
@@ -25,18 +29,18 @@ class LoggingInterceptor: Interceptor {
             loggingInterceptor.intercept(chain)
         } catch (e: Exception) {
             if (logBuffer.isNotEmpty()) {
-                Timber.tag("OkHttp").e(e, logBuffer.toString())
+                Timber.tag(TAG).e(e, logBuffer.toString())
             } else {
-                Timber.tag("OkHttp").e(e, "Network request failed: ${request.method} $url")
+                Timber.tag(TAG).e(e, "Network request failed: ${request.method} $url")
             }
             throw e
         }
 
         if (logBuffer.isNotEmpty()) {
             if (response.isSuccessful) {
-                Timber.tag("OkHttp").d(logBuffer.toString())
+                Timber.tag(TAG).d(logBuffer.toString())
             } else {
-                Timber.tag("OkHttp").e(logBuffer.toString())
+                Timber.tag(TAG).e(logBuffer.toString())
             }
         }
 

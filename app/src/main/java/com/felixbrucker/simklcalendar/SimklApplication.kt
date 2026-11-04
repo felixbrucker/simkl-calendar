@@ -20,6 +20,10 @@ import javax.inject.Inject
 @HiltAndroidApp
 class SimklApplication : Application(), Configuration.Provider {
 
+    companion object {
+        private const val TAG = "SimklApplication"
+    }
+
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
@@ -40,7 +44,7 @@ class SimklApplication : Application(), Configuration.Provider {
         super.onCreate()
         LogRepository.init(this)
         Timber.plant(AppLogTree())
-        Timber.i("SimklApplication initialized")
+        Timber.tag(TAG).i("SimklApplication initialized")
 
         applicationScope.launch {
             appSettingsRepo.preferencesFlow
@@ -52,6 +56,6 @@ class SimklApplication : Application(), Configuration.Provider {
 
     override fun onTerminate() {
         super.onTerminate()
-        Timber.i("SimklApplication destroyed")
+        Timber.tag(TAG).i("SimklApplication destroyed")
     }
 }

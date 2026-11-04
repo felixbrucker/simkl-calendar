@@ -14,13 +14,12 @@ enum class MediaType(val key: String, val displayName: String) {
     companion object {
         fun fromKey(key: String?): MediaType {
             return when (key?.lowercase()) {
-                "tv", "shows", "show" -> TV
+                "tv" -> TV
                 "anime" -> ANIME
-                "movie", "movies" -> MOVIE
+                "movie" -> MOVIE
                 else -> TV
             }
         }
-
     }
 }
 

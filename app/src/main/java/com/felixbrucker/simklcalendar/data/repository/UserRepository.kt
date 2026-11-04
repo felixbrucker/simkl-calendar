@@ -46,6 +46,10 @@ class UserRepository @Inject constructor(
     private val uiRepo: UiRepository,
     @ApplicationScope private val appScope: CoroutineScope
 ) {
+    companion object {
+        private const val TAG = "UserRepository"
+    }
+
     val activeUserToken: Flow<UserToken?> = tokenDao.getUserToken()
 
     suspend fun getActiveUserToken(): UserToken? = withContext(Dispatchers.IO) {
@@ -92,7 +96,7 @@ class UserRepository @Inject constructor(
      * Clears only the active user token to prompt re-authentication without clearing any user data or preferences.
      */
     private suspend fun clearUserTokenOnly(isV1Upgrade: Boolean = false) = withContext(Dispatchers.IO) {
-        Timber.tag("UserRepository").w("Clearing active user token (isV1Upgrade=$isV1Upgrade) while retaining all local user data and preferences.")
+        Timber.tag(TAG).w("Clearing active user token (isV1Upgrade=$isV1Upgrade) while retaining all local user data and preferences.")
         tokenDao.clearUserToken()
         if (isV1Upgrade) {
             authRepo.setShowAuthV2UpgradeHint(true)
@@ -108,13 +112,13 @@ class UserRepository @Inject constructor(
         val userToken = tokenDao.getActiveToken() ?: return@withContext
 
         if (!userToken.accessToken.startsWith("simkl_at_") || userToken.refreshToken.isEmpty()) {
-            Timber.tag("UserRepository").w("Detected legacy or migrated Auth V1 token. Transitioning user to Auth V2 login while retaining data.")
+            Timber.tag(TAG).w("Detected legacy or migrated Auth V1 token. Transitioning user to Auth V2 login while retaining data.")
             clearUserTokenOnly(isV1Upgrade = true)
             return@withContext
         }
 
         if (userToken.isRefreshTokenExpired) {
-            Timber.tag("UserRepository").w("Refresh token has expired after 180 days. Transitioning user to login while retaining user data.")
+            Timber.tag(TAG).w("Refresh token has expired after 180 days. Transitioning user to login while retaining user data.")
             clearUserTokenOnly(isV1Upgrade = false)
             return@withContext
         }
@@ -132,7 +136,7 @@ class UserRepository @Inject constructor(
                             token = revokeTarget
                         ))
                     } catch (e: Exception) {
-                        Timber.tag("UserRepository").w(e, "Failed to revoke token on logout")
+                        Timber.tag(TAG).w(e, "Failed to revoke token on logout")
                     }
                 }
             }
@@ -160,20 +164,20 @@ class UserRepository @Inject constructor(
             val savedState = authPrefs.pkceState
             if (!savedState.isNullOrEmpty()) {
                 if (state != savedState) {
-                    Timber.tag("UserRepository").e("OAuth state mismatch or missing! CSRF verification failed.")
+                    Timber.tag(TAG).e("OAuth state mismatch or missing! CSRF verification failed.")
                     return@withContext false
                 }
             }
 
             val savedRedirectUri = authPrefs.pkceRedirectUri
             if (redirectUri != savedRedirectUri) {
-                Timber.tag("UserRepository").e("OAuth redirect uri mismatch or missing! CSRF verification failed.")
+                Timber.tag(TAG).e("OAuth redirect uri mismatch or missing! CSRF verification failed.")
                 return@withContext false
             }
 
             val codeVerifier = authPrefs.pkceCodeVerifier
             if (codeVerifier.isNullOrEmpty()) {
-                Timber.tag("UserRepository").e("PKCE code_verifier is missing from local storage")
+                Timber.tag(TAG).e("PKCE code_verifier is missing from local storage")
                 return@withContext false
             }
 
@@ -189,7 +193,7 @@ class UserRepository @Inject constructor(
             )
             val accessToken = response.accessToken
             if (!accessToken.startsWith("simkl_at_")) {
-                Timber.tag("UserRepository").e("OAuth returned invalid V2 access token prefix")
+                Timber.tag(TAG).e("OAuth returned invalid V2 access token prefix")
                 return@withContext false
             }
 
@@ -217,7 +221,7 @@ class UserRepository @Inject constructor(
                 val userResponse = authenticatedSimklApiService.getUserSettings()
                 userResponse.user.name
             } catch (e: Exception) {
-                Timber.tag("UserRepository").e(e, "Could not fetch user profile details, using empty string fallback")
+                Timber.tag(TAG).e(e, "Could not fetch user profile details, using empty string fallback")
                 ""
             }
 
@@ -234,7 +238,7 @@ class UserRepository @Inject constructor(
             }
             true
         } catch (e: Exception) {
-            Timber.tag("UserRepository").e(e, "OAuth Code exchange failed")
+            Timber.tag(TAG).e(e, "OAuth Code exchange failed")
             false
         }
     }

@@ -101,13 +101,18 @@ class CalendarViewModel @Inject constructor(
     private val downloadRepository: DownloadRepository,
     customSearchLinkRepository: CustomSearchLinkRepository,
     private val notificationSettingRepository: NotificationSettingRepository,
-    private val autoDownloadRepo: AutoDownloadRepository,
+    autoDownloadRepo: AutoDownloadRepository,
     notificationRepo: NotificationRepository,
     private val uiRepo: UiRepository,
     appSettingsRepo: AppSettingsRepository,
     private val torrentServiceHelper: TorrentServiceHelper,
     defaultDispatcher: CoroutineDispatcher
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "CalendarViewModel"
+    }
+
     val customSearchLinks: StateFlow<List<CustomSearchLink>> = customSearchLinkRepository.customSearchLinks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -252,98 +257,6 @@ class CalendarViewModel @Inject constructor(
 
     val autoDownloadPreferences: StateFlow<AutoDownloadPreferences> = autoDownloadRepo.preferencesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AutoDownloadPreferences())
-
-    fun updateAutoDownloadQuality(quality: String) {
-        viewModelScope.launch {
-            autoDownloadRepo.setQuality(quality)
-        }
-    }
-
-    fun updateAutoDownloadPreferHevc(prefer: Boolean) {
-        viewModelScope.launch {
-            autoDownloadRepo.setPreferHevc(prefer)
-        }
-    }
-
-    fun updateAutoDownloadUnwatchedTv(default: Boolean) {
-        viewModelScope.launch {
-            autoDownloadRepo.setAutoDownloadUnwatchedTv(default)
-        }
-    }
-
-    fun updateAutoDownloadUnwatchedAnime(default: Boolean) {
-        viewModelScope.launch {
-            autoDownloadRepo.setAutoDownloadUnwatchedAnime(default)
-        }
-    }
-
-    fun updateAutoDownloadUnwatchedMovie(default: Boolean) {
-        viewModelScope.launch {
-            autoDownloadRepo.setAutoDownloadUnwatchedMovie(default)
-        }
-    }
-
-    fun updateAutoDownloadSeasonUnwatchedTv(default: Boolean) {
-        viewModelScope.launch {
-            autoDownloadRepo.setAutoDownloadSeasonUnwatchedTv(default)
-        }
-    }
-
-    fun updateAutoDownloadSeasonUnwatchedAnime(default: Boolean) {
-        viewModelScope.launch {
-            autoDownloadRepo.setAutoDownloadSeasonUnwatchedAnime(default)
-        }
-    }
-
-    fun addPreferredKeyword(keyword: String) {
-        viewModelScope.launch {
-            val current = autoDownloadPreferences.value.preferredKeywords.toMutableList()
-            if (!current.contains(keyword)) {
-                current.add(keyword)
-                autoDownloadRepo.setPreferredKeywords(current)
-            }
-        }
-    }
-
-    fun removePreferredKeyword(keyword: String) {
-        viewModelScope.launch {
-            val current = autoDownloadPreferences.value.preferredKeywords.toMutableList()
-            if (current.remove(keyword)) {
-                autoDownloadRepo.setPreferredKeywords(current)
-            }
-        }
-    }
-
-    fun updatePreferredKeywordsOrder(reordered: List<String>) {
-        viewModelScope.launch {
-            autoDownloadRepo.setPreferredKeywords(reordered)
-        }
-    }
-
-    fun addIgnoreKeyword(keyword: String) {
-        viewModelScope.launch {
-            val current = autoDownloadPreferences.value.ignoreKeywords.toMutableList()
-            if (!current.contains(keyword)) {
-                current.add(keyword)
-                autoDownloadRepo.setIgnoreKeywords(current)
-            }
-        }
-    }
-
-    fun removeIgnoreKeyword(keyword: String) {
-        viewModelScope.launch {
-            val current = autoDownloadPreferences.value.ignoreKeywords.toMutableList()
-            if (current.remove(keyword)) {
-                autoDownloadRepo.setIgnoreKeywords(current)
-            }
-        }
-    }
-
-    fun updateIgnoreKeywordsOrder(reordered: List<String>) {
-        viewModelScope.launch {
-            autoDownloadRepo.setIgnoreKeywords(reordered)
-        }
-    }
 
     @Suppress("UNCHECKED_CAST")
     val watchlistTableItems: StateFlow<List<WatchlistTableItem>> = combine(
@@ -881,10 +794,6 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    fun isTorrentServiceInstalled(): Boolean {
-        return torrentServiceHelper.isServiceInstalled()
-    }
-
     private fun updatePolling(items: List<CalendarItemWithWatchlist>) {
         if (items.isEmpty()) {
             pollingJob?.cancel()
@@ -927,16 +836,16 @@ class CalendarViewModel @Inject constructor(
                                         // Fetch current items from repository flow
                                         val currentEntity = calendarRepository.findCalendarItem(item.primaryKey)
                                         if (currentEntity?.mediaStatus == MediaStatus.DOWNLOADING && currentEntity.downloadTaskId == taskId) {
-                                            Timber.tag("CalendarViewModel").d("Task $taskId still not found after 3s and status is still DOWNLOADING with same taskId, reverting for ${item.primaryKey}")
+                                            Timber.tag(TAG).d("Task $taskId still not found after 3s and status is still DOWNLOADING with same taskId, reverting for ${item.primaryKey}")
                                             calendarRepository.updateDownloadTaskId(item.primaryKey, null, MediaStatus.WANTED)
                                             torrentServiceHelper.clearDownload(taskId)
                                         } else {
-                                            Timber.tag("CalendarViewModel").d("Task $taskId not found, but status is now ${currentEntity?.mediaStatus} or taskId changed, skipping revert")
+                                            Timber.tag(TAG).d("Task $taskId not found, but status is now ${currentEntity?.mediaStatus} or taskId changed, skipping revert")
                                             torrentServiceHelper.clearDownload(taskId)
                                         }
                                     }
                                 } catch (e: Exception) {
-                                    Timber.tag("CalendarViewModel").e(e, "Error polling progress for $taskId")
+                                    Timber.tag(TAG).e(e, "Error polling progress for $taskId")
                                 }
                             }
                         }

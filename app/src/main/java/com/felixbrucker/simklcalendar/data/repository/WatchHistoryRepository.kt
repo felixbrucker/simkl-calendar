@@ -30,6 +30,10 @@ class WatchHistoryRepository @Inject constructor(
     private val authenticatedSimklApiService: AuthenticatedSimklApiService,
     private val autoDownloadRepository: AutoDownloadRepository
 ) {
+    companion object {
+        private const val TAG = "WatchHistoryRepository"
+    }
+
     fun getWatchedEpisodesForSimklIdFlow(simklId: Int): Flow<List<WatchedEpisode>> =
         watchedDao.getWatchedEpisodesForSimklIdFlow(simklId)
 
@@ -103,7 +107,7 @@ class WatchHistoryRepository @Inject constructor(
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Timber.tag("WatchHistoryRepository").e(e, "Failed to mark episode S${season}E${episodeNumber} as watched for simklId $simklId")
+            Timber.tag(TAG).e(e, "Failed to mark episode S${season}E${episodeNumber} as watched for simklId $simklId")
             Result.failure(e)
         }
     }
@@ -138,7 +142,7 @@ class WatchHistoryRepository @Inject constructor(
             val shouldMarkCompleted = isLastSeason && allPrevWatched
 
             val statusValue = if (shouldMarkCompleted) "completed" else null
-            Timber.tag("WatchHistoryRepository").d("Marking season $season as watched for simklId $simklId (isCompleted=$shouldMarkCompleted, status=$statusValue)")
+            Timber.tag(TAG).d("Marking season $season as watched for simklId $simklId (isCompleted=$shouldMarkCompleted, status=$statusValue)")
 
             val request = if (mediaType == MediaType.ANIME) {
                 SyncHistoryRequest(
@@ -204,7 +208,7 @@ class WatchHistoryRepository @Inject constructor(
 
             Result.success(shouldMarkCompleted)
         } catch (e: Exception) {
-            Timber.tag("WatchHistoryRepository").e(e, "Failed to mark season $season as watched for simklId $simklId")
+            Timber.tag(TAG).e(e, "Failed to mark season $season as watched for simklId $simklId")
             Result.failure(e)
         }
     }
@@ -233,7 +237,7 @@ class WatchHistoryRepository @Inject constructor(
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Timber.tag("WatchHistoryRepository").e(e, "Failed to mark movie as watched for simklId $simklId")
+            Timber.tag(TAG).e(e, "Failed to mark movie as watched for simklId $simklId")
             Result.failure(e)
         }
     }
@@ -263,7 +267,7 @@ class WatchHistoryRepository @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Timber.tag("WatchHistoryRepository").e(
+            Timber.tag(TAG).e(
                 e,
                 "Error checking and deleting downloaded files for simklId $simklId"
             )
@@ -332,7 +336,7 @@ class WatchHistoryRepository @Inject constructor(
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Timber.tag("WatchHistoryRepository").e(e, "Failed to mark episode S${season}E${episodeNumber} as unwatched for simklId $simklId")
+            Timber.tag(TAG).e(e, "Failed to mark episode S${season}E${episodeNumber} as unwatched for simklId $simklId")
             Result.failure(e)
         }
     }
@@ -390,7 +394,7 @@ class WatchHistoryRepository @Inject constructor(
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Timber.tag("WatchHistoryRepository").e(e, "Failed to mark season $season as unwatched for simklId $simklId")
+            Timber.tag(TAG).e(e, "Failed to mark season $season as unwatched for simklId $simklId")
             Result.failure(e)
         }
     }
@@ -416,7 +420,7 @@ class WatchHistoryRepository @Inject constructor(
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Timber.tag("WatchHistoryRepository").e(e, "Failed to mark movie as unwatched for simklId $simklId")
+            Timber.tag(TAG).e(e, "Failed to mark movie as unwatched for simklId $simklId")
             Result.failure(e)
         }
     }

@@ -16,6 +16,10 @@ class RateLimitInterceptor(
     }
 ) : Interceptor {
 
+    companion object {
+        private const val TAG = "RateLimitInterceptor"
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         var response = chain.proceed(request)
@@ -31,7 +35,7 @@ class RateLimitInterceptor(
             if (isPerSecondRateLimit(bodyString)) {
                 response.close()
                 retryCount++
-                Timber.tag("RateLimitInterceptor").w("Per-second rate limit hit (429 rate_limit). Retrying ($retryCount/$maxRetries)...")
+                Timber.tag(TAG).w("Per-second rate limit hit (429 rate_limit). Retrying ($retryCount/$maxRetries)...")
                 delayFunc(defaultDelayMs * retryCount)
                 response = chain.proceed(request)
             } else {

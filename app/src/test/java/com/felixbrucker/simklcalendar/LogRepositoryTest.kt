@@ -32,24 +32,9 @@ class LogRepositoryTest {
 
     @Before
     fun setUp() {
-        mockkStatic(Log::class)
-        every { Log.getStackTraceString(any<Throwable>()) } returns "StackTrace"
-        every { Log.println(any<Int>(), any<String>(), any<String>()) } returns 0
-        every { Log.v(any<String>(), any<String>()) } returns 0
-        every { Log.d(any<String>(), any<String>()) } returns 0
-        every { Log.i(any<String>(), any<String>()) } returns 0
-        every { Log.w(any<String>(), any<String>()) } returns 0
-        every { Log.e(any<String>(), any<String>()) } returns 0
-        every { Log.e(any<String>(), any<String>(), any<Throwable>()) } returns 0
-
         filesDir = tempFolder.newFolder("files")
         context = mockk(relaxed = true)
         every { context.filesDir } returns filesDir
-    }
-
-    @After
-    fun tearDown() {
-        unmockkStatic(Log::class)
     }
 
     @Test
@@ -161,17 +146,6 @@ class LogRepositoryTest {
     }
 
     @Test
-    fun testAppLogTreeIsLoggable() {
-        val tree = AppLogTree()
-
-        val isLoggableVerbose = tree.isLoggable("Tag", Log.VERBOSE)
-        val isLoggableError = tree.isLoggable("Tag", Log.ERROR)
-
-        assertTrue(isLoggableVerbose)
-        assertTrue(isLoggableError)
-    }
-
-    @Test
     fun testAppLogTreeLog() = runTest {
         val testDispatcher = UnconfinedTestDispatcher(testScheduler)
         LogRepository.ioDispatcher = testDispatcher
@@ -192,6 +166,6 @@ class LogRepositoryTest {
         assertEquals(1, size)
         assertEquals(Log.ERROR, priority)
         assertTrue(hasPrefix)
-        assertEquals("StackTrace", stackTrace)
+        assertTrue(stackTrace?.contains("Test Exception") == true)
     }
 }

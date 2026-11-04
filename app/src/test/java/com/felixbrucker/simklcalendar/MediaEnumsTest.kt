@@ -8,12 +8,9 @@ class MediaEnumsTest {
     @Test
     fun testMediaTypeFromKey() {
         assertEquals(MediaType.TV, MediaType.fromKey("tv"))
-        assertEquals(MediaType.TV, MediaType.fromKey("shows"))
-        assertEquals(MediaType.TV, MediaType.fromKey("show"))
         assertEquals(MediaType.ANIME, MediaType.fromKey("anime"))
         assertEquals(MediaType.ANIME, MediaType.fromKey("ANIME"))
         assertEquals(MediaType.MOVIE, MediaType.fromKey("movie"))
-        assertEquals(MediaType.MOVIE, MediaType.fromKey("movies"))
         assertEquals(MediaType.TV, MediaType.fromKey("unknown"))
         assertEquals(MediaType.TV, MediaType.fromKey(null))
     }
