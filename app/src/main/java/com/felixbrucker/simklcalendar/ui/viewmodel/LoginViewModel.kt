@@ -9,8 +9,10 @@ import com.felixbrucker.simklcalendar.data.preferences.AuthRepository
 import com.felixbrucker.simklcalendar.data.util.OAuthCallbackEvent
 import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
+import com.felixbrucker.simklcalendar.di.ApplicationScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +27,8 @@ class LoginViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val userRepository: UserRepository,
     authRepo: AuthRepository,
-    private val oAuthEventHub: OAuthEventHub
+    private val oAuthEventHub: OAuthEventHub,
+    @ApplicationScope private val appScope: CoroutineScope
 ) : ViewModel() {
 
     val userToken: StateFlow<UserToken?> = userRepository.activeUserToken
@@ -55,21 +58,23 @@ class LoginViewModel @Inject constructor(
 
     suspend fun exchangeOAuthCode(event: OAuthCallbackEvent) {
         _isSyncing.value = true
-        try {
-            val success = userRepository.exchangeOAuthCode(
-                code = event.code,
-                state = event.state,
-                redirectUri = event.redirectUri
-            )
-            if (success) {
-                Toast.makeText(context, "Successfully logged in", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Login failed", Toast.LENGTH_LONG).show()
+        appScope.launch {
+            try {
+                val success = userRepository.exchangeOAuthCode(
+                    code = event.code,
+                    state = event.state,
+                    redirectUri = event.redirectUri
+                )
+                if (success) {
+                    Toast.makeText(context, "Successfully logged in", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Login failed", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Login failed: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                _isSyncing.value = false
             }
-        } catch (e: Exception) {
-            Toast.makeText(context, "Login failed: ${e.message}", Toast.LENGTH_LONG).show()
-        } finally {
-            _isSyncing.value = false
-        }
+        }.join()
     }
 }

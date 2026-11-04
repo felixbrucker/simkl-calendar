@@ -9,14 +9,19 @@ import com.felixbrucker.simklcalendar.data.util.OAuthCallbackEvent
 import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -58,10 +63,11 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun testIsRealApiConfiguredAndCreateAuthorizationUrl() {
+    fun testIsRealApiConfiguredAndCreateAuthorizationUrl() = runTest {
+        val appScope = backgroundScope
         every { userRepositoryMock.isRealApiConfigured() } returns true
         every { userRepositoryMock.createAuthorizationUrl("simklcalendar://auth") } returns "https://simkl.com/oauth"
-        val viewModel = LoginViewModel(contextMock, userRepositoryMock, authRepoMock, oAuthEventHubMock)
+        val viewModel = LoginViewModel(contextMock, userRepositoryMock, authRepoMock, oAuthEventHubMock, appScope)
 
         val isConfigured = viewModel.isRealApiConfigured()
         val authUrl = viewModel.createAuthorizationUrl("simklcalendar://auth")
@@ -72,8 +78,9 @@ class LoginViewModelTest {
 
     @Test
     fun testExchangeOAuthCodeSuccess() = runTest {
+        val appScope = backgroundScope
         coEvery { userRepositoryMock.exchangeOAuthCode("code", "state", "simklcalendar://auth") } returns true
-        val viewModel = LoginViewModel(contextMock, userRepositoryMock, authRepoMock, oAuthEventHubMock)
+        val viewModel = LoginViewModel(contextMock, userRepositoryMock, authRepoMock, oAuthEventHubMock, appScope)
         val event = OAuthCallbackEvent("code", "state", "simklcalendar://auth")
 
         viewModel.exchangeOAuthCode(event)
@@ -81,5 +88,26 @@ class LoginViewModelTest {
         val isSyncing = viewModel.isSyncing.value
 
         assertFalse(isSyncing)
+        coVerify { Toast.makeText(contextMock, "Successfully logged in", Toast.LENGTH_SHORT) }
+    }
+
+    @Test
+    fun testExchangeOAuthCodeSurvivesCallerCancellation() = runTest {
+        val appScope = backgroundScope
+        coEvery { userRepositoryMock.exchangeOAuthCode("code", "state", "simklcalendar://auth") } coAnswers {
+            delay(200)
+            true
+        }
+        val viewModel = LoginViewModel(contextMock, userRepositoryMock, authRepoMock, oAuthEventHubMock, appScope)
+        val event = OAuthCallbackEvent("code", "state", "simklcalendar://auth")
+
+        val callerJob = launch {
+            viewModel.exchangeOAuthCode(event)
+        }
+        advanceTimeBy(50)
+        callerJob.cancelAndJoin()
+        advanceUntilIdle()
+
+        coVerify { Toast.makeText(contextMock, "Successfully logged in", Toast.LENGTH_SHORT) }
     }
 }
