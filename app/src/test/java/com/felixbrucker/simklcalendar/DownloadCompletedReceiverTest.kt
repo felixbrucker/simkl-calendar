@@ -12,8 +12,11 @@ import com.felixbrucker.simklcalendar.data.database.LocalItemState
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
+import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
 import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
@@ -25,10 +28,12 @@ import io.mockk.mockkStatic
 import io.mockk.spyk
 import io.mockk.unmockkStatic
 import io.mockk.verify
+import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 import java.time.Instant
 
 class DownloadCompletedReceiverTest {
@@ -36,7 +41,9 @@ class DownloadCompletedReceiverTest {
     private lateinit var context: Context
     private lateinit var repositoryMock: CalendarRepository
     private lateinit var notificationManagerMock: NotificationManager
+    private lateinit var autoDownloadRepositoryMock: AutoDownloadRepository
     private lateinit var calendarDao: CalendarItemDao
+    private lateinit var watchlistDao: WatchlistDao
     private lateinit var tokenDao: UserTokenDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
 
@@ -49,15 +56,20 @@ class DownloadCompletedReceiverTest {
 
         notificationManagerMock = mockk(relaxed = true)
         coEvery { notificationManagerMock.updateNotification(any()) } returns Unit
+        autoDownloadRepositoryMock = mockk(relaxed = true)
+        every { autoDownloadRepositoryMock.preferencesFlow } returns flowOf(AutoDownloadPreferences())
 
         repositoryMock = mockk(relaxed = true)
+        watchlistDao = mockk(relaxed = true)
         val mockInjector = mockk<com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceiver_GeneratedInjector>(relaxed = true)
         every { mockInjector.injectDownloadCompletedReceiver(any()) } answers {
             val rec = firstArg<DownloadCompletedReceiver>()
             rec.calendarRepository = repositoryMock
             rec.calendarItemDao = calendarDao
+            rec.watchlistDao = watchlistDao
             rec.itemDownloadSettingsDao = itemDownloadSettingsDao
             rec.notificationManager = notificationManagerMock
+            rec.autoDownloadRepository = autoDownloadRepositoryMock
         }
         val mockComponentManager = mockk<dagger.hilt.internal.GeneratedComponentManager<Any>>(relaxed = true)
         every { mockComponentManager.generatedComponent() } returns mockInjector
@@ -149,5 +161,51 @@ class DownloadCompletedReceiverTest {
                 null
             )
         }
+    }
+
+    @Test
+    fun testOnReceiveWithPostProcessingRenamesFile() {
+        val receiver = spyk(DownloadCompletedReceiver())
+        val pendingResult = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
+        every { receiver.goAsync() } returns pendingResult
+        val intent = mockk<Intent>()
+        every { intent.action } returns DownloadCompletedReceiver.ACTION_DOWNLOAD_COMPLETED
+        every { intent.getStringExtra(DownloadCompletedReceiver.EXTRA_ITEM_PRIMARY_KEY) } returns "v2_100_1_1"
+
+        val tempDir = File.createTempFile("test_dir", "").apply {
+            delete()
+            mkdir()
+        }
+        val sourceFile = File(tempDir, "The.Bear.S02E05.1080p.WEB-DL.DDP5.1.Atmos.H.264-FLUX.mkv")
+        sourceFile.writeText("sample")
+        val filePathList = arrayListOf(sourceFile.absolutePath)
+        every { intent.getStringArrayListExtra(DownloadCompletedReceiver.EXTRA_FILE_PATHS) } returns filePathList
+
+        val calItem = CalendarItem("v2_100_1_1", 100, "Episode 5", 2, 5, Instant.now(), null, false, false, false, null)
+        val watchItem = TrackedWatchlistItem(100, MediaType.TV, "The Bear", null, null)
+        val item = CalendarItemWithWatchlist(calItem, watchItem, LocalItemState("v2_100_1_1", MediaStatus.DOWNLOADED))
+        coEvery { calendarDao.findItem("v2_100_1_1") } returns item
+        coEvery { calendarDao.getSeasonFinaleItem(100, 2) } returns null
+
+        val postProcessPrefs = AutoDownloadPreferences(
+            postProcessTvEnabled = true,
+            postProcessReplaceSpacesWithDotsTv = true,
+            postProcessTemplateTv = "{title}.{episode_slug}.{resolution}.{source}-{release_group}"
+        )
+        every { autoDownloadRepositoryMock.preferencesFlow } returns flowOf(postProcessPrefs)
+
+        receiver.onReceive(context, intent)
+
+        verify(timeout = 3000) { pendingResult.finish() }
+        coVerify(timeout = 3000) {
+            repositoryMock.updateDownloadCompleted(
+                "v2_100_1_1",
+                null,
+                MediaStatus.DOWNLOADED,
+                match { it != null && it.endsWith("The.Bear.S02E05.1080p.WEB-DL-FLUX.mkv") }
+            )
+        }
+
+        tempDir.deleteRecursively()
     }
 }
