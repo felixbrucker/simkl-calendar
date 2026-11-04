@@ -3,6 +3,8 @@ package com.felixbrucker.simklcalendar.ui.composable
 import android.content.Context
 import android.content.Intent
 import android.text.format.Formatter
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -245,7 +247,8 @@ fun SeasonOverrideDialog(
 @Composable
 fun MediaStatusDropdown(
     currentStatus: MediaStatus,
-    onStatusChange: (MediaStatus) -> Unit
+    onStatusChange: (MediaStatus) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
     val (backgroundColor, textColor) = when (currentStatus) {
@@ -256,7 +259,7 @@ fun MediaStatusDropdown(
         MediaStatus.DOWNLOADED -> SurfaceGreen to GreenSuccess
     }
 
-    Box {
+    Box(modifier = modifier) {
         Surface(
             shape = RoundedCornerShape(6.dp),
             color = backgroundColor,
@@ -400,11 +403,13 @@ fun ItemWatchedStatusDropdown(
 @Composable
 fun ItemMediaStatusDropdown(
     item: CalendarItemWithWatchlist,
-    onStatusChange: (MediaStatus) -> Unit
+    onStatusChange: (MediaStatus) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     MediaStatusDropdown(
         currentStatus = item.mediaStatus,
-        onStatusChange = onStatusChange
+        onStatusChange = onStatusChange,
+        modifier = modifier
     )
 }
 
@@ -580,6 +585,7 @@ fun NotificationSettingsCard(
 
 @Immutable
 data class DetailHeaderData(
+    val isWatchlist: Boolean,
     val simklId: Int,
     val type: MediaType,
     val title: String,
@@ -593,13 +599,22 @@ data class DetailHeaderData(
 @Composable
 fun DetailHeader(
     data: DetailHeaderData,
+    sharedItemKey: String,
     modifier: Modifier = Modifier,
     onTitleClick: () -> Unit = {},
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(260.dp)
+            .sharedBoundsItem(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                key = "header_$sharedItemKey",
+                enabled = !data.isWatchlist
+            )
     ) {
         DetailHeaderPosterScrim(poster = data.poster)
         if (data.rating != null) {
@@ -610,8 +625,11 @@ fun DetailHeader(
         }
         DetailHeaderTitleOverlay(
             data = data,
+            sharedItemKey = sharedItemKey,
             onTitleClick = onTitleClick,
-            modifier = Modifier.align(Alignment.BottomStart)
+            modifier = Modifier.align(Alignment.BottomStart),
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope
         )
         DetailHeaderOpenSimklButton(
             simklId = data.simklId,
@@ -675,36 +693,68 @@ private fun DetailHeaderRatingBadge(
 @Composable
 private fun DetailHeaderTitleOverlay(
     data: DetailHeaderData,
+    sharedItemKey: String,
     onTitleClick: () -> Unit,
     modifier: Modifier = Modifier,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     Column(
         modifier = modifier
             .padding(16.dp)
             .padding(end = 100.dp)
     ) {
-        DetailMediaTypeBadge(type = data.type)
+        DetailMediaTypeBadge(
+            type = data.type,
+            modifier = Modifier.sharedElementItem(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                key = "type_$sharedItemKey",
+            )
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = data.title,
             fontSize = 24.sp,
             fontWeight = FontWeight.ExtraBold,
             color = Color.White,
-            modifier = Modifier.clickable(onClick = onTitleClick)
+            modifier = Modifier
+                .sharedElementItem(
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    key = "title_$sharedItemKey"
+                )
+                .clickable(onClick = onTitleClick)
         )
-        DetailSubtitles(data = data)
+        DetailSubtitles(
+            data = data,
+            sharedItemKey = sharedItemKey,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope
+        )
     }
 }
 
 @Composable
-private fun DetailSubtitles(data: DetailHeaderData) {
+private fun DetailSubtitles(
+    data: DetailHeaderData,
+    sharedItemKey: String,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+) {
     if (data.hasUniqueTitleRomaji && data.titleRomaji != null) {
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = data.titleRomaji,
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
-            color = TextSubtle
+            color = TextSubtle,
+            modifier = Modifier.sharedElementItem(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                key = "romaji_title_$sharedItemKey",
+                enabled = !data.isWatchlist
+            )
         )
     }
     val animeSeasonLabel = MediaFormatter.formatAnimeSeasonLabel(data.type, data.animeSeason)
@@ -714,7 +764,13 @@ private fun DetailSubtitles(data: DetailHeaderData) {
             text = animeSeasonLabel,
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
-            color = TextSubtle
+            color = TextSubtle,
+            modifier = Modifier.sharedElementItem(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                key = "anime_season_$sharedItemKey",
+                enabled = !data.isWatchlist
+            )
         )
     }
 }

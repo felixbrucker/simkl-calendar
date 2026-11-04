@@ -16,6 +16,8 @@ import androidx.activity.viewModels
 import androidx.browser.auth.AuthTabIntent
 import androidx.browser.customtabs.CustomTabsClient
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -295,11 +297,58 @@ fun SimklCalendarApp(
         if (authState.token == null) "login" else "calendar"
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = startDestination,
-        modifier = Modifier.fillMaxSize()
-    ) {
+    SharedTransitionLayout {
+        val slideInFromRight = slideInHorizontally(
+            initialOffsetX = { it },
+            animationSpec = tween(300, easing = FastOutSlowInEasing)
+        ) + fadeIn(animationSpec = tween(300))
+
+        val slideOutToLeft = slideOutHorizontally(
+            targetOffsetX = { -it },
+            animationSpec = tween(300, easing = FastOutSlowInEasing)
+        ) + fadeOut(animationSpec = tween(300))
+
+        val slideInFromLeft = slideInHorizontally(
+            initialOffsetX = { -it },
+            animationSpec = tween(300, easing = FastOutSlowInEasing)
+        ) + fadeIn(animationSpec = tween(300))
+
+        val slideOutToRight = slideOutHorizontally(
+            targetOffsetX = { it },
+            animationSpec = tween(300, easing = FastOutSlowInEasing)
+        ) + fadeOut(animationSpec = tween(300))
+
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            predictivePopEnterTransition = {
+                val isSettingsOrLogViewer =
+                    initialState.destination.route?.startsWith("settings") == true ||
+                    initialState.destination.route?.startsWith("log_viewer") == true ||
+                    targetState.destination.route?.startsWith("settings") == true ||
+                    targetState.destination.route?.startsWith("log_viewer") == true
+                val isDetailToDetail =
+                    (initialState.destination.route?.startsWith("release_detail") == true &&
+                     targetState.destination.route?.startsWith("watchlist_item_detail") == true) ||
+                    (initialState.destination.route?.startsWith("watchlist_item_detail") == true &&
+                     targetState.destination.route?.startsWith("release_detail") == true)
+                if (isSettingsOrLogViewer || isDetailToDetail) slideInFromLeft else EnterTransition.None
+            },
+            predictivePopExitTransition = {
+                val isSettingsOrLogViewer =
+                    initialState.destination.route?.startsWith("settings") == true ||
+                    initialState.destination.route?.startsWith("log_viewer") == true ||
+                    targetState.destination.route?.startsWith("settings") == true ||
+                    targetState.destination.route?.startsWith("log_viewer") == true
+                val isDetailToDetail =
+                    (initialState.destination.route?.startsWith("release_detail") == true &&
+                     targetState.destination.route?.startsWith("watchlist_item_detail") == true) ||
+                    (initialState.destination.route?.startsWith("watchlist_item_detail") == true &&
+                     targetState.destination.route?.startsWith("release_detail") == true)
+                if (isSettingsOrLogViewer || isDetailToDetail) slideOutToRight else ExitTransition.None
+            },
+            modifier = Modifier.fillMaxSize()
+        ) {
             // 1. Authentication Login (OAuth via AuthTab)
             composable("login") {
                 LoginScreen(
@@ -322,22 +371,30 @@ fun SimklCalendarApp(
                             launchSingleTop = true
                         }
                     },
-                    onNavigateToReleaseDetail = { itemKey ->
-                        val encodedKey = URLEncoder.encode(itemKey, "UTF-8")
+                    onNavigateToReleaseDetail = { item ->
+                        viewModel.setSelectedCalendarItem(item)
+                        val encodedKey = URLEncoder.encode(item.primaryKey, "UTF-8")
                         navController.navigate("release_detail/$encodedKey") {
                             launchSingleTop = true
                         }
                     },
-                    onNavigateToWatchlistItemDetail = { simklId ->
-                        navController.navigate("watchlist_item_detail/$simklId") {
+                    onNavigateToWatchlistItemDetail = { tableItem ->
+                        viewModel.setSelectedWatchlistTableItem(tableItem)
+                        navController.navigate("watchlist_item_detail/${tableItem.watchlistItem.simklId}") {
                             launchSingleTop = true
                         }
-                    }
+                    },
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this@composable
                 )
             }
 
             // 3. Settings configuration screen
-            composable("settings") {
+            composable(
+                route = "settings",
+                enterTransition = { slideInFromRight },
+                exitTransition = { slideOutToLeft },
+            ) {
                 SettingsScreen(
                     onNavigateBack = {
                         navController.popBackStackSafely()
@@ -350,7 +407,11 @@ fun SimklCalendarApp(
             }
 
             // 3.1. Log Viewer screen
-            composable("log_viewer") {
+            composable(
+                route = "log_viewer",
+                enterTransition = { slideInFromRight },
+                exitTransition = { slideOutToLeft },
+            ) {
                 LogViewerScreen {
                     navController.popBackStackSafely()
                 }
@@ -360,7 +421,9 @@ fun SimklCalendarApp(
             composable(
                 route = "release_detail/{itemKey}",
                 arguments = listOf(navArgument("itemKey") { type = NavType.StringType }),
-                deepLinks = listOf(navDeepLink { uriPattern = "simklcalendar://release_detail/{itemKey}" })
+                deepLinks = listOf(navDeepLink { uriPattern = "simklcalendar://release_detail/{itemKey}" }),
+                enterTransition = { slideInFromRight },
+                exitTransition = { slideOutToLeft },
             ) { backStackEntry ->
                 val rawKey = backStackEntry.arguments?.getString("itemKey") ?: ""
                 val itemKey = try {
@@ -376,14 +439,18 @@ fun SimklCalendarApp(
                     },
                     onNavigateToWatchlistItem = { simklId ->
                         navController.navigate("watchlist_item_detail/$simklId")
-                    }
+                    },
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this@composable
                 )
             }
 
             // 5. Watchlist Item Details screen
             composable(
                 route = "watchlist_item_detail/{simklId}",
-                arguments = listOf(navArgument("simklId") { type = NavType.IntType })
+                arguments = listOf(navArgument("simklId") { type = NavType.IntType }),
+                enterTransition = { slideInFromRight },
+                exitTransition = { slideOutToLeft },
             ) { backStackEntry ->
                 val simklId = backStackEntry.arguments?.getInt("simklId") ?: 0
                 WatchlistItemDetailScreen(
@@ -393,8 +460,11 @@ fun SimklCalendarApp(
                     onNavigateToEpisode = { itemKey ->
                         val encodedKey = URLEncoder.encode(itemKey, "UTF-8")
                         navController.navigate("release_detail/$encodedKey")
-                    }
+                    },
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this@composable
                 )
             }
         }
     }
+}

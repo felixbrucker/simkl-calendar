@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -81,6 +83,8 @@ import com.felixbrucker.simklcalendar.ui.composable.MediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
 import com.felixbrucker.simklcalendar.ui.composable.WatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
+import com.felixbrucker.simklcalendar.ui.composable.sharedElementItem
+import com.felixbrucker.simklcalendar.ui.composable.sharedBoundsItem
 import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
@@ -94,7 +98,9 @@ fun WatchlistItemDetailScreen(
     viewModel: CalendarViewModel,
     simklId: Int,
     onNavigateBack: () -> Unit,
-    onNavigateToEpisode: (String) -> Unit
+    onNavigateToEpisode: (String) -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val tableItems by viewModel.watchlistTableItems.collectAsState()
     val updatingWatchKeys by viewModel.updatingWatchStatusKeys.collectAsState()
@@ -124,7 +130,10 @@ fun WatchlistItemDetailScreen(
     val setting by viewModel.getSettingForSimklIdFlow(simklId).collectAsState(null)
     val notificationSetting = setting // Required for smart casting
 
-    val watchlistItemDelegate by viewModel.getWatchlistItemFlow(simklId).collectAsState(null)
+    val initialWatchlistItem = remember(simklId) {
+        viewModel.selectedWatchlistTableItem.value?.takeIf { it.watchlistItem.simklId == simklId }?.watchlistItem
+    }
+    val watchlistItemDelegate by viewModel.getWatchlistItemFlow(simklId).collectAsState(initialWatchlistItem)
     val watchlistItem = watchlistItemDelegate // Required for smart casting
 
     val tableItem = remember(tableItems, simklId) {
@@ -168,6 +177,12 @@ fun WatchlistItemDetailScreen(
     }
 
     Scaffold(
+        modifier = Modifier
+            .sharedBoundsItem(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                key = "container_$simklId"
+            ),
         topBar = {
             TopAppBar(
                 title = { Text(watchlistItem?.title ?: "Details", color = Color.White) },
@@ -196,6 +211,7 @@ fun WatchlistItemDetailScreen(
                 item {
                     DetailHeader(
                         data = DetailHeaderData(
+                            isWatchlist = true,
                             simklId = watchlistItem.simklId,
                             type = watchlistItem.type,
                             title = watchlistItem.title,
@@ -204,7 +220,10 @@ fun WatchlistItemDetailScreen(
                             titleRomaji = watchlistItem.titleRomaji,
                             hasUniqueTitleRomaji = watchlistItem.hasUniqueTitleRomaji,
                             animeSeason = watchlistItem.animeSeason
-                        )
+                        ),
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        sharedItemKey = "$simklId"
                     )
                 }
 
@@ -218,7 +237,10 @@ fun WatchlistItemDetailScreen(
                             updatingWatchKeys = updatingWatchKeys,
                             onMarkSeasonWatched = { season -> viewModel.markSeasonWatched(simklId, season, watchlistItem.type) },
                             onMarkSeasonUnwatched = { season -> viewModel.markSeasonUnwatched(simklId, season, watchlistItem.type) },
-                            onUpdateSeasonMediaStatus = { season, status -> viewModel.updateSeasonMediaStatus(simklId, season, status) }
+                            onUpdateSeasonMediaStatus = { season, status -> viewModel.updateSeasonMediaStatus(simklId, season, status) },
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            simklId = simklId
                         )
                     }
 
@@ -342,7 +364,7 @@ fun WatchlistItemDetailScreen(
                             updatingWatchKeys = updatingWatchKeys,
                             torrentDownloads = torrentDownloads,
                             showSeasonHeaders = !isAnimeSeasonOneOnly,
-                            cardTitle = if (isMovie) "Release Information" else null
+                            cardTitle = if (isMovie) "Release Information" else null,
                         ),
                         actions = EpisodeListActions(
                             onItemClick = { ep -> onNavigateToEpisode(ep.primaryKey) },
@@ -498,7 +520,10 @@ fun WatchlistItemSummaryStats(
     updatingWatchKeys: Set<String>,
     onMarkSeasonWatched: (season: Int) -> Unit,
     onMarkSeasonUnwatched: (season: Int) -> Unit,
-    onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit
+    onUpdateSeasonMediaStatus: (season: Int, status: MediaStatus) -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    simklId: Int = 0
 ) {
     if (item == null) return
 
@@ -521,7 +546,13 @@ fun WatchlistItemSummaryStats(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                SummaryStatsContent(item, isNarrow = true)
+                SummaryStatsContent(
+                    item,
+                    isNarrow = true,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    simklId = simklId
+                )
 
                 HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
 
@@ -541,7 +572,13 @@ fun WatchlistItemSummaryStats(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    SummaryStatsContent(item, isNarrow = isNarrow)
+                    SummaryStatsContent(
+                        item,
+                        isNarrow = isNarrow,
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        simklId = simklId
+                    )
                 }
 
                 if (isAnimeSeasonOneOnly) {
@@ -566,7 +603,13 @@ fun WatchlistItemSummaryStats(
 }
 
 @Composable
-private fun SummaryStatsContent(item: WatchlistTableItem, isNarrow: Boolean) {
+private fun SummaryStatsContent(
+    item: WatchlistTableItem,
+    isNarrow: Boolean,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    simklId: Int = 0
+) {
     if (isNarrow) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -575,12 +618,20 @@ private fun SummaryStatsContent(item: WatchlistTableItem, isNarrow: Boolean) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 StatItem(
                     "Last Ep",
-                    item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-"
+                    item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    sharedKey = "last_ep_$simklId",
+                    enabled = item.lastAiredDate != null
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 StatItem(
                     "Next Ep",
-                    item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-"
+                    item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    sharedKey = "next_ep_$simklId",
+                    enabled = item.nextEpisodeDate != null
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -588,7 +639,10 @@ private fun SummaryStatsContent(item: WatchlistTableItem, isNarrow: Boolean) {
                 StatItem(
                     label = "Watched",
                     value = "${item.watchedReleasedCount}/${item.totalReleasedCount}",
-                    valueColor = watchedColor
+                    valueColor = watchedColor,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    sharedKey = "watched_progress_$simklId"
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 val downloadedColor = getTableItemColor(
@@ -598,7 +652,10 @@ private fun SummaryStatsContent(item: WatchlistTableItem, isNarrow: Boolean) {
                 StatItem(
                     label = "Downloaded",
                     value = "${item.downloadedReleasedCount}/${item.totalDownloadableReleasedCount}",
-                    valueColor = downloadedColor
+                    valueColor = downloadedColor,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    sharedKey = "downloaded_progress_$simklId"
                 )
             }
         }
@@ -611,12 +668,20 @@ private fun SummaryStatsContent(item: WatchlistTableItem, isNarrow: Boolean) {
             StatItem(
                 "Last Ep",
                 item.lastAiredDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                sharedKey = "last_ep_$simklId",
+                enabled = item.lastAiredDate != null
             )
             StatItem(
                 "Next Ep",
                 item.nextEpisodeDate?.let { DateUtil.formatDisplayDateTime(it) } ?: "-",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                sharedKey = "next_ep_$simklId",
+                enabled = item.nextEpisodeDate != null
             )
 
             val watchedColor = getTableItemColor(item.watchedReleasedCount, item.totalReleasedCount)
@@ -624,7 +689,10 @@ private fun SummaryStatsContent(item: WatchlistTableItem, isNarrow: Boolean) {
                 label = "Watched",
                 value = "${item.watchedReleasedCount}/${item.totalReleasedCount}",
                 valueColor = watchedColor,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                sharedKey = "watched_progress_$simklId"
             )
 
             val downloadedColor = getTableItemColor(
@@ -635,7 +703,10 @@ private fun SummaryStatsContent(item: WatchlistTableItem, isNarrow: Boolean) {
                 label = "Downloaded",
                 value = "${item.downloadedReleasedCount}/${item.totalDownloadableReleasedCount}",
                 valueColor = downloadedColor,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                sharedKey = "downloaded_progress_$simklId"
             )
         }
     }
@@ -676,9 +747,31 @@ private fun SummaryDropdowns(
 }
 
 @Composable
-fun StatItem(label: String, value: String, modifier: Modifier = Modifier, valueColor: Color = Color.White) {
+fun StatItem(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = Color.White,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    sharedKey: String? = null,
+    enabled: Boolean = true
+) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = label, fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
-        Text(text = value, fontSize = 13.sp, color = valueColor, fontWeight = FontWeight.SemiBold, maxLines = 2, textAlign = TextAlign.Center)
+        Text(
+            text = value,
+            fontSize = 13.sp,
+            color = valueColor,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.sharedElementItem(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                key = sharedKey ?: "",
+                enabled = enabled && sharedKey != null
+            )
+        )
     }
 }

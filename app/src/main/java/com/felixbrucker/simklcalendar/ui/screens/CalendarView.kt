@@ -1,5 +1,7 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,6 +77,8 @@ import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
 import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
 import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
+import com.felixbrucker.simklcalendar.ui.composable.sharedBoundsItem
+import com.felixbrucker.simklcalendar.ui.composable.sharedElementItem
 import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
 import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
@@ -94,9 +98,11 @@ import java.time.ZoneId
 @Composable
 fun CalendarView(
     viewModel: CalendarViewModel,
-    onNavigateToShowDetail: (String) -> Unit,
+    onNavigateToShowDetail: (CalendarItemWithWatchlist) -> Unit,
     modifier: Modifier = Modifier,
     lazyListState: LazyListState = rememberLazyListState(),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val items by viewModel.filteredCalendarItems.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -114,7 +120,9 @@ fun CalendarView(
         onSetShowEarlierReleases = { viewModel.setShowEarlierReleases(it) },
         onNavigateToShowDetail = onNavigateToShowDetail,
         modifier = modifier,
-        lazyListState = lazyListState
+        lazyListState = lazyListState,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope
     )
 }
 
@@ -139,9 +147,11 @@ fun CalendarContent(
     onResetFilters: () -> Unit,
     onToggleShowEarlierReleases: () -> Unit,
     onSetShowEarlierReleases: (Boolean) -> Unit,
-    onNavigateToShowDetail: (String) -> Unit,
+    onNavigateToShowDetail: (CalendarItemWithWatchlist) -> Unit,
     modifier: Modifier = Modifier,
     lazyListState: LazyListState = rememberLazyListState(),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val (earlierItems, earlierGrouped, upcomingGrouped) = remember(items) {
         groupCalendarItems(items)
@@ -170,7 +180,9 @@ fun CalendarContent(
                 onToggleShowEarlierReleases = onToggleShowEarlierReleases,
                 onSetShowEarlierReleases = onSetShowEarlierReleases,
                 onNavigateToShowDetail = onNavigateToShowDetail,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope
             )
         }
     }
@@ -217,8 +229,10 @@ private fun CalendarItemList(
     state: CalendarItemListState,
     onToggleShowEarlierReleases: () -> Unit,
     onSetShowEarlierReleases: (Boolean) -> Unit,
-    onNavigateToShowDetail: (String) -> Unit,
-    modifier: Modifier = Modifier
+    onNavigateToShowDetail: (CalendarItemWithWatchlist) -> Unit,
+    modifier: Modifier = Modifier,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     LazyColumn(
         state = state.lazyListState,
@@ -241,7 +255,9 @@ private fun CalendarItemList(
                     keyPrefix = "earlier",
                     headerColor = TextGreyMuted,
                     torrentDownloads = state.torrentDownloads,
-                    onNavigateToShowDetail = onNavigateToShowDetail
+                    onNavigateToShowDetail = onNavigateToShowDetail,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
                 )
             }
         }
@@ -252,7 +268,9 @@ private fun CalendarItemList(
                 keyPrefix = "upcoming",
                 headerColor = TextSubtle,
                 torrentDownloads = state.torrentDownloads,
-                onNavigateToShowDetail = onNavigateToShowDetail
+                onNavigateToShowDetail = onNavigateToShowDetail,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope
             )
         } else if (state.earlierItems.isNotEmpty() && !state.showEarlierReleases) {
             item(key = "no_upcoming_prompt") {
@@ -271,7 +289,9 @@ private fun LazyListScope.renderGroupedCalendarItems(
     keyPrefix: String,
     headerColor: Color,
     torrentDownloads: Map<String, DownloadProgress>,
-    onNavigateToShowDetail: (String) -> Unit
+    onNavigateToShowDetail: (CalendarItemWithWatchlist) -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     groupedItems.forEach { (dateHeader, dayItems) ->
         stickyHeader(key = "${keyPrefix}_header_$dateHeader") {
@@ -284,6 +304,8 @@ private fun LazyListScope.renderGroupedCalendarItems(
                 onNavigateToShowDetail = onNavigateToShowDetail,
                 downloadProgress = torrentDownloads[item.downloadTaskId],
                 modifier = Modifier.animateItem(),
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope
             )
         }
     }
@@ -484,9 +506,11 @@ fun CalendarEarlierReleasesHeader(
 @Composable
 fun CalendarItemCard(
     item: CalendarItemWithWatchlist,
-    onNavigateToShowDetail: (String) -> Unit,
+    onNavigateToShowDetail: (CalendarItemWithWatchlist) -> Unit,
     modifier: Modifier = Modifier,
-    downloadProgress: DownloadProgress? = null
+    downloadProgress: DownloadProgress? = null,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val categoryColor = when (item.type) {
         MediaType.ANIME -> PurpleLight
@@ -504,9 +528,14 @@ fun CalendarItemCard(
             if (item.mediaStatus == MediaStatus.DOWNLOADING) ContainerBlue else OutlineVariant
         ),
         modifier = modifier
+            .sharedBoundsItem(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                key = "container_${item.primaryKey}"
+            )
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable { onNavigateToShowDetail(item.primaryKey) }
+            .clickable { onNavigateToShowDetail(item) }
     ) {
         Column {
             Row(
@@ -521,6 +550,11 @@ fun CalendarItemCard(
                         .size(width = 60.dp, height = 90.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(SurfaceGreyDark)
+                        .sharedBoundsItem(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            key = "header_${item.primaryKey}",
+                        )
                 ) {
                     AsyncImage(
                         model = item.poster.toPosterUrl(PosterSize.COMPACT),
@@ -551,7 +585,12 @@ fun CalendarItemCard(
                         // Type Badge
                         Badge(
                             containerColor = categoryColor.copy(alpha = 0.2f),
-                            contentColor = categoryColor
+                            contentColor = categoryColor,
+                            modifier = Modifier.sharedElementItem(
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                key = "type_${item.primaryKey}"
+                            )
                         ) {
                             Text(item.type.displayName.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                         }
@@ -587,7 +626,12 @@ fun CalendarItemCard(
                         if (item.mediaStatus == MediaStatus.DOWNLOADED) {
                             Badge(
                                 containerColor = SurfaceGreen,
-                                contentColor = GreenSuccess
+                                contentColor = GreenSuccess,
+                                modifier = Modifier.sharedElementItem(
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    key = "downloaded_badge_${item.primaryKey}"
+                                )
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -612,14 +656,30 @@ fun CalendarItemCard(
 
                         // Premiere badge
                         if (item.isSeasonPremiere) {
-                            Badge(containerColor = PurpleContainerLight, contentColor = SurfacePurpleVariant) {
+                            Badge(
+                                containerColor = PurpleContainerLight,
+                                contentColor = SurfacePurpleVariant,
+                                modifier = Modifier.sharedElementItem(
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    key = "premiere_badge_${item.primaryKey}"
+                                )
+                            ) {
                                 Text("SEASON PREMIERE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                             }
                         }
 
                         // Finale badge
                         if (item.isSeasonFinale) {
-                            Badge(containerColor = ErrorRed, contentColor = Color.White) {
+                            Badge(
+                                containerColor = ErrorRed,
+                                contentColor = Color.White,
+                                modifier = Modifier.sharedElementItem(
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    key = "finale_badge_${item.primaryKey}"
+                                )
+                            ) {
                                 Text("SEASON FINALE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                             }
                         }
@@ -627,7 +687,15 @@ fun CalendarItemCard(
                         // Anime Season badge
                         val animeSeasonLabel = item.formattedAnimeSeasonLabel
                         if (animeSeasonLabel != null) {
-                            Badge(containerColor = PurpleContainerLight, contentColor = SurfacePurpleVariant) {
+                            Badge(
+                                containerColor = PurpleContainerLight,
+                                contentColor = SurfacePurpleVariant,
+                                modifier = Modifier.sharedElementItem(
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    key = "anime_season_${item.primaryKey}"
+                                )
+                            ) {
                                 Text(
                                     text = animeSeasonLabel.uppercase(),
                                     fontSize = 9.sp,
@@ -646,7 +714,12 @@ fun CalendarItemCard(
                         fontSize = 17.sp,
                         color = TextPrimary,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.sharedElementItem(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            key = "title_${item.primaryKey}"
+                        )
                     )
 
                     if (item.hasUniqueTitleRomaji) {
@@ -656,7 +729,12 @@ fun CalendarItemCard(
                             fontWeight = FontWeight.Normal,
                             color = TextSubtle,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.sharedElementItem(
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                key = "romaji_title_${item.primaryKey}"
+                            )
                         )
                     }
 
@@ -666,13 +744,35 @@ fun CalendarItemCard(
                         MediaType.ANIME, MediaType.TV -> {
                             val epLabel = item.formattedEpisodeCardBadge
                             val epTitle = item.episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
-                            Text(
-                                text = "$epLabel: $epTitle",
-                                fontSize = 13.sp,
-                                color = TextSubtle,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = epLabel,
+                                    fontSize = 13.sp,
+                                    color = TextSubtle,
+                                    modifier = Modifier.sharedElementItem(
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                        key = "episode_code_${item.primaryKey}"
+                                    )
+                                )
+                                Text(
+                                    text = ": ",
+                                    fontSize = 13.sp,
+                                    color = TextSubtle,
+                                )
+                                Text(
+                                    text = epTitle,
+                                    fontSize = 13.sp,
+                                    color = TextSubtle,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.sharedElementItem(
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                        key = "episode_title_${item.primaryKey}"
+                                    )
+                                )
+                            }
                         }
                         MediaType.MOVIE -> {
                             Text(
@@ -699,7 +799,12 @@ fun CalendarItemCard(
                                     text = releaseTime,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = PurpleLight
+                                    color = PurpleLight,
+                                    modifier = Modifier.sharedElementItem(
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                        key = "air_time_${item.primaryKey}"
+                                    )
                                 )
                             }
                         }

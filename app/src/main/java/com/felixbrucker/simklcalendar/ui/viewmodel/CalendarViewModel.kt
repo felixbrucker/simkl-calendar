@@ -113,6 +113,20 @@ class CalendarViewModel @Inject constructor(
         private const val TAG = "CalendarViewModel"
     }
 
+    private val _selectedCalendarItem = MutableStateFlow<CalendarItemWithWatchlist?>(null)
+    val selectedCalendarItem: StateFlow<CalendarItemWithWatchlist?> = _selectedCalendarItem.asStateFlow()
+
+    fun setSelectedCalendarItem(item: CalendarItemWithWatchlist?) {
+        _selectedCalendarItem.value = item
+    }
+
+    private val _selectedWatchlistTableItem = MutableStateFlow<WatchlistTableItem?>(null)
+    val selectedWatchlistTableItem: StateFlow<WatchlistTableItem?> = _selectedWatchlistTableItem.asStateFlow()
+
+    fun setSelectedWatchlistTableItem(item: WatchlistTableItem?) {
+        _selectedWatchlistTableItem.value = item
+    }
+
     val customSearchLinks: StateFlow<List<CustomSearchLink>> = customSearchLinkRepository.customSearchLinks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

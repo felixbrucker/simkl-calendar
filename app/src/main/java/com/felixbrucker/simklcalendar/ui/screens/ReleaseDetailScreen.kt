@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -85,6 +87,8 @@ import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ManualSearchDialog
 import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
 import com.felixbrucker.simklcalendar.ui.composable.SeasonWatchButton
+import com.felixbrucker.simklcalendar.ui.composable.sharedBoundsItem
+import com.felixbrucker.simklcalendar.ui.composable.sharedElementItem
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
 import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
@@ -113,7 +117,9 @@ fun ReleaseDetailScreen(
     itemKey: String,
     onNavigateBack: () -> Unit,
     onNavigateToWatchlistItem: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -146,7 +152,10 @@ fun ReleaseDetailScreen(
     }
 
     var activeItemKey by remember(itemKey) { mutableStateOf(itemKey) }
-    val item by viewModel.getCalendarItemFlow(activeItemKey).collectAsState(null)
+    val initialItem = remember(activeItemKey) {
+        viewModel.selectedCalendarItem.value?.takeIf { it.primaryKey == activeItemKey }
+    }
+    val item by viewModel.getCalendarItemFlow(activeItemKey).collectAsState(initialItem)
     val activeItem = item // Required for smart casting
     val itemSettings by viewModel.getItemDownloadSettingsFlow(activeItem?.simklId ?: 0).collectAsState(null)
 
@@ -227,7 +236,13 @@ fun ReleaseDetailScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .sharedBoundsItem(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                key = "container_$itemKey",
+            ),
         topBar = {
             TopAppBar(
                 title = { Text("Release Details", color = TextPrimary, fontWeight = FontWeight.Bold) },
@@ -261,6 +276,7 @@ fun ReleaseDetailScreen(
                 // Banner / Poster Header
                 DetailHeader(
                     data = DetailHeaderData(
+                        isWatchlist = false,
                         simklId = activeItem.simklId,
                         type = activeItem.type,
                         title = activeItem.title,
@@ -270,7 +286,10 @@ fun ReleaseDetailScreen(
                         hasUniqueTitleRomaji = activeItem.hasUniqueTitleRomaji,
                         animeSeason = activeItem.animeSeason,
                     ),
-                    onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId) }
+                    onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId) },
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    sharedItemKey = itemKey
                 )
 
                 // Airing / Release details info
@@ -307,7 +326,10 @@ fun ReleaseDetailScreen(
                         },
                         onMediaStatusChange = { itemKeyToUpdate, newStatus ->
                             viewModel.updateMediaStatus(itemKeyToUpdate, newStatus)
-                        }
+                        },
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        sharedItemKey = itemKey
                     )
 
                     // Dynamic Action Buttons Section (Max 2 per row)
@@ -544,7 +566,7 @@ fun ReleaseDetailScreen(
                                 activeItemKey = activeItem.primaryKey,
                                 updatingWatchKeys = updatingWatchKeys,
                                 torrentDownloads = torrentDownloads,
-                                showSeasonHeaders = showScheduleItems.groupBy { it.season ?: 1 }.size > 1
+                                showSeasonHeaders = showScheduleItems.groupBy { it.season ?: 1 }.size > 1,
                             ),
                             actions = EpisodeListActions(
                                 onItemClick = { epItem -> activeItemKey = epItem.primaryKey },
@@ -688,7 +710,10 @@ fun SelectedEpisodeDetailsCard(
     updatingWatchKeys: Set<String>,
     onWatchedStatusChange: (Boolean) -> Unit,
     onMediaStatusChange: (String, MediaStatus) -> Unit,
-    modifier: Modifier = Modifier
+    sharedItemKey: String,
+    modifier: Modifier = Modifier,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -768,7 +793,12 @@ fun SelectedEpisodeDetailsCard(
                         text = formattedDateTime,
                         color = TextPrimary,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        modifier = Modifier.sharedElementItem(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            key = "air_time_$sharedItemKey"
+                        )
                     )
                 }
             }
@@ -788,7 +818,12 @@ fun SelectedEpisodeDetailsCard(
                         text = slugValue,
                         color = TextPrimary,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        modifier = Modifier.sharedElementItem(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            key = "episode_code_$sharedItemKey"
+                        )
                     )
                 }
 
@@ -804,6 +839,11 @@ fun SelectedEpisodeDetailsCard(
                         color = TextPrimary,
                         fontWeight = FontWeight.Medium,
                         fontSize = 14.sp,
+                        modifier = Modifier.sharedElementItem(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            key = "episode_title_$sharedItemKey"
+                        )
                     )
                 }
             }
@@ -831,7 +871,13 @@ fun SelectedEpisodeDetailsCard(
                     Text("Status", color = TextSubtle, fontSize = 14.sp)
                     ItemMediaStatusDropdown(
                         item = mediaStatusItem,
-                        onStatusChange = { newStatus -> onMediaStatusChange(mediaStatusItem.primaryKey, newStatus) }
+                        onStatusChange = { newStatus -> onMediaStatusChange(mediaStatusItem.primaryKey, newStatus) },
+                        modifier = Modifier.sharedElementItem(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            key = "downloaded_badge_$sharedItemKey",
+                            enabled = mediaStatusItem.mediaStatus == MediaStatus.DOWNLOADED
+                        )
                     )
                 }
             }
@@ -849,6 +895,12 @@ fun SelectedEpisodeDetailsCard(
                             modifier = Modifier
                                 .background(PurpleContainerLight, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .sharedElementItem(
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    key = "premiere_badge_$sharedItemKey",
+                                    enabled = activeItem.isSeasonPremiere
+                                )
                         ) {
                             Text(
                                 text = "🎉 SEASON PREMIERE",
@@ -863,6 +915,12 @@ fun SelectedEpisodeDetailsCard(
                             modifier = Modifier
                                 .background(ErrorRed, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .sharedElementItem(
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    key = "finale_badge_$sharedItemKey",
+                                    enabled = activeItem.isSeasonFinale
+                                )
                         ) {
                             Text("🎬 SEASON FINALE", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }

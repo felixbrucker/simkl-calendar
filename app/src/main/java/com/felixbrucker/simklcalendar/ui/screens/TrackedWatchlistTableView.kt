@@ -1,5 +1,7 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,6 +27,8 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.formattedAnimeSeasonLabel
 import com.felixbrucker.simklcalendar.ui.composable.getTableItemColor
+import com.felixbrucker.simklcalendar.ui.composable.sharedBoundsItem
+import com.felixbrucker.simklcalendar.ui.composable.sharedElementItem
 import com.felixbrucker.simklcalendar.ui.theme.BlueAccent
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
@@ -53,9 +57,11 @@ private object SmallTableWeights {
 @Composable
 fun TrackedWatchlistTableView(
     viewModel: CalendarViewModel,
-    onNavigateToSeriesDetail: (Int) -> Unit,
+    onNavigateToSeriesDetail: (WatchlistTableItem) -> Unit,
     modifier: Modifier = Modifier,
     lazyListState: LazyListState = rememberLazyListState(),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val items by viewModel.watchlistTableItems.collectAsState()
     val sortField by viewModel.tableSortField.collectAsState()
@@ -70,7 +76,9 @@ fun TrackedWatchlistTableView(
         onSortToggle = { viewModel.toggleTableSort(it) },
         onNavigateToSeriesDetail = onNavigateToSeriesDetail,
         modifier = modifier,
-        lazyListState = lazyListState
+        lazyListState = lazyListState,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope
     )
 }
 
@@ -81,9 +89,11 @@ fun TrackedWatchlistTableContent(
     sortDirection: SortDirection,
     isDownloaderInstalled: Boolean,
     onSortToggle: (TableSortField) -> Unit,
-    onNavigateToSeriesDetail: (Int) -> Unit,
+    onNavigateToSeriesDetail: (WatchlistTableItem) -> Unit,
     modifier: Modifier = Modifier,
     lazyListState: LazyListState = rememberLazyListState(),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val density = LocalDensity.current
     val windowInfo = LocalWindowInfo.current
@@ -131,7 +141,9 @@ fun TrackedWatchlistTableContent(
                             item = item,
                             isDownloaderInstalled = isDownloaderInstalled,
                             isSmallScreen = isSmallScreen,
-                            onNavigateToSeriesDetail = onNavigateToSeriesDetail
+                            onNavigateToSeriesDetail = onNavigateToSeriesDetail,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
                 }
@@ -142,7 +154,9 @@ fun TrackedWatchlistTableContent(
                             item = item,
                             isDownloaderInstalled = isDownloaderInstalled,
                             isSmallScreen = isSmallScreen,
-                            onNavigateToSeriesDetail = onNavigateToSeriesDetail
+                            onNavigateToSeriesDetail = onNavigateToSeriesDetail,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
                 }
@@ -153,7 +167,9 @@ fun TrackedWatchlistTableContent(
                             item = item,
                             isDownloaderInstalled = isDownloaderInstalled,
                             isSmallScreen = isSmallScreen,
-                            onNavigateToSeriesDetail = onNavigateToSeriesDetail
+                            onNavigateToSeriesDetail = onNavigateToSeriesDetail,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
                 }
@@ -280,7 +296,9 @@ fun WatchlistTableItemRow(
     item: WatchlistTableItem,
     isDownloaderInstalled: Boolean,
     isSmallScreen: Boolean,
-    onNavigateToSeriesDetail: (Int) -> Unit,
+    onNavigateToSeriesDetail: (WatchlistTableItem) -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val categoryColor = when (item.watchlistItem.type) {
         MediaType.ANIME -> PurpleLight
@@ -292,8 +310,13 @@ fun WatchlistTableItemRow(
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         modifier = Modifier
+            .sharedBoundsItem(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                key = "container_${item.watchlistItem.simklId}"
+            )
             .fillMaxWidth()
-            .clickable { onNavigateToSeriesDetail(item.watchlistItem.simklId) }
+            .clickable { onNavigateToSeriesDetail(item) }
     ) {
         Column {
             Row(
@@ -306,6 +329,11 @@ fun WatchlistTableItemRow(
                 Box(
                     modifier = Modifier
                         .padding(horizontal = 6.dp)
+                        .sharedElementItem(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            key = "type_${item.watchlistItem.simklId}"
+                        )
                         .size(4.dp, 16.dp)
                         .background(categoryColor, RoundedCornerShape(2.dp))
                 )
@@ -325,7 +353,13 @@ fun WatchlistTableItemRow(
                     color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(if (isSmallScreen) SmallTableWeights.NAME else TableWeights.NAME)
+                    modifier = Modifier
+                        .weight(if (isSmallScreen) SmallTableWeights.NAME else TableWeights.NAME)
+                        .sharedElementItem(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            key = "title_${item.watchlistItem.simklId}"
+                        )
                 )
 
                 if (!isSmallScreen) {
@@ -336,7 +370,14 @@ fun WatchlistTableItemRow(
                         color = TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(TableWeights.LAST_EP)
+                        modifier = Modifier
+                            .weight(TableWeights.LAST_EP)
+                            .sharedElementItem(
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                key = "last_ep_${item.watchlistItem.simklId}",
+                                enabled = item.lastAiredDate != null
+                            )
                     )
 
                     // Next Ep
@@ -346,7 +387,14 @@ fun WatchlistTableItemRow(
                         color = PurpleLight,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(TableWeights.NEXT_EP)
+                        modifier = Modifier
+                            .weight(TableWeights.NEXT_EP)
+                            .sharedElementItem(
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                key = "next_ep_${item.watchlistItem.simklId}",
+                                enabled = item.nextEpisodeDate != null
+                            )
                     )
                 }
 
@@ -360,7 +408,13 @@ fun WatchlistTableItemRow(
                     color = watchedColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(if (isSmallScreen) SmallTableWeights.WATCHED else TableWeights.WATCHED)
+                    modifier = Modifier
+                        .weight(if (isSmallScreen) SmallTableWeights.WATCHED else TableWeights.WATCHED)
+                        .sharedElementItem(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            key = "watched_progress_${item.watchlistItem.simklId}"
+                        )
                 )
 
                 // Downloaded
@@ -376,7 +430,13 @@ fun WatchlistTableItemRow(
                         color = downloadedColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(if (isSmallScreen) SmallTableWeights.DOWNLOADED else TableWeights.DOWNLOADED)
+                        modifier = Modifier
+                            .weight(if (isSmallScreen) SmallTableWeights.DOWNLOADED else TableWeights.DOWNLOADED)
+                            .sharedElementItem(
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                key = "downloaded_progress_${item.watchlistItem.simklId}"
+                            )
                     )
                 }
 

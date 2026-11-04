@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import com.felixbrucker.simklcalendar.ui.theme.BlueAccent
@@ -71,6 +72,7 @@ import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
 import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -82,14 +84,16 @@ private enum class SearchBarDisplayMode {
     DOCKED
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun MainScreen(
     viewModel: CalendarViewModel,
     onNavigateToSettings: () -> Unit,
-    onNavigateToReleaseDetail: (String) -> Unit,
-    onNavigateToWatchlistItemDetail: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    onNavigateToReleaseDetail: (CalendarItemWithWatchlist) -> Unit,
+    onNavigateToWatchlistItemDetail: (WatchlistTableItem) -> Unit,
+    modifier: Modifier = Modifier,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val context = LocalContext.current
     val totalFilteredCalendarItems by viewModel.totalFilteredCalendarItems.collectAsState()
@@ -416,12 +420,16 @@ fun MainScreen(
                             viewModel = viewModel,
                             onNavigateToShowDetail = onNavigateToReleaseDetail,
                             lazyListState = calendarListState,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     } else {
                         TrackedWatchlistTableView(
                             viewModel = viewModel,
                             onNavigateToSeriesDetail = onNavigateToWatchlistItemDetail,
                             lazyListState = tableListState,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
                 }
