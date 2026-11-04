@@ -63,12 +63,14 @@ fun LoginScreen(
 ) {
     val token by viewModel.userToken.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val isLoginCompleted by viewModel.isLoginCompleted.collectAsState()
     val showAuthV2UpgradeHint by viewModel.showAuthV2UpgradeHint.collectAsState()
     val isConfigured = viewModel.isRealApiConfigured()
 
     LoginContent(
         token = token,
         isSyncing = isSyncing,
+        isLoginCompleted = isLoginCompleted,
         showAuthV2UpgradeHint = showAuthV2UpgradeHint,
         isConfigured = isConfigured,
         onCreateAuthUrl = { viewModel.createAuthorizationUrl("simklcalendar://auth") },
@@ -82,6 +84,7 @@ fun LoginScreen(
 fun LoginContent(
     token: UserToken?,
     isSyncing: Boolean,
+    isLoginCompleted: Boolean,
     showAuthV2UpgradeHint: Boolean,
     isConfigured: Boolean,
     onCreateAuthUrl: () -> String?,
@@ -92,9 +95,11 @@ fun LoginContent(
     val context = LocalContext.current
     var oauthError by remember { mutableStateOf<String?>(null) }
 
-    // Redirect to calendar dashboard if already logged in
-    LaunchedEffect(token) {
-        if (token != null) {
+    // Redirect to calendar dashboard if already logged in on initial entry,
+    // or when the login flow completes and isLoginCompleted is signaled.
+    val initialToken = remember { token }
+    LaunchedEffect(token, isLoginCompleted) {
+        if (initialToken != null || isLoginCompleted) {
             onLoginSuccess()
         }
     }

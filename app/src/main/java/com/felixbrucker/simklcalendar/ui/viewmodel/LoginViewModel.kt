@@ -38,6 +38,9 @@ class LoginViewModel @Inject constructor(
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
+    private val _isLoginCompleted = MutableStateFlow(false)
+    val isLoginCompleted: StateFlow<Boolean> = _isLoginCompleted.asStateFlow()
+
     init {
         viewModelScope.launch {
             oAuthEventHub.oauthCallbackEvents.collect { event ->
@@ -63,6 +66,7 @@ class LoginViewModel @Inject constructor(
             )
             if (success) {
                 Toast.makeText(context, "Successfully logged in", Toast.LENGTH_SHORT).show()
+                _isLoginCompleted.value = true
             } else {
                 Toast.makeText(context, "Login failed", Toast.LENGTH_LONG).show()
             }

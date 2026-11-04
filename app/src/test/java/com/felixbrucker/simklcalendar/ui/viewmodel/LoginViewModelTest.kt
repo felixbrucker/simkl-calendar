@@ -9,6 +9,7 @@ import com.felixbrucker.simklcalendar.data.util.OAuthCallbackEvent
 import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -58,7 +59,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun testIsRealApiConfiguredAndCreateAuthorizationUrl() {
+    fun testIsRealApiConfiguredAndCreateAuthorizationUrl() = runTest {
         every { userRepositoryMock.isRealApiConfigured() } returns true
         every { userRepositoryMock.createAuthorizationUrl("simklcalendar://auth") } returns "https://simkl.com/oauth"
         val viewModel = LoginViewModel(contextMock, userRepositoryMock, authRepoMock, oAuthEventHubMock)
@@ -79,7 +80,26 @@ class LoginViewModelTest {
         viewModel.exchangeOAuthCode(event)
         advanceUntilIdle()
         val isSyncing = viewModel.isSyncing.value
+        val isLoginCompleted = viewModel.isLoginCompleted.value
 
         assertFalse(isSyncing)
+        assertTrue(isLoginCompleted)
+        coVerify { Toast.makeText(contextMock, "Successfully logged in", Toast.LENGTH_SHORT) }
+    }
+
+    @Test
+    fun testExchangeOAuthCodeFailureDoesNotSetReady() = runTest {
+        coEvery { userRepositoryMock.exchangeOAuthCode("code", "state", "simklcalendar://auth") } returns false
+        val viewModel = LoginViewModel(contextMock, userRepositoryMock, authRepoMock, oAuthEventHubMock)
+        val event = OAuthCallbackEvent("code", "state", "simklcalendar://auth")
+
+        viewModel.exchangeOAuthCode(event)
+        advanceUntilIdle()
+        val isSyncing = viewModel.isSyncing.value
+        val isLoginCompleted = viewModel.isLoginCompleted.value
+
+        assertFalse(isSyncing)
+        assertFalse(isLoginCompleted)
+        coVerify { Toast.makeText(contextMock, "Login failed", Toast.LENGTH_LONG) }
     }
 }
