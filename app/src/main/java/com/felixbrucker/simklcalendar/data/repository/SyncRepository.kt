@@ -121,7 +121,42 @@ class SyncRepository @Inject constructor(
             val activities = authenticatedSimklApiService.getSyncActivities()
 
             val currentActivitiesTimestamp = activities.all
-            val savedTimestamp = if (forceFullSync) null else syncMetadataRepo.preferencesFlow.first().lastActivitiesAll
+            val syncMetadata = syncMetadataRepo.preferencesFlow.first()
+            val savedTimestamp = if (forceFullSync) null else syncMetadata.lastActivitiesAll
+            val savedRemovedTimestamp = if (forceFullSync) null else syncMetadata.lastRemovedFromList
+
+            // Gather latest removed_from_list timestamp across all media types
+            val currentRemovedTimestamp = listOfNotNull(
+                activities.tvShows?.removedFromList,
+                activities.anime?.removedFromList,
+                activities.movies?.removedFromList
+            ).maxOrNull()
+
+            val hasRemovedMoved = currentRemovedTimestamp != null && currentRemovedTimestamp != savedRemovedTimestamp
+
+            // Diff deletions if removed_from_list moved or on initial/full sync
+            if (forceFullSync || hasRemovedMoved) {
+                try {
+                    val idsOnlyResponse = authenticatedSimklApiService.getSyncSimklIdsOnly()
+                    val activeSimklIds = mutableSetOf<Int>()
+                    idsOnlyResponse.shows?.forEach { activeSimklIds.add(it.show.ids.simkl) }
+                    idsOnlyResponse.anime?.forEach { activeSimklIds.add(it.show.ids.simkl) }
+                    idsOnlyResponse.movies?.forEach { activeSimklIds.add(it.movie.ids.simkl) }
+
+                    val allTrackedIds = watchlistDao.getAllTrackedIds().toSet()
+                    val deletions = allTrackedIds - activeSimklIds
+                    for (delId in deletions) {
+                        watchlistDao.deleteItem(delId)
+                    }
+                    if (deletions.isNotEmpty()) {
+                        changesDetected = true
+                        Timber.tag(TAG).d("Removed ${deletions.size} items no longer in user's watchlist via simkl_ids_only diff")
+                    }
+                    syncMetadataRepo.setLastRemovedFromList(currentRemovedTimestamp)
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "Error checking removals via simkl_ids_only")
+                }
+            }
 
             val shouldFetchDeltas = savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
 
@@ -142,17 +177,9 @@ class SyncRepository @Inject constructor(
                     .associateBy { it.simklId }
                 val trackedToInsert = mutableMapOf<Int, TrackedWatchlistItem>()
                 val trackedToUpdate = mutableMapOf<Int, TrackedWatchlistItem>()
-                val trackedToDelete = mutableSetOf<Int>()
 
-                fun processWatchlistItem(status: WatchlistStatus, newItem: TrackedWatchlistItem) {
+                fun processWatchlistItem(newItem: TrackedWatchlistItem) {
                     val existing = existingTrackedMap[newItem.simklId]
-                    if (status != WatchlistStatus.WATCHING && status != WatchlistStatus.PLAN_TO_WATCH) {
-                        if (existing != null) {
-                            trackedToDelete.add(newItem.simklId)
-                        }
-
-                        return
-                    }
 
                     if (existing == null) {
                         val currentInsert = trackedToInsert[newItem.simklId]
@@ -193,38 +220,22 @@ class SyncRepository @Inject constructor(
                 syncResponse.shows?.forEach { item ->
                     val trackedWatchlistItem = TrackedWatchlistItem.fromShowItem(item, type = MediaType.TV)
                     extractWatched(trackedWatchlistItem.simklId, item.seasons)
-                    processWatchlistItem(
-                        status = WatchlistStatus.fromString(item.status),
-                        newItem = trackedWatchlistItem,
-                    )
+                    processWatchlistItem(trackedWatchlistItem)
                 }
 
                 // Process Anime
                 syncResponse.anime?.forEach { item ->
                     val trackedWatchlistItem = TrackedWatchlistItem.fromShowItem(item, type = MediaType.ANIME)
                     extractWatched(trackedWatchlistItem.simklId, item.seasons)
-                    processWatchlistItem(
-                        status = WatchlistStatus.fromString(item.status),
-                        newItem = trackedWatchlistItem,
-                    )
+                    processWatchlistItem(trackedWatchlistItem)
                 }
 
                 // Process Movies
                 syncResponse.movies?.forEach { item ->
                     val trackedWatchlistItem = TrackedWatchlistItem.fromMovieItem(item)
-                    processWatchlistItem(
-                        status = WatchlistStatus.fromString(item.status),
-                        newItem = trackedWatchlistItem,
-                    )
+                    processWatchlistItem(trackedWatchlistItem)
                 }
 
-                // Remove tracked items no longer in user's active watchlist
-                if (trackedToDelete.isNotEmpty()) {
-                    for (simklId in trackedToDelete) {
-                        watchlistDao.deleteItem(simklId)
-                    }
-                    Timber.tag(TAG).d("Deleted ${trackedToDelete.size} untracked watchlist items from DB")
-                }
 
                 if (trackedToInsert.isNotEmpty()) {
                     watchlistDao.insertItems(trackedToInsert.values.toList())
@@ -1131,7 +1142,8 @@ internal fun TrackedWatchlistItem.Companion.fromShowItem(item: SyncShowItem, typ
         simklId = media.ids.simkl,
         type = type,
         title = media.title,
-        poster = media.poster
+        poster = media.poster,
+        status = WatchlistStatus.fromString(item.status)
     )
 }
 
@@ -1142,6 +1154,7 @@ internal fun TrackedWatchlistItem.Companion.fromMovieItem(item: SyncMovieItem): 
         simklId = media.ids.simkl,
         type = MediaType.MOVIE,
         title = media.title,
-        poster = media.poster
+        poster = media.poster,
+        status = WatchlistStatus.fromString(item.status)
     )
 }

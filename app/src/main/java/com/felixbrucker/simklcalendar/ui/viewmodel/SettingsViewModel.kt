@@ -117,6 +117,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateNotifyTrendingItems(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationRepo.setNotifyTrendingItems(enabled)
+        }
+    }
+
     fun scheduleAllItemsAiredAlarms() {
         viewModelScope.launch {
             alarmScheduler.scheduleAllItemsAiredAlarms()

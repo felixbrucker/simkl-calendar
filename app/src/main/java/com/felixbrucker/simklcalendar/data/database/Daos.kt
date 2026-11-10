@@ -45,6 +45,7 @@ interface CalendarItemDao {
         SELECT ci.* FROM calendar_items ci
         INNER JOIN tracked_watchlist_items twi ON ci.simklId = twi.simklId
         WHERE ci.watchedAt IS NULL
+        AND twi.status IN ('watching', 'plantowatch')
         AND twi.type IN (:allowedTypes)
         AND (
             (:hasSubtypeFilter = 0) OR
@@ -414,5 +415,46 @@ interface ItemDownloadSettingsDao {
     suspend fun insertOrUpdate(settings: ItemDownloadSettings)
 }
 
+@Dao
+interface CachedMediaItemDao {
+    @Query("SELECT * FROM cached_media_items WHERE simklId = :simklId")
+    fun getCachedMediaItemFlow(simklId: Int): Flow<CachedMediaItem?>
+
+    @Query("SELECT * FROM cached_media_items WHERE simklId = :simklId")
+    suspend fun getCachedMediaItem(simklId: Int): CachedMediaItem?
+
+    @Upsert
+    suspend fun upsert(item: CachedMediaItem)
+
+    @Upsert
+    suspend fun upsertAll(items: List<CachedMediaItem>)
+
+    @Query("DELETE FROM cached_media_items WHERE lastUpdatedAt < :threshold")
+    suspend fun deleteExpiredItems(threshold: Instant)
+}
+
+@Dao
+interface TrendingDao {
+    @Query("SELECT c.* FROM trending_entries t JOIN cached_media_items c ON t.simklId = c.simklId WHERE t.mediaType = :mediaType ORDER BY t.rank ASC")
+    fun getTrendingItemsFlow(mediaType: MediaType): Flow<List<CachedMediaItem>>
+
+    @Query("SELECT simklId FROM trending_entries WHERE mediaType = :mediaType ORDER BY rank ASC")
+    suspend fun getTrendingSimklIds(mediaType: MediaType): List<Int>
+
+    @Query("SELECT DISTINCT simklId FROM trending_entries")
+    suspend fun getAllTrendingSimklIds(): List<Int>
+
+    @Query("DELETE FROM trending_entries WHERE mediaType = :mediaType")
+    suspend fun clearTrendingEntriesForType(mediaType: MediaType)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTrendingEntries(entries: List<TrendingEntry>)
+
+    @Transaction
+    suspend fun replaceTrendingEntriesForType(mediaType: MediaType, entries: List<TrendingEntry>) {
+        clearTrendingEntriesForType(mediaType)
+        insertTrendingEntries(entries)
+    }
+}
 
 

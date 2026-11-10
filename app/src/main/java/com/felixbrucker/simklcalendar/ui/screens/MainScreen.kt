@@ -89,6 +89,8 @@ private enum class SearchBarDisplayMode {
 fun MainScreen(
     viewModel: CalendarViewModel,
     onNavigateToSettings: () -> Unit,
+    onNavigateToTrending: () -> Unit = {},
+    onNavigateToSearchCatalog: () -> Unit = {},
     onNavigateToReleaseDetail: (CalendarItemWithWatchlist) -> Unit,
     onNavigateToWatchlistItemDetail: (WatchlistTableItem) -> Unit,
     modifier: Modifier = Modifier,
@@ -271,6 +273,28 @@ fun MainScreen(
                                     val nextMode = if (viewMode == ViewMode.CALENDAR) ViewMode.TABLE else ViewMode.CALENDAR
                                     viewModel.setViewMode(nextMode)
                                 }
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onNavigateToTrending,
+                            modifier = Modifier.testTag("trending_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TrendingUp,
+                                contentDescription = "Trending",
+                                tint = Color.White
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onNavigateToSearchCatalog,
+                            modifier = Modifier.testTag("catalog_search_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ManageSearch,
+                                contentDescription = "Search Catalog",
+                                tint = Color.White
                             )
                         }
 

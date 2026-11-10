@@ -25,7 +25,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -61,8 +64,16 @@ import java.net.URLDecoder
 import dagger.hilt.android.AndroidEntryPoint
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
+import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.network.SimklEpisodeResponse
+import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
+import com.felixbrucker.simklcalendar.data.repository.MediaItemRepository
 import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.ui.composable.MediaItemDetailScreen
+import com.felixbrucker.simklcalendar.ui.screens.MainScreen
+import com.felixbrucker.simklcalendar.ui.screens.SearchCatalogScreen
+import com.felixbrucker.simklcalendar.ui.screens.TrendingScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,6 +97,12 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var torrentServiceHelper: TorrentServiceHelper
+
+    @Inject
+    lateinit var mediaItemRepository: MediaItemRepository
+
+    @Inject
+    lateinit var calendarRepository: CalendarRepository
 
     private val _pendingReleaseDetailKey = MutableStateFlow<String?>(null)
     val pendingReleaseDetailKey: StateFlow<String?> = _pendingReleaseDetailKey.asStateFlow()
@@ -170,6 +187,8 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 SimklCalendarApp(
                     viewModel = viewModel,
+                    mediaItemRepository = mediaItemRepository,
+                    calendarRepository = calendarRepository,
                     pendingReleaseDetailKey = pendingReleaseDetailKey,
                     onClearPendingReleaseDetailKey = ::clearPendingReleaseDetailKey,
                     onLaunchAuthTab = { authUrl ->
@@ -245,6 +264,8 @@ internal fun NavController.popBackStackSafely(): Boolean {
 @Composable
 fun SimklCalendarApp(
     viewModel: CalendarViewModel,
+    mediaItemRepository: MediaItemRepository,
+    calendarRepository: CalendarRepository,
     pendingReleaseDetailKey: StateFlow<String?>,
     onClearPendingReleaseDetailKey: () -> Unit,
     onLaunchAuthTab: (url: String) -> Unit = {}
@@ -384,6 +405,16 @@ fun SimklCalendarApp(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToTrending = {
+                        navController.navigate("trending") {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToSearchCatalog = {
+                        navController.navigate("catalog_search") {
+                            launchSingleTop = true
+                        }
+                    },
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@composable
                 )
@@ -464,6 +495,96 @@ fun SimklCalendarApp(
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@composable
                 )
+            }
+
+            // 6. Trending Screen
+            composable(
+                route = "trending",
+                enterTransition = { slideInFromRight },
+                exitTransition = { slideOutToLeft },
+            ) {
+                TrendingScreen(
+                    mediaItemRepository = mediaItemRepository,
+                    calendarRepository = calendarRepository,
+                    onNavigateBack = { navController.popBackStackSafely() },
+                    onNavigateToItemDetail = { simklId, mediaType ->
+                        navController.navigate("media_item_detail/$simklId/${mediaType.key}") {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+
+            // 7. Search Catalog Screen
+            composable(
+                route = "catalog_search",
+                enterTransition = { slideInFromRight },
+                exitTransition = { slideOutToLeft },
+            ) {
+                SearchCatalogScreen(
+                    mediaItemRepository = mediaItemRepository,
+                    calendarRepository = calendarRepository,
+                    onNavigateBack = { navController.popBackStackSafely() },
+                    onNavigateToItemDetail = { simklId, mediaType ->
+                        navController.navigate("media_item_detail/$simklId/${mediaType.key}") {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+
+            // 8. Generic Media Item Detail Screen
+            composable(
+                route = "media_item_detail/{simklId}/{mediaType}",
+                arguments = listOf(
+                    navArgument("simklId") { type = NavType.IntType },
+                    navArgument("mediaType") { type = NavType.StringType }
+                ),
+                enterTransition = { slideInFromRight },
+                exitTransition = { slideOutToLeft },
+            ) { backStackEntry ->
+                val simklId = backStackEntry.arguments?.getInt("simklId") ?: 0
+                val mediaTypeStr = backStackEntry.arguments?.getString("mediaType") ?: "tv"
+                val mediaType = MediaType.fromKey(mediaTypeStr)
+
+                val cachedItem by mediaItemRepository.getCachedItemFlow(simklId).collectAsState(initial = null)
+                val myWatchlist by calendarRepository.watchlistItems.collectAsState(initial = emptyList())
+                val currentWatchlistStatus = remember(myWatchlist, simklId) {
+                    myWatchlist.firstOrNull { it.simklId == simklId }?.status
+                }
+                val customSearchLinks by viewModel.customSearchLinks.collectAsState()
+
+                var episodes by remember { mutableStateOf<List<SimklEpisodeResponse>>(emptyList()) }
+                val coroutineScope = rememberCoroutineScope()
+
+                LaunchedEffect(simklId, mediaType) {
+                    mediaItemRepository.getOrFetchItemDetails(simklId, mediaType)
+                    episodes = mediaItemRepository.getEpisodes(simklId, mediaType)
+                }
+
+                if (cachedItem != null) {
+                    MediaItemDetailScreen(
+                        item = cachedItem!!,
+                        listStatus = currentWatchlistStatus,
+                        episodes = episodes,
+                        customSearchLinks = customSearchLinks,
+                        onUpdateWatchlistStatus = { newStatus ->
+                            coroutineScope.launch {
+                                mediaItemRepository.updateWatchlistStatus(cachedItem!!, newStatus)
+                            }
+                        },
+                        onNavigateBack = { navController.popBackStackSafely() },
+                        onNavigateToSimilar = { simkl, type ->
+                            navController.navigate("media_item_detail/$simkl/${type.key}") {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = PurpleLight)
+                    }
+                }
             }
         }
     }

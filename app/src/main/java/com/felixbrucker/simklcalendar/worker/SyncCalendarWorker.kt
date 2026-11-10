@@ -12,8 +12,12 @@ import androidx.work.WorkerParameters
 import androidx.hilt.work.HiltWorker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
+import com.felixbrucker.simklcalendar.data.repository.MediaItemRepository
 import com.felixbrucker.simklcalendar.data.repository.SyncRepository
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
+import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
+import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
@@ -21,7 +25,8 @@ class SyncCalendarWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val userRepository: UserRepository,
-    private val syncRepository: SyncRepository
+    private val syncRepository: SyncRepository,
+    private val mediaItemRepository: MediaItemRepository
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -34,6 +39,7 @@ class SyncCalendarWorker @AssistedInject constructor(
         return try {
             // Perform full calendar synchronization
             syncRepository.syncCalendar()
+            mediaItemRepository.syncTrending(force = false)
 
             Timber.tag(TAG).d("Periodic calendar synchronization succeeded")
             Result.success()

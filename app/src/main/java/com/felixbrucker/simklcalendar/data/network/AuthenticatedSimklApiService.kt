@@ -21,6 +21,11 @@ interface AuthenticatedSimklApiService {
         @Query("date_from") dateFrom: String? = null
     ): SyncAllItemsResponse
 
+    @GET("sync/all-items")
+    suspend fun getSyncSimklIdsOnly(
+        @Query("extended") extended: String = "simkl_ids_only"
+    ): SyncIdsOnlyResponse
+
     @POST("sync/history")
     suspend fun markHistoryWatched(
         @Body request: SyncHistoryRequest
@@ -30,4 +35,9 @@ interface AuthenticatedSimklApiService {
     suspend fun markHistoryUnwatched(
         @Body request: SyncHistoryRequest
     ): SyncHistoryResponse
+
+    @POST("sync/add-to-list")
+    suspend fun addToList(
+        @Body request: SyncAddToListRequest
+    ): SyncAddToListResponse
 }

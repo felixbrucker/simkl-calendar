@@ -45,5 +45,20 @@ interface PublicSimklApiService {
     suspend fun getAnimeEpisodes(
         @Path("id") id: Int
     ): List<SimklEpisodeResponse>
+
+    @GET("https://data.simkl.in/discover/trending/{type}/today_100.json")
+    suspend fun getTrendingToday(
+        @Path("type") type: String,
+        @Header("If-Modified-Since") ifModifiedSince: String? = null
+    ): retrofit2.Response<List<TrendingItemDto>>
+
+    @GET("search/{type}")
+    suspend fun search(
+        @Path("type") type: String,
+        @Query("q") query: String,
+        @Query("extended") extended: String = "full",
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): List<SearchItemDto>
 }
 

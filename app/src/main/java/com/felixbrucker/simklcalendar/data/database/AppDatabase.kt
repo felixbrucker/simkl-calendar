@@ -12,11 +12,15 @@ import androidx.room.TypeConverters
 import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.felixbrucker.simklcalendar.data.model.AnimeType
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.model.SeriesStatus
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import java.time.Instant
+import java.time.LocalDate
 
 class Converters {
     @TypeConverter
@@ -113,11 +117,110 @@ class Converters {
             }
         }
     }
+
+    @TypeConverter
+    fun fromWatchlistStatus(status: WatchlistStatus?): String? {
+        return status?.key
+    }
+
+    @TypeConverter
+    fun toWatchlistStatus(value: String?): WatchlistStatus? {
+        return value?.let { WatchlistStatus.fromKey(it) }
+    }
+
+    @TypeConverter
+    fun fromAnimeType(type: AnimeType?): String? {
+        return type?.key
+    }
+
+    @TypeConverter
+    fun toAnimeType(value: String?): AnimeType? {
+        return value?.let { AnimeType.fromKey(it) }
+    }
+
+    @TypeConverter
+    fun fromSeriesStatus(status: SeriesStatus?): String? {
+        return status?.key
+    }
+
+    @TypeConverter
+    fun toSeriesStatus(value: String?): SeriesStatus? {
+        return value?.let { SeriesStatus.fromKey(it) }
+    }
+
+    @TypeConverter
+    fun fromLocalDate(date: LocalDate?): String? {
+        return date?.toString()
+    }
+
+    @TypeConverter
+    fun toLocalDate(value: String?): LocalDate? {
+        return value?.let {
+            try {
+                LocalDate.parse(it)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    @TypeConverter
+    fun fromStringList(list: List<String>?): String? {
+        return list?.joinToString(",")
+    }
+
+    @TypeConverter
+    fun toStringList(value: String?): List<String>? {
+        if (value.isNullOrBlank()) return emptyList()
+        return value.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    }
+
+    @TypeConverter
+    fun fromSimilarItemsList(list: List<CachedSimilarMediaItem>?): String? {
+        if (list.isNullOrEmpty()) return null
+        return list.joinToString(";;") { item ->
+            "${item.simklId}::${item.title.replace("::", "")}::${item.year ?: ""}::${item.poster ?: ""}::${item.mediaType.key}"
+        }
+    }
+
+    @TypeConverter
+    fun toSimilarItemsList(value: String?): List<CachedSimilarMediaItem>? {
+        if (value.isNullOrBlank()) return emptyList()
+        return value.split(";;").mapNotNull { entry ->
+            val parts = entry.split("::")
+            if (parts.size >= 5) {
+                val simklId = parts[0].toIntOrNull() ?: return@mapNotNull null
+                val title = parts[1]
+                val year = parts[2].toIntOrNull()
+                val poster = parts[3].takeIf { it.isNotEmpty() }
+                val mediaType = MediaType.fromKey(parts[4])
+                CachedSimilarMediaItem(
+                    simklId = simklId,
+                    title = title,
+                    year = year,
+                    poster = poster,
+                    mediaType = mediaType
+                )
+            } else null
+        }
+    }
 }
 
 @Database(
-    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class, ActiveNotification::class],
-    version = 36,
+    entities = [
+        UserToken::class,
+        CalendarItem::class,
+        NotificationSetting::class,
+        TrackedWatchlistItem::class,
+        WatchedEpisode::class,
+        CustomSearchLink::class,
+        ItemDownloadSettings::class,
+        LocalItemState::class,
+        ActiveNotification::class,
+        CachedMediaItem::class,
+        TrendingEntry::class
+    ],
+    version = 37,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -144,6 +247,7 @@ class Converters {
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 34, to = 35),
         AutoMigration(from = 35, to = 36),
+        AutoMigration(from = 36, to = 37),
     ]
 )
 @TypeConverters(Converters::class)
@@ -178,6 +282,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun customSearchLinkDao(): CustomSearchLinkDao
     abstract fun activeNotificationDao(): ActiveNotificationDao
     abstract fun itemDownloadSettingsDao(): ItemDownloadSettingsDao
+    abstract fun cachedMediaItemDao(): CachedMediaItemDao
+    abstract fun trendingDao(): TrendingDao
 
     companion object {
         private val MIGRATION_23_24 = object : Migration(23, 24) {

@@ -73,3 +73,32 @@ enum class EpisodeSearchStyle {
     SeasonAndEpisode,
     Episode
 }
+
+enum class AnimeType(val key: String) {
+    TV("tv"),
+    MOVIE("movie"),
+    OVA("ova"),
+    ONA("ona"),
+    SPECIAL("special"),
+    MUSIC("music"),
+    UNKNOWN("unknown");
+
+    companion object {
+        fun fromKey(key: String?): AnimeType {
+            return entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: UNKNOWN
+        }
+    }
+}
+
+enum class SeriesStatus(val key: String) {
+    TBA("tba"),
+    ENDED("ended"),
+    AIRING("airing"),
+    UNKNOWN("unknown");
+
+    companion object {
+        fun fromKey(key: String?): SeriesStatus {
+            return entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: UNKNOWN
+        }
+    }
+}

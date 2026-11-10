@@ -49,7 +49,58 @@ class NotificationManager @Inject constructor(
 ) {
     companion object {
         private const val CHANNEL_ID = "simkl_calendar_notifications"
+        private const val TRENDING_CHANNEL_ID = "simkl_trending_notifications"
         private const val TAG = "NotificationManager"
+    }
+
+    suspend fun showTrendingItemNotification(
+        simklId: Int,
+        title: String,
+        mediaType: MediaType,
+        poster: String? = null,
+        rank: Int? = null
+    ) {
+        createNotificationChannel()
+        val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
+        if (!isNotificationPermissionGranted) {
+            return
+        }
+
+        val notifTitle = "New in Trending: $title"
+        val typeLabel = mediaType.displayName
+        val contentText = if (rank != null) "#$rank on $typeLabel trending" else "Now trending in $typeLabel"
+
+        val openItemIntent = Intent(
+            Intent.ACTION_VIEW,
+            "simklcalendar://release_detail".toUri(),
+            context,
+            MainActivity::class.java
+        ).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(MainActivity.EXTRA_ITEM_KEY, simklId.toString())
+        }
+        val contentPendingIntent = PendingIntent.getActivity(
+            context,
+            simklId,
+            openItemIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(notifTitle)
+            .setContentText(contentText)
+            .setContentIntent(contentPendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+
+        try {
+            context.getSystemNotificationManager().notify(simklId, notification)
+            Timber.tag(TAG).d("Displayed trending notification for $title (simklId=$simklId)")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error posting trending notification for $simklId")
+        }
     }
 
     suspend fun showNotification(

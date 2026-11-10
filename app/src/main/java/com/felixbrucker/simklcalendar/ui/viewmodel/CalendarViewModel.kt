@@ -13,6 +13,7 @@ import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisode
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
@@ -295,8 +296,11 @@ class CalendarViewModel @Inject constructor(
 
         val statsBySimklId = statsList.associateBy { it.simklId }
 
-        // Filter watchlist items by category & search query BEFORE mapping stats and object allocations.
+        // Filter watchlist items by status (only watching & ptw), category & search query BEFORE mapping stats and object allocations.
         watchlist.filter { item ->
+            val matchesStatus = item.status == WatchlistStatus.WATCHING || item.status == WatchlistStatus.PLAN_TO_WATCH
+            if (!matchesStatus) return@filter false
+
             val matchesCategory = when (item.type) {
                 MediaType.TV -> tv
                 MediaType.ANIME -> anime

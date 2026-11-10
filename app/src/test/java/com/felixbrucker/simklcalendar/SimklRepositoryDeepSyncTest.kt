@@ -172,14 +172,14 @@ class SimklRepositoryDeepSyncTest {
         coEvery { authenticatedApiService.getSyncAllItems(any(), any(), any(), any(), any()) } returns syncResponse
 
         val existingTracked = listOf(
-            TrackedWatchlistItem(simklId = 202, type = MediaType.ANIME, title = "Anime 1", poster = null)
+            TrackedWatchlistItem(simklId = 202, type = MediaType.ANIME, title = "Anime 1", poster = null, status = WatchlistStatus.WATCHING)
         )
         coEvery { watchlistDao.getTrackedItemsBySimklIds(any()) } returns existingTracked
 
         val syncResult = syncRepository.syncWatchlist(forceFullSync = true)
 
         assertTrue(syncResult.hasWatchlistItemChanges)
-        coVerify { watchlistDao.deleteItem(202) }
+        coVerify { watchlistDao.updateItems(any()) }
         coVerify { watchlistDao.insertItems(any()) }
         coVerify { watchedDao.insertWatchedEpisodes(any()) }
     }

@@ -636,6 +636,7 @@ fun SettingsNotificationsCategorySection(
             enableDefaultSeasonFinished = notificationPrefs.defaultNotifySeasonFinished,
             enableDefaultMovieTheater = notificationPrefs.defaultNotifyMovieTheater,
             enableDefaultMovieDigital = notificationPrefs.defaultNotifyMovieDigital,
+            enableNotifyTrending = notificationPrefs.notifyTrendingItems,
             onUpdateDefaultNotifyAiring = {
                 viewModel.updateDefaultNotifyAiring(it)
                 if (it) checkAndRequestPermission()
@@ -650,6 +651,10 @@ fun SettingsNotificationsCategorySection(
             },
             onUpdateDefaultNotifyMovieDigital = {
                 viewModel.updateDefaultNotifyMovieDigital(it)
+                if (it) checkAndRequestPermission()
+            },
+            onUpdateNotifyTrending = {
+                viewModel.updateNotifyTrendingItems(it)
                 if (it) checkAndRequestPermission()
             }
         )
@@ -1501,10 +1506,12 @@ fun SettingsDefaultAlertsCard(
     enableDefaultSeasonFinished: Boolean,
     enableDefaultMovieTheater: Boolean,
     enableDefaultMovieDigital: Boolean,
+    enableNotifyTrending: Boolean = false,
     onUpdateDefaultNotifyAiring: (Boolean) -> Unit,
     onUpdateDefaultNotifySeasonFinished: (Boolean) -> Unit,
     onUpdateDefaultNotifyMovieTheater: (Boolean) -> Unit,
     onUpdateDefaultNotifyMovieDigital: (Boolean) -> Unit,
+    onUpdateNotifyTrending: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -1643,6 +1650,42 @@ fun SettingsDefaultAlertsCard(
                 Switch(
                     checked = enableDefaultMovieDigital,
                     onCheckedChange = onUpdateDefaultNotifyMovieDigital
+                )
+            }
+
+            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+            Text(
+                text = "Trending",
+                fontWeight = FontWeight.Bold,
+                color = PurpleLight,
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "New Trending Items Notifications",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = "Receive notifications when new titles enter trending lists.",
+                        color = TextSubtle,
+                        fontSize = 12.sp
+                    )
+                }
+                Switch(
+                    checked = enableNotifyTrending,
+                    onCheckedChange = onUpdateNotifyTrending
                 )
             }
         }

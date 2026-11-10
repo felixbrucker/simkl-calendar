@@ -37,7 +37,8 @@ data class NotificationPreferences(
     val defaultNotifyAiring: Boolean = false,
     val defaultNotifySeasonFinished: Boolean = true,
     val defaultNotifyMovieTheater: Boolean = false,
-    val defaultNotifyMovieDigital: Boolean = true
+    val defaultNotifyMovieDigital: Boolean = true,
+    val notifyTrendingItems: Boolean = false
 )
 
 @Singleton
@@ -52,6 +53,7 @@ class NotificationRepository @Inject constructor(
         private val KEY_NOTIFY_SEASON_FINISHED = booleanPreferencesKey("default_notify_season_finished")
         private val KEY_NOTIFY_MOVIE_THEATER = booleanPreferencesKey("default_notify_movie_theater")
         private val KEY_NOTIFY_MOVIE_DIGITAL = booleanPreferencesKey("default_notify_movie_digital")
+        private val KEY_NOTIFY_TRENDING_ITEMS = booleanPreferencesKey("notify_trending_items")
     }
 
     val preferencesFlow: Flow<NotificationPreferences> = dataStore.data.map { preferences ->
@@ -60,7 +62,8 @@ class NotificationRepository @Inject constructor(
             defaultNotifyAiring = preferences[KEY_NOTIFY_AIRING] ?: false,
             defaultNotifySeasonFinished = preferences[KEY_NOTIFY_SEASON_FINISHED] ?: true,
             defaultNotifyMovieTheater = preferences[KEY_NOTIFY_MOVIE_THEATER] ?: false,
-            defaultNotifyMovieDigital = preferences[KEY_NOTIFY_MOVIE_DIGITAL] ?: true
+            defaultNotifyMovieDigital = preferences[KEY_NOTIFY_MOVIE_DIGITAL] ?: true,
+            notifyTrendingItems = preferences[KEY_NOTIFY_TRENDING_ITEMS] ?: false
         )
     }
 
@@ -82,6 +85,10 @@ class NotificationRepository @Inject constructor(
 
     suspend fun setDefaultNotifyMovieDigital(enabled: Boolean) {
         dataStore.edit { it[KEY_NOTIFY_MOVIE_DIGITAL] = enabled }
+    }
+
+    suspend fun setNotifyTrendingItems(enabled: Boolean) {
+        dataStore.edit { it[KEY_NOTIFY_TRENDING_ITEMS] = enabled }
     }
 
     suspend fun clear() {

@@ -7,12 +7,16 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
+import com.felixbrucker.simklcalendar.data.model.AnimeType
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.model.SeriesStatus
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
 import java.time.Instant
+import java.time.LocalDate
 import androidx.compose.runtime.Immutable
 import androidx.core.net.toUri
 import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
@@ -124,7 +128,8 @@ data class NotificationSetting(
     indices = [
         Index(value = ["type"]),
         Index(value = ["title"]),
-        Index(value = ["lastSyncedAt"])
+        Index(value = ["lastSyncedAt"]),
+        Index(value = ["status"])
     ]
 )
 data class TrackedWatchlistItem(
@@ -135,7 +140,8 @@ data class TrackedWatchlistItem(
     val poster: String? = null, // URL for show poster image
     val rating: Double? = null, // Simkl rating (e.g. 8.2)
     val animeSeason: Int? = null, // Anime season number (from detail API)
-    val lastSyncedAt: Instant? = null
+    val lastSyncedAt: Instant? = null,
+    @ColumnInfo(defaultValue = "plantowatch") val status: WatchlistStatus = WatchlistStatus.PLAN_TO_WATCH
 ) {
     companion object
 
@@ -149,6 +155,7 @@ data class TrackedWatchlistItem(
         val newRating = newItem.rating ?: this.rating
         val newAnimeSeason = newItem.animeSeason ?: this.animeSeason
         val newLastSyncedAt = newItem.lastSyncedAt ?: this.lastSyncedAt
+        val newStatus = newItem.status
 
         return this.copy(
             type = newItem.type,
@@ -157,7 +164,8 @@ data class TrackedWatchlistItem(
             poster = newPoster,
             rating = newRating,
             animeSeason = newAnimeSeason,
-            lastSyncedAt = newLastSyncedAt
+            lastSyncedAt = newLastSyncedAt,
+            status = newStatus
         )
     }
 
@@ -446,5 +454,72 @@ data class SimklCalendarStats(
     val hasUnwatchedReleased: Boolean get() = unwatchedReleasedCount > 0
 }
 
+data class MovieMetadata(
+    val releaseDate: LocalDate? = null,
+    val dvdDate: LocalDate? = null,
+    val budget: Long? = null,
+    val boxOffice: Long? = null
+)
+
+data class SeriesMetadata(
+    val endYear: Int? = null,
+    val totalEpisodes: Int? = null,
+    val seriesStatus: SeriesStatus? = null
+)
+
+data class AnimeMetadata(
+    val animeType: AnimeType? = null,
+    val endYear: Int? = null,
+    val totalEpisodes: Int? = null,
+    val seasonYear: Int? = null,
+    val seasonQuarter: String? = null
+)
+
+data class CachedSimilarMediaItem(
+    val simklId: Int,
+    val title: String,
+    val year: Int? = null,
+    val poster: String? = null,
+    val mediaType: MediaType = MediaType.TV
+)
+
+@Entity(
+    tableName = "cached_media_items",
+    indices = [
+        Index(value = ["simklId"], unique = true),
+        Index(value = ["lastUpdatedAt"])
+    ]
+)
+data class CachedMediaItem(
+    @PrimaryKey val simklId: Int,
+    val mediaType: MediaType,
+    val title: String,
+    val year: Int? = null,
+    val description: String? = null,
+    val poster: String? = null,
+    val genres: List<String> = emptyList(),
+    val rating: Float? = null,
+    val similarItems: List<CachedSimilarMediaItem> = emptyList(),
+    val lastUpdatedAt: Instant = Instant.now(),
+    @Embedded(prefix = "movie_") val movieMetadata: MovieMetadata? = null,
+    @Embedded(prefix = "series_") val seriesMetadata: SeriesMetadata? = null,
+    @Embedded(prefix = "anime_") val animeMetadata: AnimeMetadata? = null
+) {
+    val simklUrl: String get() = "https://simkl.com/${mediaType.key}/$simklId"
+    val hasDvd: Boolean get() = movieMetadata?.dvdDate != null
+}
+
+@Entity(
+    tableName = "trending_entries",
+    primaryKeys = ["mediaType", "rank"],
+    indices = [
+        Index(value = ["simklId"])
+    ]
+)
+data class TrendingEntry(
+    val mediaType: MediaType,
+    val rank: Int,
+    val simklId: Int
+)
 
 
