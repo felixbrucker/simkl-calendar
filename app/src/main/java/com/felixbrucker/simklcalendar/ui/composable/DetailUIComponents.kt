@@ -910,19 +910,27 @@ fun DownloadSettingsCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Quality
-            Text("Preferred Quality", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("4K", "1080p", "720p").forEach { quality ->
-                    val isSelected = (itemSettings?.qualityOverride == quality) || (itemSettings?.qualityOverride == null && globalQuality == quality)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = {
-                            val next = if (isSelected && itemSettings?.qualityOverride != null) null else quality
-                            onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(qualityOverride = next))
-                        },
-                        label = { Text(quality) },
-                        enabled = isDownloaderInstalled
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Preferred Quality", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Target video resolution for torrent searches.", color = TextSubtle, fontSize = 11.sp)
+                }
+                val qualities = listOf("4K", "1080p", "720p")
+                SingleChoiceSegmentedButtonRow {
+                    qualities.forEachIndexed { index, quality ->
+                        val isSelected = (itemSettings?.qualityOverride == quality) || (itemSettings?.qualityOverride == null && globalQuality == quality)
+                        SegmentedButton(
+                            selected = isSelected,
+                            onClick = {
+                                val next = if (isSelected && itemSettings?.qualityOverride != null) null else quality
+                                onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(qualityOverride = next))
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = qualities.size),
+                            enabled = isDownloaderInstalled
+                        ) {
+                            Text(quality)
+                        }
+                    }
                 }
             }
 

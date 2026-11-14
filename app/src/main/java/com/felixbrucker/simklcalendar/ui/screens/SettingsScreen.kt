@@ -2052,19 +2052,30 @@ fun SettingsAutomaticDownloadsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Preferred Quality", color = PurpleLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                listOf("4K", "1080p", "720p").forEach { quality ->
-                    val isSelected = autoDownloadPrefs.quality == quality
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { actions.onUpdateQuality(quality) },
-                        label = { Text(quality) },
-                        enabled = isDownloaderInstalled
-                    )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Preferred Quality", color = TextPrimary, fontSize = 15.sp)
+                    Text("Target video resolution for automatic torrent searches.", color = TextSubtle, fontSize = 12.sp)
+                }
+                val qualities = listOf("4K", "1080p", "720p")
+                SingleChoiceSegmentedButtonRow {
+                    qualities.forEachIndexed { index, quality ->
+                        val isSelected = autoDownloadPrefs.quality == quality
+                        SegmentedButton(
+                            selected = isSelected,
+                            onClick = { actions.onUpdateQuality(quality) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = qualities.size),
+                            enabled = isDownloaderInstalled
+                        ) {
+                            Text(quality)
+                        }
+                    }
                 }
             }
 
