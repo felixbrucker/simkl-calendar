@@ -1,5 +1,7 @@
 package com.felixbrucker.simklcalendar.extensions
 
+import android.text.Html.FROM_HTML_MODE_LEGACY
+import android.text.Html.fromHtml
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettings
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.PosterSize
@@ -19,6 +21,10 @@ fun String?.toPosterUrl(size: PosterSize = PosterSize.COMPACT): String {
     }
 
     return "https://simkl.in/posters/${this}${size.suffix}.webp"
+}
+
+fun String.unescapeHtml(): String {
+    return fromHtml(this, FROM_HTML_MODE_LEGACY).toString()
 }
 
 private val INVALID_CHARACTERS_FOR_PATH = listOf(

@@ -5,6 +5,7 @@ import com.felixbrucker.simklcalendar.data.database.MediaItem
 import com.felixbrucker.simklcalendar.data.database.MediaItemDao
 import com.felixbrucker.simklcalendar.data.database.MovieMetadata
 import com.felixbrucker.simklcalendar.data.database.SeriesStatus
+import com.felixbrucker.simklcalendar.data.database.TrendingEntryDao
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
 import com.felixbrucker.simklcalendar.data.network.SimklAnimeDetailResponse
@@ -32,21 +33,36 @@ import java.time.LocalDate
 class MediaRepositoryTest {
 
     private lateinit var mediaItemDao: MediaItemDao
+    private lateinit var trendingEntryDao: TrendingEntryDao
     private lateinit var publicSimklApiService: PublicSimklApiService
     private lateinit var testScope: TestScope
     private lateinit var mediaRepository: MediaRepository
 
     @Before
     fun setUp() {
+        io.mockk.mockkStatic(android.text.Html::class)
+        io.mockk.every { android.text.Html.fromHtml(any(), any()) } answers {
+            val text = firstArg<String>()
+            val spanned = mockk<android.text.Spanned>(relaxed = true)
+            io.mockk.every { spanned.toString() } returns text
+            spanned
+        }
         mediaItemDao = mockk(relaxed = true)
+        trendingEntryDao = mockk(relaxed = true)
         publicSimklApiService = mockk(relaxed = true)
         testScope = TestScope()
 
         mediaRepository = MediaRepository(
             mediaItemDao = mediaItemDao,
+            trendingEntryDao = trendingEntryDao,
             publicSimklApiService = publicSimklApiService,
             externalScope = testScope
         )
+    }
+
+    @org.junit.After
+    fun tearDown() {
+        io.mockk.unmockkStatic(android.text.Html::class)
     }
 
     @Test

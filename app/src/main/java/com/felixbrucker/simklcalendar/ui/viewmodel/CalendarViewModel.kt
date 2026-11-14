@@ -368,8 +368,8 @@ class CalendarViewModel @Inject constructor(
         return notificationSettingRepository.getSettingForSimklIdFlow(simklId).flowOn(Dispatchers.IO)
     }
 
-    fun getWatchlistItemFlow(simklId: Int): Flow<TrackedWatchlistItem?> {
-        return calendarRepository.getWatchlistItemFlow(simklId).flowOn(Dispatchers.IO)
+    fun getTrackedWatchlistItemFlow(simklId: Int): Flow<TrackedWatchlistItem?> {
+        return calendarRepository.getTrackedWatchlistItemFlow(simklId).flowOn(Dispatchers.IO)
     }
 
     fun saveItemDownloadSettings(settings: ItemDownloadSettings) {

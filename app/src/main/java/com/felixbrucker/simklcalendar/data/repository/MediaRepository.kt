@@ -7,12 +7,16 @@ import com.felixbrucker.simklcalendar.data.database.MediaItemDao
 import com.felixbrucker.simklcalendar.data.database.MovieMetadata
 import com.felixbrucker.simklcalendar.data.database.SeriesMetadata
 import com.felixbrucker.simklcalendar.data.database.SeriesStatus
+import com.felixbrucker.simklcalendar.data.database.TrendingEntryDao
+import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
 import com.felixbrucker.simklcalendar.di.ApplicationScope
+import com.felixbrucker.simklcalendar.extensions.unescapeHtml
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -26,9 +30,19 @@ import javax.inject.Singleton
 @Singleton
 class MediaRepository @Inject constructor(
     private val mediaItemDao: MediaItemDao,
+    private val trendingEntryDao: TrendingEntryDao,
     private val publicSimklApiService: PublicSimklApiService,
     @ApplicationScope private val externalScope: CoroutineScope
 ) {
+
+    fun getFilteredTrendingMediaItemsFlow(
+        allowedTypes: List<MediaType>,
+        excludeOnMyLists: Boolean,
+        searchQuery: String
+    ): Flow<List<TrendingMediaItem>> {
+        return trendingEntryDao.getFilteredTrendingMediaItemsFlow(allowedTypes, excludeOnMyLists, searchQuery)
+            .flowOn(Dispatchers.IO)
+    }
 
     suspend fun pruneExpiredMediaItems(months: Long = 3): Int = withContext(Dispatchers.IO) {
         val cutoff = Instant.now().minus(months * 30, ChronoUnit.DAYS)
@@ -85,9 +99,9 @@ class MediaRepository @Inject constructor(
         return MediaItem(
             simklId = simklId,
             mediaType = MediaType.MOVIE,
-            title = details.title,
+            title = details.title.unescapeHtml(),
             year = details.year,
-            description = details.overview,
+            description = details.overview?.unescapeHtml(),
             poster = details.poster,
             genres = details.genres ?: emptyList(),
             rating = details.ratings?.simkl?.rating?.toFloat(),
@@ -122,9 +136,9 @@ class MediaRepository @Inject constructor(
         return MediaItem(
             simklId = simklId,
             mediaType = MediaType.TV,
-            title = details.title,
+            title = details.title.unescapeHtml(),
             year = details.year,
-            description = details.overview,
+            description = details.overview?.unescapeHtml(),
             poster = details.poster,
             genres = details.genres ?: emptyList(),
             rating = details.ratings?.simkl?.rating?.toFloat(),
@@ -139,8 +153,17 @@ class MediaRepository @Inject constructor(
         val endYear = parseEndYear(details.yearStartEnd)
         val (seasonQuarter, seasonYear) = parseSeasonNameYear(details.seasonNameYear)
 
-        val animeTitle = details.enTitle?.ifBlank { null } ?: details.title
-        val titleRomaji = if (!details.enTitle.isNullOrBlank()) details.title else null
+        val rawEnTitle = stripSeasonSuffix(details.enTitle?.ifBlank { null }?.unescapeHtml())
+        val rawTitle = details.title.unescapeHtml()
+
+        val animeTitle = rawEnTitle ?: rawTitle
+        val titleRomaji = if (!rawEnTitle.isNullOrBlank()) rawTitle else null
+
+        val seasonsCount = episodes.mapNotNull { it.season }
+            .filter { it > 0 }
+            .toSet()
+            .size
+            .takeIf { it > 0 }
 
         val regularEpisodesCount = episodes.count { episode ->
             episode.type.equals("episode", ignoreCase = true) && (episode.season == null || episode.season > 0)
@@ -153,7 +176,9 @@ class MediaRepository @Inject constructor(
             totalEpisodes = totalEpisodes,
             seasonYear = seasonYear,
             seasonQuarter = seasonQuarter,
-            status = SeriesStatus.fromKey(details.status)
+            status = SeriesStatus.fromKey(details.status),
+            seasonsCount = seasonsCount,
+            season = details.season
         )
 
         return MediaItem(
@@ -162,7 +187,7 @@ class MediaRepository @Inject constructor(
             title = animeTitle,
             titleRomaji = titleRomaji,
             year = details.year,
-            description = details.overview,
+            description = details.overview?.unescapeHtml(),
             poster = details.poster,
             genres = details.genres ?: emptyList(),
             rating = details.ratings?.simkl?.rating?.toFloat(),
@@ -193,5 +218,11 @@ class MediaRepository @Inject constructor(
         } else {
             Pair(null, seasonNameYear.toIntOrNull())
         }
+    }
+
+    private fun stripSeasonSuffix(title: String?): String? {
+        if (title.isNullOrBlank()) return null
+        val cleaned = title.replace(Regex("""(?i)[\s:-]*(?:\(season\s+\d+\)|season\s+\d+)\s*$"""), "").trim()
+        return cleaned.ifBlank { null }
     }
 }

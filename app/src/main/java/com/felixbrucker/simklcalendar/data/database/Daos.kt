@@ -445,6 +445,36 @@ interface TrendingEntryDao {
     fun getTrendingMediaItemsFlow(mediaType: MediaType): Flow<List<TrendingMediaItem>>
 
     @Transaction
+    @Query("""
+        SELECT te.* FROM trending_entries te
+        LEFT JOIN media_items mi ON te.simklId = mi.simklId
+        WHERE te.mediaType IN (:allowedTypes)
+        AND (
+            (:excludeOnMyLists = 0) OR
+            (te.simklId NOT IN (SELECT simklId FROM watchlist_items))
+        )
+        AND (
+            (:searchQuery = '' OR :searchQuery IS NULL) OR
+            (
+                mi.title LIKE '%' || :searchQuery || '%' OR
+                mi.titleRomaji LIKE '%' || :searchQuery || '%' OR
+                mi.description LIKE '%' || :searchQuery || '%' OR
+                mi.genres LIKE '%' || :searchQuery || '%' OR
+                CAST(mi.year AS TEXT) LIKE '%' || :searchQuery || '%' OR
+                CAST(mi.series_endYear AS TEXT) LIKE '%' || :searchQuery || '%' OR
+                CAST(mi.anime_endYear AS TEXT) LIKE '%' || :searchQuery || '%' OR
+                CAST(mi.anime_seasonYear AS TEXT) LIKE '%' || :searchQuery || '%'
+            )
+        )
+        ORDER BY te.rank ASC
+    """)
+    fun getFilteredTrendingMediaItemsFlow(
+        allowedTypes: List<MediaType>,
+        excludeOnMyLists: Boolean,
+        searchQuery: String
+    ): Flow<List<TrendingMediaItem>>
+
+    @Transaction
     @Query("SELECT * FROM trending_entries WHERE mediaType = :mediaType ORDER BY rank ASC")
     suspend fun getTrendingMediaItems(mediaType: MediaType): List<TrendingMediaItem>
 
@@ -483,11 +513,17 @@ interface TrendingEntryDao {
 
 @Dao
 interface WatchlistItemDao {
+    @Query("SELECT * FROM watchlist_items WHERE simklId = :simklId LIMIT 1")
+    fun getWatchlistItemFlow(simklId: Int): Flow<WatchlistItem?>
+
     @Query("SELECT simklId FROM watchlist_items")
     suspend fun getAllWatchlistSimklIds(): List<Int>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWatchlistItems(items: List<WatchlistItem>)
+
+    @Query("DELETE FROM watchlist_items WHERE simklId = :simklId")
+    suspend fun deleteWatchlistItem(simklId: Int)
 
     @Query("DELETE FROM watchlist_items")
     suspend fun clearAll()

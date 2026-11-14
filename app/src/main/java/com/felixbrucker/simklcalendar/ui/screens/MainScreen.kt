@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.*
@@ -52,7 +53,6 @@ import androidx.compose.ui.unit.sp
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
-import com.felixbrucker.simklcalendar.ui.theme.BlueAccent
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
 import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
@@ -62,16 +62,15 @@ import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
 import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkBlue
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreyDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
 import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
-import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
 import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
 import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.composable.MediaTypeFilterChips
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -89,6 +88,7 @@ private enum class SearchBarDisplayMode {
 fun MainScreen(
     viewModel: CalendarViewModel,
     onNavigateToSettings: () -> Unit,
+    onNavigateToTrending: () -> Unit,
     onNavigateToReleaseDetail: (CalendarItemWithWatchlist) -> Unit,
     onNavigateToWatchlistItemDetail: (WatchlistTableItem) -> Unit,
     modifier: Modifier = Modifier,
@@ -288,6 +288,16 @@ fun MainScreen(
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = "Search Calendar",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(
+                            onClick = onNavigateToTrending,
+                            modifier = Modifier.testTag("trending_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                contentDescription = "Trending",
                                 tint = Color.White
                             )
                         }
@@ -789,43 +799,13 @@ fun MainFilterBar(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-            // TV Toggle
-            FilterChip(
-                selected = tvFilter,
-                onClick = onToggleShowTv,
-                label = { Text("TV") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = BlueAccent,
-                    selectedLabelColor = SurfaceDarkBlue,
-                    containerColor = SurfaceGreyDark,
-                    labelColor = TextSubtle
-                )
-            )
-
-            // Anime Toggle
-            FilterChip(
-                selected = animeFilter,
-                onClick = onToggleShowAnime,
-                label = { Text("Anime") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = PurpleContainerLight,
-                    selectedLabelColor = SurfaceVariantDark,
-                    containerColor = SurfaceGreyDark,
-                    labelColor = TextSubtle
-                )
-            )
-
-            // Movies Toggle
-            FilterChip(
-                selected = moviesFilter,
-                onClick = onToggleShowMovies,
-                label = { Text("Movies") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = ErrorPink,
-                    selectedLabelColor = SurfaceRedDeep,
-                    containerColor = SurfaceGreyDark,
-                    labelColor = TextSubtle
-                )
+            MediaTypeFilterChips(
+                showTv = tvFilter,
+                showAnime = animeFilter,
+                showMovies = moviesFilter,
+                onToggleShowTv = onToggleShowTv,
+                onToggleShowAnime = onToggleShowAnime,
+                onToggleShowMovies = onToggleShowMovies
             )
 
             // Visual Separator

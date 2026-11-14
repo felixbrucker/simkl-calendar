@@ -8,14 +8,14 @@ import com.felixbrucker.simklcalendar.data.model.MediaType
 import java.time.Instant
 import java.time.LocalDate
 
-enum class AnimeType(val key: String) {
-    TV("tv"),
-    MOVIE("movie"),
-    OVA("ova"),
-    ONA("ona"),
-    SPECIAL("special"),
-    MUSIC("music"),
-    UNKNOWN("unknown");
+enum class AnimeType(val key: String, val displayName: String) {
+    TV("tv", "TV"),
+    MOVIE("movie", "Movie"),
+    OVA("ova", "OVA"),
+    ONA("ona", "ONA"),
+    SPECIAL("special", "Special"),
+    MUSIC("music", "Music"),
+    UNKNOWN("unknown", "Unknown");
 
     companion object {
         fun fromKey(key: String?): AnimeType {
@@ -24,11 +24,11 @@ enum class AnimeType(val key: String) {
     }
 }
 
-enum class SeriesStatus(val key: String) {
-    TBA("tba"),
-    ENDED("ended"),
-    AIRING("airing"),
-    UNKNOWN("unknown");
+enum class SeriesStatus(val key: String, val displayName: String) {
+    TBA("tba", "TBA"),
+    ENDED("ended", "Ended"),
+    AIRING("airing", "Airing"),
+    UNKNOWN("unknown", "Unknown");
 
     companion object {
         fun fromKey(key: String?): SeriesStatus {
@@ -57,7 +57,9 @@ data class AnimeMetadata(
     val totalEpisodes: Int? = null,
     val seasonYear: Int? = null,
     val seasonQuarter: String? = null,
-    val status: SeriesStatus? = null
+    val status: SeriesStatus? = null,
+    val seasonsCount: Int? = null,
+    val season: Int? = null,
 )
 
 @Entity(

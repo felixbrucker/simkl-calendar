@@ -9,6 +9,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.squareup.moshi.JsonClass
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
@@ -467,7 +468,8 @@ data class TrendingEntry(
 )
 data class WatchlistItem(
     @PrimaryKey val simklId: Int,
-    val mediaType: MediaType
+    val mediaType: MediaType,
+    val status: WatchlistStatus? = null
 )
 
 @Entity(

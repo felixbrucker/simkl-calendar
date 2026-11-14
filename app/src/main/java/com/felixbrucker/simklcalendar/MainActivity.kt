@@ -44,6 +44,8 @@ import com.felixbrucker.simklcalendar.ui.screens.MainScreen
 import com.felixbrucker.simklcalendar.ui.screens.LoginScreen
 import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen
+import com.felixbrucker.simklcalendar.ui.screens.TrendingScreen
+import com.felixbrucker.simklcalendar.ui.screens.MediaItemDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsCategory
 import com.felixbrucker.simklcalendar.ui.screens.LogViewerScreen
@@ -51,6 +53,7 @@ import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import androidx.core.net.toUri
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +67,7 @@ import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.ui.viewmodel.TrendingViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -199,12 +203,14 @@ class MainActivity : ComponentActivity() {
 
     internal suspend fun handleNotificationNavigation(intent: Intent?) {
         val uri = intent?.data
-        if (uri == null || uri.scheme != "simklcalendar" || uri.host != "release_detail") return
+        if (uri == null || uri.scheme != "simklcalendar") return
 
-        val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
-        if (!itemKey.isNullOrEmpty()) {
-            setPendingReleaseDetailKey(itemKey)
-            notificationManager.dismissNotification(itemKey)
+        if (uri.host == "release_detail") {
+            val itemKey = intent.getStringExtra(EXTRA_ITEM_KEY)
+            if (!itemKey.isNullOrEmpty()) {
+                setPendingReleaseDetailKey(itemKey)
+                notificationManager.dismissNotification(itemKey)
+            }
         }
     }
 
@@ -323,30 +329,30 @@ fun SimklCalendarApp(
             navController = navController,
             startDestination = startDestination,
             predictivePopEnterTransition = {
-                val isSettingsOrLogViewer =
+                val isSlideScreen =
                     initialState.destination.route?.startsWith("settings") == true ||
                     initialState.destination.route?.startsWith("log_viewer") == true ||
-                    targetState.destination.route?.startsWith("settings") == true ||
-                    targetState.destination.route?.startsWith("log_viewer") == true
+                    (initialState.destination.route?.startsWith("trending") == true && targetState.destination.route?.startsWith("media_item") != true) ||
+                    (targetState.destination.route?.startsWith("trending") == true && initialState.destination.route?.startsWith("media_item") != true)
                 val isDetailToDetail =
                     (initialState.destination.route?.startsWith("release_detail") == true &&
                      targetState.destination.route?.startsWith("watchlist_item_detail") == true) ||
                     (initialState.destination.route?.startsWith("watchlist_item_detail") == true &&
                      targetState.destination.route?.startsWith("release_detail") == true)
-                if (isSettingsOrLogViewer || isDetailToDetail) slideInFromLeft else EnterTransition.None
+                if (isSlideScreen || isDetailToDetail) slideInFromLeft else EnterTransition.None
             },
             predictivePopExitTransition = {
-                val isSettingsOrLogViewer =
+                val isSlideScreen =
                     initialState.destination.route?.startsWith("settings") == true ||
                     initialState.destination.route?.startsWith("log_viewer") == true ||
-                    targetState.destination.route?.startsWith("settings") == true ||
-                    targetState.destination.route?.startsWith("log_viewer") == true
+                    (initialState.destination.route?.startsWith("trending") == true && targetState.destination.route?.startsWith("media_item") != true) ||
+                    (targetState.destination.route?.startsWith("trending") == true && initialState.destination.route?.startsWith("media_item") != true)
                 val isDetailToDetail =
                     (initialState.destination.route?.startsWith("release_detail") == true &&
                      targetState.destination.route?.startsWith("watchlist_item_detail") == true) ||
                     (initialState.destination.route?.startsWith("watchlist_item_detail") == true &&
                      targetState.destination.route?.startsWith("release_detail") == true)
-                if (isSettingsOrLogViewer || isDetailToDetail) slideOutToRight else ExitTransition.None
+                if (isSlideScreen || isDetailToDetail) slideOutToRight else ExitTransition.None
             },
             modifier = Modifier.fillMaxSize()
         ) {
@@ -372,6 +378,11 @@ fun SimklCalendarApp(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToTrending = {
+                        navController.navigate("trending") {
+                            launchSingleTop = true
+                        }
+                    },
                     onNavigateToReleaseDetail = { item ->
                         viewModel.setSelectedCalendarItem(item)
                         val encodedKey = URLEncoder.encode(item.primaryKey, "UTF-8")
@@ -385,6 +396,60 @@ fun SimklCalendarApp(
                             launchSingleTop = true
                         }
                     },
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this@composable
+                )
+            }
+
+            // 6. Trending Screen
+            composable(
+                route = "trending",
+                enterTransition = {
+                    if (initialState.destination.route?.startsWith("media_item") == true) {
+                        EnterTransition.None
+                    } else {
+                        slideInFromRight
+                    }
+                },
+                exitTransition = {
+                    if (targetState.destination.route?.startsWith("media_item") == true) {
+                        ExitTransition.None
+                    } else {
+                        slideOutToLeft
+                    }
+                }
+            ) {
+                val trendingViewModel: TrendingViewModel = hiltViewModel()
+                TrendingScreen(
+                    viewModel = trendingViewModel,
+                    onNavigateBack = { navController.popBackStackSafely() },
+                    onNavigateToDetail = { simklId, mediaType ->
+                        navController.navigate("media_item/$simklId/${mediaType.key}") {
+                            launchSingleTop = true
+                        }
+                    },
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this@composable
+                )
+            }
+
+            // 7. Media Item Detail Screen
+            composable(
+                route = "media_item/{simklId}/{mediaType}",
+                arguments = listOf(
+                    navArgument("simklId") { type = NavType.IntType },
+                    navArgument("mediaType") { type = NavType.StringType }
+                ),
+                deepLinks = listOf(
+                    navDeepLink { uriPattern = "simklcalendar://media_item/{simklId}/{mediaType}" }
+                ),
+                enterTransition = { slideInFromRight },
+                exitTransition = { slideOutToLeft },
+            ) { backStackEntry ->
+                val simklId = backStackEntry.arguments?.getInt("simklId") ?: 0
+                MediaItemDetailScreen(
+                    simklId = simklId,
+                    onNavigateBack = { navController.popBackStackSafely() },
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@composable
                 )

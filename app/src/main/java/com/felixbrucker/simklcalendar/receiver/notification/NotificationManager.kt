@@ -26,7 +26,6 @@ import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.MediaItem
-import com.felixbrucker.simklcalendar.data.database.SeriesStatus
 import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
@@ -93,7 +92,7 @@ class NotificationManager @Inject constructor(
         val openIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(MainActivity.EXTRA_ITEM_KEY, item.trendingEntry.simklId.toString())
-            data = "simklcalendar://media_item/${item.trendingEntry.simklId}".toUri()
+            data = "simklcalendar://media_item/${item.trendingEntry.simklId}/${item.trendingEntry.mediaType.key}".toUri()
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -135,42 +134,18 @@ class NotificationManager @Inject constructor(
         if (mediaItem == null) return ""
         val parts = mutableListOf<String>()
 
-        when (mediaItem.mediaType) {
-            MediaType.MOVIE -> {
-                parts.add(mediaItem.year.toString())
-            }
-            MediaType.TV -> {
-                val endYear = mediaItem.seriesMetadata?.endYear
-                val status = mediaItem.seriesMetadata?.status
-                val yearStr = when {
-                    endYear != null -> "${mediaItem.year}-$endYear"
-                    status == SeriesStatus.AIRING -> "${mediaItem.year}-Now"
-                    else -> mediaItem.year.toString()
-                }
-                parts.add(yearStr)
-            }
-            MediaType.ANIME -> {
-                val endYear = mediaItem.animeMetadata?.endYear
-                val status = mediaItem.animeMetadata?.status
-                val yearStr = when {
-                    endYear != null -> "${mediaItem.year}-$endYear"
-                    status == SeriesStatus.AIRING -> "${mediaItem.year}-Now"
-                    else -> mediaItem.year.toString()
-                }
-                parts.add(yearStr)
-            }
-        }
+        parts.add(MediaFormatter.formatYearRange(mediaItem))
 
         mediaItem.rating?.let {
             parts.add("Rating ${"%.1f".format(it)}")
         }
 
         mediaItem.movieMetadata?.budget?.takeIf { it > 0 }?.let {
-            parts.add("Budget ${formatCurrencyAmount(it)}")
+            parts.add("Budget ${MediaFormatter.formatCurrency(it)}")
         }
 
         mediaItem.movieMetadata?.boxOffice?.takeIf { it > 0 }?.let {
-            parts.add("Box Office ${formatCurrencyAmount(it)}")
+            parts.add("Box Office ${MediaFormatter.formatCurrency(it)}")
         }
 
         val totalEp = mediaItem.seriesMetadata?.totalEpisodes ?: mediaItem.animeMetadata?.totalEpisodes
@@ -180,15 +155,6 @@ class NotificationManager @Inject constructor(
         }
 
         return parts.joinToString(" • ")
-    }
-
-    private fun formatCurrencyAmount(amount: Long): String {
-        return when {
-            amount >= 1_000_000_000 -> "$${amount / 1_000_000_000}B"
-            amount >= 1_000_000 -> "$${amount / 1_000_000}M"
-            amount >= 1_000 -> "$${amount / 1_000}K"
-            else -> "$$amount"
-        }
     }
 
 

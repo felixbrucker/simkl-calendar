@@ -16,6 +16,7 @@ import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import java.time.Instant
@@ -102,6 +103,16 @@ class Converters {
     }
 
     @TypeConverter
+    fun fromWatchlistStatus(status: WatchlistStatus?): String? {
+        return status?.key
+    }
+
+    @TypeConverter
+    fun toWatchlistStatus(value: String?): WatchlistStatus? {
+        return value?.let { WatchlistStatus.fromKey(it) }
+    }
+
+    @TypeConverter
     fun fromEpisodeSearchStyle(style: EpisodeSearchStyle?): String? {
         return style?.name
     }
@@ -176,8 +187,22 @@ class Converters {
 }
 
 @Database(
-    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class, ActiveNotification::class, MediaItem::class, TrendingEntry::class, WatchlistItem::class, SeenTrendingItem::class],
-    version = 38,
+    entities = [
+        UserToken::class,
+        CalendarItem::class,
+        NotificationSetting::class,
+        TrackedWatchlistItem::class,
+        WatchedEpisode::class,
+        CustomSearchLink::class,
+        ItemDownloadSettings::class,
+        LocalItemState::class,
+        ActiveNotification::class,
+        MediaItem::class,
+        TrendingEntry::class,
+        WatchlistItem::class,
+        SeenTrendingItem::class,
+    ],
+    version = 41,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -206,6 +231,9 @@ class Converters {
         AutoMigration(from = 35, to = 36),
         AutoMigration(from = 36, to = 37),
         AutoMigration(from = 37, to = 38),
+        AutoMigration(from = 38, to = 39),
+        AutoMigration(from = 39, to = 40),
+        AutoMigration(from = 40, to = 41),
     ]
 )
 @TypeConverters(Converters::class)

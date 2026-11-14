@@ -207,32 +207,35 @@ class SyncRepository @Inject constructor(
 
                 // Process TV Shows
                 syncResponse.shows?.forEach { item ->
-                    allWatchlistItems.add(WatchlistItem(simklId = item.show.ids.simkl, mediaType = MediaType.TV))
+                    val statusEnum = WatchlistStatus.fromString(item.status)
+                    allWatchlistItems.add(WatchlistItem(simklId = item.show.ids.simkl, mediaType = MediaType.TV, status = statusEnum))
                     val trackedWatchlistItem = TrackedWatchlistItem.fromShowItem(item, type = MediaType.TV)
                     extractWatched(trackedWatchlistItem.simklId, item.seasons)
                     processWatchlistItem(
-                        status = WatchlistStatus.fromString(item.status),
+                        status = statusEnum,
                         newItem = trackedWatchlistItem,
                     )
                 }
 
                 // Process Anime
                 syncResponse.anime?.forEach { item ->
-                    allWatchlistItems.add(WatchlistItem(simklId = item.show.ids.simkl, mediaType = MediaType.ANIME))
+                    val statusEnum = WatchlistStatus.fromString(item.status)
+                    allWatchlistItems.add(WatchlistItem(simklId = item.show.ids.simkl, mediaType = MediaType.ANIME, status = statusEnum))
                     val trackedWatchlistItem = TrackedWatchlistItem.fromShowItem(item, type = MediaType.ANIME)
                     extractWatched(trackedWatchlistItem.simklId, item.seasons)
                     processWatchlistItem(
-                        status = WatchlistStatus.fromString(item.status),
+                        status = statusEnum,
                         newItem = trackedWatchlistItem,
                     )
                 }
 
                 // Process Movies
                 syncResponse.movies?.forEach { item ->
-                    allWatchlistItems.add(WatchlistItem(simklId = item.movie.ids.simkl, mediaType = MediaType.MOVIE))
+                    val statusEnum = WatchlistStatus.fromString(item.status)
+                    allWatchlistItems.add(WatchlistItem(simklId = item.movie.ids.simkl, mediaType = MediaType.MOVIE, status = statusEnum))
                     val trackedWatchlistItem = TrackedWatchlistItem.fromMovieItem(item)
                     processWatchlistItem(
-                        status = WatchlistStatus.fromString(item.status),
+                        status = statusEnum,
                         newItem = trackedWatchlistItem,
                     )
                 }
@@ -372,7 +375,6 @@ class SyncRepository @Inject constructor(
 
                     val isOverOneHour = (nowMillis - lastSyncTimestamp) >= oneHourMillis
                     if (lastSyncTimestamp > 0L && !isOverOneHour) {
-                        Timber.tag(TAG).d("Trending $typeKey synced recently ($lastSyncTimestamp), skipping API call.")
                         return@async
                     }
 
@@ -1265,6 +1267,14 @@ class SyncRepository @Inject constructor(
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error cleaning up old watched calendar items")
             0
+        }
+    }
+
+    suspend fun removeWatchlistItem(simklId: Int) {
+        withContext(Dispatchers.IO) {
+            watchlistDao.deleteItem(simklId)
+            watchlistItemDao.deleteWatchlistItem(simklId)
+            Timber.tag(TAG).d("Removed watchlist item and related data for simklId=$simklId")
         }
     }
 }

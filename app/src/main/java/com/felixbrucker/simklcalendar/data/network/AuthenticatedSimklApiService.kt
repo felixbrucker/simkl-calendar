@@ -30,4 +30,9 @@ interface AuthenticatedSimklApiService {
     suspend fun markHistoryUnwatched(
         @Body request: SyncHistoryRequest
     ): SyncHistoryResponse
+
+    @POST("sync/add-to-list")
+    suspend fun addToList(
+        @Body request: SyncAddToListRequest
+    ): SyncAddToListResponse
 }
