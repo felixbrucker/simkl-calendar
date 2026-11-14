@@ -1,11 +1,14 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.widget.Toast
 import android.os.Build
 import com.felixbrucker.simklcalendar.data.model.AppBackupData
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
@@ -24,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -40,7 +44,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import com.felixbrucker.simklcalendar.ui.composable.CustomOutlinedTextField
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -48,9 +51,11 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,7 +65,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
+import com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
@@ -85,18 +92,20 @@ import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
 import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.SettingsViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 enum class SettingsCategory(
     val title: String,
+    val description: String,
     val icon: ImageVector
 ) {
-    GENERAL("General", Icons.Default.Settings),
-    NOTIFICATIONS("Notifications", Icons.Default.Notifications),
-    DOWNLOADS("Downloads", Icons.Default.Download),
-    BACKUP("Backup", Icons.Default.SettingsBackupRestore),
-    DEBUG("Debug", Icons.Default.BugReport)
+    GENERAL("General", "Account, sync schedule, and custom search links", Icons.Default.Settings),
+    NOTIFICATIONS("Notifications", "Airing and season finale alerts", Icons.Default.Notifications),
+    DOWNLOADS("Downloads", "Automatic torrent search management", Icons.Default.Download),
+    BACKUP("Backup", "Export and import application settings", Icons.Default.SettingsBackupRestore),
+    DEBUG("Debug", "Diagnostics, Logs and Sentry crash reporting", Icons.Default.BugReport)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -104,7 +113,9 @@ enum class SettingsCategory(
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
+    initialCategory: SettingsCategory? = null,
     onNavigateBack: () -> Unit,
+    onNavigateToCategory: (SettingsCategory) -> Unit = {},
     onNavigateToLogViewer: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -260,24 +271,9 @@ fun SettingsScreen(
 
     val isDownloaderInstalled = remember { viewModel.isTorrentServiceInstalled() }
 
-    val leftScrollState = rememberScrollState()
-    val sectionYPositions = remember { mutableStateMapOf<SettingsCategory, Float>() }
-
-    val activeCategory by remember {
-        derivedStateOf {
-            val currentScroll = leftScrollState.value
-            val maxScroll = leftScrollState.maxValue
-            if (maxScroll > 0 && currentScroll >= maxScroll - 20) {
-                SettingsCategory.entries.last()
-            } else {
-                val currentScrollFloat = currentScroll.toFloat()
-                val threshold = currentScrollFloat + 120f
-                SettingsCategory.entries.lastOrNull { category ->
-                    val posY = sectionYPositions[category] ?: Float.MAX_VALUE
-                    posY <= threshold
-                } ?: SettingsCategory.GENERAL
-            }
-        }
+    var tabletCategoryName by rememberSaveable { mutableStateOf(SettingsCategory.GENERAL.name) }
+    val tabletSelectedCategory = remember(tabletCategoryName) {
+        SettingsCategory.entries.find { it.name == tabletCategoryName } ?: SettingsCategory.GENERAL
     }
 
     val focusManager = LocalFocusManager.current
@@ -291,10 +287,20 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Settings", color = TextPrimary, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = if (isTablet) "Settings" else (initialCategory?.title ?: "Settings"),
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = TextPrimary
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceDark)
@@ -303,22 +309,81 @@ fun SettingsScreen(
         containerColor = SurfaceDark
     ) { innerPadding ->
         if (isTablet) {
-            Row(
+            SettingsTabletLayout(
+                tabletSelectedCategory = tabletSelectedCategory,
+                onCategorySelected = { tabletCategoryName = it.name },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
             ) {
+                SettingsCategoryContentView(
+                    category = tabletSelectedCategory,
+                    username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
+                    syncIntervalHours = syncIntervalHours,
+                    localLinks = localLinks,
+                    onLogout = {
+                        viewModel.logoutUser()
+                        onNavigateBack()
+                    },
+                    onSyncIntervalChange = { syncIntervalHours = it },
+                    onSyncIntervalChangeFinished = {
+                        val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
+                        viewModel.updateSyncInterval(roundedHours)
+                    },
+                    onOpenAddDialog = { openAddDialog() },
+                    onOpenEditDialog = { openEditDialog(it) },
+                    onDeleteLink = { deleteConfirmLink = it },
+                    onReorderLinks = { updated ->
+                        localLinks = updated
+                        viewModel.updateSearchLinksOrder(updated)
+                    },
+                    notificationPrefs = notificationPrefs,
+                    hasExactAlarmPermission = hasExactAlarmPermission,
+                    alarmPermissionLauncher = alarmPermissionLauncher,
+                    context = context,
+                    checkAndRequestPermission = { checkAndRequestPermission() },
+                    isDownloaderInstalled = isDownloaderInstalled,
+                    autoDownloadPrefs = autoDownloadPrefs,
+                    permissionState = permissionState,
+                    searchIntervalHours = searchIntervalHours,
+                    onSearchIntervalChange = { searchIntervalHours = it },
+                    viewModel = viewModel,
+                    isForceSyncing = isForceSyncing,
+                    appSettings = appSettings,
+                    scope = scope,
+                    snackbarHostState = snackbarHostState,
+                    onNavigateToLogViewer = onNavigateToLogViewer,
+                    onExportClick = { showExportDialog = true },
+                    onImportClick = { importLauncher.launch("application/json") }
+                )
+            }
+        } else {
+            if (initialCategory == null) {
                 Column(
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .verticalScroll(leftScrollState),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    SettingsGeneralCategorySection(
+                    SettingsCategory.entries.forEach { category ->
+                        MobileCategoryListItem(
+                            category = category,
+                            onClick = { onNavigateToCategory(category) }
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    SettingsCategoryContentView(
+                        category = initialCategory,
                         username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
                         syncIntervalHours = syncIntervalHours,
                         localLinks = localLinks,
@@ -338,129 +403,26 @@ fun SettingsScreen(
                             localLinks = updated
                             viewModel.updateSearchLinksOrder(updated)
                         },
-                        modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.GENERAL] = coordinates.positionInParent().y
-                        }
-                    )
-
-                    SettingsNotificationsCategorySection(
                         notificationPrefs = notificationPrefs,
                         hasExactAlarmPermission = hasExactAlarmPermission,
                         alarmPermissionLauncher = alarmPermissionLauncher,
                         context = context,
                         checkAndRequestPermission = { checkAndRequestPermission() },
-                        viewModel = viewModel,
-                        modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.NOTIFICATIONS] = coordinates.positionInParent().y
-                        }
-                    )
-
-                    SettingsDownloadsCategorySection(
                         isDownloaderInstalled = isDownloaderInstalled,
                         autoDownloadPrefs = autoDownloadPrefs,
                         permissionState = permissionState,
                         searchIntervalHours = searchIntervalHours,
                         onSearchIntervalChange = { searchIntervalHours = it },
                         viewModel = viewModel,
-                        modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.DOWNLOADS] = coordinates.positionInParent().y
-                        }
-                    )
-
-                    SettingsBackupCategorySection(
-                        onExportClick = { showExportDialog = true },
-                        onImportClick = { importLauncher.launch("application/json") },
-                        modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.BACKUP] = coordinates.positionInParent().y
-                        }
-                    )
-
-                    SettingsDebugCategorySection(
                         isForceSyncing = isForceSyncing,
                         appSettings = appSettings,
-                        viewModel = viewModel,
                         scope = scope,
                         snackbarHostState = snackbarHostState,
                         onNavigateToLogViewer = onNavigateToLogViewer,
-                        modifier = Modifier.onGloballyPositioned { coordinates ->
-                            sectionYPositions[SettingsCategory.DEBUG] = coordinates.positionInParent().y
-                        }
+                        onExportClick = { showExportDialog = true },
+                        onImportClick = { importLauncher.launch("application/json") }
                     )
                 }
-
-                SettingsCategorySelector(
-                    selectedCategory = activeCategory,
-                    onCategorySelected = { targetCategory ->
-                        val targetY = sectionYPositions[targetCategory] ?: 0f
-                        scope.launch {
-                            leftScrollState.animateScrollTo(targetY.roundToInt())
-                        }
-                    },
-                    modifier = Modifier.width(IntrinsicSize.Max)
-                )
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                SettingsGeneralCategorySection(
-                    username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown",
-                    syncIntervalHours = syncIntervalHours,
-                    localLinks = localLinks,
-                    onLogout = {
-                        viewModel.logoutUser()
-                        onNavigateBack()
-                    },
-                    onSyncIntervalChange = { syncIntervalHours = it },
-                    onSyncIntervalChangeFinished = {
-                        val roundedHours = syncIntervalHours.roundToInt().coerceIn(1, 24)
-                        viewModel.updateSyncInterval(roundedHours)
-                    },
-                    onOpenAddDialog = { openAddDialog() },
-                    onOpenEditDialog = { openEditDialog(it) },
-                    onDeleteLink = { deleteConfirmLink = it },
-                    onReorderLinks = { updated ->
-                        localLinks = updated
-                        viewModel.updateSearchLinksOrder(updated)
-                    }
-                )
-
-                SettingsNotificationsCategorySection(
-                    notificationPrefs = notificationPrefs,
-                    hasExactAlarmPermission = hasExactAlarmPermission,
-                    alarmPermissionLauncher = alarmPermissionLauncher,
-                    context = context,
-                    checkAndRequestPermission = { checkAndRequestPermission() },
-                    viewModel = viewModel
-                )
-
-                SettingsDownloadsCategorySection(
-                    isDownloaderInstalled = isDownloaderInstalled,
-                    autoDownloadPrefs = autoDownloadPrefs,
-                    permissionState = permissionState,
-                    searchIntervalHours = searchIntervalHours,
-                    onSearchIntervalChange = { searchIntervalHours = it },
-                    viewModel = viewModel
-                )
-
-                SettingsBackupCategorySection(
-                    onExportClick = { showExportDialog = true },
-                    onImportClick = { importLauncher.launch("application/json") }
-                )
-
-                SettingsDebugCategorySection(
-                    isForceSyncing = isForceSyncing,
-                    appSettings = appSettings,
-                    viewModel = viewModel,
-                    scope = scope,
-                    snackbarHostState = snackbarHostState,
-                    onNavigateToLogViewer = onNavigateToLogViewer
-                )
             }
         }
     }
@@ -568,6 +530,44 @@ fun SettingsScreen(
 }
 
 @Composable
+fun SettingsTabletLayout(
+    tabletSelectedCategory: SettingsCategory,
+    onCategorySelected: (SettingsCategory) -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .width(240.dp)
+                .fillMaxHeight()
+                .padding(start = 16.dp, bottom = 16.dp)
+        ) {
+            SettingsCategorySelector(
+                selectedCategory = tabletSelectedCategory,
+                onCategorySelected = onCategorySelected,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(end = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
 fun SettingsCategorySelector(
     selectedCategory: SettingsCategory,
     onCategorySelected: (SettingsCategory) -> Unit,
@@ -577,62 +577,169 @@ fun SettingsCategorySelector(
     val density = LocalDensity.current
     val selectedIndex = SettingsCategory.entries.indexOf(selectedCategory)
 
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
-        border = BorderStroke(1.dp, OutlineVariant),
-        modifier = modifier
-    ) {
-        Column(
+    Box(modifier = modifier.width(IntrinsicSize.Max)) {
+        val effectiveItemHeightDp = if (itemHeightPx > 0f) with(density) { itemHeightPx.toDp() } else 40.dp
+        val spacingDp = 4.dp
+        val targetOffsetDp = (effectiveItemHeightDp + spacingDp) * selectedIndex
+        val animatedOffsetDp by animateDpAsState(
+            targetValue = targetOffsetDp,
+            animationSpec = tween(250),
+            label = "category_indicator_offset"
+        )
+
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = SurfacePrimaryVariant,
             modifier = Modifier
-                .padding(8.dp)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .fillMaxWidth()
+                .height(effectiveItemHeightDp)
+                .offset { IntOffset(0, animatedOffsetDp.roundToPx()) }
+        ) {}
+
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.width(IntrinsicSize.Max)
         ) {
-            Text(
-                text = "Categories",
-                fontWeight = FontWeight.Bold,
-                color = TextSubtle,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-            )
-
-            Box(modifier = Modifier.width(IntrinsicSize.Max)) {
-                val effectiveItemHeightDp = if (itemHeightPx > 0f) with(density) { itemHeightPx.toDp() } else 40.dp
-                val spacingDp = 4.dp
-                val targetOffsetDp = (effectiveItemHeightDp + spacingDp) * selectedIndex
-                val animatedOffsetDp by animateDpAsState(
-                    targetValue = targetOffsetDp,
-                    animationSpec = tween(250),
-                    label = "category_indicator_offset"
-                )
-
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = SurfacePrimaryVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(effectiveItemHeightDp)
-                        .offset { IntOffset(0, animatedOffsetDp.roundToPx()) }
-                ) {}
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.width(IntrinsicSize.Max)
-                ) {
-                    SettingsCategory.entries.forEach { category ->
-                        SettingsCategoryItem(
-                            category = category,
-                            isSelected = category == selectedCategory,
-                            onClick = { onCategorySelected(category) },
-                            onMeasuredHeight = { heightPx ->
-                                if (itemHeightPx == 0f && heightPx > 0f) {
-                                    itemHeightPx = heightPx
-                                }
-                            }
-                        )
+            SettingsCategory.entries.forEach { category ->
+                SettingsCategoryItem(
+                    category = category,
+                    isSelected = category == selectedCategory,
+                    onClick = { onCategorySelected(category) },
+                    onMeasuredHeight = { heightPx ->
+                        if (itemHeightPx == 0f && heightPx > 0f) {
+                            itemHeightPx = heightPx
+                        }
                     }
-                }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsCategoryContentView(
+    category: SettingsCategory,
+    username: String,
+    syncIntervalHours: Float,
+    localLinks: List<CustomSearchLink>,
+    onLogout: () -> Unit,
+    onSyncIntervalChange: (Float) -> Unit,
+    onSyncIntervalChangeFinished: () -> Unit,
+    onOpenAddDialog: () -> Unit,
+    onOpenEditDialog: (CustomSearchLink) -> Unit,
+    onDeleteLink: (CustomSearchLink) -> Unit,
+    onReorderLinks: (List<CustomSearchLink>) -> Unit,
+    notificationPrefs: NotificationPreferences,
+    hasExactAlarmPermission: Boolean,
+    alarmPermissionLauncher: ActivityResultLauncher<Intent>,
+    context: Context,
+    checkAndRequestPermission: () -> Unit,
+    isDownloaderInstalled: Boolean,
+    autoDownloadPrefs: AutoDownloadPreferences,
+    permissionState: AllFilesPermissionState,
+    searchIntervalHours: Float,
+    onSearchIntervalChange: (Float) -> Unit,
+    viewModel: SettingsViewModel,
+    isForceSyncing: Boolean,
+    appSettings: AppSettingsPreferences,
+    scope: CoroutineScope,
+    snackbarHostState: SnackbarHostState,
+    onNavigateToLogViewer: () -> Unit,
+    onExportClick: () -> Unit,
+    onImportClick: () -> Unit
+) {
+    when (category) {
+        SettingsCategory.GENERAL -> {
+            SettingsGeneralCategorySection(
+                username = username,
+                syncIntervalHours = syncIntervalHours,
+                localLinks = localLinks,
+                onLogout = onLogout,
+                onSyncIntervalChange = onSyncIntervalChange,
+                onSyncIntervalChangeFinished = onSyncIntervalChangeFinished,
+                onOpenAddDialog = onOpenAddDialog,
+                onOpenEditDialog = onOpenEditDialog,
+                onDeleteLink = onDeleteLink,
+                onReorderLinks = onReorderLinks
+            )
+        }
+        SettingsCategory.NOTIFICATIONS -> {
+            SettingsNotificationsCategorySection(
+                notificationPrefs = notificationPrefs,
+                hasExactAlarmPermission = hasExactAlarmPermission,
+                alarmPermissionLauncher = alarmPermissionLauncher,
+                context = context,
+                checkAndRequestPermission = checkAndRequestPermission,
+                viewModel = viewModel
+            )
+        }
+        SettingsCategory.DOWNLOADS -> {
+            SettingsDownloadsCategorySection(
+                isDownloaderInstalled = isDownloaderInstalled,
+                autoDownloadPrefs = autoDownloadPrefs,
+                permissionState = permissionState,
+                searchIntervalHours = searchIntervalHours,
+                onSearchIntervalChange = onSearchIntervalChange,
+                viewModel = viewModel
+            )
+        }
+        SettingsCategory.BACKUP -> {
+            SettingsBackupCategorySection(
+                onExportClick = onExportClick,
+                onImportClick = onImportClick
+            )
+        }
+        SettingsCategory.DEBUG -> {
+            SettingsDebugCategorySection(
+                isForceSyncing = isForceSyncing,
+                appSettings = appSettings,
+                viewModel = viewModel,
+                scope = scope,
+                snackbarHostState = snackbarHostState,
+                onNavigateToLogViewer = onNavigateToLogViewer
+            )
+        }
+    }
+}
+
+@Composable
+fun MobileCategoryListItem(
+    category: SettingsCategory,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = category.icon,
+                contentDescription = null,
+                tint = PurpleLight,
+                modifier = Modifier.size(24.dp)
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = category.title,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary,
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = category.description,
+                    color = TextSubtle,
+                    fontSize = 12.sp
+                )
             }
         }
     }
@@ -737,10 +844,10 @@ fun SettingsGeneralCategorySection(
 
 @Composable
 fun SettingsNotificationsCategorySection(
-    notificationPrefs: com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences,
+    notificationPrefs: NotificationPreferences,
     hasExactAlarmPermission: Boolean,
-    alarmPermissionLauncher: androidx.activity.result.ActivityResultLauncher<android.content.Intent>,
-    context: android.content.Context,
+    alarmPermissionLauncher: ActivityResultLauncher<Intent>,
+    context: Context,
     checkAndRequestPermission: () -> Unit,
     viewModel: SettingsViewModel,
     modifier: Modifier = Modifier
@@ -873,9 +980,9 @@ fun SettingsDownloadsCategorySection(
 @Composable
 fun SettingsDebugCategorySection(
     isForceSyncing: Boolean,
-    appSettings: com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences,
+    appSettings: AppSettingsPreferences,
     viewModel: SettingsViewModel,
-    scope: kotlinx.coroutines.CoroutineScope,
+    scope: CoroutineScope,
     snackbarHostState: SnackbarHostState,
     onNavigateToLogViewer: () -> Unit,
     modifier: Modifier = Modifier
@@ -913,348 +1020,373 @@ fun SettingsCustomSearchLinksCard(
     onReorderLinks: (List<CustomSearchLink>) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val density = LocalDensity.current
-    var draggingIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    var itemSlotHeightPx by remember { mutableFloatStateOf(0f) }
-
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
         border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = null,
-                        tint = PurpleLight,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        "Custom Search Links",
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
-                        fontSize = 16.sp
-                    )
-                }
+        SettingsCustomSearchLinksContent(
+            onOpenAddDialog,
+            localLinks,
+            onReorderLinks,
+            onOpenEditDialog,
+            onDeleteLink
+        )
+    }
+}
 
-                FilledTonalButton(
-                    onClick = onOpenAddDialog,
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.testTag("add_search_link_button")
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Add Link",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Add Link", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                }
+@Composable
+private fun SettingsCustomSearchLinksContent(
+    onOpenAddDialog: () -> Unit,
+    localLinks: List<CustomSearchLink>,
+    onReorderLinks: (List<CustomSearchLink>) -> Unit,
+    onOpenEditDialog: (CustomSearchLink) -> Unit,
+    onDeleteLink: (CustomSearchLink) -> Unit
+) {
+    val density = LocalDensity.current
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var itemSlotHeightPx by remember { mutableFloatStateOf(0f) }
+
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = PurpleLight,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    "Custom Search Links",
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    fontSize = 16.sp
+                )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            FilledTonalButton(
+                onClick = onOpenAddDialog,
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.testTag("add_search_link_button")
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add Link",
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Add Link", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+        }
 
-            if (localLinks.isEmpty()) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = SurfaceDark,
-                    border = BorderStroke(1.dp, SurfaceVariantGrey),
-                    modifier = Modifier.fillMaxWidth()
+        Spacer(modifier = Modifier.height(14.dp))
+
+        if (localLinks.isEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = SurfaceDark,
+                border = BorderStroke(1.dp, SurfaceVariantGrey),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                    Icon(
+                        Icons.Default.LinkOff,
+                        contentDescription = null,
+                        tint = OutlineGrey,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "No custom search links configured yet",
+                        color = TextSubtle,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        "Tap '+ Add Link' above to configure custom search shortcuts.",
+                        color = OutlineGrey,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (localLinks.size > 1) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(bottom = 2.dp)
                     ) {
                         Icon(
-                            Icons.Default.LinkOff,
+                            Icons.Default.DragHandle,
                             contentDescription = null,
-                            tint = OutlineGrey,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            "No custom search links configured yet",
-                            color = TextSubtle,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
+                            tint = TextGrey,
+                            modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            "Tap '+ Add Link' above to configure custom search shortcuts.",
-                            color = OutlineGrey,
-                            fontSize = 11.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            text = "Long press and drag anywhere on a link to reorder",
+                            color = TextGrey,
+                            fontSize = 11.sp
                         )
                     }
                 }
-            } else {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (localLinks.size > 1) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.padding(bottom = 2.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.DragHandle,
-                                contentDescription = null,
-                                tint = TextGrey,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "Long press and drag anywhere on a link to reorder",
-                                color = TextGrey,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
 
-                    val currentLinksState by rememberUpdatedState(localLinks)
-                    val currentDragging = draggingIndex
-                    val effectiveSlotHeight = if (itemSlotHeightPx > 0f) itemSlotHeightPx else with(density) { 68.dp.toPx() }
-                    val currentSlotHeightState by rememberUpdatedState(effectiveSlotHeight)
-                    val targetIndex = if (currentDragging != null && effectiveSlotHeight > 0f) {
-                        (currentDragging + (dragOffsetY / effectiveSlotHeight).roundToInt())
-                            .coerceIn(0, localLinks.size - 1)
-                    } else null
+                val currentLinksState by rememberUpdatedState(localLinks)
+                val currentDragging = draggingIndex
+                val effectiveSlotHeight = if (itemSlotHeightPx > 0f) itemSlotHeightPx else with(
+                    density
+                ) { 68.dp.toPx() }
+                val currentSlotHeightState by rememberUpdatedState(effectiveSlotHeight)
+                val targetIndex = if (currentDragging != null && effectiveSlotHeight > 0f) {
+                    (currentDragging + (dragOffsetY / effectiveSlotHeight).roundToInt())
+                        .coerceIn(0, localLinks.size - 1)
+                } else null
 
-                    localLinks.forEachIndexed { index, link ->
-                        key(link.id) {
-                            val isDraggingThis = currentDragging == index
-                            val visualTranslationY by animateFloatAsState(
-                                targetValue = when {
-                                    isDraggingThis -> dragOffsetY
-                                    currentDragging != null && targetIndex != null -> {
-                                        when {
-                                            currentDragging < targetIndex && index in (currentDragging + 1)..targetIndex -> -effectiveSlotHeight
-                                            currentDragging > targetIndex && index in targetIndex until currentDragging -> effectiveSlotHeight
-                                            else -> 0f
-                                        }
+                localLinks.forEachIndexed { index, link ->
+                    key(link.id) {
+                        val isDraggingThis = currentDragging == index
+                        val visualTranslationY by animateFloatAsState(
+                            targetValue = when {
+                                isDraggingThis -> dragOffsetY
+                                currentDragging != null && targetIndex != null -> {
+                                    when {
+                                        currentDragging < targetIndex && index in (currentDragging + 1)..targetIndex -> -effectiveSlotHeight
+                                        currentDragging > targetIndex && index in targetIndex until currentDragging -> effectiveSlotHeight
+                                        else -> 0f
                                     }
-                                    else -> 0f
-                                },
-                                label = "reorder_trans_${link.id}"
-                            )
+                                }
 
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isDraggingThis) SurfaceSettingsCardDark else SurfaceDark,
-                                border = BorderStroke(
-                                    width = if (isDraggingThis) 1.5.dp else 1.dp,
-                                    color = if (isDraggingThis) PurpleLight else OutlineVariant
-                                ),
+                                else -> 0f
+                            },
+                            label = "reorder_trans_${link.id}"
+                        )
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isDraggingThis) SurfaceSettingsCardDark else SurfaceDark,
+                            border = BorderStroke(
+                                width = if (isDraggingThis) 1.5.dp else 1.dp,
+                                color = if (isDraggingThis) PurpleLight else OutlineVariant
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .zIndex(if (isDraggingThis) 10f else 1f)
+                                .onGloballyPositioned { coordinates ->
+                                    if (itemSlotHeightPx == 0f && coordinates.size.height > 0) {
+                                        itemSlotHeightPx = coordinates.size.height.toFloat() + with(
+                                            density
+                                        ) { 8.dp.toPx() }
+                                    }
+                                }
+                                .graphicsLayer {
+                                    translationY = visualTranslationY
+                                    scaleX = if (isDraggingThis) 1.03f else 1f
+                                    scaleY = if (isDraggingThis) 1.03f else 1f
+                                    shadowElevation = if (isDraggingThis) with(density) { 8.dp.toPx() } else 0f
+                                }
+                                .pointerInput(link.id) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = {
+                                            val idx = currentLinksState.indexOfFirst { it.id == link.id }
+                                            draggingIndex = if (idx != -1) idx else index
+                                            dragOffsetY = 0f
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            dragOffsetY += dragAmount.y
+                                        },
+                                        onDragEnd = {
+                                            val from = draggingIndex
+                                            val slotH = currentSlotHeightState
+                                            val links = currentLinksState
+                                            val to = if (from != null && slotH > 0f && links.isNotEmpty()) {
+                                                (from + (dragOffsetY / slotH).roundToInt())
+                                                    .coerceIn(0, links.size - 1)
+                                            } else null
+
+                                            if (from != null && to != null && from != to) {
+                                                val updated = links.toMutableList().apply {
+                                                    add(to, removeAt(from))
+                                                }
+                                                onReorderLinks(updated)
+                                            }
+                                            draggingIndex = null
+                                            dragOffsetY = 0f
+                                        },
+                                        onDragCancel = {
+                                            draggingIndex = null
+                                            dragOffsetY = 0f
+                                        }
+                                    )
+                                }
+                                .testTag("custom_search_link_item_${link.id}")
+                        ) {
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .zIndex(if (isDraggingThis) 10f else 1f)
-                                    .onGloballyPositioned { coordinates ->
-                                        if (itemSlotHeightPx == 0f && coordinates.size.height > 0) {
-                                            itemSlotHeightPx = coordinates.size.height.toFloat() + with(density) { 8.dp.toPx() }
-                                        }
-                                    }
-                                    .graphicsLayer {
-                                        translationY = visualTranslationY
-                                        scaleX = if (isDraggingThis) 1.03f else 1f
-                                        scaleY = if (isDraggingThis) 1.03f else 1f
-                                        shadowElevation = if (isDraggingThis) with(density) { 8.dp.toPx() } else 0f
-                                    }
-                                    .pointerInput(link.id) {
-                                        detectDragGesturesAfterLongPress(
-                                            onDragStart = {
-                                                val idx = currentLinksState.indexOfFirst { it.id == link.id }
-                                                draggingIndex = if (idx != -1) idx else index
-                                                dragOffsetY = 0f
-                                            },
-                                            onDrag = { change, dragAmount ->
-                                                change.consume()
-                                                dragOffsetY += dragAmount.y
-                                            },
-                                            onDragEnd = {
-                                                val from = draggingIndex
-                                                val slotH = currentSlotHeightState
-                                                val links = currentLinksState
-                                                val to = if (from != null && slotH > 0f && links.isNotEmpty()) {
-                                                    (from + (dragOffsetY / slotH).roundToInt())
-                                                        .coerceIn(0, links.size - 1)
-                                                } else null
-
-                                                if (from != null && to != null && from != to) {
-                                                    val updated = links.toMutableList().apply {
-                                                        add(to, removeAt(from))
-                                                    }
-                                                    onReorderLinks(updated)
-                                                }
-                                                draggingIndex = null
-                                                dragOffsetY = 0f
-                                            },
-                                            onDragCancel = {
-                                                draggingIndex = null
-                                                dragOffsetY = 0f
-                                            }
-                                        )
-                                    }
-                                    .testTag("custom_search_link_item_${link.id}")
+                                    .padding(vertical = 12.dp, horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
+                                Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 12.dp, horizontal = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .size(36.dp)
+                                        .testTag("drag_handle_${link.id}"),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .testTag("drag_handle_${link.id}"),
-                                        contentAlignment = Alignment.Center
+                                    Icon(
+                                        Icons.Default.DragHandle,
+                                        contentDescription = "Reorder handle for ${link.name}",
+                                        tint = if (isDraggingThis) PurpleLight else OutlineGrey,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = SurfaceContainer,
+                                        modifier = Modifier.size(32.dp)
                                     ) {
-                                        Icon(
-                                            Icons.Default.DragHandle,
-                                            contentDescription = "Reorder handle for ${link.name}",
-                                            tint = if (isDraggingThis) PurpleLight else OutlineGrey,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            AsyncImage(
+                                                model = link.getFaviconUrl(),
+                                                contentDescription = link.name,
+                                                modifier = Modifier.size(20.dp),
+                                                contentScale = ContentScale.Fit
+                                            )
+                                        }
                                     }
 
-                                    Spacer(modifier = Modifier.width(4.dp))
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = SurfaceContainer,
-                                            modifier = Modifier.size(32.dp)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Box(
-                                                contentAlignment = Alignment.Center,
-                                                modifier = Modifier.fillMaxSize()
-                                            ) {
-                                                AsyncImage(
-                                                    model = link.getFaviconUrl(),
-                                                    contentDescription = link.name,
-                                                    modifier = Modifier.size(20.dp),
-                                                    contentScale = ContentScale.Fit
+                                            Text(
+                                                text = link.name,
+                                                color = TextPrimary,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp
+                                            )
+                                            if (!link.subtitle.isNullOrBlank()) {
+                                                Text(
+                                                    text = "• ${link.subtitle}",
+                                                    color = TextSubtle,
+                                                    fontSize = 12.sp,
+                                                    maxLines = 1
                                                 )
                                             }
                                         }
 
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Text(
-                                                    text = link.name,
-                                                    color = TextPrimary,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 14.sp
-                                                )
-                                                if (!link.subtitle.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = link.urlTemplate,
+                                            color = TextGrey,
+                                            fontSize = 11.sp,
+                                            maxLines = 1
+                                        )
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            link.associatedTypes.forEach { type ->
+                                                val (label, bgCol, textCol) = when (type) {
+                                                    MediaType.TV -> Triple(
+                                                        "TV",
+                                                        SurfacePurple,
+                                                        PurpleContainerSoft
+                                                    )
+
+                                                    MediaType.ANIME -> Triple(
+                                                        "Anime",
+                                                        SurfaceDarkGreen,
+                                                        GreenSuccess
+                                                    )
+
+                                                    MediaType.MOVIE -> Triple(
+                                                        "Movie",
+                                                        SurfaceRedDeep,
+                                                        ErrorPink
+                                                    )
+                                                }
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = bgCol
+                                                ) {
                                                     Text(
-                                                        text = "• ${link.subtitle}",
-                                                        color = TextSubtle,
-                                                        fontSize = 12.sp,
-                                                        maxLines = 1
+                                                        text = label,
+                                                        color = textCol,
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                                                     )
                                                 }
                                             }
-
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(
-                                                text = link.urlTemplate,
-                                                color = TextGrey,
-                                                fontSize = 11.sp,
-                                                maxLines = 1
-                                            )
-
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                link.associatedTypes.forEach { type ->
-                                                    val (label, bgCol, textCol) = when (type) {
-                                                        MediaType.TV -> Triple(
-                                                            "TV",
-                                                            SurfacePurple,
-                                                            PurpleContainerSoft
-                                                        )
-                                                        MediaType.ANIME -> Triple(
-                                                            "Anime",
-                                                            SurfaceDarkGreen,
-                                                            GreenSuccess
-                                                        )
-                                                        MediaType.MOVIE -> Triple(
-                                                            "Movie",
-                                                            SurfaceRedDeep,
-                                                            ErrorPink
-                                                        )
-                                                    }
-                                                    Surface(
-                                                        shape = RoundedCornerShape(4.dp),
-                                                        color = bgCol
-                                                    ) {
-                                                        Text(
-                                                            text = label,
-                                                            color = textCol,
-                                                            fontSize = 9.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                                                        )
-                                                    }
-                                                }
-                                            }
                                         }
                                     }
+                                }
 
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    IconButton(
+                                        onClick = { onOpenEditDialog(link) },
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .testTag("edit_link_${link.id}")
                                     ) {
-                                        IconButton(
-                                            onClick = { onOpenEditDialog(link) },
-                                            modifier = Modifier
-                                                .size(36.dp)
-                                                .testTag("edit_link_${link.id}")
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Edit,
-                                                contentDescription = "Edit ${link.name}",
-                                                tint = PurpleLight,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = "Edit ${link.name}",
+                                            tint = PurpleLight,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
 
-                                        IconButton(
-                                            onClick = { onDeleteLink(link) },
-                                            modifier = Modifier
-                                                .size(36.dp)
-                                                .testTag("delete_link_${link.id}")
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                contentDescription = "Delete ${link.name}",
-                                                tint = ErrorPink,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
+                                    IconButton(
+                                        onClick = { onDeleteLink(link) },
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .testTag("delete_link_${link.id}")
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete ${link.name}",
+                                            tint = ErrorPink,
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     }
                                 }
                             }
@@ -1494,40 +1626,47 @@ fun SettingsUserSessionCard(
         border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Session Status", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        "Logged in as",
-                        fontSize = 13.sp,
-                        color = TextSubtle
-                    )
-                    Text(
-                        username,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = PurpleLight
-                    )
-                }
+        SettingsUserSessionContent(username, onLogout)
+    }
+}
 
-                Button(
-                    onClick = onLogout,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Logout", fontSize = 14.sp)
-                }
+@Composable
+private fun SettingsUserSessionContent(username: String, onLogout: () -> Unit) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    "Logged in as",
+                    fontSize = 13.sp,
+                    color = TextSubtle
+                )
+                Text(
+                    username,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = PurpleLight
+                )
+            }
+
+            Button(
+                onClick = onLogout,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Logout", fontSize = 14.sp)
             }
         }
     }
@@ -1546,75 +1685,84 @@ fun SettingsSyncIntervalCard(
         border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Sync,
-                        contentDescription = null,
-                        tint = PurpleLight,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Background Sync Interval",
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
-                        fontSize = 16.sp
-                    )
-                }
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = SurfaceSettingsPurpleDark
-                ) {
-                    Text(
-                        text = "${syncIntervalHours.roundToInt()} hrs",
-                        color = PurpleLight,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
+        SettingsSyncIntervalContent(syncIntervalHours, onSyncIntervalChange, onSyncIntervalChangeFinished)
+    }
+}
+
+@Composable
+private fun SettingsSyncIntervalContent(
+    syncIntervalHours: Float,
+    onSyncIntervalChange: (Float) -> Unit,
+    onSyncIntervalChangeFinished: () -> Unit
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Sync,
+                    contentDescription = null,
+                    tint = PurpleLight,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Background Sync Interval",
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    fontSize = 16.sp
+                )
             }
-
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                "Sets how frequently the app runs background checks to discover new episode releases and sync your watchlist.",
-                color = TextSubtle,
-                fontSize = 12.sp,
-                lineHeight = 16.sp
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Slider(
-                value = syncIntervalHours,
-                onValueChange = onSyncIntervalChange,
-                onValueChangeFinished = onSyncIntervalChangeFinished,
-                valueRange = 1f..24f,
-                steps = 22,
-                colors = SliderDefaults.colors(
-                    thumbColor = PurpleLight,
-                    activeTrackColor = PurpleLight,
-                    inactiveTrackColor = OutlineVariant,
-                    activeTickColor = Color.Transparent,
-                    inactiveTickColor = Color.Transparent
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = SurfaceSettingsPurpleDark
             ) {
-                Text("1 hour (frequent)", color = TextGrey, fontSize = 11.sp)
-                Text("12 hours (default)", color = TextGrey, fontSize = 11.sp)
-                Text("24 hours (daily)", color = TextGrey, fontSize = 11.sp)
+                Text(
+                    text = "${syncIntervalHours.roundToInt()} hrs",
+                    color = PurpleLight,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                )
             }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            "Sets how frequently the app runs background checks to discover new episode releases and sync your watchlist.",
+            color = TextSubtle,
+            fontSize = 12.sp,
+            lineHeight = 16.sp
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Slider(
+            value = syncIntervalHours,
+            onValueChange = onSyncIntervalChange,
+            onValueChangeFinished = onSyncIntervalChangeFinished,
+            valueRange = 1f..24f,
+            steps = 22,
+            colors = SliderDefaults.colors(
+                thumbColor = PurpleLight,
+                activeTrackColor = PurpleLight,
+                inactiveTrackColor = OutlineVariant,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("1 hour (frequent)", color = TextGrey, fontSize = 11.sp)
+            Text("12 hours (default)", color = TextGrey, fontSize = 11.sp)
+            Text("24 hours (daily)", color = TextGrey, fontSize = 11.sp)
         }
     }
 }
@@ -1637,138 +1785,170 @@ fun SettingsDefaultAlertsCard(
         border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Default Alerts (New Items)", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "Sets default alert preferences when new shows or movies are synced. Individual settings in Release Details will always take precedence.",
-                color = TextSubtle,
-                fontSize = 12.sp,
-                lineHeight = 16.sp
+        SettingsDefaultAlertsContent(
+            enableDefaultAiring,
+            onUpdateDefaultNotifyAiring,
+            enableDefaultSeasonFinished,
+            onUpdateDefaultNotifySeasonFinished,
+            enableDefaultMovieTheater,
+            onUpdateDefaultNotifyMovieTheater,
+            enableDefaultMovieDigital,
+            onUpdateDefaultNotifyMovieDigital
+        )
+    }
+}
+
+@Composable
+private fun SettingsDefaultAlertsContent(
+    enableDefaultAiring: Boolean,
+    onUpdateDefaultNotifyAiring: (Boolean) -> Unit,
+    enableDefaultSeasonFinished: Boolean,
+    onUpdateDefaultNotifySeasonFinished: (Boolean) -> Unit,
+    enableDefaultMovieTheater: Boolean,
+    onUpdateDefaultNotifyMovieTheater: (Boolean) -> Unit,
+    enableDefaultMovieDigital: Boolean,
+    onUpdateDefaultNotifyMovieDigital: (Boolean) -> Unit
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(
+            "Default Alerts (New Items)",
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            fontSize = 16.sp
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "Sets default alert preferences when new shows or movies are synced. Individual settings in Release Details will always take precedence.",
+            color = TextSubtle,
+            fontSize = 12.sp,
+            lineHeight = 16.sp
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "TV Shows & Anime",
+            fontWeight = FontWeight.Bold,
+            color = PurpleLight,
+            fontSize = 14.sp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Airing Notifications",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = "Default to alert as soon as each episode is ready to stream.",
+                    color = TextSubtle,
+                    fontSize = 12.sp
+                )
+            }
+            Switch(
+                checked = enableDefaultAiring,
+                onCheckedChange = onUpdateDefaultNotifyAiring
             )
-            Spacer(modifier = Modifier.height(16.dp))
+        }
 
-            Text(
-                text = "TV Shows & Anime",
-                fontWeight = FontWeight.Bold,
-                color = PurpleLight,
-                fontSize = 14.sp
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Season Finished Airing",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = "Default to notify when a full TV Show or Anime season has finished airing.",
+                    color = TextSubtle,
+                    fontSize = 12.sp
+                )
+            }
+            Switch(
+                checked = enableDefaultSeasonFinished,
+                onCheckedChange = onUpdateDefaultNotifySeasonFinished
             )
-            Spacer(modifier = Modifier.height(8.dp))
+        }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Airing Notifications",
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    )
-                    Text(
-                        text = "Default to alert as soon as each episode is ready to stream.",
-                        color = TextSubtle,
-                        fontSize = 12.sp
-                    )
-                }
-                Switch(
-                    checked = enableDefaultAiring,
-                    onCheckedChange = onUpdateDefaultNotifyAiring
+        HorizontalDivider(
+            color = OutlineVariant,
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 12.dp)
+        )
+
+        Text(
+            text = "Movies",
+            fontWeight = FontWeight.Bold,
+            color = ErrorPink,
+            fontSize = 14.sp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Theater Release Notifications",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = "Default to notify on the movie's theatrical release date.",
+                    color = TextSubtle,
+                    fontSize = 12.sp
                 )
             }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Season Finished Airing",
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    )
-                    Text(
-                        text = "Default to notify when a full TV Show or Anime season has finished airing.",
-                        color = TextSubtle,
-                        fontSize = 12.sp
-                    )
-                }
-                Switch(
-                    checked = enableDefaultSeasonFinished,
-                    onCheckedChange = onUpdateDefaultNotifySeasonFinished
-                )
-            }
-
-            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-            Text(
-                text = "Movies",
-                fontWeight = FontWeight.Bold,
-                color = ErrorPink,
-                fontSize = 14.sp
+            Switch(
+                checked = enableDefaultMovieTheater,
+                onCheckedChange = onUpdateDefaultNotifyMovieTheater
             )
-            Spacer(modifier = Modifier.height(8.dp))
+        }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Theater Release Notifications",
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    )
-                    Text(
-                        text = "Default to notify on the movie's theatrical release date.",
-                        color = TextSubtle,
-                        fontSize = 12.sp
-                    )
-                }
-                Switch(
-                    checked = enableDefaultMovieTheater,
-                    onCheckedChange = onUpdateDefaultNotifyMovieTheater
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Digital / DVD Release Notifications",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = "Default to notify when the movie releases digitally or on DVD.",
+                    color = TextSubtle,
+                    fontSize = 12.sp
                 )
             }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Digital / DVD Release Notifications",
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    )
-                    Text(
-                        text = "Default to notify when the movie releases digitally or on DVD.",
-                        color = TextSubtle,
-                        fontSize = 12.sp
-                    )
-                }
-                Switch(
-                    checked = enableDefaultMovieDigital,
-                    onCheckedChange = onUpdateDefaultNotifyMovieDigital
-                )
-            }
+            Switch(
+                checked = enableDefaultMovieDigital,
+                onCheckedChange = onUpdateDefaultNotifyMovieDigital
+            )
         }
     }
 }
@@ -1787,83 +1967,106 @@ fun SettingsBatteryOptimizationCard(
         border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        SettingsBatteryOptimizationContent(
+            useExactAlarms,
+            onUpdateUseExactAlarms,
+            hasExactAlarmPermission,
+            onGrantExactAlarmPermission
+        )
+    }
+}
+
+@Composable
+private fun SettingsBatteryOptimizationContent(
+    useExactAlarms: Boolean,
+    onUpdateUseExactAlarms: (Boolean) -> Unit,
+    hasExactAlarmPermission: Boolean,
+    onGrantExactAlarmPermission: () -> Unit
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.BatteryChargingFull,
-                        contentDescription = null,
-                        tint = PurpleLight,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text("Battery Optimization", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
-                }
+                Icon(
+                    imageVector = Icons.Default.BatteryChargingFull,
+                    contentDescription = null,
+                    tint = PurpleLight,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    "Battery Optimization",
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    fontSize = 16.sp
+                )
             }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Use Exact Alarms", color = TextPrimary, fontSize = 14.sp)
+                Text(
+                    "Exact alarms ensure notifications arrive at the precise airing time but may increase battery consumption.",
+                    color = TextSubtle,
+                    fontSize = 12.sp
+                )
+            }
+            Switch(
+                checked = useExactAlarms,
+                onCheckedChange = onUpdateUseExactAlarms
+            )
+        }
+
+        if (useExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
             Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Card(
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceSettingsBrownDark),
+                border = BorderStroke(1.dp, ErrorPink)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Use Exact Alarms", color = TextPrimary, fontSize = 14.sp)
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = ErrorPink,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Exact Alarms Required",
+                            fontWeight = FontWeight.Bold,
+                            color = ErrorPink,
+                            fontSize = 14.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Exact alarms ensure notifications arrive at the precise airing time but may increase battery consumption.",
+                        "To ensure notifications are delivered exactly when they air, the app needs permission to schedule exact alarms.",
                         color = TextSubtle,
                         fontSize = 12.sp
                     )
-                }
-                Switch(
-                    checked = useExactAlarms,
-                    onCheckedChange = onUpdateUseExactAlarms
-                )
-            }
-
-            if (useExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Card(
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceSettingsBrownDark),
-                    border = BorderStroke(1.dp, ErrorPink)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = ErrorPink,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Exact Alarms Required",
-                                fontWeight = FontWeight.Bold,
-                                color = ErrorPink,
-                                fontSize = 14.sp
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "To ensure notifications are delivered exactly when they air, the app needs permission to schedule exact alarms.",
-                            color = TextSubtle,
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = onGrantExactAlarmPermission,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = SurfaceRedDeep,
-                                contentColor = ErrorPink
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Grant Permission", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = onGrantExactAlarmPermission,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SurfaceRedDeep,
+                            contentColor = ErrorPink
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Grant Permission", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -2090,213 +2293,263 @@ fun SettingsAutomaticDownloadsCard(
         border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .alpha(if (isDownloaderInstalled) 1f else 0.5f)
+        SettingsAutomaticDownloadsContent(
+            isDownloaderInstalled,
+            autoDownloadPrefs,
+            actions,
+            permissionState,
+            searchIntervalHours,
+            onSearchIntervalChange,
+            onSearchIntervalHoursChangeFinished
+        )
+    }
+}
+
+@Composable
+private fun SettingsAutomaticDownloadsContent(
+    isDownloaderInstalled: Boolean,
+    autoDownloadPrefs: AutoDownloadPreferences,
+    actions: AutoDownloadActions,
+    permissionState: AllFilesPermissionState,
+    searchIntervalHours: Float,
+    onSearchIntervalChange: (Float) -> Unit,
+    onSearchIntervalHoursChangeFinished: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .padding(16.dp)
+            .alpha(if (isDownloaderInstalled) 1f else 0.5f)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Download,
+                    contentDescription = null,
+                    tint = PurpleLight,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    "Automatic Downloads",
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    fontSize = 16.sp
+                )
+            }
+            if (isDownloaderInstalled) {
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = SurfaceGreen,
+                    contentColor = GreenSuccess
+                ) {
+                    Text(
+                        "AVAILABLE",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = SurfaceVariantGrey,
+                    contentColor = TextSubtle
+                ) {
+                    Text(
+                        "UNAVAILABLE",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "Configure how the app interacts with the external Torrent Downloader service.",
+            color = TextSubtle,
+            fontSize = 12.sp,
+            lineHeight = 16.sp
+        )
+
+        if (!isDownloaderInstalled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Downloader app not found. Please install the Torrent Downloader service to enable these features.",
+                color = ErrorPink,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Column(modifier = Modifier
+                .weight(1f, fill = false)
+                .padding(end = 8.dp)) {
+                Text("Preferred Quality", color = TextPrimary, fontSize = 15.sp)
+                Text(
+                    "Target video resolution for automatic torrent searches.",
+                    color = TextSubtle,
+                    fontSize = 12.sp
+                )
+            }
+            val qualities = listOf("4K", "1080p", "720p")
+            SingleChoiceSegmentedButtonRow {
+                qualities.forEachIndexed { index, quality ->
+                    val isSelected = autoDownloadPrefs.quality == quality
+                    SegmentedButton(
+                        selected = isSelected,
+                        onClick = { actions.onUpdateQuality(quality) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = qualities.size
+                        ),
+                        enabled = isDownloaderInstalled
+                    ) {
+                        Text(quality)
+                    }
+                }
+            }
+        }
+
+        PreferHevcRow(
+            autoDownloadPrefs = autoDownloadPrefs,
+            isDownloaderInstalled = isDownloaderInstalled,
+            actions = actions
+        )
+
+        SettingsTorrentSizeSection(
+            autoDownloadPrefs = autoDownloadPrefs,
+            isDownloaderInstalled = isDownloaderInstalled,
+            actions = actions
+        )
+
+        HorizontalDivider(
+            color = OutlineVariant,
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 12.dp)
+        )
+
+        SettingsAutoDownloadToggles(
+            autoDownloadPrefs = autoDownloadPrefs,
+            isDownloaderInstalled = isDownloaderInstalled,
+            permissionState = permissionState,
+            actions = actions
+        )
+
+        HorizontalDivider(
+            color = OutlineVariant,
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 12.dp)
+        )
+
+        Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Download,
-                        contentDescription = null,
-                        tint = PurpleLight,
-                        modifier = Modifier.size(20.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Periodic Torrent Search",
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        fontSize = 15.sp
                     )
-                    Text("Automatic Downloads", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
+                    Text(
+                        "Sets how frequently the app searches for torrents for episodes in 'Wanted' status.",
+                        color = TextSubtle,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
                 }
-                if (isDownloaderInstalled) {
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = SurfaceGreen,
-                        contentColor = GreenSuccess
-                    ) {
-                        Text(
-                            "AVAILABLE",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                } else {
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = SurfaceVariantGrey,
-                        contentColor = TextSubtle
-                    ) {
-                        Text(
-                            "UNAVAILABLE",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = SurfaceSettingsPurpleDark
+                ) {
+                    Text(
+                        text = "${searchIntervalHours.roundToInt()} hrs",
+                        color = PurpleLight,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
                 }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "Configure how the app interacts with the external Torrent Downloader service.",
-                color = TextSubtle,
-                fontSize = 12.sp,
-                lineHeight = 16.sp
-            )
-
-            if (!isDownloaderInstalled) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Downloader app not found. Please install the Torrent Downloader service to enable these features.",
-                    color = ErrorPink,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
-                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            Slider(
+                value = searchIntervalHours,
+                onValueChange = onSearchIntervalChange,
+                onValueChangeFinished = onSearchIntervalHoursChangeFinished,
+                enabled = isDownloaderInstalled,
+                valueRange = 1f..24f,
+                steps = 22,
+                colors = SliderDefaults.colors(
+                    thumbColor = PurpleLight,
+                    activeTrackColor = PurpleLight,
+                    inactiveTrackColor = OutlineVariant,
+                    activeTickColor = Color.Transparent,
+                    inactiveTickColor = Color.Transparent
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Preferred Quality", color = TextPrimary, fontSize = 15.sp)
-                    Text("Target video resolution for automatic torrent searches.", color = TextSubtle, fontSize = 12.sp)
-                }
-                val qualities = listOf("4K", "1080p", "720p")
-                SingleChoiceSegmentedButtonRow {
-                    qualities.forEachIndexed { index, quality ->
-                        val isSelected = autoDownloadPrefs.quality == quality
-                        SegmentedButton(
-                            selected = isSelected,
-                            onClick = { actions.onUpdateQuality(quality) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = qualities.size),
-                            enabled = isDownloaderInstalled
-                        ) {
-                            Text(quality)
-                        }
-                    }
-                }
+                Text("1 hour", color = TextGrey, fontSize = 11.sp)
+                Text("12 hours", color = TextGrey, fontSize = 11.sp)
+                Text("24 hours", color = TextGrey, fontSize = 11.sp)
             }
-
-            PreferHevcRow(
-                autoDownloadPrefs = autoDownloadPrefs,
-                isDownloaderInstalled = isDownloaderInstalled,
-                actions = actions
-            )
-
-            SettingsTorrentSizeSection(
-                autoDownloadPrefs = autoDownloadPrefs,
-                isDownloaderInstalled = isDownloaderInstalled,
-                actions = actions
-            )
-
-            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-            SettingsAutoDownloadToggles(
-                autoDownloadPrefs = autoDownloadPrefs,
-                isDownloaderInstalled = isDownloaderInstalled,
-                permissionState = permissionState,
-                actions = actions
-            )
-
-            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Periodic Torrent Search",
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            fontSize = 15.sp
-                        )
-                        Text(
-                            "Sets how frequently the app searches for torrents for episodes in 'Wanted' status.",
-                            color = TextSubtle,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        )
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = SurfaceSettingsPurpleDark
-                    ) {
-                        Text(
-                            text = "${searchIntervalHours.roundToInt()} hrs",
-                            color = PurpleLight,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Slider(
-                    value = searchIntervalHours,
-                    onValueChange = onSearchIntervalChange,
-                    onValueChangeFinished = onSearchIntervalHoursChangeFinished,
-                    enabled = isDownloaderInstalled,
-                    valueRange = 1f..24f,
-                    steps = 22,
-                    colors = SliderDefaults.colors(
-                        thumbColor = PurpleLight,
-                        activeTrackColor = PurpleLight,
-                        inactiveTrackColor = OutlineVariant,
-                        activeTickColor = Color.Transparent,
-                        inactiveTickColor = Color.Transparent
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("1 hour", color = TextGrey, fontSize = 11.sp)
-                    Text("12 hours", color = TextGrey, fontSize = 11.sp)
-                    Text("24 hours", color = TextGrey, fontSize = 11.sp)
-                }
-            }
-
-            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-            KeywordManagerSection(
-                title = "Preferred Keywords",
-                subtitle = "Torrents containing these tags will be prioritized. First items take precedence.",
-                keywords = autoDownloadPrefs.preferredKeywords,
-                onAdd = actions.onAddPreferredKeyword,
-                onRemove = actions.onRemovePreferredKeyword,
-                onReorder = actions.onReorderPreferredKeywords,
-                enabled = isDownloaderInstalled,
-                color = PurpleLight
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            KeywordManagerSection(
-                title = "Ignore Keywords",
-                subtitle = "Torrents containing these tags will be skipped.",
-                keywords = autoDownloadPrefs.ignoreKeywords,
-                onAdd = actions.onAddIgnoreKeyword,
-                onRemove = actions.onRemoveIgnoreKeyword,
-                onReorder = actions.onReorderIgnoreKeywords,
-                enabled = isDownloaderInstalled,
-                color = ErrorPink
-            )
         }
+
+        HorizontalDivider(
+            color = OutlineVariant,
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 12.dp)
+        )
+
+        KeywordManagerSection(
+            title = "Preferred Keywords",
+            subtitle = "Torrents containing these tags will be prioritized. First items take precedence.",
+            keywords = autoDownloadPrefs.preferredKeywords,
+            onAdd = actions.onAddPreferredKeyword,
+            onRemove = actions.onRemovePreferredKeyword,
+            onReorder = actions.onReorderPreferredKeywords,
+            enabled = isDownloaderInstalled,
+            color = PurpleLight
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        KeywordManagerSection(
+            title = "Ignore Keywords",
+            subtitle = "Torrents containing these tags will be skipped.",
+            keywords = autoDownloadPrefs.ignoreKeywords,
+            onAdd = actions.onAddIgnoreKeyword,
+            onRemove = actions.onRemoveIgnoreKeyword,
+            onReorder = actions.onReorderIgnoreKeywords,
+            enabled = isDownloaderInstalled,
+            color = ErrorPink
+        )
     }
 }
 
@@ -2319,78 +2572,115 @@ fun SettingsAppLogsDiagnosticsCard(
         border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.BugReport,
-                    contentDescription = null,
-                    tint = PurpleLight,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Crash Reporting & Diagnostics",
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    fontSize = 16.sp
-                )
-            }
+        SettingsAppLogsDiagnosticsContent(
+            sentryEnabled,
+            isSentryConfigured,
+            isSentryRunning,
+            onUpdateSentryEnabled,
+            showDebugActions,
+            onUpdateShowDebugActions,
+            isForceSyncing,
+            onForceSync,
+            onNavigateToLogViewer
+        )
+    }
+}
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            SettingsSentrySection(
-                sentryEnabled = sentryEnabled,
-                isSentryConfigured = isSentryConfigured,
-                isSentryRunning = isSentryRunning,
-                onUpdateSentryEnabled = onUpdateSentryEnabled
+@Composable
+private fun SettingsAppLogsDiagnosticsContent(
+    sentryEnabled: Boolean,
+    isSentryConfigured: Boolean,
+    isSentryRunning: Boolean,
+    onUpdateSentryEnabled: (Boolean) -> Unit,
+    showDebugActions: Boolean,
+    onUpdateShowDebugActions: (Boolean) -> Unit,
+    isForceSyncing: Boolean,
+    onForceSync: () -> Unit,
+    onNavigateToLogViewer: () -> Unit
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.BugReport,
+                contentDescription = null,
+                tint = PurpleLight,
+                modifier = Modifier.size(20.dp)
             )
-
-            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Show Debug Actions",
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    )
-                    Text(
-                        "Show debug actions like manual item deletion on release detail screen",
-                        color = TextSubtle,
-                        fontSize = 12.sp
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Switch(
-                    checked = showDebugActions,
-                    onCheckedChange = onUpdateShowDebugActions,
-                    modifier = Modifier.testTag("show_debug_actions_switch")
-                )
-            }
-
-            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-            SettingsWatchlistResyncSection(
-                isForceSyncing = isForceSyncing,
-                onForceSync = onForceSync
-            )
-
-            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-            SettingsAppLogsSection(
-                onNavigateToLogViewer = onNavigateToLogViewer
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "Crash Reporting & Diagnostics",
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                fontSize = 16.sp
             )
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsSentrySection(
+            sentryEnabled = sentryEnabled,
+            isSentryConfigured = isSentryConfigured,
+            isSentryRunning = isSentryRunning,
+            onUpdateSentryEnabled = onUpdateSentryEnabled
+        )
+
+        HorizontalDivider(
+            color = OutlineVariant,
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 12.dp)
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Show Debug Actions",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    "Show debug actions like manual item deletion on release detail screen",
+                    color = TextSubtle,
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Switch(
+                checked = showDebugActions,
+                onCheckedChange = onUpdateShowDebugActions,
+                modifier = Modifier.testTag("show_debug_actions_switch")
+            )
+        }
+
+        HorizontalDivider(
+            color = OutlineVariant,
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 12.dp)
+        )
+
+        SettingsWatchlistResyncSection(
+            isForceSyncing = isForceSyncing,
+            onForceSync = onForceSync
+        )
+
+        HorizontalDivider(
+            color = OutlineVariant,
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 12.dp)
+        )
+
+        SettingsAppLogsSection(
+            onNavigateToLogViewer = onNavigateToLogViewer
+        )
     }
 }
 
@@ -3012,22 +3302,41 @@ fun SettingsBackupCategorySection(
     onImportClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        SettingsExportImportCard(onExportClick, onImportClick)
+    }
+}
+
+@Composable
+private fun SettingsExportImportCard(
+    onExportClick: () -> Unit,
+    onImportClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
         border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            SettingsBackupHeader()
-            SettingsBackupButtonsRow(
-                onExportClick = onExportClick,
-                onImportClick = onImportClick
-            )
-        }
+        SettingsExportImportContent(onExportClick, onImportClick)
+    }
+}
+
+@Composable
+private fun SettingsExportImportContent(onExportClick: () -> Unit, onImportClick: () -> Unit) {
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        SettingsBackupHeader()
+        SettingsBackupButtonsRow(
+            onExportClick = onExportClick,
+            onImportClick = onImportClick
+        )
     }
 }
 

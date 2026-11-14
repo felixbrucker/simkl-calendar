@@ -45,6 +45,7 @@ import com.felixbrucker.simklcalendar.ui.screens.LoginScreen
 import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
+import com.felixbrucker.simklcalendar.ui.screens.SettingsCategory
 import com.felixbrucker.simklcalendar.ui.screens.LogViewerScreen
 import com.felixbrucker.simklcalendar.ui.theme.MyApplicationTheme
 import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
@@ -396,14 +397,48 @@ fun SimklCalendarApp(
                 exitTransition = { slideOutToLeft },
             ) {
                 SettingsScreen(
+                    initialCategory = null,
                     onNavigateBack = {
                         navController.popBackStackSafely()
+                    },
+                    onNavigateToCategory = { category ->
+                        navController.navigate("settings/${category.name}") {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToLogViewer = {
+                        navController.navigate("log_viewer") {
+                            launchSingleTop = true
+                        }
                     }
-                ) {
-                    navController.navigate("log_viewer") {
-                        launchSingleTop = true
-                    }
+                )
+            }
+
+            // 3.1. Sub-settings category screen
+            composable(
+                route = "settings/{categoryName}",
+                arguments = listOf(navArgument("categoryName") { type = NavType.StringType }),
+                enterTransition = { slideInFromRight },
+                exitTransition = { slideOutToLeft },
+            ) { backStackEntry ->
+                val categoryName = backStackEntry.arguments?.getString("categoryName")
+                val category = try {
+                    categoryName?.let { SettingsCategory.valueOf(it) }
+                } catch (_: Exception) {
+                    null
                 }
+                SettingsScreen(
+                    initialCategory = category,
+                    onNavigateBack = {
+                        navController.popBackStackSafely()
+                    },
+                    onNavigateToCategory = {},
+                    onNavigateToLogViewer = {
+                        navController.navigate("log_viewer") {
+                            launchSingleTop = true
+                        }
+                    }
+                )
             }
 
             // 3.1. Log Viewer screen
