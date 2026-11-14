@@ -299,24 +299,24 @@ fun SimklCalendarApp(
 
     SharedTransitionLayout {
         val slideInFromRight = slideInHorizontally(
-            initialOffsetX = { it },
+            initialOffsetX = { fullWidth -> fullWidth / 6 },
             animationSpec = tween(300, easing = FastOutSlowInEasing)
-        ) + fadeIn(animationSpec = tween(300))
+        ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing))
 
         val slideOutToLeft = slideOutHorizontally(
-            targetOffsetX = { -it },
+            targetOffsetX = { fullWidth -> -fullWidth / 6 },
             animationSpec = tween(300, easing = FastOutSlowInEasing)
-        ) + fadeOut(animationSpec = tween(300))
+        ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
 
         val slideInFromLeft = slideInHorizontally(
-            initialOffsetX = { -it },
+            initialOffsetX = { fullWidth -> -fullWidth / 6 },
             animationSpec = tween(300, easing = FastOutSlowInEasing)
-        ) + fadeIn(animationSpec = tween(300))
+        ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing))
 
         val slideOutToRight = slideOutHorizontally(
-            targetOffsetX = { it },
+            targetOffsetX = { fullWidth -> fullWidth / 6 },
             animationSpec = tween(300, easing = FastOutSlowInEasing)
-        ) + fadeOut(animationSpec = tween(300))
+        ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
 
         NavHost(
             navController = navController,
