@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.squareup.moshi.JsonClass
 
 val Context.appSettingsDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "app_settings",
@@ -27,6 +28,7 @@ val Context.appSettingsDataStore: DataStore<Preferences> by preferencesDataStore
     }
 )
 
+@JsonClass(generateAdapter = true)
 data class AppSettingsPreferences(
     val syncIntervalHours: Int = 12,
     val isSentryEnabled: Boolean = true,
@@ -68,6 +70,14 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setShowDebugActions(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[KEY_SHOW_DEBUG_ACTIONS] = enabled
+        }
+    }
+
+    suspend fun setAll(prefs: AppSettingsPreferences) {
+        dataStore.edit { preferences ->
+            preferences[KEY_SYNC_INTERVAL_HOURS] = prefs.syncIntervalHours
+            preferences[KEY_IS_SENTRY_ENABLED] = prefs.isSentryEnabled
+            preferences[KEY_SHOW_DEBUG_ACTIONS] = prefs.showDebugActions
         }
     }
 

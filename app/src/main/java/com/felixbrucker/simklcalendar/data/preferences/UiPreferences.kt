@@ -13,17 +13,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.squareup.moshi.JsonClass
 
 val Context.uiDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "ui_settings",
     produceMigrations = { context -> listOf(SharedPreferencesMigration(context, "ui_prefs")) }
 )
 
+@JsonClass(generateAdapter = false)
 enum class ViewMode {
     CALENDAR,
     TABLE
 }
 
+@JsonClass(generateAdapter = true)
 data class UiPreferences(
     val viewMode: ViewMode = ViewMode.CALENDAR,
     val filterShowTv: Boolean = true,
@@ -103,5 +106,19 @@ class UiRepository @Inject constructor(
 
     suspend fun clear() {
         dataStore.edit { it.clear() }
+    }
+
+    suspend fun setAllPreferences(prefs: UiPreferences) {
+        dataStore.edit { preferences ->
+            preferences[KEY_VIEW_MODE] = prefs.viewMode.name
+            preferences[KEY_FILTER_SHOW_TV] = prefs.filterShowTv
+            preferences[KEY_FILTER_SHOW_ANIME] = prefs.filterShowAnime
+            preferences[KEY_FILTER_SHOW_MOVIES] = prefs.filterShowMovies
+            preferences[KEY_FILTER_ONLY_UNWATCHED] = prefs.filterOnlyUnwatched
+            preferences[KEY_FILTER_ONLY_PREMIERES] = prefs.filterOnlyPremieres
+            preferences[KEY_FILTER_ONLY_FINALES] = prefs.filterOnlyFinales
+            preferences[KEY_FILTER_ONLY_DIGITAL_DVD] = prefs.filterOnlyDigitalDvd
+            preferences[KEY_FILTER_SHOW_EARLIER] = prefs.filterShowEarlier
+        }
     }
 }

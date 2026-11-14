@@ -9,6 +9,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.squareup.moshi.JsonClass
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.util.formatTwoDigits
@@ -113,6 +114,7 @@ data class LocalItemState(
         )
     ]
 )
+@JsonClass(generateAdapter = true)
 data class NotificationSetting(
     @PrimaryKey val simklId: Int, // Simkl ID
     val notifyEveryEpisode: Boolean = false,
@@ -260,6 +262,7 @@ data class WatchedEpisode(
         Index(value = ["position"])
     ]
 )
+@JsonClass(generateAdapter = true)
 data class CustomSearchLink(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
@@ -418,6 +421,7 @@ data class ActiveNotification(
         )
     ]
 )
+@JsonClass(generateAdapter = true)
 data class ItemDownloadSettings(
     @PrimaryKey val simklId: Int,
     val downloadUnwatched: Boolean? = null,

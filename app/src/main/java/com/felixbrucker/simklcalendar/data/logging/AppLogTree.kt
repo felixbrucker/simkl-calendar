@@ -1,6 +1,5 @@
 package com.felixbrucker.simklcalendar.data.logging
 
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 

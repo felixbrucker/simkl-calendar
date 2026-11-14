@@ -27,7 +27,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MyApplication">
+        android:theme="@style/Theme.MyApplication"
+        tools:ignore="RemoveWorkManagerInitializer">
         <meta-data android:name="io.sentry.auto-init" android:value="false" />
         <activity
             android:name=".MainActivity"

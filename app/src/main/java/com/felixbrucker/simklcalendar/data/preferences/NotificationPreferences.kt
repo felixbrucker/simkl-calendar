@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.squareup.moshi.JsonClass
 
 val Context.notificationDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "notification_settings",
@@ -32,6 +33,7 @@ val Context.notificationDataStore: DataStore<Preferences> by preferencesDataStor
     }
 )
 
+@JsonClass(generateAdapter = true)
 data class NotificationPreferences(
     val useExactAlarms: Boolean = false,
     val defaultNotifyAiring: Boolean = false,
@@ -82,6 +84,16 @@ class NotificationRepository @Inject constructor(
 
     suspend fun setDefaultNotifyMovieDigital(enabled: Boolean) {
         dataStore.edit { it[KEY_NOTIFY_MOVIE_DIGITAL] = enabled }
+    }
+
+    suspend fun setAll(prefs: NotificationPreferences) {
+        dataStore.edit { preferences ->
+            preferences[KEY_USE_EXACT_ALARMS] = prefs.useExactAlarms
+            preferences[KEY_NOTIFY_AIRING] = prefs.defaultNotifyAiring
+            preferences[KEY_NOTIFY_SEASON_FINISHED] = prefs.defaultNotifySeasonFinished
+            preferences[KEY_NOTIFY_MOVIE_THEATER] = prefs.defaultNotifyMovieTheater
+            preferences[KEY_NOTIFY_MOVIE_DIGITAL] = prefs.defaultNotifyMovieDigital
+        }
     }
 
     suspend fun clear() {

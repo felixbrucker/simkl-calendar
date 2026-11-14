@@ -1,5 +1,8 @@
 package com.felixbrucker.simklcalendar.data.model
 
+import com.squareup.moshi.JsonClass
+
+@JsonClass(generateAdapter = false)
 enum class MediaType(val key: String, val displayName: String) {
     TV("tv", "TV Show"),
     ANIME("anime", "Anime"),
@@ -69,6 +72,7 @@ enum class MediaStatus(val displayName: String) {
     }
 }
 
+@JsonClass(generateAdapter = false)
 enum class EpisodeSearchStyle {
     SeasonAndEpisode,
     Episode

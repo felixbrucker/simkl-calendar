@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.squareup.moshi.JsonClass
 
 val Context.autoDownloadDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "auto_download_settings",
@@ -30,6 +31,7 @@ val Context.autoDownloadDataStore: DataStore<Preferences> by preferencesDataStor
     }
 )
 
+@JsonClass(generateAdapter = true)
 data class AutoDownloadPreferences(
     val quality: String = "1080p",
     val preferHevc: Boolean = true,
@@ -201,6 +203,31 @@ class AutoDownloadRepository @Inject constructor(
         dataStore.edit {
             it[KEY_SEASON_MAX_SIZE_VALUE] = value
             it[KEY_SEASON_MAX_SIZE_UNIT] = unit
+        }
+    }
+
+    suspend fun setAll(prefs: AutoDownloadPreferences) {
+        dataStore.edit { preferences ->
+            preferences[KEY_QUALITY] = prefs.quality
+            preferences[KEY_PREFER_HEVC] = prefs.preferHevc
+            preferences[KEY_UNWATCHED_TV] = prefs.autoDownloadUnwatchedTv
+            preferences[KEY_UNWATCHED_ANIME] = prefs.autoDownloadUnwatchedAnime
+            preferences[KEY_UNWATCHED_MOVIE] = prefs.autoDownloadUnwatchedMovie
+            preferences[KEY_SEASON_UNWATCHED_TV] = prefs.autoDownloadSeasonUnwatchedTv
+            preferences[KEY_SEASON_UNWATCHED_ANIME] = prefs.autoDownloadSeasonUnwatchedAnime
+            preferences[KEY_DELETE_FILE_ON_WATCHED] = prefs.deleteFileOnWatched
+            preferences[KEY_DELETE_EMPTY_PARENT_DIRECTORY] = prefs.deleteEmptyParentDirectory
+            preferences[KEY_PREFERRED_KEYWORDS] = prefs.preferredKeywords.joinToString("\n")
+            preferences[KEY_IGNORE_KEYWORDS] = prefs.ignoreKeywords.joinToString("\n")
+            preferences[KEY_SEARCH_INTERVAL_HOURS] = prefs.searchIntervalHours
+            preferences[KEY_SINGLE_ITEM_MIN_SIZE_VALUE] = prefs.singleItemMinSizeValue
+            preferences[KEY_SINGLE_ITEM_MIN_SIZE_UNIT] = prefs.singleItemMinSizeUnit
+            preferences[KEY_SINGLE_ITEM_MAX_SIZE_VALUE] = prefs.singleItemMaxSizeValue
+            preferences[KEY_SINGLE_ITEM_MAX_SIZE_UNIT] = prefs.singleItemMaxSizeUnit
+            preferences[KEY_SEASON_MIN_SIZE_VALUE] = prefs.seasonMinSizeValue
+            preferences[KEY_SEASON_MIN_SIZE_UNIT] = prefs.seasonMinSizeUnit
+            preferences[KEY_SEASON_MAX_SIZE_VALUE] = prefs.seasonMaxSizeValue
+            preferences[KEY_SEASON_MAX_SIZE_UNIT] = prefs.seasonMaxSizeUnit
         }
     }
 

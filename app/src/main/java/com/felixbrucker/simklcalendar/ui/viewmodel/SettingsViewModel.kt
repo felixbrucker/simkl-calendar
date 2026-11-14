@@ -2,8 +2,10 @@ package com.felixbrucker.simklcalendar.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.felixbrucker.simklcalendar.data.backup.SettingsBackupManager
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.UserToken
+import com.felixbrucker.simklcalendar.data.model.AppBackupData
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
@@ -16,6 +18,7 @@ import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import com.felixbrucker.simklcalendar.data.sentry.SentryManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
+import android.net.Uri
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,7 +38,8 @@ class SettingsViewModel @Inject constructor(
     private val notificationRepo: NotificationRepository,
     private val torrentServiceHelper: TorrentServiceHelper,
     private val alarmScheduler: AlarmScheduler,
-    private val sentryManager: SentryManager
+    private val sentryManager: SentryManager,
+    private val backupManager: SettingsBackupManager
 ) : ViewModel() {
 
     val userToken: StateFlow<UserToken?> = userRepository.activeUserToken
@@ -303,6 +307,50 @@ class SettingsViewModel @Inject constructor(
             } catch (e: Exception) {
                 _isForceSyncing.value = false
                 onComplete(false, e.message ?: "Failed to re-sync watchlist")
+            }
+        }
+    }
+
+    fun exportSettings(
+        uri: Uri,
+        exportAppSettings: Boolean,
+        exportNotificationSettings: Boolean,
+        exportDownloadSettings: Boolean,
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = backupManager.exportSettings(uri, exportAppSettings, exportNotificationSettings, exportDownloadSettings)
+            if (result.isSuccess) {
+                onComplete(true, "Settings exported successfully")
+            } else {
+                onComplete(false, result.exceptionOrNull()?.message ?: "Export failed")
+            }
+        }
+    }
+
+    fun readBackupMetadata(
+        uri: Uri,
+        onResult: (AppBackupData?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = backupManager.readBackupMetadata(uri)
+            onResult(result.getOrNull())
+        }
+    }
+
+    fun importSettings(
+        backupData: AppBackupData,
+        importAppSettings: Boolean,
+        importNotificationSettings: Boolean,
+        importDownloadSettings: Boolean,
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = backupManager.importSettings(backupData, importAppSettings, importNotificationSettings, importDownloadSettings)
+            if (result.isSuccess) {
+                onComplete(true, "Settings imported successfully")
+            } else {
+                onComplete(false, result.exceptionOrNull()?.message ?: "Import failed")
             }
         }
     }

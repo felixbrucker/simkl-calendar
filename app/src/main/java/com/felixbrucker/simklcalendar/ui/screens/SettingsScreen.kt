@@ -2,7 +2,9 @@ package com.felixbrucker.simklcalendar.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.widget.Toast
 import android.os.Build
+import com.felixbrucker.simklcalendar.data.model.AppBackupData
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -93,6 +95,7 @@ enum class SettingsCategory(
     GENERAL("General", Icons.Default.Settings),
     NOTIFICATIONS("Notifications", Icons.Default.Notifications),
     DOWNLOADS("Downloads", Icons.Default.Download),
+    BACKUP("Backup", Icons.Default.SettingsBackupRestore),
     DEBUG("Debug", Icons.Default.BugReport)
 }
 
@@ -174,6 +177,51 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val isForceSyncing by viewModel.isForceSyncing.collectAsState()
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
+
+    var showExportDialog by remember { mutableStateOf(false) }
+    var exportAppSettings by remember { mutableStateOf(true) }
+    var exportNotificationSettings by remember { mutableStateOf(true) }
+    var exportDownloadSettings by remember { mutableStateOf(true) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportSettings(uri, exportAppSettings, exportNotificationSettings, exportDownloadSettings) { _, message ->
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    var showImportDialog by remember { mutableStateOf(false) }
+    var pendingBackupData by remember { mutableStateOf<AppBackupData?>(null) }
+    var importAppSettings by remember { mutableStateOf(true) }
+    var importNotificationSettings by remember { mutableStateOf(true) }
+    var importDownloadSettings by remember { mutableStateOf(true) }
+    var hasAppSettings by remember { mutableStateOf(false) }
+    var hasNotificationSettings by remember { mutableStateOf(false) }
+    var hasDownloadSettings by remember { mutableStateOf(false) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.readBackupMetadata(uri) { backupData ->
+                if (backupData != null) {
+                    pendingBackupData = backupData
+                    hasAppSettings = backupData.appSettings != null || backupData.autoDownload != null || backupData.notification != null || backupData.ui != null || backupData.customSearchLinks.isNotEmpty()
+                    hasNotificationSettings = backupData.notificationSettings.isNotEmpty()
+                    hasDownloadSettings = backupData.itemDownloadSettings.isNotEmpty()
+                    importAppSettings = hasAppSettings
+                    importNotificationSettings = hasNotificationSettings
+                    importDownloadSettings = hasDownloadSettings
+                    showImportDialog = true
+                } else {
+                    Toast.makeText(context, "Failed to read backup file", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     var localLinks by remember(customSearchLinks) { mutableStateOf(customSearchLinks) }
 
@@ -319,6 +367,14 @@ fun SettingsScreen(
                         }
                     )
 
+                    SettingsBackupCategorySection(
+                        onExportClick = { showExportDialog = true },
+                        onImportClick = { importLauncher.launch("application/json") },
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            sectionYPositions[SettingsCategory.BACKUP] = coordinates.positionInParent().y
+                        }
+                    )
+
                     SettingsDebugCategorySection(
                         isForceSyncing = isForceSyncing,
                         appSettings = appSettings,
@@ -392,6 +448,11 @@ fun SettingsScreen(
                     viewModel = viewModel
                 )
 
+                SettingsBackupCategorySection(
+                    onExportClick = { showExportDialog = true },
+                    onImportClick = { importLauncher.launch("application/json") }
+                )
+
                 SettingsDebugCategorySection(
                     isForceSyncing = isForceSyncing,
                     appSettings = appSettings,
@@ -402,6 +463,50 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+
+    if (showExportDialog) {
+        SettingsExportDialog(
+            exportAppSettings = exportAppSettings,
+            exportNotificationSettings = exportNotificationSettings,
+            exportDownloadSettings = exportDownloadSettings,
+            onAppSettingsChange = { exportAppSettings = it },
+            onNotificationSettingsChange = { exportNotificationSettings = it },
+            onDownloadSettingsChange = { exportDownloadSettings = it },
+            onDismiss = { showExportDialog = false },
+            onConfirm = {
+                showExportDialog = false
+                exportLauncher.launch("simkl_calendar_settings_backup.json")
+            }
+        )
+    }
+
+    if (showImportDialog && pendingBackupData != null) {
+        SettingsImportDialog(
+            hasAppSettings = hasAppSettings,
+            hasNotificationSettings = hasNotificationSettings,
+            hasDownloadSettings = hasDownloadSettings,
+            importAppSettings = importAppSettings,
+            importNotificationSettings = importNotificationSettings,
+            importDownloadSettings = importDownloadSettings,
+            onAppSettingsChange = { importAppSettings = it },
+            onNotificationSettingsChange = { importNotificationSettings = it },
+            onDownloadSettingsChange = { importDownloadSettings = it },
+            onDismiss = {
+                showImportDialog = false
+                pendingBackupData = null
+            },
+            onConfirm = {
+                val data = pendingBackupData
+                showImportDialog = false
+                pendingBackupData = null
+                if (data != null) {
+                    viewModel.importSettings(data, importAppSettings, importNotificationSettings, importDownloadSettings) { _, message ->
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        )
     }
 
     // Add / Edit Custom Search Link Dialog
@@ -779,7 +884,14 @@ fun SettingsDebugCategorySection(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        SettingsWatchlistResyncCard(
+        SettingsAppLogsDiagnosticsCard(
+            sentryEnabled = appSettings.isSentryEnabled,
+            isSentryConfigured = viewModel.isSentryConfigured,
+            isSentryRunning = viewModel.isSentryRunning,
+            showDebugActions = appSettings.showDebugActions,
+            onUpdateSentryEnabled = { viewModel.updateSentryEnabled(it) },
+            onUpdateShowDebugActions = { viewModel.updateShowDebugActions(it) },
+            onNavigateToLogViewer = onNavigateToLogViewer,
             isForceSyncing = isForceSyncing,
             onForceSync = {
                 viewModel.forceWatchlistResync { _, message ->
@@ -788,15 +900,6 @@ fun SettingsDebugCategorySection(
                     }
                 }
             }
-        )
-        SettingsAppLogsDiagnosticsCard(
-            sentryEnabled = appSettings.isSentryEnabled,
-            isSentryConfigured = viewModel.isSentryConfigured,
-            isSentryRunning = viewModel.isSentryRunning,
-            showDebugActions = appSettings.showDebugActions,
-            onUpdateSentryEnabled = { viewModel.updateSentryEnabled(it) },
-            onUpdateShowDebugActions = { viewModel.updateShowDebugActions(it) },
-            onNavigateToLogViewer = onNavigateToLogViewer
         )
     }
 }
@@ -2198,82 +2301,6 @@ fun SettingsAutomaticDownloadsCard(
 }
 
 @Composable
-fun SettingsWatchlistResyncCard(
-    isForceSyncing: Boolean,
-    onForceSync: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
-        border = BorderStroke(1.dp, OutlineVariant),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.CloudSync,
-                    contentDescription = null,
-                    tint = PurpleLight,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Watchlist Synchronization",
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    fontSize = 16.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                "Forces a full re-synchronization of your complete SIMKL watchlist and watched history from scratch.",
-                color = TextSubtle,
-                fontSize = 12.sp,
-                lineHeight = 16.sp
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onForceSync,
-                enabled = !isForceSyncing,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SurfacePrimaryVariant,
-                    contentColor = PurpleContainerSoft,
-                    disabledContainerColor = SurfaceVariantGrey,
-                    disabledContentColor = OutlineGrey
-                ),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth().height(48.dp)
-            ) {
-                if (isForceSyncing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = PurpleContainerSoft
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Re-syncing Watchlist...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                } else {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Force Watchlist Re-Sync", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun SettingsAppLogsDiagnosticsCard(
     sentryEnabled: Boolean,
     isSentryConfigured: Boolean,
@@ -2282,6 +2309,8 @@ fun SettingsAppLogsDiagnosticsCard(
     onUpdateSentryEnabled: (Boolean) -> Unit,
     onUpdateShowDebugActions: (Boolean) -> Unit,
     onNavigateToLogViewer: () -> Unit,
+    isForceSyncing: Boolean,
+    onForceSync: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -2351,9 +2380,53 @@ fun SettingsAppLogsDiagnosticsCard(
 
             HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 
+            SettingsWatchlistResyncSection(
+                isForceSyncing = isForceSyncing,
+                onForceSync = onForceSync
+            )
+
+            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
             SettingsAppLogsSection(
                 onNavigateToLogViewer = onNavigateToLogViewer
             )
+        }
+    }
+}
+
+@Composable
+fun SettingsWatchlistResyncSection(
+    isForceSyncing: Boolean,
+    onForceSync: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "Watchlist Synchronization",
+            color = TextPrimary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            "Forces a full re-synchronization of your complete SIMKL watchlist and watched history from scratch.",
+            color = TextSubtle,
+            fontSize = 12.sp
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = onForceSync,
+            enabled = !isForceSyncing,
+            modifier = Modifier.fillMaxWidth().height(42.dp)
+        ) {
+            if (isForceSyncing) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Re-syncing Watchlist...", fontSize = 13.sp)
+            } else {
+                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Force Watchlist Re-Sync", fontSize = 13.sp)
+            }
         }
     }
 }
@@ -2930,5 +3003,224 @@ fun SettingsTorrentSizeSection(
                 SettingsSeasonSizeRows(prefs = autoDownloadPrefs, enabled = isDownloaderInstalled, actions = actions)
             }
         }
+    }
+}
+
+@Composable
+fun SettingsBackupCategorySection(
+    onExportClick: () -> Unit,
+    onImportClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            SettingsBackupHeader()
+            SettingsBackupButtonsRow(
+                onExportClick = onExportClick,
+                onImportClick = onImportClick
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsBackupHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.SettingsBackupRestore,
+            contentDescription = null,
+            tint = PurpleLight,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "Backup & Restore",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Text(
+                text = "Export app settings and preferences to a backup file, or restore them.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSubtle
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsBackupButtonsRow(
+    onExportClick: () -> Unit,
+    onImportClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedButton(
+            onClick = onExportClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Upload,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Export Settings")
+        }
+
+        OutlinedButton(
+            onClick = onImportClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Download,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Import Settings")
+        }
+    }
+}
+
+@Composable
+fun SettingsExportDialog(
+    exportAppSettings: Boolean,
+    exportNotificationSettings: Boolean,
+    exportDownloadSettings: Boolean,
+    onAppSettingsChange: (Boolean) -> Unit,
+    onNotificationSettingsChange: (Boolean) -> Unit,
+    onDownloadSettingsChange: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Export Settings") },
+        text = {
+            SettingsExportDialogBody(
+                exportAppSettings = exportAppSettings,
+                exportNotificationSettings = exportNotificationSettings,
+                exportDownloadSettings = exportDownloadSettings,
+                onAppSettingsChange = onAppSettingsChange,
+                onNotificationSettingsChange = onNotificationSettingsChange,
+                onDownloadSettingsChange = onDownloadSettingsChange
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Export") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun SettingsExportDialogBody(
+    exportAppSettings: Boolean,
+    exportNotificationSettings: Boolean,
+    exportDownloadSettings: Boolean,
+    onAppSettingsChange: (Boolean) -> Unit,
+    onNotificationSettingsChange: (Boolean) -> Unit,
+    onDownloadSettingsChange: (Boolean) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Select settings to include in the backup:")
+        SettingsCheckboxRow(label = "App Settings", checked = exportAppSettings, onCheckedChange = onAppSettingsChange)
+        SettingsCheckboxRow(label = "Per-Item Notification Settings", checked = exportNotificationSettings, onCheckedChange = onNotificationSettingsChange)
+        SettingsCheckboxRow(label = "Per-Item Download Settings", checked = exportDownloadSettings, onCheckedChange = onDownloadSettingsChange)
+    }
+}
+
+@Composable
+fun SettingsImportDialog(
+    hasAppSettings: Boolean,
+    hasNotificationSettings: Boolean,
+    hasDownloadSettings: Boolean,
+    importAppSettings: Boolean,
+    importNotificationSettings: Boolean,
+    importDownloadSettings: Boolean,
+    onAppSettingsChange: (Boolean) -> Unit,
+    onNotificationSettingsChange: (Boolean) -> Unit,
+    onDownloadSettingsChange: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Import Settings") },
+        text = {
+            SettingsImportDialogBody(
+                hasAppSettings = hasAppSettings,
+                hasNotificationSettings = hasNotificationSettings,
+                hasDownloadSettings = hasDownloadSettings,
+                importAppSettings = importAppSettings,
+                importNotificationSettings = importNotificationSettings,
+                importDownloadSettings = importDownloadSettings,
+                onAppSettingsChange = onAppSettingsChange,
+                onNotificationSettingsChange = onNotificationSettingsChange,
+                onDownloadSettingsChange = onDownloadSettingsChange
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Import") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun SettingsImportDialogBody(
+    hasAppSettings: Boolean,
+    hasNotificationSettings: Boolean,
+    hasDownloadSettings: Boolean,
+    importAppSettings: Boolean,
+    importNotificationSettings: Boolean,
+    importDownloadSettings: Boolean,
+    onAppSettingsChange: (Boolean) -> Unit,
+    onNotificationSettingsChange: (Boolean) -> Unit,
+    onDownloadSettingsChange: (Boolean) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Select settings to restore from the backup:")
+        SettingsCheckboxRow(label = "App Settings", checked = importAppSettings, enabled = hasAppSettings, onCheckedChange = onAppSettingsChange)
+        SettingsCheckboxRow(label = "Per-Item Notification Settings", checked = importNotificationSettings, enabled = hasNotificationSettings, onCheckedChange = onNotificationSettingsChange)
+        SettingsCheckboxRow(label = "Per-Item Download Settings", checked = importDownloadSettings, enabled = hasDownloadSettings, onCheckedChange = onDownloadSettingsChange)
+    }
+}
+
+@Composable
+fun SettingsCheckboxRow(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { onCheckedChange(!checked) },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Checkbox(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (enabled) TextPrimary else TextSubtle
+        )
     }
 }

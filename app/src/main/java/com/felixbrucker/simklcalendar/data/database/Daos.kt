@@ -281,6 +281,9 @@ interface NotificationSettingDao {
     @Query("SELECT * FROM notification_settings")
     fun getAllSettings(): Flow<List<NotificationSetting>>
 
+    @Query("SELECT * FROM notification_settings")
+    suspend fun getAllNotificationSettings(): List<NotificationSetting>
+
     @Query("SELECT * FROM notification_settings WHERE simklId = :simklId LIMIT 1")
     suspend fun getSettingForSimklId(simklId: Int): NotificationSetting?
 
@@ -371,6 +374,9 @@ interface CustomSearchLinkDao {
     @Query("SELECT * FROM custom_search_links ORDER BY position ASC, id ASC")
     fun getAllSearchLinks(): Flow<List<CustomSearchLink>>
 
+    @Query("SELECT * FROM custom_search_links ORDER BY position ASC, id ASC")
+    suspend fun getAllSearchLinksList(): List<CustomSearchLink>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSearchLink(link: CustomSearchLink): Long
 
@@ -403,6 +409,9 @@ interface ActiveNotificationDao {
 interface ItemDownloadSettingsDao {
     @Query("SELECT * FROM item_download_settings WHERE simklId = :simklId LIMIT 1")
     suspend fun getSettings(simklId: Int): ItemDownloadSettings?
+
+    @Query("SELECT * FROM item_download_settings")
+    suspend fun getAllItemDownloadSettings(): List<ItemDownloadSettings>
 
     @Query("SELECT * FROM item_download_settings WHERE simklId IN (:simklIds)")
     suspend fun getSettingsBySimklIds(simklIds: List<Int>): List<ItemDownloadSettings>

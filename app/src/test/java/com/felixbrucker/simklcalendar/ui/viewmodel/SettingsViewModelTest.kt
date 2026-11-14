@@ -1,5 +1,6 @@
 package com.felixbrucker.simklcalendar.ui.viewmodel
 
+import com.felixbrucker.simklcalendar.data.backup.SettingsBackupManager
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.preferences.*
@@ -42,6 +43,7 @@ class SettingsViewModelTest {
     private val torrentServiceHelper: TorrentServiceHelper = mockk(relaxed = true)
     private val alarmScheduler: AlarmScheduler = mockk(relaxed = true)
     private val sentryManager: SentryManager = mockk(relaxed = true)
+    private val backupManager: SettingsBackupManager = mockk(relaxed = true)
 
     private val userTokenFlow = MutableStateFlow<UserToken?>(null)
     private val customSearchLinksFlow = MutableStateFlow<List<CustomSearchLink>>(emptyList())
@@ -76,7 +78,8 @@ class SettingsViewModelTest {
             notificationRepo = notificationRepo,
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
-            sentryManager = sentryManager
+            sentryManager = sentryManager,
+            backupManager = backupManager
         )
 
         viewModel.logoutUser()
@@ -116,7 +119,8 @@ class SettingsViewModelTest {
             notificationRepo = notificationRepo,
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
-            sentryManager = sentryManager
+            sentryManager = sentryManager,
+            backupManager = backupManager
         )
 
         viewModel.updateAutoDownloadQuality("1080p")
@@ -167,7 +171,8 @@ class SettingsViewModelTest {
             notificationRepo = notificationRepo,
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
-            sentryManager = sentryManager
+            sentryManager = sentryManager,
+            backupManager = backupManager
         )
         val link1 = CustomSearchLink(id = 0L, name = "Link 1", urlTemplate = "https://test.com/{query}", position = 0)
         val link2 = CustomSearchLink(id = 2L, name = "Link 2", urlTemplate = "https://test2.com/{query}", position = 1)
@@ -196,7 +201,8 @@ class SettingsViewModelTest {
             notificationRepo = notificationRepo,
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
-            sentryManager = sentryManager
+            sentryManager = sentryManager,
+            backupManager = backupManager
         )
 
         var noTokenOk = true
@@ -234,7 +240,8 @@ class SettingsViewModelTest {
             notificationRepo = notificationRepo,
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
-            sentryManager = sentryManager
+            sentryManager = sentryManager,
+            backupManager = backupManager
         )
 
         val isRunning = viewModel.isSentryRunning
@@ -254,7 +261,8 @@ class SettingsViewModelTest {
             notificationRepo = notificationRepo,
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
-            sentryManager = sentryManager
+            sentryManager = sentryManager,
+            backupManager = backupManager
         )
 
         val isRunning = viewModel.isSentryRunning

@@ -84,7 +84,7 @@ private enum class SearchBarDisplayMode {
     DOCKED
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MainScreen(
     viewModel: CalendarViewModel,
