@@ -39,8 +39,14 @@ data class NotificationPreferences(
     val defaultNotifyAiring: Boolean = false,
     val defaultNotifySeasonFinished: Boolean = true,
     val defaultNotifyMovieTheater: Boolean = false,
-    val defaultNotifyMovieDigital: Boolean = true
-)
+    val defaultNotifyMovieDigital: Boolean = true,
+    val notifyNewUntrackedTrendingMovies: Boolean = false,
+    val notifyNewUntrackedTrendingTv: Boolean = false,
+    val notifyNewUntrackedTrendingAnime: Boolean = false
+) {
+    val isAnyTrendingNotificationEnabled: Boolean
+        get() = notifyNewUntrackedTrendingMovies || notifyNewUntrackedTrendingTv || notifyNewUntrackedTrendingAnime
+}
 
 @Singleton
 class NotificationRepository @Inject constructor(
@@ -54,6 +60,9 @@ class NotificationRepository @Inject constructor(
         private val KEY_NOTIFY_SEASON_FINISHED = booleanPreferencesKey("default_notify_season_finished")
         private val KEY_NOTIFY_MOVIE_THEATER = booleanPreferencesKey("default_notify_movie_theater")
         private val KEY_NOTIFY_MOVIE_DIGITAL = booleanPreferencesKey("default_notify_movie_digital")
+        private val KEY_NOTIFY_TRENDING_MOVIES = booleanPreferencesKey("notify_new_untracked_trending_movies")
+        private val KEY_NOTIFY_TRENDING_TV = booleanPreferencesKey("notify_new_untracked_trending_tv")
+        private val KEY_NOTIFY_TRENDING_ANIME = booleanPreferencesKey("notify_new_untracked_trending_anime")
     }
 
     val preferencesFlow: Flow<NotificationPreferences> = dataStore.data.map { preferences ->
@@ -62,7 +71,10 @@ class NotificationRepository @Inject constructor(
             defaultNotifyAiring = preferences[KEY_NOTIFY_AIRING] ?: false,
             defaultNotifySeasonFinished = preferences[KEY_NOTIFY_SEASON_FINISHED] ?: true,
             defaultNotifyMovieTheater = preferences[KEY_NOTIFY_MOVIE_THEATER] ?: false,
-            defaultNotifyMovieDigital = preferences[KEY_NOTIFY_MOVIE_DIGITAL] ?: true
+            defaultNotifyMovieDigital = preferences[KEY_NOTIFY_MOVIE_DIGITAL] ?: true,
+            notifyNewUntrackedTrendingMovies = preferences[KEY_NOTIFY_TRENDING_MOVIES] ?: false,
+            notifyNewUntrackedTrendingTv = preferences[KEY_NOTIFY_TRENDING_TV] ?: false,
+            notifyNewUntrackedTrendingAnime = preferences[KEY_NOTIFY_TRENDING_ANIME] ?: false
         )
     }
 
@@ -86,6 +98,18 @@ class NotificationRepository @Inject constructor(
         dataStore.edit { it[KEY_NOTIFY_MOVIE_DIGITAL] = enabled }
     }
 
+    suspend fun setNotifyNewUntrackedTrendingMovies(enabled: Boolean) {
+        dataStore.edit { it[KEY_NOTIFY_TRENDING_MOVIES] = enabled }
+    }
+
+    suspend fun setNotifyNewUntrackedTrendingTv(enabled: Boolean) {
+        dataStore.edit { it[KEY_NOTIFY_TRENDING_TV] = enabled }
+    }
+
+    suspend fun setNotifyNewUntrackedTrendingAnime(enabled: Boolean) {
+        dataStore.edit { it[KEY_NOTIFY_TRENDING_ANIME] = enabled }
+    }
+
     suspend fun setAll(prefs: NotificationPreferences) {
         dataStore.edit { preferences ->
             preferences[KEY_USE_EXACT_ALARMS] = prefs.useExactAlarms
@@ -93,6 +117,9 @@ class NotificationRepository @Inject constructor(
             preferences[KEY_NOTIFY_SEASON_FINISHED] = prefs.defaultNotifySeasonFinished
             preferences[KEY_NOTIFY_MOVIE_THEATER] = prefs.defaultNotifyMovieTheater
             preferences[KEY_NOTIFY_MOVIE_DIGITAL] = prefs.defaultNotifyMovieDigital
+            preferences[KEY_NOTIFY_TRENDING_MOVIES] = prefs.notifyNewUntrackedTrendingMovies
+            preferences[KEY_NOTIFY_TRENDING_TV] = prefs.notifyNewUntrackedTrendingTv
+            preferences[KEY_NOTIFY_TRENDING_ANIME] = prefs.notifyNewUntrackedTrendingAnime
         }
     }
 
@@ -100,3 +127,4 @@ class NotificationRepository @Inject constructor(
         dataStore.edit { it.clear() }
     }
 }
+

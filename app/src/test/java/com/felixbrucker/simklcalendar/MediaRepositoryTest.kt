@@ -186,4 +186,14 @@ class MediaRepositoryTest {
         assertEquals("Old Cached Movie", initialResult?.title)
         coVerify(timeout = 2000) { mediaItemDao.upsertMediaItem(any()) }
     }
+
+    @Test
+    fun testPruneExpiredMediaItemsDeletesExpiredEntities() = runTest {
+        coEvery { mediaItemDao.deleteExpiredMediaItems(any()) } returns 5
+
+        val deletedCount = mediaRepository.pruneExpiredMediaItems(months = 3)
+
+        assertEquals(5, deletedCount)
+        coVerify { mediaItemDao.deleteExpiredMediaItems(any()) }
+    }
 }

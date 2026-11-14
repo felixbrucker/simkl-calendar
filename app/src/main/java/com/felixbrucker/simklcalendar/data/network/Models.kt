@@ -219,6 +219,7 @@ data class SimklAnimeDetailResponse(
     @Json(name = "poster") val poster: String? = null,
     @Json(name = "genres") val genres: List<String>? = null,
     @Json(name = "type") val animeType: String? = null,
+    @Json(name = "status") val status: String? = null,
     @Json(name = "total_episodes") val totalEpisodes: Int? = null,
     @Json(name = "year_start_end") val yearStartEnd: String? = null,
     @Json(name = "season_name_year") val seasonNameYear: String? = null,
@@ -274,6 +275,17 @@ data class SyncHistoryAddedResult(
     @Json(name = "anime") val anime: Int? = null,
     @Json(name = "episodes") val episodes: Int? = null
 )
+
+@JsonClass(generateAdapter = true)
+data class SimklTrendingItem(
+    @Json(name = "ids") val ids: SimklTrendingIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklTrendingIds(
+    @Json(name = "simkl_id") val simklId: Int
+)
+
 
 
 

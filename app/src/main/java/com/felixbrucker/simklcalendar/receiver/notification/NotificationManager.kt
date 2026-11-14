@@ -21,12 +21,17 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.felixbrucker.simklcalendar.MainActivity
 import com.felixbrucker.simklcalendar.R
+import com.felixbrucker.simklcalendar.data.database.ActiveNotification
 import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
-import com.felixbrucker.simklcalendar.data.database.ActiveNotification
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.MediaItem
+import com.felixbrucker.simklcalendar.data.database.SeriesStatus
+import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import kotlin.math.abs
+
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
@@ -71,6 +76,121 @@ class NotificationManager @Inject constructor(
             Timber.tag(TAG).e(e, "Error posting notification")
         }
     }
+
+    suspend fun showTrendingNotification(item: TrendingMediaItem) {
+        createNotificationChannel()
+        val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
+        if (!isNotificationPermissionGranted) return
+
+        val mediaItem = item.mediaItem
+        val title = mediaItem?.title ?: "Trending Item"
+        val rankText = "#${item.trendingEntry.rank} Trending"
+        val description = mediaItem?.description ?: ""
+        val footer = formatTrendingFooter(mediaItem)
+
+        val notificationId = abs(("trending_${item.trendingEntry.mediaType.key}_${item.trendingEntry.simklId}").hashCode())
+
+        val openIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(MainActivity.EXTRA_ITEM_KEY, item.trendingEntry.simklId.toString())
+            data = "simklcalendar://media_item/${item.trendingEntry.simklId}".toUri()
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            openIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setSubText(rankText)
+            .setContentText(description)
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(description)
+                    .setSummaryText(footer)
+            )
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        val posterBitmap = loadPosterBitmap(mediaItem?.poster)
+        if (posterBitmap != null) {
+            builder.setLargeIcon(posterBitmap)
+        }
+
+        try {
+            context.getSystemNotificationManager().notify(notificationId, builder.build())
+            Timber.tag(TAG).d("Successfully displayed trending notification id=$notificationId for ${item.trendingEntry.simklId}")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error posting trending notification")
+        }
+    }
+
+    private fun formatTrendingFooter(mediaItem: MediaItem?): String {
+        if (mediaItem == null) return ""
+        val parts = mutableListOf<String>()
+
+        when (mediaItem.mediaType) {
+            MediaType.MOVIE -> {
+                parts.add(mediaItem.year.toString())
+            }
+            MediaType.TV -> {
+                val endYear = mediaItem.seriesMetadata?.endYear
+                val status = mediaItem.seriesMetadata?.status
+                val yearStr = when {
+                    endYear != null -> "${mediaItem.year}-$endYear"
+                    status == SeriesStatus.AIRING -> "${mediaItem.year}-Now"
+                    else -> mediaItem.year.toString()
+                }
+                parts.add(yearStr)
+            }
+            MediaType.ANIME -> {
+                val endYear = mediaItem.animeMetadata?.endYear
+                val status = mediaItem.animeMetadata?.status
+                val yearStr = when {
+                    endYear != null -> "${mediaItem.year}-$endYear"
+                    status == SeriesStatus.AIRING -> "${mediaItem.year}-Now"
+                    else -> mediaItem.year.toString()
+                }
+                parts.add(yearStr)
+            }
+        }
+
+        mediaItem.rating?.let {
+            parts.add("Rating ${"%.1f".format(it)}")
+        }
+
+        mediaItem.movieMetadata?.budget?.takeIf { it > 0 }?.let {
+            parts.add("Budget ${formatCurrencyAmount(it)}")
+        }
+
+        mediaItem.movieMetadata?.boxOffice?.takeIf { it > 0 }?.let {
+            parts.add("Box Office ${formatCurrencyAmount(it)}")
+        }
+
+        val totalEp = mediaItem.seriesMetadata?.totalEpisodes ?: mediaItem.animeMetadata?.totalEpisodes
+        totalEp?.takeIf { it > 0 }?.let {
+            val epText = if (it == 1) "1 Episode" else "$it Episodes"
+            parts.add(epText)
+        }
+
+        return parts.joinToString(" • ")
+    }
+
+    private fun formatCurrencyAmount(amount: Long): String {
+        return when {
+            amount >= 1_000_000_000 -> "$${amount / 1_000_000_000}B"
+            amount >= 1_000_000 -> "$${amount / 1_000_000}M"
+            amount >= 1_000 -> "$${amount / 1_000}K"
+            else -> "$$amount"
+        }
+    }
+
 
     suspend fun updateNotification(
         item: CalendarItemWithWatchlist,

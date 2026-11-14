@@ -121,6 +121,24 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateNotifyNewUntrackedTrendingMovies(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationRepo.setNotifyNewUntrackedTrendingMovies(enabled)
+        }
+    }
+
+    fun updateNotifyNewUntrackedTrendingTv(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationRepo.setNotifyNewUntrackedTrendingTv(enabled)
+        }
+    }
+
+    fun updateNotifyNewUntrackedTrendingAnime(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationRepo.setNotifyNewUntrackedTrendingAnime(enabled)
+        }
+    }
+
     fun scheduleAllItemsAiredAlarms() {
         viewModelScope.launch {
             alarmScheduler.scheduleAllItemsAiredAlarms()

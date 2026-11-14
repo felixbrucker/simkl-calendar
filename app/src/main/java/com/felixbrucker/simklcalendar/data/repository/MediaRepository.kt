@@ -19,6 +19,7 @@ import timber.log.Timber
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,6 +29,15 @@ class MediaRepository @Inject constructor(
     private val publicSimklApiService: PublicSimklApiService,
     @ApplicationScope private val externalScope: CoroutineScope
 ) {
+
+    suspend fun pruneExpiredMediaItems(months: Long = 3): Int = withContext(Dispatchers.IO) {
+        val cutoff = Instant.now().minus(months * 30, ChronoUnit.DAYS)
+        val deletedCount = mediaItemDao.deleteExpiredMediaItems(cutoff)
+        if (deletedCount > 0) {
+            Timber.d("Pruned $deletedCount expired MediaItem entities older than $months months")
+        }
+        deletedCount
+    }
 
     fun getMediaItemStream(simklId: Int, mediaType: MediaType): Flow<MediaItem?> {
         externalScope.launch(Dispatchers.IO) {
@@ -142,7 +152,8 @@ class MediaRepository @Inject constructor(
             endYear = endYear,
             totalEpisodes = totalEpisodes,
             seasonYear = seasonYear,
-            seasonQuarter = seasonQuarter
+            seasonQuarter = seasonQuarter,
+            status = SeriesStatus.fromKey(details.status)
         )
 
         return MediaItem(

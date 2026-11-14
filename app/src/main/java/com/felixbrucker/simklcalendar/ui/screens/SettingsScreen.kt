@@ -878,7 +878,25 @@ fun SettingsNotificationsCategorySection(
                 if (it) checkAndRequestPermission()
             }
         )
+        SettingsTrendingNotificationsCard(
+            notifyNewUntrackedTrendingMovies = notificationPrefs.notifyNewUntrackedTrendingMovies,
+            notifyNewUntrackedTrendingTv = notificationPrefs.notifyNewUntrackedTrendingTv,
+            notifyNewUntrackedTrendingAnime = notificationPrefs.notifyNewUntrackedTrendingAnime,
+            onUpdateNotifyMovies = {
+                viewModel.updateNotifyNewUntrackedTrendingMovies(it)
+                if (it) checkAndRequestPermission()
+            },
+            onUpdateNotifyTv = {
+                viewModel.updateNotifyNewUntrackedTrendingTv(it)
+                if (it) checkAndRequestPermission()
+            },
+            onUpdateNotifyAnime = {
+                viewModel.updateNotifyNewUntrackedTrendingAnime(it)
+                if (it) checkAndRequestPermission()
+            }
+        )
         SettingsBatteryOptimizationCard(
+
             useExactAlarms = notificationPrefs.useExactAlarms,
             hasExactAlarmPermission = hasExactAlarmPermission,
             onUpdateUseExactAlarms = {
@@ -1766,6 +1784,102 @@ private fun SettingsSyncIntervalContent(
         }
     }
 }
+
+@Composable
+fun SettingsTrendingNotificationsCard(
+    notifyNewUntrackedTrendingMovies: Boolean,
+    notifyNewUntrackedTrendingTv: Boolean,
+    notifyNewUntrackedTrendingAnime: Boolean,
+    onUpdateNotifyMovies: (Boolean) -> Unit,
+    onUpdateNotifyTv: (Boolean) -> Unit,
+    onUpdateNotifyAnime: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
+        modifier = modifier
+    ) {
+        SettingsTrendingNotificationsContent(
+            notifyNewUntrackedTrendingMovies = notifyNewUntrackedTrendingMovies,
+            notifyNewUntrackedTrendingTv = notifyNewUntrackedTrendingTv,
+            notifyNewUntrackedTrendingAnime = notifyNewUntrackedTrendingAnime,
+            onUpdateNotifyMovies = onUpdateNotifyMovies,
+            onUpdateNotifyTv = onUpdateNotifyTv,
+            onUpdateNotifyAnime = onUpdateNotifyAnime
+        )
+    }
+}
+
+@Composable
+private fun SettingsTrendingNotificationsContent(
+    notifyNewUntrackedTrendingMovies: Boolean,
+    notifyNewUntrackedTrendingTv: Boolean,
+    notifyNewUntrackedTrendingAnime: Boolean,
+    onUpdateNotifyMovies: (Boolean) -> Unit,
+    onUpdateNotifyTv: (Boolean) -> Unit,
+    onUpdateNotifyAnime: (Boolean) -> Unit
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(
+            text = "Trending Notifications",
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            fontSize = 16.sp
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Receive alerts when new items enter top trending lists that are not on your watchlist.",
+            color = TextSubtle,
+            fontSize = 12.sp,
+            lineHeight = 16.sp
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsTrendingSwitchRow(
+            label = "Notify on Trending Movies",
+            checked = notifyNewUntrackedTrendingMovies,
+            onCheckedChange = onUpdateNotifyMovies
+        )
+        SettingsTrendingSwitchRow(
+            label = "Notify on Trending TV Shows",
+            checked = notifyNewUntrackedTrendingTv,
+            onCheckedChange = onUpdateNotifyTv
+        )
+        SettingsTrendingSwitchRow(
+            label = "Notify on Trending Anime",
+            checked = notifyNewUntrackedTrendingAnime,
+            onCheckedChange = onUpdateNotifyAnime
+        )
+    }
+}
+
+@Composable
+private fun SettingsTrendingSwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            color = TextPrimary,
+            fontSize = 14.sp
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
 
 @Composable
 fun SettingsDefaultAlertsCard(

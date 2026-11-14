@@ -433,7 +433,75 @@ interface MediaItemDao {
 
     @Upsert
     suspend fun upsertMediaItem(item: MediaItem)
+
+    @Query("DELETE FROM media_items WHERE lastUpdatedAt < :cutoff")
+    suspend fun deleteExpiredMediaItems(cutoff: Instant): Int
 }
+
+@Dao
+interface TrendingEntryDao {
+    @Transaction
+    @Query("SELECT * FROM trending_entries WHERE mediaType = :mediaType ORDER BY rank ASC")
+    fun getTrendingMediaItemsFlow(mediaType: MediaType): Flow<List<TrendingMediaItem>>
+
+    @Transaction
+    @Query("SELECT * FROM trending_entries WHERE mediaType = :mediaType ORDER BY rank ASC")
+    suspend fun getTrendingMediaItems(mediaType: MediaType): List<TrendingMediaItem>
+
+    @Query("SELECT DISTINCT te.simklId FROM trending_entries te WHERE te.mediaType = :mediaType AND te.simklId NOT IN (SELECT simklId FROM media_items)")
+    suspend fun getTrendingSimklIdsMissingMediaItems(mediaType: MediaType): List<Int>
+
+
+    @Query("SELECT DISTINCT te.simklId FROM trending_entries te WHERE te.mediaType = :mediaType AND te.simklId NOT IN (SELECT simklId FROM seen_trending_items)")
+    suspend fun getUnseenTrendingSimklIds(mediaType: MediaType): List<Int>
+
+    @Transaction
+    @Query("""
+        SELECT te.* FROM trending_entries te
+        WHERE te.mediaType = :mediaType
+          AND te.simklId NOT IN (SELECT simklId FROM seen_trending_items)
+          AND te.simklId NOT IN (SELECT simklId FROM watchlist_items)
+        ORDER BY te.rank ASC
+    """)
+    suspend fun getUnseenUntrackedTrendingMediaItems(mediaType: MediaType): List<TrendingMediaItem>
+
+    @Transaction
+    suspend fun replaceTrendingEntriesForType(mediaType: MediaType, entries: List<TrendingEntry>) {
+        deleteTrendingEntriesForType(mediaType)
+        insertTrendingEntries(entries)
+    }
+
+    @Query("DELETE FROM trending_entries WHERE mediaType = :mediaType")
+    suspend fun deleteTrendingEntriesForType(mediaType: MediaType)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTrendingEntries(entries: List<TrendingEntry>)
+
+    @Query("DELETE FROM trending_entries")
+    suspend fun clearAll()
+}
+
+@Dao
+interface WatchlistItemDao {
+    @Query("SELECT simklId FROM watchlist_items")
+    suspend fun getAllWatchlistSimklIds(): List<Int>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWatchlistItems(items: List<WatchlistItem>)
+
+    @Query("DELETE FROM watchlist_items")
+    suspend fun clearAll()
+}
+
+@Dao
+interface SeenTrendingItemDao {
+    @Query("SELECT simklId FROM seen_trending_items")
+    suspend fun getAllSeenSimklIds(): List<Int>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSeenTrendingItems(items: List<SeenTrendingItem>)
+}
+
 
 
 

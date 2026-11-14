@@ -176,8 +176,8 @@ class Converters {
 }
 
 @Database(
-    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class, ActiveNotification::class, MediaItem::class],
-    version = 37,
+    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class, ActiveNotification::class, MediaItem::class, TrendingEntry::class, WatchlistItem::class, SeenTrendingItem::class],
+    version = 38,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -205,6 +205,7 @@ class Converters {
         AutoMigration(from = 34, to = 35),
         AutoMigration(from = 35, to = 36),
         AutoMigration(from = 36, to = 37),
+        AutoMigration(from = 37, to = 38),
     ]
 )
 @TypeConverters(Converters::class)
@@ -240,6 +241,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun activeNotificationDao(): ActiveNotificationDao
     abstract fun itemDownloadSettingsDao(): ItemDownloadSettingsDao
     abstract fun mediaItemDao(): MediaItemDao
+    abstract fun trendingEntryDao(): TrendingEntryDao
+    abstract fun watchlistItemDao(): WatchlistItemDao
+    abstract fun seenTrendingItemDao(): SeenTrendingItemDao
 
     companion object {
         private val MIGRATION_23_24 = object : Migration(23, 24) {

@@ -450,5 +450,45 @@ data class SimklCalendarStats(
     val hasUnwatchedReleased: Boolean get() = unwatchedReleasedCount > 0
 }
 
+@Entity(
+    tableName = "trending_entries",
+    primaryKeys = ["mediaType", "rank"],
+    indices = [Index(value = ["simklId"])]
+)
+data class TrendingEntry(
+    val mediaType: MediaType,
+    val rank: Int,
+    val simklId: Int
+)
+
+@Entity(
+    tableName = "watchlist_items",
+    indices = [Index(value = ["mediaType"])]
+)
+data class WatchlistItem(
+    @PrimaryKey val simklId: Int,
+    val mediaType: MediaType
+)
+
+@Entity(
+    tableName = "seen_trending_items"
+)
+data class SeenTrendingItem(
+    @PrimaryKey val simklId: Int,
+    val mediaType: MediaType,
+    val firstSeenAt: Instant = now()
+)
+
+@Immutable
+data class TrendingMediaItem(
+    @Embedded val trendingEntry: TrendingEntry,
+    @Relation(
+        parentColumn = "simklId",
+        entityColumn = "simklId"
+    )
+    val mediaItem: MediaItem? = null
+)
+
+
 
 

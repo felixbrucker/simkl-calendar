@@ -56,7 +56,8 @@ data class AnimeMetadata(
     val endYear: Int? = null,
     val totalEpisodes: Int? = null,
     val seasonYear: Int? = null,
-    val seasonQuarter: String? = null
+    val seasonQuarter: String? = null,
+    val status: SeriesStatus? = null
 )
 
 @Entity(
