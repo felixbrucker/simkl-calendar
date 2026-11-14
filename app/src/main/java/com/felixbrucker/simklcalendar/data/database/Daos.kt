@@ -423,5 +423,18 @@ interface ItemDownloadSettingsDao {
     suspend fun insertOrUpdate(settings: ItemDownloadSettings)
 }
 
+@Dao
+interface MediaItemDao {
+    @Query("SELECT * FROM media_items WHERE simklId = :simklId LIMIT 1")
+    fun getMediaItemFlow(simklId: Int): Flow<MediaItem?>
+
+    @Query("SELECT * FROM media_items WHERE simklId = :simklId LIMIT 1")
+    suspend fun getMediaItem(simklId: Int): MediaItem?
+
+    @Upsert
+    suspend fun upsertMediaItem(item: MediaItem)
+}
+
+
 
 

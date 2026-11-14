@@ -157,7 +157,12 @@ data class SimklRatings(
 @JsonClass(generateAdapter = true)
 data class SimklMovieDetailResponse(
     @Json(name = "title") val title: String,
+    @Json(name = "year") val year: Int,
+    @Json(name = "overview") val overview: String? = null,
     @Json(name = "poster") val poster: String? = null,
+    @Json(name = "genres") val genres: List<String>? = null,
+    @Json(name = "budget") val budget: Long? = null,
+    @Json(name = "revenue") val revenue: Long? = null,
     @Json(name = "released") val released: String? = null,
     @Json(name = "release_dates") val releaseDates: List<SimklMovieReleaseDateCountry>? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
@@ -194,7 +199,13 @@ data class SimklMovieDetailResponse(
 @JsonClass(generateAdapter = true)
 data class SimklTvDetailResponse(
     @Json(name = "title") val title: String,
+    @Json(name = "year") val year: Int,
+    @Json(name = "overview") val overview: String? = null,
     @Json(name = "poster") val poster: String? = null,
+    @Json(name = "genres") val genres: List<String>? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "total_episodes") val totalEpisodes: Int? = null,
+    @Json(name = "year_start_end") val yearStartEnd: String? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
     @Json(name = "ids") val ids: SimklIds
 )
@@ -202,7 +213,15 @@ data class SimklTvDetailResponse(
 @JsonClass(generateAdapter = true)
 data class SimklAnimeDetailResponse(
     @Json(name = "title") val title: String,
+    @Json(name = "en_title") val enTitle: String? = null,
+    @Json(name = "year") val year: Int,
+    @Json(name = "overview") val overview: String? = null,
     @Json(name = "poster") val poster: String? = null,
+    @Json(name = "genres") val genres: List<String>? = null,
+    @Json(name = "type") val animeType: String? = null,
+    @Json(name = "total_episodes") val totalEpisodes: Int? = null,
+    @Json(name = "year_start_end") val yearStartEnd: String? = null,
+    @Json(name = "season_name_year") val seasonNameYear: String? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
     @Json(name = "season") val season: Int? = null,
     @Json(name = "ids") val ids: SimklIds

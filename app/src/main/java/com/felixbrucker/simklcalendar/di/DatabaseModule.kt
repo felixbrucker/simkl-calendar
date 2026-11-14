@@ -6,6 +6,7 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLinkDao
 import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
 import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
+import com.felixbrucker.simklcalendar.data.database.MediaItemDao
 import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
@@ -58,4 +59,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideActiveNotificationDao(db: AppDatabase): ActiveNotificationDao = db.activeNotificationDao()
+
+    @Provides
+    @Singleton
+    fun provideMediaItemDao(db: AppDatabase): MediaItemDao = db.mediaItemDao()
 }
