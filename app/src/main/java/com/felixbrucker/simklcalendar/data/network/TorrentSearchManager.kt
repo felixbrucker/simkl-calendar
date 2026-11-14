@@ -57,6 +57,7 @@ class TorrentSearchManager @Inject constructor(
             releaseDate = item.date,
             mediaType = item.type,
             itemSettings = itemSettings,
+            isSeasonSearch = false,
             searchResultFilter = item.makeInvalidAnimeEpisodeFilter(),
         )
     }
@@ -83,6 +84,7 @@ class TorrentSearchManager @Inject constructor(
             releaseDate = itemDate,
             mediaType = watchlistItem.type,
             itemSettings = itemSettings,
+            isSeasonSearch = true,
         )
     }
 
@@ -109,6 +111,7 @@ class TorrentSearchManager @Inject constructor(
             releaseDate = itemDate,
             mediaType = watchlistItem.type,
             itemSettings = itemSettings,
+            isSeasonSearch = false,
             searchResultFilter = baseItem?.makeInvalidAnimeEpisodeFilter()
                 ?: watchlistItem.type.makeInvalidAnimeEpisodeFilter(
                     settings = itemSettings,
@@ -123,6 +126,7 @@ class TorrentSearchManager @Inject constructor(
         releaseDate: Instant,
         mediaType: MediaType,
         itemSettings: ItemDownloadSettings?,
+        isSeasonSearch: Boolean = false,
         searchResultFilter: SearchResultFilter = { it },
     ): List<SearchResultItem> {
         val prefs = autoDownloadDataSource.preferencesFlow.first()
@@ -160,9 +164,13 @@ class TorrentSearchManager @Inject constructor(
             .getOrThrow()
             .results
 
+        val minSizeBytes = if (isSeasonSearch) prefs.seasonMinSizeBytes else prefs.singleItemMinSizeBytes
+        val maxSizeBytes = if (isSeasonSearch) prefs.seasonMaxSizeBytes else prefs.singleItemMaxSizeBytes
+
         val finalResults = rawResults
             .excluding(ignoreKeywords)
             .filterByReleaseDate(releaseDate, RELEASE_DATE_BUFFER_MONTHS)
+            .filterBySize(minSizeBytes, maxSizeBytes)
             .sortedUsing(preferredKeywords)
             .let { searchResultFilter(it) }
 
@@ -172,6 +180,15 @@ class TorrentSearchManager @Inject constructor(
 }
 
 typealias SearchResultFilter = (List<SearchResultItem>) -> List<SearchResultItem>
+
+internal fun List<SearchResultItem>.filterBySize(
+    minSizeBytes: Long,
+    maxSizeBytes: Long
+): List<SearchResultItem> {
+    return filter { item ->
+        item.sizeInBytes in minSizeBytes..maxSizeBytes
+    }
+}
 
 // Only anime episode search terms are generic enough to match partially, filter out invalid
 // matches

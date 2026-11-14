@@ -32,15 +32,22 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import com.felixbrucker.simklcalendar.ui.composable.CustomOutlinedTextField
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -225,8 +232,14 @@ fun SettingsScreen(
         }
     }
 
+    val focusManager = LocalFocusManager.current
+
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { focusManager.clearFocus() })
+            },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -687,7 +700,11 @@ data class AutoDownloadActions(
     val onReorderPreferredKeywords: (List<String>) -> Unit,
     val onAddIgnoreKeyword: (String) -> Unit,
     val onRemoveIgnoreKeyword: (String) -> Unit,
-    val onReorderIgnoreKeywords: (List<String>) -> Unit
+    val onReorderIgnoreKeywords: (List<String>) -> Unit,
+    val onUpdateSingleItemMinSize: (Double, String) -> Unit,
+    val onUpdateSingleItemMaxSize: (Double, String) -> Unit,
+    val onUpdateSeasonMinSize: (Double, String) -> Unit,
+    val onUpdateSeasonMaxSize: (Double, String) -> Unit
 )
 
 data class AllFilesPermissionState(
@@ -721,7 +738,11 @@ fun SettingsDownloadsCategorySection(
             onReorderPreferredKeywords = { viewModel.updatePreferredKeywordsOrder(it) },
             onAddIgnoreKeyword = { viewModel.addIgnoreKeyword(it) },
             onRemoveIgnoreKeyword = { viewModel.removeIgnoreKeyword(it) },
-            onReorderIgnoreKeywords = { viewModel.updateIgnoreKeywordsOrder(it) }
+            onReorderIgnoreKeywords = { viewModel.updateIgnoreKeywordsOrder(it) },
+            onUpdateSingleItemMinSize = { value, unit -> viewModel.updateSingleItemMinSize(value, unit) },
+            onUpdateSingleItemMaxSize = { value, unit -> viewModel.updateSingleItemMaxSize(value, unit) },
+            onUpdateSeasonMinSize = { value, unit -> viewModel.updateSeasonMinSize(value, unit) },
+            onUpdateSeasonMaxSize = { value, unit -> viewModel.updateSeasonMaxSize(value, unit) }
         )
     }
 
@@ -1813,24 +1834,6 @@ fun SettingsAutoDownloadToggles(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Prefer HEVC / x265", color = TextPrimary, fontSize = 15.sp)
-                Text("Prioritize high efficiency video coding results.", color = TextSubtle, fontSize = 12.sp)
-            }
-            Switch(
-                checked = autoDownloadPrefs.preferHevc,
-                onCheckedChange = actions.onUpdatePreferHevc,
-                enabled = isDownloaderInstalled
-            )
-        }
-
-        HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
                 Text("Download Unwatched TV Shows", color = TextPrimary, fontSize = 15.sp)
                 Text("Default setting for newly tracked TV Shows.", color = TextSubtle, fontSize = 12.sp)
             }
@@ -2078,6 +2081,20 @@ fun SettingsAutomaticDownloadsCard(
                     }
                 }
             }
+
+            PreferHevcRow(
+                autoDownloadPrefs = autoDownloadPrefs,
+                isDownloaderInstalled = isDownloaderInstalled,
+                actions = actions
+            )
+
+            SettingsTorrentSizeSection(
+                autoDownloadPrefs = autoDownloadPrefs,
+                isDownloaderInstalled = isDownloaderInstalled,
+                actions = actions
+            )
+
+            HorizontalDivider(color = OutlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
 
             SettingsAutoDownloadToggles(
                 autoDownloadPrefs = autoDownloadPrefs,
@@ -2686,5 +2703,232 @@ fun KeywordManagerSection(
                 }
             }
         )
+    }
+}
+
+@Composable
+fun PreferHevcRow(
+    autoDownloadPrefs: AutoDownloadPreferences,
+    isDownloaderInstalled: Boolean,
+    actions: AutoDownloadActions
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Prefer HEVC / x265", color = TextPrimary, fontSize = 15.sp)
+            Text("Prioritize high efficiency video coding results.", color = TextSubtle, fontSize = 12.sp)
+        }
+        Switch(
+            checked = autoDownloadPrefs.preferHevc,
+            onCheckedChange = actions.onUpdatePreferHevc,
+            enabled = isDownloaderInstalled
+        )
+    }
+}
+
+@Composable
+fun TorrentSizeTrailingUnitDropdown(
+    unit: String,
+    onUnitSelected: (String) -> Unit,
+    enabled: Boolean
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clickable(enabled = enabled) { expanded = true }
+                .padding(end = 8.dp)
+        ) {
+            Text(text = unit, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(18.dp), tint = TextSubtle)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text = { Text("MB", fontSize = 13.sp) }, onClick = { expanded = false; onUnitSelected("MB") })
+            DropdownMenuItem(text = { Text("GB", fontSize = 13.sp) }, onClick = { expanded = false; onUnitSelected("GB") })
+        }
+    }
+}
+
+@Composable
+fun SingleTorrentSizeInput(
+    textValue: String,
+    unit: String,
+    onTextChange: (String) -> Unit,
+    onUnitSelected: (String) -> Unit,
+    enabled: Boolean
+) {
+    val focusManager = LocalFocusManager.current
+    Box(modifier = Modifier.wrapContentWidth()) {
+        CustomOutlinedTextField(
+            value = textValue,
+            onValueChange = onTextChange,
+            enabled = enabled,
+            singleLine = true,
+            minHeight = 16.dp,
+            minWidth = 104.dp,
+            contentPadding = PaddingValues(start = 14.dp, top = 0.dp, end = 14.dp, bottom = 0.dp),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Decimal,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = { focusManager.clearFocus() }
+            ),
+            trailingIcon = {
+                TorrentSizeTrailingUnitDropdown(
+                    unit = unit,
+                    onUnitSelected = onUnitSelected,
+                    enabled = enabled
+                )
+            }
+        )
+    }
+}
+
+@Composable
+fun TorrentSizeInputRow(
+    label: String,
+    subtitle: String,
+    value: Double,
+    unit: String,
+    onValueUnitChange: (Double, String) -> Unit,
+    enabled: Boolean
+) {
+    val formatted = remember(value) { if (value % 1.0 == 0.0) value.toLong().toString() else value.toString() }
+    var textState by remember(formatted) { mutableStateOf(formatted) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(text = label, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(text = subtitle, color = TextSubtle, fontSize = 11.sp, lineHeight = 14.sp)
+        }
+        SingleTorrentSizeInput(
+            textValue = textState,
+            unit = unit,
+            onTextChange = { newText ->
+                textState = newText
+                newText.toDoubleOrNull()?.takeIf { it >= 0 }?.let { onValueUnitChange(it, unit) }
+            },
+            onUnitSelected = { newUnit ->
+                val curVal = textState.toDoubleOrNull() ?: value
+                onValueUnitChange(curVal, newUnit)
+            },
+            enabled = enabled
+        )
+    }
+}
+
+@Composable
+fun SettingsSingleItemSizeRows(
+    prefs: AutoDownloadPreferences,
+    enabled: Boolean,
+    actions: AutoDownloadActions
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        TorrentSizeInputRow(
+            label = "Single Item Min Size",
+            subtitle = "Minimum size for single movies/episodes.",
+            value = prefs.singleItemMinSizeValue,
+            unit = prefs.singleItemMinSizeUnit,
+            onValueUnitChange = actions.onUpdateSingleItemMinSize,
+            enabled = enabled
+        )
+        TorrentSizeInputRow(
+            label = "Single Item Max Size",
+            subtitle = "Maximum size for single movies/episodes.",
+            value = prefs.singleItemMaxSizeValue,
+            unit = prefs.singleItemMaxSizeUnit,
+            onValueUnitChange = actions.onUpdateSingleItemMaxSize,
+            enabled = enabled
+        )
+    }
+}
+
+@Composable
+fun SettingsSeasonSizeRows(
+    prefs: AutoDownloadPreferences,
+    enabled: Boolean,
+    actions: AutoDownloadActions
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        TorrentSizeInputRow(
+            label = "Season Min Size",
+            subtitle = "Minimum size for complete season packs.",
+            value = prefs.seasonMinSizeValue,
+            unit = prefs.seasonMinSizeUnit,
+            onValueUnitChange = actions.onUpdateSeasonMinSize,
+            enabled = enabled
+        )
+        TorrentSizeInputRow(
+            label = "Season Max Size",
+            subtitle = "Maximum size for complete season packs.",
+            value = prefs.seasonMaxSizeValue,
+            unit = prefs.seasonMaxSizeUnit,
+            onValueUnitChange = actions.onUpdateSeasonMaxSize,
+            enabled = enabled
+        )
+    }
+}
+
+@Composable
+fun SettingsTorrentSizeHeader(
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    enabled: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onToggleExpand)
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Torrent Size Limits", color = TextPrimary, fontSize = 15.sp)
+            Text("Restrict search results by file size.", color = TextSubtle, fontSize = 12.sp)
+        }
+        Icon(
+            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+            contentDescription = if (isExpanded) "Collapse" else "Expand",
+            tint = TextSubtle,
+            modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+@Composable
+fun SettingsTorrentSizeSection(
+    autoDownloadPrefs: AutoDownloadPreferences,
+    isDownloaderInstalled: Boolean,
+    actions: AutoDownloadActions
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SettingsTorrentSizeHeader(
+            isExpanded = isExpanded,
+            onToggleExpand = { isExpanded = !isExpanded },
+            enabled = isDownloaderInstalled
+        )
+        AnimatedVisibility(visible = isExpanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SettingsSingleItemSizeRows(prefs = autoDownloadPrefs, enabled = isDownloaderInstalled, actions = actions)
+                SettingsSeasonSizeRows(prefs = autoDownloadPrefs, enabled = isDownloaderInstalled, actions = actions)
+            }
+        }
     }
 }

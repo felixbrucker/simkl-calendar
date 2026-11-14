@@ -160,21 +160,27 @@ class TorrentSearchManagerTest {
         val itemIgnoredExact = mockk<SearchResultItem>()
         every { itemIgnoredExact.name } returns "Test Show S01E01 BAD_RELEASE"
         every { itemIgnoredExact.uploadedAt } returns now
+        every { itemIgnoredExact.sizeInBytes } returns 500_000_000L
         val itemIgnoredCaseMismatch = mockk<SearchResultItem>()
         every { itemIgnoredCaseMismatch.name } returns "Test Show S01E01 bad_release"
         every { itemIgnoredCaseMismatch.uploadedAt } returns now
+        every { itemIgnoredCaseMismatch.sizeInBytes } returns 500_000_000L
         val itemPreferredCaseMismatch = mockk<SearchResultItem>()
         every { itemPreferredCaseMismatch.name } returns "Test Show S01E01 subsplease"
         every { itemPreferredCaseMismatch.uploadedAt } returns now
+        every { itemPreferredCaseMismatch.sizeInBytes } returns 500_000_000L
         val itemPreferredExact = mockk<SearchResultItem>()
         every { itemPreferredExact.name } returns "Test Show S01E01 SubsPlease"
         every { itemPreferredExact.uploadedAt } returns now
+        every { itemPreferredExact.sizeInBytes } returns 500_000_000L
         val itemHevcLowerCase = mockk<SearchResultItem>()
         every { itemHevcLowerCase.name } returns "Test Show S01E01 hevc"
         every { itemHevcLowerCase.uploadedAt } returns now
+        every { itemHevcLowerCase.sizeInBytes } returns 500_000_000L
         val itemHevcUpperCase = mockk<SearchResultItem>()
         every { itemHevcUpperCase.name } returns "Test Show S01E01 HEVC"
         every { itemHevcUpperCase.uploadedAt } returns now
+        every { itemHevcUpperCase.sizeInBytes } returns 500_000_000L
         coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
             PaginatedSearchResult(
                 listOf(
@@ -209,9 +215,11 @@ class TorrentSearchManagerTest {
         val oldUpload = mockk<SearchResultItem>()
         every { oldUpload.name } returns "Test Show S01E01 1080p Old"
         every { oldUpload.uploadedAt } returns Instant.parse("2024-05-01T00:00:00Z")
+        every { oldUpload.sizeInBytes } returns 500_000_000L
         val validUpload = mockk<SearchResultItem>()
         every { validUpload.name } returns "Test Show S01E01 1080p Valid"
         every { validUpload.uploadedAt } returns Instant.parse("2024-09-01T00:00:00Z")
+        every { validUpload.sizeInBytes } returns 500_000_000L
         coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
             PaginatedSearchResult(
                 listOf(oldUpload, validUpload),
@@ -236,12 +244,15 @@ class TorrentSearchManagerTest {
         val uploadWayBeforeBuffer = mockk<SearchResultItem>()
         every { uploadWayBeforeBuffer.name } returns "Test Movie 1080p Old"
         every { uploadWayBeforeBuffer.uploadedAt } returns Instant.parse("2024-06-30T23:59:59Z")
+        every { uploadWayBeforeBuffer.sizeInBytes } returns 500_000_000L
         val uploadExactBufferCutoff = mockk<SearchResultItem>()
         every { uploadExactBufferCutoff.name } returns "Test Movie 1080p Cutoff"
         every { uploadExactBufferCutoff.uploadedAt } returns Instant.parse("2024-07-01T12:00:00Z")
+        every { uploadExactBufferCutoff.sizeInBytes } returns 500_000_000L
         val uploadAfterRelease = mockk<SearchResultItem>()
         every { uploadAfterRelease.name } returns "Test Movie 1080p New"
         every { uploadAfterRelease.uploadedAt } returns Instant.parse("2024-10-02T12:00:00Z")
+        every { uploadAfterRelease.sizeInBytes } returns 500_000_000L
         coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
             PaginatedSearchResult(
                 listOf(uploadWayBeforeBuffer, uploadExactBufferCutoff, uploadAfterRelease),
@@ -289,6 +300,7 @@ class TorrentSearchManagerTest {
         val mockResult = mockk<SearchResultItem>()
         every { mockResult.name } returns "[SubsPlease] Boku Hero Academia (S4 | 4th | IV) 01 (1080p)"
         every { mockResult.uploadedAt } returns now
+        every { mockResult.sizeInBytes } returns 500_000_000L
         coEvery { anyConstructed<NyaaProvider>().search(any(), any(), any()) } returns Result.success(
             PaginatedSearchResult(listOf(mockResult), 1, false)
         )
@@ -314,6 +326,7 @@ class TorrentSearchManagerTest {
         val mockResult = mockk<SearchResultItem>()
         every { mockResult.name } returns "TV Show S01E01 1080p"
         every { mockResult.uploadedAt } returns now
+        every { mockResult.sizeInBytes } returns 500_000_000L
         coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
             PaginatedSearchResult(listOf(mockResult), 1, false)
         )
@@ -347,6 +360,7 @@ class TorrentSearchManagerTest {
         val mockResult = mockk<SearchResultItem>()
         every { mockResult.name } returns "Test Show Season 1 1080p"
         every { mockResult.uploadedAt } returns now
+        every { mockResult.sizeInBytes } returns 10_000_000_000L
         coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
             PaginatedSearchResult(listOf(mockResult), 1, false)
         )
@@ -355,6 +369,74 @@ class TorrentSearchManagerTest {
 
         assertEquals(1, results.size)
         assertEquals(mockResult, results[0])
+    }
+
+    @Test
+    fun testTorrentSearchFiltersOutItemsByMinAndMaxSize() = runTest {
+        val manager = TorrentSearchManager(calendarDao, watchlistDao, dao, autoDownloadRepository)
+        val now = Instant.now()
+        val calendarItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, now, null, true, false)
+        val watchlistItem = TrackedWatchlistItem(100, MediaType.TV, "Test Show", null, null)
+        val item = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+
+        val tooSmall = mockk<SearchResultItem>()
+        every { tooSmall.name } returns "Test Show S01E01 Small"
+        every { tooSmall.uploadedAt } returns now
+        every { tooSmall.sizeInBytes } returns 50_000_000L // 50MB (< 100MB default min)
+
+        val validSize = mockk<SearchResultItem>()
+        every { validSize.name } returns "Test Show S01E01 Valid"
+        every { validSize.uploadedAt } returns now
+        every { validSize.sizeInBytes } returns 1_000_000_000L // 1GB (within 100MB - 10GB)
+
+        val tooBig = mockk<SearchResultItem>()
+        every { tooBig.name } returns "Test Show S01E01 Huge"
+        every { tooBig.uploadedAt } returns now
+        every { tooBig.sizeInBytes } returns 20_000_000_000L // 20GB (> 10GB default max)
+
+        coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
+            PaginatedSearchResult(listOf(tooSmall, validSize, tooBig), 1, false)
+        )
+
+        val results = manager.search(item)
+
+        assertEquals(1, results.size)
+        assertEquals("Test Show S01E01 Valid", results[0].name)
+    }
+
+    @Test
+    fun testSearchSeasonFiltersOutItemsByMinAndMaxSize() = runTest {
+        val manager = TorrentSearchManager(calendarDao, watchlistDao, dao, autoDownloadRepository)
+        val now = Instant.now()
+        val watchlistItem = TrackedWatchlistItem(100, MediaType.TV, "Test Show", null, null)
+        val calendarItem = CalendarItem("v2_100_1_1", 100, "Pilot", 1, 1, now, null, true, false)
+        val calendarItemWithWatchlist = CalendarItemWithWatchlist(calendarItem, watchlistItem, null)
+        coEvery { watchlistDao.getItem(100) } returns watchlistItem
+        coEvery { calendarDao.findLastItemForSimklIdInSeason(100, 1) } returns calendarItemWithWatchlist
+
+        val tooSmallSeason = mockk<SearchResultItem>()
+        every { tooSmallSeason.name } returns "Test Show S01 Small Season"
+        every { tooSmallSeason.uploadedAt } returns now
+        every { tooSmallSeason.sizeInBytes } returns 1_000_000_000L // 1GB (< 2GB default min)
+
+        val validSeason = mockk<SearchResultItem>()
+        every { validSeason.name } returns "Test Show S01 Valid Season"
+        every { validSeason.uploadedAt } returns now
+        every { validSeason.sizeInBytes } returns 15_000_000_000L // 15GB (within 2GB - 40GB)
+
+        val tooBigSeason = mockk<SearchResultItem>()
+        every { tooBigSeason.name } returns "Test Show S01 Huge Season"
+        every { tooBigSeason.uploadedAt } returns now
+        every { tooBigSeason.sizeInBytes } returns 50_000_000_000L // 50GB (> 40GB default max)
+
+        coEvery { anyConstructed<TpbProvider>().search(any(), any(), any()) } returns Result.success(
+            PaginatedSearchResult(listOf(tooSmallSeason, validSeason, tooBigSeason), 1, false)
+        )
+
+        val results = manager.searchSeason(100, 1)
+
+        assertEquals(1, results.size)
+        assertEquals("Test Show S01 Valid Season", results[0].name)
     }
 
     @Test(expected = IllegalStateException::class)

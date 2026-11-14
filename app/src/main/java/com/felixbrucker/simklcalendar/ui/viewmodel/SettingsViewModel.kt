@@ -234,6 +234,30 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateSingleItemMinSize(value: Double, unit: String) {
+        viewModelScope.launch {
+            autoDownloadRepo.setSingleItemMinSize(value, unit)
+        }
+    }
+
+    fun updateSingleItemMaxSize(value: Double, unit: String) {
+        viewModelScope.launch {
+            autoDownloadRepo.setSingleItemMaxSize(value, unit)
+        }
+    }
+
+    fun updateSeasonMinSize(value: Double, unit: String) {
+        viewModelScope.launch {
+            autoDownloadRepo.setSeasonMinSize(value, unit)
+        }
+    }
+
+    fun updateSeasonMaxSize(value: Double, unit: String) {
+        viewModelScope.launch {
+            autoDownloadRepo.setSeasonMaxSize(value, unit)
+        }
+    }
+
     fun saveCustomSearchLink(link: CustomSearchLink, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             if (link.id == 0L) {

@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -41,8 +42,37 @@ data class AutoDownloadPreferences(
     val deleteEmptyParentDirectory: Boolean = false,
     val preferredKeywords: List<String> = emptyList(),
     val ignoreKeywords: List<String> = emptyList(),
-    val searchIntervalHours: Int = 12
-)
+    val searchIntervalHours: Int = 12,
+    val singleItemMinSizeValue: Double = 100.0,
+    val singleItemMinSizeUnit: String = "MB",
+    val singleItemMaxSizeValue: Double = 10.0,
+    val singleItemMaxSizeUnit: String = "GB",
+    val seasonMinSizeValue: Double = 2.0,
+    val seasonMinSizeUnit: String = "GB",
+    val seasonMaxSizeValue: Double = 40.0,
+    val seasonMaxSizeUnit: String = "GB"
+) {
+    val singleItemMinSizeBytes: Long
+        get() = convertToBytes(singleItemMinSizeValue, singleItemMinSizeUnit)
+
+    val singleItemMaxSizeBytes: Long
+        get() = convertToBytes(singleItemMaxSizeValue, singleItemMaxSizeUnit)
+
+    val seasonMinSizeBytes: Long
+        get() = convertToBytes(seasonMinSizeValue, seasonMinSizeUnit)
+
+    val seasonMaxSizeBytes: Long
+        get() = convertToBytes(seasonMaxSizeValue, seasonMaxSizeUnit)
+}
+
+internal fun convertToBytes(value: Double, unit: String): Long {
+    val bytesPerUnit = if (unit.equals("GB", ignoreCase = true)) {
+        1024L * 1024L * 1024L
+    } else {
+        1024L * 1024L
+    }
+    return (value * bytesPerUnit).toLong()
+}
 
 @Singleton
 class AutoDownloadRepository @Inject constructor(
@@ -63,6 +93,14 @@ class AutoDownloadRepository @Inject constructor(
         private val KEY_PREFERRED_KEYWORDS = stringPreferencesKey("preferred_keywords")
         private val KEY_IGNORE_KEYWORDS = stringPreferencesKey("ignore_keywords")
         private val KEY_SEARCH_INTERVAL_HOURS = intPreferencesKey("search_interval_hours")
+        private val KEY_SINGLE_ITEM_MIN_SIZE_VALUE = doublePreferencesKey("single_item_min_size_value")
+        private val KEY_SINGLE_ITEM_MIN_SIZE_UNIT = stringPreferencesKey("single_item_min_size_unit")
+        private val KEY_SINGLE_ITEM_MAX_SIZE_VALUE = doublePreferencesKey("single_item_max_size_value")
+        private val KEY_SINGLE_ITEM_MAX_SIZE_UNIT = stringPreferencesKey("single_item_max_size_unit")
+        private val KEY_SEASON_MIN_SIZE_VALUE = doublePreferencesKey("season_min_size_value")
+        private val KEY_SEASON_MIN_SIZE_UNIT = stringPreferencesKey("season_min_size_unit")
+        private val KEY_SEASON_MAX_SIZE_VALUE = doublePreferencesKey("season_max_size_value")
+        private val KEY_SEASON_MAX_SIZE_UNIT = stringPreferencesKey("season_max_size_unit")
     }
 
     val preferencesFlow: Flow<AutoDownloadPreferences> = dataStore.data.map { preferences ->
@@ -78,7 +116,15 @@ class AutoDownloadRepository @Inject constructor(
             deleteEmptyParentDirectory = preferences[KEY_DELETE_EMPTY_PARENT_DIRECTORY] ?: false,
             preferredKeywords = preferences[KEY_PREFERRED_KEYWORDS]?.split("\n")?.filter { it.isNotBlank() } ?: emptyList(),
             ignoreKeywords = preferences[KEY_IGNORE_KEYWORDS]?.split("\n")?.filter { it.isNotBlank() } ?: emptyList(),
-            searchIntervalHours = preferences[KEY_SEARCH_INTERVAL_HOURS] ?: 12
+            searchIntervalHours = preferences[KEY_SEARCH_INTERVAL_HOURS] ?: 12,
+            singleItemMinSizeValue = preferences[KEY_SINGLE_ITEM_MIN_SIZE_VALUE] ?: 100.0,
+            singleItemMinSizeUnit = preferences[KEY_SINGLE_ITEM_MIN_SIZE_UNIT] ?: "MB",
+            singleItemMaxSizeValue = preferences[KEY_SINGLE_ITEM_MAX_SIZE_VALUE] ?: 10.0,
+            singleItemMaxSizeUnit = preferences[KEY_SINGLE_ITEM_MAX_SIZE_UNIT] ?: "GB",
+            seasonMinSizeValue = preferences[KEY_SEASON_MIN_SIZE_VALUE] ?: 2.0,
+            seasonMinSizeUnit = preferences[KEY_SEASON_MIN_SIZE_UNIT] ?: "GB",
+            seasonMaxSizeValue = preferences[KEY_SEASON_MAX_SIZE_VALUE] ?: 40.0,
+            seasonMaxSizeUnit = preferences[KEY_SEASON_MAX_SIZE_UNIT] ?: "GB"
         )
     }
 
@@ -128,6 +174,34 @@ class AutoDownloadRepository @Inject constructor(
 
     suspend fun setSearchIntervalHours(hours: Int) {
         dataStore.edit { it[KEY_SEARCH_INTERVAL_HOURS] = hours }
+    }
+
+    suspend fun setSingleItemMinSize(value: Double, unit: String) {
+        dataStore.edit {
+            it[KEY_SINGLE_ITEM_MIN_SIZE_VALUE] = value
+            it[KEY_SINGLE_ITEM_MIN_SIZE_UNIT] = unit
+        }
+    }
+
+    suspend fun setSingleItemMaxSize(value: Double, unit: String) {
+        dataStore.edit {
+            it[KEY_SINGLE_ITEM_MAX_SIZE_VALUE] = value
+            it[KEY_SINGLE_ITEM_MAX_SIZE_UNIT] = unit
+        }
+    }
+
+    suspend fun setSeasonMinSize(value: Double, unit: String) {
+        dataStore.edit {
+            it[KEY_SEASON_MIN_SIZE_VALUE] = value
+            it[KEY_SEASON_MIN_SIZE_UNIT] = unit
+        }
+    }
+
+    suspend fun setSeasonMaxSize(value: Double, unit: String) {
+        dataStore.edit {
+            it[KEY_SEASON_MAX_SIZE_VALUE] = value
+            it[KEY_SEASON_MAX_SIZE_UNIT] = unit
+        }
     }
 
     suspend fun clear() {

@@ -134,6 +134,11 @@ class SettingsViewModelTest {
         viewModel.addIgnoreKeyword("Skip1")
         viewModel.removeIgnoreKeyword("Skip1")
         viewModel.updateIgnoreKeywordsOrder(listOf("Skip2", "Skip1"))
+
+        viewModel.updateSingleItemMinSize(200.0, "MB")
+        viewModel.updateSingleItemMaxSize(15.0, "GB")
+        viewModel.updateSeasonMinSize(3.0, "GB")
+        viewModel.updateSeasonMaxSize(50.0, "GB")
         advanceUntilIdle()
 
         coVerify { autoDownloadRepo.setQuality("1080p") }
@@ -145,6 +150,10 @@ class SettingsViewModelTest {
         coVerify { autoDownloadRepo.setAutoDownloadSeasonUnwatchedAnime(true) }
         coVerify { autoDownloadRepo.setPreferredKeywords(any()) }
         coVerify { autoDownloadRepo.setIgnoreKeywords(any()) }
+        coVerify { autoDownloadRepo.setSingleItemMinSize(200.0, "MB") }
+        coVerify { autoDownloadRepo.setSingleItemMaxSize(15.0, "GB") }
+        coVerify { autoDownloadRepo.setSeasonMinSize(3.0, "GB") }
+        coVerify { autoDownloadRepo.setSeasonMaxSize(50.0, "GB") }
     }
 
     @Test
