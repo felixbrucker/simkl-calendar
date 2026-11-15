@@ -524,6 +524,14 @@ sealed interface RelationType {
         override val key: String = "side story"
         override val displayName: String = "Side Story"
     }
+    data object AlternativeSetting : RelationType {
+        override val key: String = "alternative setting"
+        override val displayName: String = "Alternative Setting"
+    }
+    data object SameSetting : RelationType {
+        override val key: String = "same setting"
+        override val displayName: String = "Same Setting"
+    }
     data object Other : RelationType {
         override val key: String = "other"
         override val displayName: String = "Other"
@@ -550,7 +558,9 @@ sealed interface RelationType {
                 "prequel" -> Prequel
                 "sequel" -> Sequel
                 "summary" -> Summary
-                "side story", "sidestory" -> SideStory
+                "side story" -> SideStory
+                "alternative setting" -> AlternativeSetting
+                "same setting" -> SameSetting
                 "other" -> Other
                 else -> Unknown
             }

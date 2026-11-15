@@ -12,12 +12,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,6 +48,7 @@ import com.felixbrucker.simklcalendar.data.database.SimilarMediaItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
+import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.displayTitle
@@ -57,9 +58,14 @@ import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderOpenSimklButton
 import com.felixbrucker.simklcalendar.ui.composable.StandardEpisodeRow
 import com.felixbrucker.simklcalendar.ui.composable.sharedBoundsItem
 import com.felixbrucker.simklcalendar.ui.composable.sharedElementItem
+import com.felixbrucker.simklcalendar.ui.composable.badgeTextColor
+import com.felixbrucker.simklcalendar.ui.composable.categoryColor
+import com.felixbrucker.simklcalendar.ui.composable.overlayIcon
+import com.felixbrucker.simklcalendar.ui.composable.posterAlpha
 import com.felixbrucker.simklcalendar.ui.theme.*
 import com.felixbrucker.simklcalendar.ui.viewmodel.MediaItemDetailViewModel
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -503,19 +509,9 @@ fun MediaItemCard(
     val context = LocalContext.current
     val posterUrl = remember(poster) { poster.toPosterUrl(PosterSize.COMPACT) }
     val isFaded = watchlistStatus != null
-    val alphaVal = if (isFaded) 0.6f else 1.0f
-    val categoryColor = when (mediaType) {
-        MediaType.ANIME -> PurpleLight
-        MediaType.MOVIE -> ErrorPink
-        MediaType.TV -> BlueAccent
-    }
-
-    val overlayIcon = when (watchlistStatus) {
-        WatchlistStatus.COMPLETED -> Icons.Default.Visibility
-        WatchlistStatus.HOLD -> Icons.Default.Pause
-        WatchlistStatus.DROPPED -> Icons.Default.Cancel
-        else -> Icons.Default.Star
-    }
+    val alphaVal = watchlistStatus.posterAlpha
+    val categoryColor = mediaType.categoryColor
+    val overlayIcon = watchlistStatus.overlayIcon
 
     Column(
         modifier = Modifier
@@ -553,13 +549,13 @@ fun MediaItemCard(
                         text = mediaType.displayName.uppercase(),
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = mediaType.badgeTextColor,
                         modifier = Modifier.padding(vertical = 2.dp)
                     )
                 }
             }
 
-            if (isFaded) {
+            if (isFaded && overlayIcon != null) {
                 Box(
                     modifier = Modifier
                         .width(110.dp)
@@ -576,39 +572,44 @@ fun MediaItemCard(
                 }
             }
 
-            if (!topStartBadge.isNullOrBlank()) {
-                Box(
+            if (!topStartBadge.isNullOrBlank() || !topEndBadge.isNullOrBlank()) {
+                Column(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                        .padding(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    Text(
-                        text = topStartBadge,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            }
+                    if (!topStartBadge.isNullOrBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color.Black.copy(alpha = 0.7f))
+                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = topStartBadge,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
 
-            if (!topEndBadge.isNullOrBlank()) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = topEndBadge,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    if (!topEndBadge.isNullOrBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color.Black.copy(alpha = 0.7f))
+                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = topEndBadge,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -620,7 +621,6 @@ fun MediaItemCard(
             color = Color.White,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            minLines = 2
         )
 
         val yearStr = year?.toString() ?: ""
@@ -774,7 +774,7 @@ fun MediaDetailPosterColumn(
                 text = item.mediaType.displayName.uppercase(),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = item.mediaType.badgeTextColor,
             )
         }
     }
@@ -851,6 +851,11 @@ fun MediaDetailInfoColumn(
             }
         }
 
+        MediaMovieReleaseDates(
+            releaseDate = item.movieMetadata?.releaseDate,
+            dvdDate = item.movieMetadata?.dvdDate
+        )
+
         if (!item.description.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -858,6 +863,55 @@ fun MediaDetailInfoColumn(
                 fontSize = 12.sp,
                 color = TextGrey,
             )
+        }
+    }
+}
+
+@Composable
+fun MediaReleaseDateRow(
+    label: String,
+    date: LocalDate,
+    modifier: Modifier = Modifier
+) {
+    val formattedDate = DateUtil.formatDisplayDate(date)
+    val relativeTime = DateUtil.formatRelativeTime(date)
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = TextSubtle
+        )
+        Text(
+            text = "$formattedDate ($relativeTime)",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.White
+        )
+    }
+}
+
+@Composable
+fun MediaMovieReleaseDates(
+    releaseDate: LocalDate?,
+    dvdDate: LocalDate?,
+    modifier: Modifier = Modifier
+) {
+    if (releaseDate == null && dvdDate == null) return
+
+    Column(
+        modifier = modifier.padding(vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        releaseDate?.let {
+            MediaReleaseDateRow(label = "Release Date:", date = it)
+        }
+        dvdDate?.let {
+            MediaReleaseDateRow(label = "DVD / Digital Release:", date = it)
         }
     }
 }
@@ -888,6 +942,7 @@ fun MediaDetailActionSection(
             val isInWatchlist = watchlistItem != null
             val currentStatus = watchlistItem?.status
             val buttonText = if (isUpdatingStatus) "Updating..." else (currentStatus?.displayName ?: "Add to list")
+            val currentIcon = if (isInWatchlist) currentStatus.overlayIcon ?: Icons.Default.Bookmark else Icons.Default.Add
             Button(
                 onClick = { watchlistStatusDropdownExpanded = true },
                 enabled = !isUpdatingStatus,
@@ -899,7 +954,7 @@ fun MediaDetailActionSection(
                     containerColor = if (isInWatchlist) SurfacePrimaryVariant else PurpleLight,
                     contentColor = if (isInWatchlist) PurpleContainerSoft else SurfaceDark
                 ),
-                contentPadding = PaddingValues(horizontal = 4.dp)
+                contentPadding = PaddingValues(horizontal = 8.dp)
             ) {
                 if (isUpdatingStatus) {
                     CircularProgressIndicator(
@@ -908,13 +963,24 @@ fun MediaDetailActionSection(
                         color = if (isInWatchlist) PurpleContainerSoft else SurfaceDark
                     )
                 } else {
-                    Text(
-                        text = buttonText,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = currentIcon,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = buttonText,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
 
@@ -930,8 +996,19 @@ fun MediaDetailActionSection(
                 }
 
                 allowedStatuses.forEach { status ->
+                    val icon = status.overlayIcon
                     DropdownMenuItem(
                         text = { Text(status.displayName, color = Color.White, fontSize = 14.sp) },
+                        leadingIcon = if (icon != null) {
+                            {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        } else null,
                         onClick = {
                             watchlistStatusDropdownExpanded = false
                             onUpdateStatus(status)
@@ -943,6 +1020,14 @@ fun MediaDetailActionSection(
                     HorizontalDivider(color = OutlineVariant)
                     DropdownMenuItem(
                         text = { Text("Remove from list", color = ErrorPink, fontSize = 14.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = ErrorPink,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
                         onClick = {
                             watchlistStatusDropdownExpanded = false
                             onUpdateStatus(null)

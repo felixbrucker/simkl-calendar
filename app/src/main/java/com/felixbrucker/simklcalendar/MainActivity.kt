@@ -435,6 +435,9 @@ fun SimklCalendarApp(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToDetail = { simklId, mediaType ->
+                        navController.navigate("media_item/$simklId/${mediaType.key}")
+                    },
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@composable
                 )

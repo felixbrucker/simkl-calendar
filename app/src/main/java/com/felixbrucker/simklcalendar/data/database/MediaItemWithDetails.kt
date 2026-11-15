@@ -43,6 +43,4 @@ data class MediaItemWithDetails(
     val movieMetadata get() = mediaItem.movieMetadata
     val seriesMetadata get() = mediaItem.seriesMetadata
     val animeMetadata get() = mediaItem.animeMetadata
-    val simklUrl: String get() = mediaItem.simklUrl
-    val hasDvd: Boolean get() = mediaItem.hasDvd
 }

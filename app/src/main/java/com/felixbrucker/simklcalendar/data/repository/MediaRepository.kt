@@ -16,6 +16,8 @@ import com.felixbrucker.simklcalendar.data.database.SeriesStatus
 import com.felixbrucker.simklcalendar.data.database.SimilarMediaItem
 import com.felixbrucker.simklcalendar.data.database.TrendingEntryDao
 import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
+import com.felixbrucker.simklcalendar.data.database.WatchlistItem
+import com.felixbrucker.simklcalendar.data.database.WatchlistItemDao
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
 import com.felixbrucker.simklcalendar.data.util.DateUtil
@@ -39,9 +41,14 @@ import javax.inject.Singleton
 class MediaRepository @Inject constructor(
     private val mediaItemDao: MediaItemDao,
     private val trendingEntryDao: TrendingEntryDao,
+    private val watchlistItemDao: WatchlistItemDao,
     private val publicSimklApiService: PublicSimklApiService,
     @ApplicationScope private val externalScope: CoroutineScope
 ) {
+
+    fun getWatchlistItemsFlow(simklIds: List<Int>): Flow<List<WatchlistItem>> {
+        return watchlistItemDao.getWatchlistItemsFlow(simklIds).flowOn(Dispatchers.IO)
+    }
 
     val minTrendingYearFlow: Flow<Int?> = trendingEntryDao.getMinTrendingYearFlow().flowOn(Dispatchers.IO)
     val maxTrendingYearFlow: Flow<Int?> = trendingEntryDao.getMaxTrendingYearFlow().flowOn(Dispatchers.IO)

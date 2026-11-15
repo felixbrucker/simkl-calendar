@@ -6,23 +6,29 @@ Simkl Calendar is a modern Android application that integrates with your [Simkl]
 
 - **Unified Calendar**: View all your tracked TV shows, anime, and movies in a single, easy-to-read calendar.
 - **Tracked Watchlist**: View and manage your tracked TV shows, anime, and movies in a structured table or list view.
+- **Global Simkl Search**: Search the entire Simkl catalogue (shows, anime, movies) with paginated results and live watchlist status.
+- **Trending Media**: Discover trending TV shows, anime, and movies, with optional alerts for newly trending media.
+- **Detailed Media & Episodes**: Rich detail views with synopsis, ratings, genres, air dates, episode list, and watch status tracking with fluid shared element transitions.
+- **Calendar & Watchlist Filtering**: Real-time query search to quickly find shows, episodes, or movies in your calendar and watchlist.
 - **Personalized Alerts**: Receive notifications when new episodes or movies from your watchlist are aired.
-- **Quick Actions**: Mark episodes or entire seasons as watched directly from the notification.
-- **Torrent Search**: Integrated torrent search functionality to find releases quickly.
-- **Downloader Integration**: Seamlessly works with the [Torrent HTTP Downloader](https://github.com/felixbrucker/torrent-http-downloader-app) app.
+- **Quick Actions**: Mark episodes or entire seasons as watched directly from notifications.
+- **Torrent Search & Filtering**: Integrated torrent search with customizable quality preferences and min/max file size filtering.
+- **Downloader Integration**: Seamlessly works with the [Torrent HTTP Downloader](https://github.com/felixbrucker/torrent-http-downloader-app) app for automatic background downloads.
 - **Custom Search Links**: Configure custom URL templates to easily search external sites or services for your media.
-- **Modern UI**: Built with Jetpack Compose and Material 3 for a clean and responsive experience.
-- **Offline Support**: Uses Room database and DataStore for local caching, preferences, and offline access.
+- **Backup & Restore**: Export and import application settings and custom search links as JSON files.
+- **Modern UI**: Built with Jetpack Compose and Material 3 with edge-to-edge support for a clean and responsive experience.
+- **Offline Support**: Uses Room database and DataStore for local caching, preferences, and full offline access.
 
 ## 🛠️ Tech Stack
 
-- **Language**: [Kotlin](https://kotlinlang.org/)
-- **UI Framework**: [Jetpack Compose](https://developer.android.com/jetpack/compose)
+- **Language**: [Kotlin](https://kotlinlang.org/) (2.4+)
+- **UI Framework**: [Jetpack Compose](https://developer.android.com/jetpack/compose) with Material 3 & Navigation Compose
 - **Dependency Injection**: [Hilt](https://dagger.dev/hilt/)
-- **Architecture**: MVVM (Model-View-ViewModel) with Single-Responsibility principles.
+- **Architecture**: MVVM (Model-View-ViewModel) with Single-Responsibility principles
+- **Pagination**: [AndroidX Paging 3](https://developer.android.com/topic/libraries/architecture/paging/v3-overview)
 - **Networking**: [Retrofit](https://square.github.io/retrofit/), [OkHttp](https://square.github.io/okhttp/) & [Moshi](https://github.com/square/moshi)
 - **Local Database & Storage**: [Room](https://developer.android.com/training/data-storage/room) & [Jetpack DataStore](https://developer.android.com/topic/libraries/architecture/datastore)
-- **Background Tasks**: [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager)
+- **Background Tasks**: [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager) & [AlarmManager](https://developer.android.com/reference/android/app/AlarmManager)
 - **Image Loading**: [Coil](https://coil-kt.github.io/coil/)
 - **Error Tracking & Monitoring**: [Sentry](https://sentry.io/)
 - **Logging**: [Timber](https://github.com/JakeWharton/timber)
@@ -47,8 +53,16 @@ You can find the latest APKs in the [Releases](https://github.com/felixbrucker/s
 
 ### Prerequisites
 - Android Studio Ladybug (or newer)
-- Java 11+
+- Java 17+ (Java 21/25 recommended)
 - Android SDK 37
+
+### Setup
+1. Clone the repository.
+2. Create a `.env` file based on `.env.example`:
+   ```bash
+   cp .env.example .env
+   ```
+3. Set your `SIMKL_CLIENT_ID` in `.env` (obtained from [Simkl Developer settings](https://simkl.com/settings/developer/)).
 
 ### Build Commands
 ```bash

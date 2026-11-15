@@ -1,5 +1,8 @@
 package com.felixbrucker.simklcalendar.data.network
 
+import com.felixbrucker.simklcalendar.data.database.AnimeType
+import com.felixbrucker.simklcalendar.data.database.SeriesStatus
+import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
@@ -374,6 +377,52 @@ data class SimklTrendingItem(
 
 @JsonClass(generateAdapter = true)
 data class SimklTrendingIds(
+    @Json(name = "simkl_id") val simklId: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklSearchItem(
+    @Json(name = "title") val title: String,
+    @Json(name = "title_en") val titleEn: String? = null,
+    @Json(name = "title_romaji") val titleRomaji: String? = null,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "endpoint_type") val endpointType: String? = null,
+    @Json(name = "type") val type: String? = null,
+    @Json(name = "poster") val poster: String? = null,
+    @Json(name = "ids") val ids: SearchSimklIds,
+    @Json(name = "ep_count") val epCount: Int? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "ratings") val ratings: SimklRatings? = null
+) {
+    val rating: Double?
+        get() = ratings?.simkl?.rating
+
+    val mediaType: MediaType
+        get() = MediaType.fromKey(endpointType)
+
+    val parsedAnimeType: AnimeType?
+        get() = if (mediaType == MediaType.ANIME) AnimeType.fromKey(type) else null
+
+    val parsedStatus: SeriesStatus?
+        get() = status?.let { SeriesStatus.fromKey(it) }
+    val displayTitle: String
+        get() {
+            return if (!titleRomaji.isNullOrBlank() && !titleEn.isNullOrBlank() && titleEn != titleRomaji) {
+                titleEn
+            } else {
+                title
+            }
+        }
+
+    val displaySubtitle: String?
+        get() {
+            if (titleRomaji.isNullOrBlank()) return null
+            return if (titleRomaji != displayTitle) titleRomaji else null
+        }
+}
+
+@JsonClass(generateAdapter = true)
+data class SearchSimklIds(
     @Json(name = "simkl_id") val simklId: Int
 )
 

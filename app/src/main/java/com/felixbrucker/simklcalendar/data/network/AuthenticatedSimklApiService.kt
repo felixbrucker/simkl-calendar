@@ -3,6 +3,7 @@ package com.felixbrucker.simklcalendar.data.network
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface AuthenticatedSimklApiService {
@@ -35,4 +36,14 @@ interface AuthenticatedSimklApiService {
     suspend fun addToList(
         @Body request: SyncAddToListRequest
     ): SyncAddToListResponse
+
+    @GET("search/{type}")
+    suspend fun search(
+        @Path("type") type: String = "all",
+        @Query("q") query: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+        @Query("extended") extended: String = "full",
+        @Query("sort") sort: String = "relevance"
+    ): retrofit2.Response<List<SimklSearchItem>>
 }
