@@ -72,12 +72,11 @@ fun TrendingItemCard(
         ) {
             // Big centered ranking number in front of the poster
             Box(
-                modifier = Modifier
-                    .size(width = 36.dp, height = 130.dp),
+                modifier = Modifier.size(width = 40.dp, height = 130.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "#$rank",
+                    text = "$rank",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = PurpleLight
