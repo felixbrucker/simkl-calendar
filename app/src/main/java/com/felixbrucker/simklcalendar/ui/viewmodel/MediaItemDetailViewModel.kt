@@ -56,14 +56,14 @@ object MediaItemHolder {
 
 @HiltViewModel
 class MediaItemDetailViewModel @Inject constructor(
-    mediaRepository: MediaRepository,
+    private val mediaRepository: MediaRepository,
     private val syncRepository: SyncRepository,
     private val authenticatedSimklApiService: AuthenticatedSimklApiService,
     calendarRepository: CalendarRepository,
     customSearchLinkRepository: CustomSearchLinkRepository,
     private val watchlistItemDao: WatchlistItemDao,
     private val uiRepository: UiRepository,
-    savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val simklIdFlow: StateFlow<Int> = savedStateHandle.getStateFlow("simklId", 0)
@@ -133,6 +133,27 @@ class MediaItemDetailViewModel @Inject constructor(
 
     val customSearchLinks: StateFlow<List<CustomSearchLink>> = customSearchLinkRepository.customSearchLinks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    fun refresh(onResult: ((Boolean, String) -> Unit)? = null) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                val currentId = simklIdFlow.value
+                val typeStr = savedStateHandle.get<String>("mediaType")
+                val type = MediaType.fromKey(typeStr)
+                mediaRepository.refreshMediaItem(currentId, type)
+                onResult?.invoke(true, "Refreshed successfully")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to refresh media item")
+                onResult?.invoke(false, "Failed to refresh: ${e.localizedMessage ?: "Unknown error"}")
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
 
     private val _isUpdatingStatus = MutableStateFlow(false)
     val isUpdatingStatus: StateFlow<Boolean> = _isUpdatingStatus.asStateFlow()

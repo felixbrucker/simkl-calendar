@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import com.felixbrucker.simklcalendar.data.database.AnimeType
 import com.felixbrucker.simklcalendar.data.database.EpisodeType
 import com.felixbrucker.simklcalendar.data.database.MediaEpisode
 import com.felixbrucker.simklcalendar.data.database.MediaItem
@@ -46,7 +48,6 @@ import com.felixbrucker.simklcalendar.data.database.SimilarMediaItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
-import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.displayTitle
@@ -59,7 +60,6 @@ import com.felixbrucker.simklcalendar.ui.composable.sharedElementItem
 import com.felixbrucker.simklcalendar.ui.theme.*
 import com.felixbrucker.simklcalendar.ui.viewmodel.MediaItemDetailViewModel
 import kotlinx.coroutines.launch
-import java.time.Instant
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,6 +83,7 @@ fun MediaItemDetailScreen(
     val isUpdatingStatus by viewModel.isUpdatingStatus.collectAsState()
     val watchlistStatusMap by viewModel.watchlistStatusMap.collectAsState()
     val uiPreferences by viewModel.uiPreferences.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
     val item = mediaItemWithDetails
     val categoryColor = when (item?.mediaType ?: MediaType.TV) {
@@ -112,93 +113,105 @@ fun MediaItemDetailScreen(
         containerColor = SurfaceDark,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        if (item == null) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                item {
-                    MediaDetailHeaderContent(
-                        simklId = simklId,
-                        item = item,
-                        categoryColor = categoryColor,
-                        watchlistItem = watchlistItem,
-                        isUpdatingStatus = isUpdatingStatus,
-                        onUpdateStatus = { status ->
-                            viewModel.updateWatchlistStatus(simklId, item.mediaType, status) { _, msg ->
-                                scope.launch { snackbarHostState.showSnackbar(msg) }
-                            }
-                        },
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        modifier = Modifier.padding(16.dp)
-                    )
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                viewModel.refresh { _, msg ->
+                    scope.launch { snackbarHostState.showSnackbar(msg) }
                 }
-
-                item {
-                    CustomSearchLinksCard(
-                        searchLinks = customSearchLinks,
-                        title = item.title,
-                        titleRomaji = item.titleRomaji,
-                        itemType = item.mediaType,
-                        season = null,
-                        episode = null,
-                        snackbarHostState = snackbarHostState,
-                        scope = scope,
-                        context = context,
-                        modifier = Modifier.padding(16.dp)
-                    )
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (item == null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-
-                if (item.mediaType != MediaType.MOVIE) {
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     item {
-                        MediaEpisodeListSection(
-                            episodes = item.episodes,
-                            mediaType = item.mediaType,
+                        MediaDetailHeaderContent(
+                            simklId = simklId,
+                            item = item,
+                            categoryColor = categoryColor,
+                            watchlistItem = watchlistItem,
+                            isUpdatingStatus = isUpdatingStatus,
+                            onUpdateStatus = { status ->
+                                viewModel.updateWatchlistStatus(simklId, item.mediaType, status) { _, msg ->
+                                    scope.launch { snackbarHostState.showSnackbar(msg) }
+                                }
+                            },
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
                             modifier = Modifier.padding(16.dp)
                         )
                     }
-                }
 
-                if (item.relations.isNotEmpty()) {
                     item {
-                        RelatedMediaCarousel(
-                            relations = item.relations,
-                            watchlistStatusMap = watchlistStatusMap,
-                            onNavigateToDetail = onNavigateToDetail,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                        CustomSearchLinksCard(
+                            searchLinks = customSearchLinks,
+                            title = item.title,
+                            titleRomaji = item.titleRomaji,
+                            itemType = item.mediaType,
+                            season = null,
+                            episode = null,
+                            snackbarHostState = snackbarHostState,
+                            scope = scope,
+                            context = context,
+                            modifier = Modifier.padding(16.dp)
                         )
                     }
-                }
 
-                if (item.similarItems.isNotEmpty()) {
-                    item {
-                        SimilarMediaCarousel(
-                            similarItems = item.similarItems,
-                            watchlistStatusMap = watchlistStatusMap,
-                            hideWatchlist = uiPreferences.hideWatchlistItemsInSimilar,
-                            onToggleHide = { viewModel.toggleHideWatchlistItemsInSimilar(it) },
-                            onNavigateToDetail = onNavigateToDetail,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                    val isAnimeMovie = item.mediaType == MediaType.ANIME && item.animeMetadata?.animeType == AnimeType.MOVIE
+                    val shouldShowEpisodes = item.mediaType != MediaType.MOVIE && !isAnimeMovie
+                    if (shouldShowEpisodes) {
+                        item {
+                            MediaEpisodeListSection(
+                                episodes = item.episodes,
+                                mediaType = item.mediaType,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
                     }
-                }
 
-                if (item.recommendedItems.isNotEmpty()) {
-                    item {
-                        RecommendedMediaCarousel(
-                            recommendedItems = item.recommendedItems,
-                            watchlistStatusMap = watchlistStatusMap,
-                            hideWatchlist = uiPreferences.hideWatchlistItemsInRecommended,
-                            onToggleHide = { viewModel.toggleHideWatchlistItemsInRecommended(it) },
-                            onNavigateToDetail = onNavigateToDetail,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                    if (item.relations.isNotEmpty()) {
+                        item {
+                            RelatedMediaCarousel(
+                                relations = item.relations,
+                                watchlistStatusMap = watchlistStatusMap,
+                                onNavigateToDetail = onNavigateToDetail,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    if (item.similarItems.isNotEmpty()) {
+                        item {
+                            SimilarMediaCarousel(
+                                similarItems = item.similarItems,
+                                watchlistStatusMap = watchlistStatusMap,
+                                hideWatchlist = uiPreferences.hideWatchlistItemsInSimilar,
+                                onToggleHide = { viewModel.toggleHideWatchlistItemsInSimilar(it) },
+                                onNavigateToDetail = onNavigateToDetail,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    if (item.recommendedItems.isNotEmpty()) {
+                        item {
+                            RecommendedMediaCarousel(
+                                recommendedItems = item.recommendedItems,
+                                watchlistStatusMap = watchlistStatusMap,
+                                hideWatchlist = uiPreferences.hideWatchlistItemsInRecommended,
+                                onToggleHide = { viewModel.toggleHideWatchlistItemsInRecommended(it) },
+                                onNavigateToDetail = onNavigateToDetail,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
                     }
                 }
             }
