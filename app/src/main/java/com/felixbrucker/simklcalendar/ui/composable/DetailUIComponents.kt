@@ -912,8 +912,19 @@ fun DownloadSettingsCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Quality
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .padding(end = 8.dp)
+                ) {
                     Text("Preferred Quality", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text("Target video resolution for torrent searches.", color = TextSubtle, fontSize = 11.sp)
                 }

@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -139,9 +140,7 @@ fun TrendingScreen(
     }
 
     Scaffold(
-        modifier = modifier
-            .fillMaxSize()
-            .nestedScroll(nestedScrollConnection),
+        modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = {
@@ -209,18 +208,86 @@ fun TrendingScreen(
         },
         containerColor = SurfaceDark
     ) { innerPadding ->
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { viewModel.refreshTrending() },
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .nestedScroll(nestedScrollConnection)
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            // Auto-hiding Filter Bar
+            Surface(
+                color = SurfaceDark.copy(alpha = 0.95f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val measuredHeight = placeable.height
+                        if (measuredHeight > 0 && filterBarHeightPx != measuredHeight.toFloat()) {
+                            filterBarHeightPx = measuredHeight.toFloat()
+                            filterBarOffsetPx = filterBarOffsetPx.coerceIn(-filterBarHeightPx, 0f)
+                        }
+
+                        val layoutHeight = (measuredHeight + filterBarOffsetPx.roundToInt()).coerceAtLeast(0)
+
+                        layout(placeable.width, layoutHeight) {
+                            placeable.placeRelative(0, filterBarOffsetPx.roundToInt())
+                        }
+                    }
+                    .clipToBounds()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        itemVerticalAlignment = Alignment.CenterVertically
+                    ) {
+                        MediaTypeFilterChips(
+                            showTv = uiPreferences.trendingShowTv,
+                            showAnime = uiPreferences.trendingShowAnime,
+                            showMovies = uiPreferences.trendingShowMovies,
+                            onToggleShowTv = { viewModel.toggleShowTv() },
+                            onToggleShowAnime = { viewModel.toggleShowAnime() },
+                            onToggleShowMovies = { viewModel.toggleShowMovies() }
+                        )
+
+                        VerticalDivider(
+                            modifier = Modifier
+                                .height(24.dp)
+                                .padding(horizontal = 4.dp),
+                            color = OutlineVariant
+                        )
+
+                        FilterChip(
+                            selected = uiPreferences.trendingExcludeOnMyLists,
+                            onClick = { viewModel.toggleExcludeOnMyLists() },
+                            label = { Text("Exclude on my lists") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PurplePrimaryDark,
+                                selectedLabelColor = Color.White,
+                                containerColor = SurfaceGreyDark,
+                                labelColor = TextSubtle
+                            )
+                        )
+                    }
+                }
+            }
+
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { viewModel.refreshTrending() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = if (filterBarHeightPx > 0f) with(androidx.compose.ui.platform.LocalDensity.current) { (filterBarHeightPx + 16.dp.toPx()).toDp() } else 80.dp, bottom = 16.dp)
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
                 ) {
                     items(
                         trendingItems,
@@ -236,65 +303,6 @@ fun TrendingScreen(
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
-                    }
-                }
-
-                // Auto-hiding Filter Bar
-                Surface(
-                    color = SurfaceDark.copy(alpha = 0.95f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .offset { IntOffset(0, filterBarOffsetPx.roundToInt()) }
-                        .layout { measurable, constraints ->
-                            val placeable = measurable.measure(constraints)
-                            filterBarHeightPx = placeable.height.toFloat()
-                            layout(placeable.width, placeable.height) {
-                                placeable.placeRelative(0, 0)
-                            }
-                        }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            itemVerticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Media type chips first
-                            MediaTypeFilterChips(
-                                showTv = uiPreferences.trendingShowTv,
-                                showAnime = uiPreferences.trendingShowAnime,
-                                showMovies = uiPreferences.trendingShowMovies,
-                                onToggleShowTv = { viewModel.toggleShowTv() },
-                                onToggleShowAnime = { viewModel.toggleShowAnime() },
-                                onToggleShowMovies = { viewModel.toggleShowMovies() }
-                            )
-
-                            // Visual Separator
-                            VerticalDivider(
-                                modifier = Modifier
-                                    .height(24.dp)
-                                    .padding(horizontal = 4.dp),
-                                color = OutlineVariant
-                            )
-
-                            // Exclude on my lists chip
-                            FilterChip(
-                                selected = uiPreferences.trendingExcludeOnMyLists,
-                                onClick = { viewModel.toggleExcludeOnMyLists() },
-                                label = { Text("Exclude on my lists") },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = PurplePrimaryDark,
-                                    selectedLabelColor = Color.White,
-                                    containerColor = SurfaceGreyDark,
-                                    labelColor = TextSubtle
-                                )
-                            )
-                        }
                     }
                 }
             }

@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -31,8 +32,8 @@ import com.felixbrucker.simklcalendar.data.database.WatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
-import com.felixbrucker.simklcalendar.data.util.displayTitle
 import com.felixbrucker.simklcalendar.data.util.PosterSize
+import com.felixbrucker.simklcalendar.data.util.displayTitle
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderOpenSimklButton
@@ -157,29 +158,24 @@ fun MediaDetailHeaderContent(
         if (isNarrow) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    MediaDetailPosterColumn(
-                        simklId = simklId,
-                        item = item,
-                        categoryColor = categoryColor,
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope
-                    )
-                    MediaDetailInfoColumn(
-                        simklId = simklId,
-                        item = item,
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
+                MediaDetailPosterColumn(
+                    simklId = simklId,
+                    item = item,
+                    categoryColor = categoryColor,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                MediaDetailInfoColumn(
+                    simklId = simklId,
+                    item = item,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 MediaDetailActionSection(
                     simklId = simklId,
                     mediaType = item.mediaType,
@@ -200,7 +196,8 @@ fun MediaDetailHeaderContent(
                     item = item,
                     categoryColor = categoryColor,
                     sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    modifier = Modifier.width(220.dp)
                 )
                 MediaDetailInfoColumn(
                     simklId = simklId,
@@ -239,7 +236,6 @@ fun MediaDetailPosterColumn(
                 animatedVisibilityScope = animatedVisibilityScope,
                 key = "poster_$simklId"
             )
-            .width(220.dp)
             .clip(RoundedCornerShape(12.dp)),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -290,7 +286,7 @@ fun MediaDetailInfoColumn(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.fillMaxHeight(),
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         val displayTitle = remember(item) { item.displayTitle }
