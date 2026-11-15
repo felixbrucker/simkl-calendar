@@ -44,11 +44,7 @@ fun TrendingItemCard(
     val mediaType = trendingItem.trendingEntry.mediaType
     val rank = trendingItem.trendingEntry.rank
 
-    val categoryColor = when (mediaType) {
-        MediaType.ANIME -> PurpleLight
-        MediaType.MOVIE -> ErrorPink
-        MediaType.TV -> BlueAccent
-    }
+    val categoryColor = mediaType.categoryColor
 
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -115,7 +111,7 @@ fun TrendingItemCard(
                         text = mediaType.displayName.uppercase(),
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = mediaType.badgeTextColor,
                     )
                 }
             }

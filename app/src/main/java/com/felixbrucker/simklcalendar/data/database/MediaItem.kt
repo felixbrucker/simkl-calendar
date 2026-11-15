@@ -84,6 +84,5 @@ data class MediaItem(
     @Embedded(prefix = "series_") val seriesMetadata: SeriesMetadata? = null,
     @Embedded(prefix = "anime_") val animeMetadata: AnimeMetadata? = null
 ) {
-    val simklUrl: String get() = "https://simkl.com/${mediaType.key}/$simklId"
     val hasDvd: Boolean get() = movieMetadata?.dvdDate != null
 }

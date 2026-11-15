@@ -7,24 +7,38 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.LazyPagingItems
+import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
+import com.felixbrucker.simklcalendar.data.network.SimklSearchItem
+import com.felixbrucker.simklcalendar.data.util.PosterSize
+import com.felixbrucker.simklcalendar.extensions.toPosterUrl
+import com.felixbrucker.simklcalendar.ui.viewmodel.SimklSearchViewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
@@ -50,11 +64,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
+import com.felixbrucker.simklcalendar.ui.theme.YellowAccent
+import java.util.Locale
 import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
 import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
 import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
@@ -70,7 +87,10 @@ import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
 import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
+import com.felixbrucker.simklcalendar.ui.composable.MediaTypeBadge
 import com.felixbrucker.simklcalendar.ui.composable.MediaTypeFilterChips
+import com.felixbrucker.simklcalendar.ui.composable.overlayIcon
+import com.felixbrucker.simklcalendar.ui.composable.posterAlpha
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -91,6 +111,7 @@ fun MainScreen(
     onNavigateToTrending: () -> Unit,
     onNavigateToReleaseDetail: (CalendarItemWithWatchlist) -> Unit,
     onNavigateToWatchlistItemDetail: (WatchlistTableItem) -> Unit,
+    onNavigateToDetail: (Int, MediaType) -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -147,9 +168,15 @@ fun MainScreen(
 
     val username = userToken?.username.takeIf { !it.isNullOrBlank() } ?: "Unknown"
 
+    val apiSearchViewModel: SimklSearchViewModel = hiltViewModel()
+    val apiSearchQuery by apiSearchViewModel.searchQuery.collectAsState()
+    val apiSearchResults = apiSearchViewModel.searchResults.collectAsLazyPagingItems()
+    val watchlistStatusMap by apiSearchViewModel.watchlistStatusMap.collectAsState()
+
     // Search UI State
-    var isSearchActive by remember { mutableStateOf(false) }
-    var isSearchFocused by remember { mutableStateOf(false) }
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    var isApiSearchActive by rememberSaveable { mutableStateOf(false) }
+    var isSearchFocused by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -168,19 +195,29 @@ fun MainScreen(
     }
 
     // Determine current display mode
-    val searchDisplayMode = when {
+    val effectiveSearchDisplayMode = when {
+        isApiSearchActive -> SearchBarDisplayMode.EXPANDED
         isSearchActive || isSearchFocused -> SearchBarDisplayMode.EXPANDED
         searchQuery.isNotBlank() -> SearchBarDisplayMode.DOCKED
         else -> SearchBarDisplayMode.DEFAULT
     }
 
+    val activeSearchQuery = if (isApiSearchActive) apiSearchQuery else searchQuery
+
     // Back handler to exit search or clear query
-    BackHandler(enabled = isSearchActive || searchQuery.isNotBlank()) {
-        if (searchQuery.isNotBlank()) {
-            viewModel.clearSearchQuery()
+    BackHandler(enabled = isApiSearchActive || isSearchActive || searchQuery.isNotBlank()) {
+        if (isApiSearchActive) {
+            if (apiSearchQuery.isNotBlank()) {
+                apiSearchViewModel.clearSearchQuery()
+            }
+            isApiSearchActive = false
+        } else {
+            if (searchQuery.isNotBlank()) {
+                viewModel.clearSearchQuery()
+            }
+            isSearchActive = false
+            isSearchFocused = false
         }
-        isSearchActive = false
-        isSearchFocused = false
         focusManager.clearFocus()
         keyboardController?.hide()
     }
@@ -212,234 +249,299 @@ fun MainScreen(
         }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    MainTopAppBarTitleSection(
-                        searchDisplayMode = searchDisplayMode,
-                        searchQuery = searchQuery,
-                        username = username,
-                        viewMode = viewMode,
-                        isSmallScreen = isSmallScreen,
-                        focusRequester = focusRequester,
-                        onSearchQueryChange = { viewModel.setSearchQuery(it) },
-                        onFocusChanged = { isSearchFocused = it },
-                        onSearch = {
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                            isSearchFocused = false
-                            if (searchQuery.isBlank()) {
-                                isSearchActive = false
-                            }
-                        },
-                        onClearSearch = {
-                            viewModel.clearSearchQuery()
-                            isSearchActive = false
-                            isSearchFocused = false
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                        },
-                        onExpandSearch = {
-                            isSearchActive = true
-                            coroutineScope.launch {
-                                delay(50.milliseconds)
-                                focusRequester.requestFocus()
-                                keyboardController?.show()
-                            }
-                        },
-                        onViewModeChange = { viewModel.setViewMode(it) }
-                    )
-                },
-                actions = {
-                    if (searchDisplayMode == SearchBarDisplayMode.DEFAULT) {
-                        if (isDownloaderInstalled && hasWantedCalendarItems) {
-                            MainAutoDownloadActionButton(
-                                shouldShowAutoDownloadStatus = shouldShowAutoDownloadStatus,
-                                isSearchingWantedTorrents = isSearchingWantedTorrents,
-                                autoDownloadStatus = autoDownloadStatus,
-                                onRunAutoDownload = { viewModel.runAutoDownloadManual() }
-                            )
-                        }
-
-                        if (isSmallScreen) {
-                            MainMobileViewModeToggle(
-                                viewMode = viewMode,
-                                onViewModeToggle = {
-                                    val nextMode = if (viewMode == ViewMode.CALENDAR) ViewMode.TABLE else ViewMode.CALENDAR
-                                    viewModel.setViewMode(nextMode)
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = {
+                        MainTopAppBarTitleSection(
+                            searchDisplayMode = effectiveSearchDisplayMode,
+                            searchQuery = activeSearchQuery,
+                            username = username,
+                            viewMode = viewMode,
+                            isSmallScreen = isSmallScreen,
+                            focusRequester = focusRequester,
+                            onSearchQueryChange = {
+                                if (isApiSearchActive) {
+                                    apiSearchViewModel.setSearchQuery(it)
+                                } else {
+                                    viewModel.setSearchQuery(it)
                                 }
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
+                            },
+                            onFocusChanged = { isSearchFocused = it },
+                            onSearch = {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                isSearchFocused = false
+                            },
+                            onClearSearch = {
+                                if (isApiSearchActive) {
+                                    if (apiSearchQuery.isNotEmpty()) {
+                                        apiSearchViewModel.clearSearchQuery()
+                                    } else {
+                                        isApiSearchActive = false
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                    }
+                                } else {
+                                    viewModel.clearSearchQuery()
+                                    isSearchActive = false
+                                    isSearchFocused = false
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                }
+                            },
+                            onExpandSearch = {
                                 isSearchActive = true
                                 coroutineScope.launch {
-                                    delay(100.milliseconds)
+                                    delay(50.milliseconds)
                                     focusRequester.requestFocus()
                                     keyboardController?.show()
                                 }
                             },
-                            modifier = Modifier.testTag("search_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Search Calendar",
-                                tint = Color.White
-                            )
-                        }
-                        IconButton(
-                            onClick = onNavigateToTrending,
-                            modifier = Modifier.testTag("trending_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                contentDescription = "Trending",
-                                tint = Color.White
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier.testTag("settings_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = Color.White
+                            onViewModeChange = { viewModel.setViewMode(it) },
+                            isLoading = isApiSearchActive && apiSearchQuery.isNotBlank() && apiSearchResults.loadState.refresh is LoadState.Loading
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SurfaceDark,
-                    titleContentColor = Color.White
-                )
-            )
-        },
-        containerColor = SurfaceDark
-    ) { innerPadding ->
-        PullToRefreshBox(
-            isRefreshing = isSyncing,
-            onRefresh = { viewModel.syncLocalCalendar() },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            val tvFilter = uiPreferences.filterShowTv
-            val animeFilter = uiPreferences.filterShowAnime
-            val moviesFilter = uiPreferences.filterShowMovies
-            val unwatchedFilter = uiPreferences.filterOnlyUnwatched
-            val premieresOnly = uiPreferences.filterOnlyPremieres
-            val finalesOnly = uiPreferences.filterOnlyFinales
-            val digitalDvdOnly = uiPreferences.filterOnlyDigitalDvd
+                    },
+                    actions = {
+                        if (effectiveSearchDisplayMode == SearchBarDisplayMode.DEFAULT) {
+                            if (isDownloaderInstalled && hasWantedCalendarItems) {
+                                MainAutoDownloadActionButton(
+                                    shouldShowAutoDownloadStatus = shouldShowAutoDownloadStatus,
+                                    isSearchingWantedTorrents = isSearchingWantedTorrents,
+                                    autoDownloadStatus = autoDownloadStatus,
+                                    onRunAutoDownload = { viewModel.runAutoDownloadManual() }
+                                )
+                            }
 
-            Column(
+                            if (isSmallScreen) {
+                                MainMobileViewModeToggle(
+                                    viewMode = viewMode,
+                                    onViewModeToggle = {
+                                        val nextMode =
+                                            if (viewMode == ViewMode.CALENDAR) ViewMode.TABLE else ViewMode.CALENDAR
+                                        viewModel.setViewMode(nextMode)
+                                    }
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    isSearchActive = true
+                                    coroutineScope.launch {
+                                        delay(100.milliseconds)
+                                        focusRequester.requestFocus()
+                                        keyboardController?.show()
+                                    }
+                                },
+                                modifier = Modifier.testTag("search_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Search Calendar",
+                                    tint = Color.White
+                                )
+                            }
+                            IconButton(
+                                onClick = onNavigateToTrending,
+                                modifier = Modifier.testTag("trending_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                    contentDescription = "Trending",
+                                    tint = Color.White
+                                )
+                            }
+                            ApiSearchButton(
+                                onClick = {
+                                    isApiSearchActive = true
+                                    coroutineScope.launch {
+                                        delay(100.milliseconds)
+                                        focusRequester.requestFocus()
+                                        keyboardController?.show()
+                                    }
+                                }
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onNavigateToSettings,
+                            modifier = Modifier.testTag("settings_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = SurfaceDark,
+                        titleContentColor = Color.White
+                    )
+                )
+            },
+            containerColor = SurfaceDark
+        ) { innerPadding ->
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .nestedScroll(nestedScrollConnection)
+                    .padding(innerPadding)
             ) {
-                // Toggles / Chip Filtering Bar (Shown in both views)
-                MainFilterBar(
-                    viewMode = viewMode,
-                    tvFilter = tvFilter,
-                    animeFilter = animeFilter,
-                    moviesFilter = moviesFilter,
-                    unwatchedFilter = unwatchedFilter,
-                    premieresOnly = premieresOnly,
-                    finalesOnly = finalesOnly,
-                    digitalDvdOnly = digitalDvdOnly,
-                    onToggleShowTv = { viewModel.toggleShowTv() },
-                    onToggleShowAnime = { viewModel.toggleShowAnime() },
-                    onToggleShowMovies = { viewModel.toggleShowMovies() },
-                    onToggleShowOnlyUnwatchedReleased = { viewModel.toggleShowOnlyUnwatchedReleased() },
-                    onToggleOnlySeasonPremieres = { viewModel.toggleOnlySeasonPremieres() },
-                    onToggleOnlySeasonFinales = { viewModel.toggleOnlySeasonFinales() },
-                    onToggleOnlyDigitalDvd = { viewModel.toggleOnlyDigitalDvd() },
-                    modifier = Modifier
-                        .layout { measurable, constraints ->
-                            val placeable = measurable.measure(constraints)
-                            val measuredHeight = placeable.height
-                            if (measuredHeight > 0 && filterBarHeightPx != measuredHeight.toFloat()) {
-                                filterBarHeightPx = measuredHeight.toFloat()
-                                filterBarOffsetPx = filterBarOffsetPx.coerceIn(-filterBarHeightPx, 0f)
-                            }
+                PullToRefreshBox(
+                    isRefreshing = isSyncing,
+                    onRefresh = { viewModel.syncLocalCalendar() },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    val tvFilter = uiPreferences.filterShowTv
+                    val animeFilter = uiPreferences.filterShowAnime
+                    val moviesFilter = uiPreferences.filterShowMovies
+                    val unwatchedFilter = uiPreferences.filterOnlyUnwatched
+                    val premieresOnly = uiPreferences.filterOnlyPremieres
+                    val finalesOnly = uiPreferences.filterOnlyFinales
+                    val digitalDvdOnly = uiPreferences.filterOnlyDigitalDvd
 
-                            val layoutHeight = (measuredHeight + filterBarOffsetPx.roundToInt()).coerceAtLeast(0)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .nestedScroll(nestedScrollConnection)
+                    ) {
+                        // Toggles / Chip Filtering Bar (Shown in both views)
+                        MainFilterBar(
+                            viewMode = viewMode,
+                            tvFilter = tvFilter,
+                            animeFilter = animeFilter,
+                            moviesFilter = moviesFilter,
+                            unwatchedFilter = unwatchedFilter,
+                            premieresOnly = premieresOnly,
+                            finalesOnly = finalesOnly,
+                            digitalDvdOnly = digitalDvdOnly,
+                            onToggleShowTv = { viewModel.toggleShowTv() },
+                            onToggleShowAnime = { viewModel.toggleShowAnime() },
+                            onToggleShowMovies = { viewModel.toggleShowMovies() },
+                            onToggleShowOnlyUnwatchedReleased = { viewModel.toggleShowOnlyUnwatchedReleased() },
+                            onToggleOnlySeasonPremieres = { viewModel.toggleOnlySeasonPremieres() },
+                            onToggleOnlySeasonFinales = { viewModel.toggleOnlySeasonFinales() },
+                            onToggleOnlyDigitalDvd = { viewModel.toggleOnlyDigitalDvd() },
+                            modifier = Modifier
+                                .layout { measurable, constraints ->
+                                    val placeable = measurable.measure(constraints)
+                                    val measuredHeight = placeable.height
+                                    if (measuredHeight > 0 && filterBarHeightPx != measuredHeight.toFloat()) {
+                                        filterBarHeightPx = measuredHeight.toFloat()
+                                        filterBarOffsetPx =
+                                            filterBarOffsetPx.coerceIn(-filterBarHeightPx, 0f)
+                                    }
 
-                            layout(placeable.width, layoutHeight) {
-                                placeable.placeRelative(0, filterBarOffsetPx.roundToInt())
+                                    val layoutHeight =
+                                        (measuredHeight + filterBarOffsetPx.roundToInt()).coerceAtLeast(
+                                            0
+                                        )
+
+                                    layout(placeable.width, layoutHeight) {
+                                        placeable.placeRelative(0, filterBarOffsetPx.roundToInt())
+                                    }
+                                }
+                                .clipToBounds()
+                        )
+
+                        // Search Results Status Pill (when searching)
+                        if (searchQuery.isNotBlank()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Results for \"$searchQuery\" ($totalFilteredCalendarItems)",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = PurpleLight
+                                )
+                                Text(
+                                    text = "Clear",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = ErrorPink,
+                                    modifier = Modifier.clickable {
+                                        viewModel.clearSearchQuery()
+                                        isSearchActive = false
+                                        isSearchFocused = false
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                    }
+                                )
                             }
                         }
-                        .clipToBounds()
-                )
 
-                // Search Results Status Pill (when searching)
-                if (searchQuery.isNotBlank()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Results for \"$searchQuery\" ($totalFilteredCalendarItems)",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = PurpleLight
-                        )
-                        Text(
-                            text = "Clear",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = ErrorPink,
-                            modifier = Modifier.clickable {
-                                viewModel.clearSearchQuery()
-                                isSearchActive = false
-                                isSearchFocused = false
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Conditionally render Calendar View or Table View with slide transitions
+                        AnimatedContent(
+                            targetState = viewMode,
+                            transitionSpec = {
+                                if (targetState == ViewMode.TABLE) {
+                                    slideInHorizontally { width -> width } + fadeIn() togetherWith
+                                        slideOutHorizontally { width -> -width } + fadeOut()
+                                } else {
+                                    slideInHorizontally { width -> -width } + fadeIn() togetherWith
+                                        slideOutHorizontally { width -> width } + fadeOut()
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = "view_mode_content_transition"
+                        ) { mode ->
+                            if (mode == ViewMode.CALENDAR) {
+                                CalendarView(
+                                    viewModel = viewModel,
+                                    onNavigateToShowDetail = onNavigateToReleaseDetail,
+                                    lazyListState = calendarListState,
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                            } else {
+                                TrackedWatchlistTableView(
+                                    viewModel = viewModel,
+                                    onNavigateToSeriesDetail = onNavigateToWatchlistItemDetail,
+                                    lazyListState = tableListState,
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
                             }
-                        )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Conditionally render Calendar View or Table View with slide transitions
-                AnimatedContent(
-                    targetState = viewMode,
-                    transitionSpec = {
-                        if (targetState == ViewMode.TABLE) {
-                            slideInHorizontally { width -> width } + fadeIn() togetherWith
-                                    slideOutHorizontally { width -> -width } + fadeOut()
-                        } else {
-                            slideInHorizontally { width -> -width } + fadeIn() togetherWith
-                                    slideOutHorizontally { width -> width } + fadeOut()
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    label = "view_mode_content_transition"
-                ) { mode ->
-                    if (mode == ViewMode.CALENDAR) {
-                        CalendarView(
-                            viewModel = viewModel,
-                            onNavigateToShowDetail = onNavigateToReleaseDetail,
-                            lazyListState = calendarListState,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                    } else {
-                        TrackedWatchlistTableView(
-                            viewModel = viewModel,
-                            onNavigateToSeriesDetail = onNavigateToWatchlistItemDetail,
-                            lazyListState = tableListState,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope
+                AnimatedVisibility(
+                    visible = isApiSearchActive,
+                    enter = fadeIn(animationSpec = tween(250)),
+                    exit = fadeOut(animationSpec = tween(200))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.8f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {
+                                    isApiSearchActive = false
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                }
+                            )
+                    ) {
+                        ApiSearchResultsList(
+                            searchResults = apiSearchResults,
+                            watchlistStatusMap = watchlistStatusMap,
+                            onUpdateDisplayedIds = { apiSearchViewModel.updateDisplayedSimklIds(it) },
+                            onNavigateToDetail = { simklId, mediaType ->
+                                onNavigateToDetail(simklId, mediaType)
+                            }
                         )
                     }
                 }
@@ -461,7 +563,8 @@ private fun MainTopAppBarTitleSection(
     onSearch: () -> Unit,
     onClearSearch: () -> Unit,
     onExpandSearch: () -> Unit,
-    onViewModeChange: (ViewMode) -> Unit
+    onViewModeChange: (ViewMode) -> Unit,
+    isLoading: Boolean = false
 ) {
     AnimatedContent(
         targetState = searchDisplayMode,
@@ -486,7 +589,8 @@ private fun MainTopAppBarTitleSection(
                     focusRequester = focusRequester,
                     onFocusChanged = onFocusChanged,
                     onSearch = onSearch,
-                    onClearSearch = onClearSearch
+                    onClearSearch = onClearSearch,
+                    isLoading = isLoading
                 )
             }
 
@@ -517,7 +621,8 @@ private fun MainExpandedSearchBar(
     focusRequester: FocusRequester,
     onFocusChanged: (Boolean) -> Unit,
     onSearch: () -> Unit,
-    onClearSearch: () -> Unit
+    onClearSearch: () -> Unit,
+    isLoading: Boolean = false
 ) {
     Row(
         modifier = Modifier
@@ -529,12 +634,20 @@ private fun MainExpandedSearchBar(
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = "Search active",
-            tint = PurpleLight,
-            modifier = Modifier.size(20.dp)
-        )
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = PurpleLight
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search active",
+                tint = PurpleLight,
+                modifier = Modifier.size(20.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.width(8.dp))
 
@@ -997,6 +1110,226 @@ private fun ViewModeToggle(
                         maxLines = 1
                     )
                 }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun ApiSearchButton(
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.testTag("api_search_button")
+    ) {
+        Icon(
+            imageVector = Icons.Default.TravelExplore,
+            contentDescription = "Global Search",
+            tint = Color.White
+        )
+    }
+}
+
+@Composable
+fun SearchItemCard(
+    item: SimklSearchItem,
+    watchlistStatus: WatchlistStatus?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = androidx.compose.foundation.BorderStroke(1.dp, OutlineVariant),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SearchItemPoster(item = item, watchlistStatus = watchlistStatus)
+            Spacer(modifier = Modifier.width(12.dp))
+            SearchItemDetails(item = item)
+        }
+    }
+}
+
+@Composable
+fun SearchItemPoster(
+    item: SimklSearchItem,
+    watchlistStatus: WatchlistStatus?
+) {
+    val context = LocalContext.current
+    val posterUrl = remember(item.poster) { item.poster.toPosterUrl(PosterSize.COMPACT) }
+    val overlayIcon = watchlistStatus.overlayIcon
+    val isFaded = watchlistStatus != null
+
+    Box(
+        modifier = Modifier
+            .width(48.dp)
+            .height(70.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .alpha(watchlistStatus.posterAlpha),
+        contentAlignment = Alignment.Center
+    ) {
+        AsyncImage(
+            model = ImageRequest.Builder(context).data(posterUrl).crossfade(enable = true).build(),
+            contentDescription = "${item.displayTitle} Poster",
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        if (isFaded && overlayIcon != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = overlayIcon,
+                    contentDescription = watchlistStatus.displayName,
+                    tint = Color.White.copy(alpha = 0.9f),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SearchItemDetails(
+    item: SimklSearchItem
+) {
+    val sub = item.displaySubtitle
+    val mediaType = item.mediaType
+    val rating = item.rating
+    val hasRating = rating != null && rating > 0.0
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            MediaTypeBadge(mediaType = mediaType)
+            Text(
+                text = item.displayTitle,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        if (!sub.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = sub,
+                fontSize = 12.sp,
+                color = TextSubtle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        val subInfoText = remember(item) {
+            buildList {
+                item.year?.let { add(it.toString()) }
+                item.parsedAnimeType?.displayName?.let { add(it) }
+                item.epCount?.takeIf { it > 0 }?.let { count ->
+                    add(if (count == 1) "1 Episode" else "$count Episodes")
+                }
+                item.parsedStatus?.displayName?.let { add(it) }
+            }.joinToString(" • ")
+        }
+
+        if (hasRating || subInfoText.isNotBlank()) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (rating != null && rating > 0.0) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = YellowAccent,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = String.format(Locale.US, "%.1f", rating),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    if (subInfoText.isNotBlank()) {
+                        Text(
+                            text = "•",
+                            fontSize = 11.sp,
+                            color = TextGrey
+                        )
+                    }
+                }
+                if (subInfoText.isNotBlank()) {
+                    Text(
+                        text = subInfoText,
+                        fontSize = 11.sp,
+                        color = TextGrey,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ApiSearchResultsList(
+    searchResults: LazyPagingItems<SimklSearchItem>,
+    watchlistStatusMap: Map<Int, WatchlistStatus>,
+    onUpdateDisplayedIds: (List<Int>) -> Unit,
+    onNavigateToDetail: (Int, MediaType) -> Unit
+) {
+    val displayedIds = remember(searchResults.itemCount) {
+        (0 until searchResults.itemCount).mapNotNull { index ->
+            searchResults.peek(index)?.ids?.simklId
+        }
+    }
+
+    LaunchedEffect(displayedIds) {
+        onUpdateDisplayedIds(displayedIds)
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SurfaceDark)
+            .testTag("api_search_results_list"),
+        contentPadding = PaddingValues(vertical = 8.dp)
+    ) {
+        items(
+            count = searchResults.itemCount,
+            key = { index -> searchResults[index]?.ids?.simklId ?: index }
+        ) { index ->
+            val item = searchResults[index]
+            if (item != null) {
+                val watchlistStatus = watchlistStatusMap[item.ids.simklId]
+                SearchItemCard(
+                    item = item,
+                    watchlistStatus = watchlistStatus,
+                    onClick = { onNavigateToDetail(item.ids.simklId, item.mediaType) },
+                    modifier = Modifier.animateItem()
+                )
             }
         }
     }

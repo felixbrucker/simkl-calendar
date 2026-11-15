@@ -7,6 +7,7 @@ import com.felixbrucker.simklcalendar.data.database.MediaItemWithDetails
 import com.felixbrucker.simklcalendar.data.database.MovieMetadata
 import com.felixbrucker.simklcalendar.data.database.SeriesStatus
 import com.felixbrucker.simklcalendar.data.database.TrendingEntryDao
+import com.felixbrucker.simklcalendar.data.database.WatchlistItemDao
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
 import com.felixbrucker.simklcalendar.data.network.SimklAnimeDetailResponse
@@ -35,6 +36,7 @@ class MediaRepositoryTest {
 
     private lateinit var mediaItemDao: MediaItemDao
     private lateinit var trendingEntryDao: TrendingEntryDao
+    private lateinit var watchlistItemDao: WatchlistItemDao
     private lateinit var publicSimklApiService: PublicSimklApiService
     private lateinit var testScope: TestScope
     private lateinit var mediaRepository: MediaRepository
@@ -50,12 +52,14 @@ class MediaRepositoryTest {
         }
         mediaItemDao = mockk(relaxed = true)
         trendingEntryDao = mockk(relaxed = true)
+        watchlistItemDao = mockk(relaxed = true)
         publicSimklApiService = mockk(relaxed = true)
         testScope = TestScope()
 
         mediaRepository = MediaRepository(
             mediaItemDao = mediaItemDao,
             trendingEntryDao = trendingEntryDao,
+            watchlistItemDao = watchlistItemDao,
             publicSimklApiService = publicSimklApiService,
             externalScope = testScope
         )
@@ -76,7 +80,6 @@ class MediaRepositoryTest {
             movieMetadata = MovieMetadata(dvdDate = LocalDate.of(2023, 5, 1))
         )
 
-        assertEquals("https://simkl.com/movie/12345", item.simklUrl)
         assertEquals(true, item.hasDvd)
     }
 

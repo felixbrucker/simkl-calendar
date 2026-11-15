@@ -108,6 +108,8 @@ dependencies {
   implementation(libs.hilt.android)
   implementation(libs.androidx.hilt.work)
   implementation(libs.androidx.hilt.navigation.compose)
+  implementation(libs.androidx.paging.runtime)
+  implementation(libs.androidx.paging.compose)
   ksp(libs.hilt.compiler)
   ksp(libs.androidx.hilt.compiler)
   implementation(libs.coil.compose)
