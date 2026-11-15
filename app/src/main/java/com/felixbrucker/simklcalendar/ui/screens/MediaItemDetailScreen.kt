@@ -354,8 +354,6 @@ fun MediaDetailInfoColumn(
                 text = item.description,
                 fontSize = 12.sp,
                 color = TextGrey,
-                maxLines = 6,
-                overflow = TextOverflow.Ellipsis
             )
         }
     }
