@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +47,8 @@ fun TrendingItemCard(
     val rank = trendingItem.trendingEntry.rank
 
     val categoryColor = mediaType.categoryColor
+    val density = LocalDensity.current
+    val isTablet = with(density) { LocalWindowInfo.current.containerSize.width.toDp() >= 600.dp }
 
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -67,19 +71,21 @@ fun TrendingItemCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Big centered ranking number in front of the poster
-            Box(
-                modifier = Modifier.size(width = 40.dp, height = 130.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "$rank",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = PurpleLight
-                )
-            }
+            if (isTablet) {
+                Box(
+                    modifier = Modifier.size(width = 40.dp, height = 130.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "$rank",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = PurpleLight
+                    )
+                }
 
-            Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+            }
 
             // Unified Poster Column: Image Top + Bottom Media Type Banner extending poster
             Column(
