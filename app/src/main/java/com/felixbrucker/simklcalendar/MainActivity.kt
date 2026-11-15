@@ -373,7 +373,9 @@ fun SimklCalendarApp(
                     (initialState.destination.route?.startsWith("release_detail") == true &&
                      targetState.destination.route?.startsWith("watchlist_item_detail") == true) ||
                     (initialState.destination.route?.startsWith("watchlist_item_detail") == true &&
-                     targetState.destination.route?.startsWith("release_detail") == true)
+                     targetState.destination.route?.startsWith("release_detail") == true) ||
+                    (initialState.destination.route?.startsWith("media_item") == true &&
+                     targetState.destination.route?.startsWith("media_item") == true)
                 if (isSlideScreen || isDetailToDetail) slideInFromLeft else EnterTransition.None
             },
             predictivePopExitTransition = {
@@ -386,7 +388,9 @@ fun SimklCalendarApp(
                     (initialState.destination.route?.startsWith("release_detail") == true &&
                      targetState.destination.route?.startsWith("watchlist_item_detail") == true) ||
                     (initialState.destination.route?.startsWith("watchlist_item_detail") == true &&
-                     targetState.destination.route?.startsWith("release_detail") == true)
+                     targetState.destination.route?.startsWith("release_detail") == true) ||
+                    (initialState.destination.route?.startsWith("media_item") == true &&
+                     targetState.destination.route?.startsWith("media_item") == true)
                 if (isSlideScreen || isDetailToDetail) slideOutToRight else ExitTransition.None
             },
             modifier = Modifier.fillMaxSize()
@@ -459,9 +463,7 @@ fun SimklCalendarApp(
                     viewModel = trendingViewModel,
                     onNavigateBack = { navController.popBackStackSafely() },
                     onNavigateToDetail = { simklId, mediaType ->
-                        navController.navigate("media_item/$simklId/${mediaType.key}") {
-                            launchSingleTop = true
-                        }
+                        navController.navigate("media_item/$simklId/${mediaType.key}")
                     },
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@composable
@@ -485,6 +487,9 @@ fun SimklCalendarApp(
                 MediaItemDetailScreen(
                     simklId = simklId,
                     onNavigateBack = { navController.popBackStackSafely() },
+                    onNavigateToDetail = { id, mType ->
+                        navController.navigate("media_item/$id/${mType.key}")
+                    },
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@composable
                 )

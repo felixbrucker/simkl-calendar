@@ -201,8 +201,12 @@ class Converters {
         TrendingEntry::class,
         WatchlistItem::class,
         SeenTrendingItem::class,
+        MediaEpisode::class,
+        RelatedMediaItem::class,
+        SimilarMediaItem::class,
+        RecommendedMediaItem::class,
     ],
-    version = 41,
+    version = 44,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -234,9 +238,12 @@ class Converters {
         AutoMigration(from = 38, to = 39),
         AutoMigration(from = 39, to = 40),
         AutoMigration(from = 40, to = 41),
+        AutoMigration(from = 41, to = 42),
+        AutoMigration(from = 42, to = 43),
+        AutoMigration(from = 43, to = 44),
     ]
 )
-@TypeConverters(Converters::class)
+@TypeConverters(Converters::class, EpisodeTypeConverter::class, RelationTypeConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     @DeleteColumn(tableName = "calendar_items", columnName = "isWatched")
     class Migration8To9 : AutoMigrationSpec

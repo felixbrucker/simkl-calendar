@@ -3,6 +3,7 @@ package com.felixbrucker.simklcalendar
 import com.felixbrucker.simklcalendar.data.database.AnimeType
 import com.felixbrucker.simklcalendar.data.database.MediaItem
 import com.felixbrucker.simklcalendar.data.database.MediaItemDao
+import com.felixbrucker.simklcalendar.data.database.MediaItemWithDetails
 import com.felixbrucker.simklcalendar.data.database.MovieMetadata
 import com.felixbrucker.simklcalendar.data.database.SeriesStatus
 import com.felixbrucker.simklcalendar.data.database.TrendingEntryDao
@@ -188,7 +189,7 @@ class MediaRepositoryTest {
             lastUpdatedAt = Instant.now().minusSeconds(100000) // > 24 hours
         )
         coEvery { mediaItemDao.getMediaItem(simklId) } returns expiredItem
-        coEvery { mediaItemDao.getMediaItemFlow(simklId) } returns flowOf(expiredItem)
+        coEvery { mediaItemDao.getMediaItemWithDetailsStream(simklId) } returns flowOf(MediaItemWithDetails(mediaItem = expiredItem))
         coEvery { publicSimklApiService.getMovieDetails(simklId) } returns SimklMovieDetailResponse(
             title = "Refreshed Movie Title",
             year = 2020,

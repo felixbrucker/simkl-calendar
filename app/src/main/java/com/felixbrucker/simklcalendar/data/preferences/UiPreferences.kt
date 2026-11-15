@@ -46,7 +46,9 @@ data class UiPreferences(
     val trendingMinRating: Float = 0f,
     val trendingMinYear: Int = 0,
     val trendingHasDvd: Boolean = false,
-    val trendingFilterSidebarVisible: Boolean = false
+    val trendingFilterSidebarVisible: Boolean = false,
+    val hideWatchlistItemsInSimilar: Boolean = false,
+    val hideWatchlistItemsInRecommended: Boolean = false
 )
 
 @Singleton
@@ -73,6 +75,8 @@ class UiRepository @Inject constructor(
         private val KEY_TRENDING_MIN_YEAR = intPreferencesKey("trending_min_year")
         private val KEY_TRENDING_HAS_DVD = booleanPreferencesKey("trending_has_dvd")
         private val KEY_TRENDING_FILTER_SIDEBAR_VISIBLE = booleanPreferencesKey("trending_filter_sidebar_visible")
+        private val KEY_HIDE_WATCHLIST_ITEMS_IN_SIMILAR = booleanPreferencesKey("hide_watchlist_items_in_similar")
+        private val KEY_HIDE_WATCHLIST_ITEMS_IN_RECOMMENDED = booleanPreferencesKey("hide_watchlist_items_in_recommended")
     }
 
     val preferencesFlow: Flow<UiPreferences> = dataStore.data.map { preferences ->
@@ -95,7 +99,9 @@ class UiRepository @Inject constructor(
             trendingMinRating = preferences[KEY_TRENDING_MIN_RATING] ?: 0f,
             trendingMinYear = preferences[KEY_TRENDING_MIN_YEAR] ?: 0,
             trendingHasDvd = preferences[KEY_TRENDING_HAS_DVD] ?: false,
-            trendingFilterSidebarVisible = preferences[KEY_TRENDING_FILTER_SIDEBAR_VISIBLE] ?: false
+            trendingFilterSidebarVisible = preferences[KEY_TRENDING_FILTER_SIDEBAR_VISIBLE] ?: false,
+            hideWatchlistItemsInSimilar = preferences[KEY_HIDE_WATCHLIST_ITEMS_IN_SIMILAR] ?: false,
+            hideWatchlistItemsInRecommended = preferences[KEY_HIDE_WATCHLIST_ITEMS_IN_RECOMMENDED] ?: false
         )
     }
 
@@ -124,7 +130,9 @@ class UiRepository @Inject constructor(
                 trendingMinRating = preferences[KEY_TRENDING_MIN_RATING] ?: 0f,
                 trendingMinYear = preferences[KEY_TRENDING_MIN_YEAR] ?: 0,
                 trendingHasDvd = preferences[KEY_TRENDING_HAS_DVD] ?: false,
-                trendingFilterSidebarVisible = preferences[KEY_TRENDING_FILTER_SIDEBAR_VISIBLE] ?: false
+                trendingFilterSidebarVisible = preferences[KEY_TRENDING_FILTER_SIDEBAR_VISIBLE] ?: false,
+                hideWatchlistItemsInSimilar = preferences[KEY_HIDE_WATCHLIST_ITEMS_IN_SIMILAR] ?: false,
+                hideWatchlistItemsInRecommended = preferences[KEY_HIDE_WATCHLIST_ITEMS_IN_RECOMMENDED] ?: false
             )
             val updated = transform(current)
             preferences[KEY_FILTER_SHOW_TV] = updated.filterShowTv
@@ -143,6 +151,8 @@ class UiRepository @Inject constructor(
             preferences[KEY_TRENDING_MIN_YEAR] = updated.trendingMinYear
             preferences[KEY_TRENDING_HAS_DVD] = updated.trendingHasDvd
             preferences[KEY_TRENDING_FILTER_SIDEBAR_VISIBLE] = updated.trendingFilterSidebarVisible
+            preferences[KEY_HIDE_WATCHLIST_ITEMS_IN_SIMILAR] = updated.hideWatchlistItemsInSimilar
+            preferences[KEY_HIDE_WATCHLIST_ITEMS_IN_RECOMMENDED] = updated.hideWatchlistItemsInRecommended
         }
     }
 

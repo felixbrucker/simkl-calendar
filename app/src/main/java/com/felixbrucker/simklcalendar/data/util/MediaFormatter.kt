@@ -309,14 +309,16 @@ object MediaFormatter {
         }
     }
 
-    fun formatYearRange(year: Int, endYear: Int?, status: SeriesStatus?, mediaType: MediaType): String {
+    fun formatYearRange(year: Int?, endYear: Int?, status: SeriesStatus?, mediaType: MediaType): String {
+        val yearStr = year?.toString() ?: "TBA"
         return when (mediaType) {
-            MediaType.MOVIE -> year.toString()
+            MediaType.MOVIE -> yearStr
             MediaType.TV, MediaType.ANIME -> {
                 when {
-                    endYear != null -> "$year-$endYear"
-                    status == SeriesStatus.AIRING -> "$year-Now"
-                    else -> year.toString()
+                    year == null && endYear == null -> "TBA"
+                    endYear != null -> "$yearStr-$endYear"
+                    status == SeriesStatus.AIRING -> "$yearStr-Now"
+                    else -> yearStr
                 }
             }
         }
@@ -365,6 +367,11 @@ object MediaFormatter {
                     }
                 }
                 MediaType.ANIME -> {
+                    item.animeMetadata?.let { meta ->
+                        if (!meta.seasonQuarter.isNullOrBlank() && meta.seasonYear != null) {
+                            append(" • ${meta.seasonQuarter} ${meta.seasonYear}")
+                        }
+                    }
                     item.animeMetadata?.animeType?.let {
                         append(" • ${it.displayName}")
                     }

@@ -157,7 +157,7 @@ data class SimklRatings(
 @JsonClass(generateAdapter = true)
 data class SimklMovieDetailResponse(
     @Json(name = "title") val title: String,
-    @Json(name = "year") val year: Int,
+    @Json(name = "year") val year: Int? = null,
     @Json(name = "overview") val overview: String? = null,
     @Json(name = "poster") val poster: String? = null,
     @Json(name = "genres") val genres: List<String>? = null,
@@ -166,6 +166,8 @@ data class SimklMovieDetailResponse(
     @Json(name = "released") val released: String? = null,
     @Json(name = "release_dates") val releaseDates: List<SimklMovieReleaseDateCountry>? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
+    @Json(name = "similar") val similar: List<SimklSimilarItem>? = null,
+    @Json(name = "users_recommendations") val usersRecommendations: List<SimklUserRecommendationItem>? = null,
     @Json(name = "ids") val ids: SimklIds
 ) {
     /**
@@ -199,7 +201,7 @@ data class SimklMovieDetailResponse(
 @JsonClass(generateAdapter = true)
 data class SimklTvDetailResponse(
     @Json(name = "title") val title: String,
-    @Json(name = "year") val year: Int,
+    @Json(name = "year") val year: Int? = null,
     @Json(name = "overview") val overview: String? = null,
     @Json(name = "poster") val poster: String? = null,
     @Json(name = "genres") val genres: List<String>? = null,
@@ -207,6 +209,8 @@ data class SimklTvDetailResponse(
     @Json(name = "total_episodes") val totalEpisodes: Int? = null,
     @Json(name = "year_start_end") val yearStartEnd: String? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
+    @Json(name = "similar") val similar: List<SimklSimilarItem>? = null,
+    @Json(name = "users_recommendations") val usersRecommendations: List<SimklUserRecommendationItem>? = null,
     @Json(name = "ids") val ids: SimklIds
 )
 
@@ -214,7 +218,7 @@ data class SimklTvDetailResponse(
 data class SimklAnimeDetailResponse(
     @Json(name = "title") val title: String,
     @Json(name = "en_title") val enTitle: String? = null,
-    @Json(name = "year") val year: Int,
+    @Json(name = "year") val year: Int? = null,
     @Json(name = "overview") val overview: String? = null,
     @Json(name = "poster") val poster: String? = null,
     @Json(name = "genres") val genres: List<String>? = null,
@@ -225,6 +229,42 @@ data class SimklAnimeDetailResponse(
     @Json(name = "season_name_year") val seasonNameYear: String? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
     @Json(name = "season") val season: Int? = null,
+    @Json(name = "relations") val relations: List<SimklRelationItem>? = null,
+    @Json(name = "similar") val similar: List<SimklSimilarItem>? = null,
+    @Json(name = "users_recommendations") val usersRecommendations: List<SimklUserRecommendationItem>? = null,
+    @Json(name = "ids") val ids: SimklIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklRelationItem(
+    @Json(name = "title") val title: String,
+    @Json(name = "en_title") val enTitle: String? = null,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "poster") val poster: String? = null,
+    @Json(name = "relation_type") val relationType: String? = null,
+    @Json(name = "is_direct") val isDirect: Boolean? = null,
+    @Json(name = "ids") val ids: SimklIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklUserRecommendationItem(
+    @Json(name = "title") val title: String,
+    @Json(name = "en_title") val enTitle: String? = null,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "poster") val poster: String? = null,
+    @Json(name = "type") val type: String? = null,
+    @Json(name = "users_percent") val usersPercent: String? = null,
+    @Json(name = "users_count") val usersCount: Int? = null,
+    @Json(name = "ids") val ids: SimklIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklSimilarItem(
+    @Json(name = "title") val title: String,
+    @Json(name = "en_title") val enTitle: String? = null,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "poster") val poster: String? = null,
+    @Json(name = "type") val type: String? = null,
     @Json(name = "ids") val ids: SimklIds
 )
 

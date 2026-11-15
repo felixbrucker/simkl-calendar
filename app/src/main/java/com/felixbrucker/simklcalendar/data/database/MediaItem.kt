@@ -74,7 +74,7 @@ data class MediaItem(
     val mediaType: MediaType,
     val title: String,
     val titleRomaji: String? = null,
-    val year: Int,
+    val year: Int? = null,
     val description: String? = null,
     val poster: String? = null,
     val genres: List<String> = emptyList(),

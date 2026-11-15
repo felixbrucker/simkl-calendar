@@ -22,6 +22,8 @@
 - **Default Parameters**: Never define default parameter values in constructors that manually instantiate injectable classes or dependencies.
 - **No Default Event Callbacks in Composables:** Event callbacks/lambdas in Composables (e.g., `onClick: () -> Unit`) MUST NOT have default empty closures (e.g. `= {}`) or be nullable (e.g. `= null`). They must be required parameters so call sites are forced to explicitly pass or handle them.
 - **Coroutines:** Offload I/O work inside Repositories via `withContext(Dispatchers.IO)` so ViewModels remain on Main/Main.immediate.
+- **Always use imports:** Never use fully qualified class names (FQCN) or fully qualified annotations inline (e.g., avoid `@androidx.room.TypeConverter` or `com.example.data.Model`).
+- **Handle name conflicts with aliases:** If two imported classes or annotations share the exact same simple name, use an import alias (e.g., `import com.foo.Model as FooModel`) to resolve the ambiguity. Never fall back to inline fully qualified paths.
 
 ---
 

@@ -2,15 +2,23 @@ package com.felixbrucker.simklcalendar.data.repository
 
 import com.felixbrucker.simklcalendar.data.database.AnimeMetadata
 import com.felixbrucker.simklcalendar.data.database.AnimeType
+import com.felixbrucker.simklcalendar.data.database.EpisodeType
+import com.felixbrucker.simklcalendar.data.database.MediaEpisode
 import com.felixbrucker.simklcalendar.data.database.MediaItem
 import com.felixbrucker.simklcalendar.data.database.MediaItemDao
+import com.felixbrucker.simklcalendar.data.database.MediaItemWithDetails
 import com.felixbrucker.simklcalendar.data.database.MovieMetadata
+import com.felixbrucker.simklcalendar.data.database.RecommendedMediaItem
+import com.felixbrucker.simklcalendar.data.database.RelatedMediaItem
+import com.felixbrucker.simklcalendar.data.database.RelationType
 import com.felixbrucker.simklcalendar.data.database.SeriesMetadata
 import com.felixbrucker.simklcalendar.data.database.SeriesStatus
+import com.felixbrucker.simklcalendar.data.database.SimilarMediaItem
 import com.felixbrucker.simklcalendar.data.database.TrendingEntryDao
 import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
+import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.di.ApplicationScope
 import com.felixbrucker.simklcalendar.extensions.unescapeHtml
 import kotlinx.coroutines.CoroutineScope
@@ -65,29 +73,59 @@ class MediaRepository @Inject constructor(
         deletedCount
     }
 
-    fun getMediaItemStream(simklId: Int, mediaType: MediaType): Flow<MediaItem?> {
+    fun getMediaItemStream(simklId: Int, mediaType: MediaType): Flow<MediaItemWithDetails?> {
         externalScope.launch(Dispatchers.IO) {
             try {
                 val cached = mediaItemDao.getMediaItem(simklId)
-                val isExpired = cached == null || Duration.between(cached.lastUpdatedAt, Instant.now()).toHours() >= 24
-                if (isExpired) {
+                if (cached.isExpired()) {
                     refreshMediaItem(simklId = simklId, mediaType = mediaType)
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to refresh MediaItem for simklId=$simklId")
             }
         }
-        return mediaItemDao.getMediaItemFlow(simklId)
+        return mediaItemDao.getMediaItemWithDetailsStream(simklId)
     }
 
-    suspend fun refreshMediaItem(simklId: Int, mediaType: MediaType): MediaItem = withContext(Dispatchers.IO) {
-        val fetchedItem = fetchMediaItemFromApi(simklId = simklId, mediaType = mediaType)
-            .copy(lastUpdatedAt = Instant.now())
-        mediaItemDao.upsertMediaItem(fetchedItem)
-        fetchedItem
+    suspend fun refreshMediaItem(simklId: Int, mediaType: MediaType): MediaItemWithDetails = withContext(Dispatchers.IO) {
+        val fetchedDetails = fetchMediaItemFromApi(simklId = simklId, mediaType = mediaType)
+        val updatedMediaItem = fetchedDetails.mediaItem.copy(lastUpdatedAt = Instant.now())
+        val updatedDetails = fetchedDetails.copy(mediaItem = updatedMediaItem)
+
+        mediaItemDao.upsertMediaItem(updatedDetails.mediaItem)
+
+        if (updatedDetails.episodes.isNotEmpty()) {
+            mediaItemDao.insertEpisodes(updatedDetails.episodes)
+            mediaItemDao.deleteEpisodesNotIn(simklId, updatedDetails.episodes.map { "${it.season}_${it.episodeNumber}" })
+        } else {
+            mediaItemDao.deleteAllEpisodes(simklId)
+        }
+
+        if (updatedDetails.relations.isNotEmpty()) {
+            mediaItemDao.insertRelations(updatedDetails.relations)
+            mediaItemDao.deleteRelationsNotIn(simklId, updatedDetails.relations.map { it.relatedSimklId })
+        } else {
+            mediaItemDao.deleteAllRelations(simklId)
+        }
+
+        if (updatedDetails.similarItems.isNotEmpty()) {
+            mediaItemDao.insertSimilarItems(updatedDetails.similarItems)
+            mediaItemDao.deleteSimilarNotIn(simklId, updatedDetails.similarItems.map { it.similarSimklId })
+        } else {
+            mediaItemDao.deleteAllSimilar(simklId)
+        }
+
+        if (updatedDetails.recommendedItems.isNotEmpty()) {
+            mediaItemDao.insertRecommendedItems(updatedDetails.recommendedItems)
+            mediaItemDao.deleteRecommendedNotIn(simklId, updatedDetails.recommendedItems.map { it.recommendedSimklId })
+        } else {
+            mediaItemDao.deleteAllRecommended(simklId)
+        }
+
+        updatedDetails
     }
 
-    suspend fun fetchMediaItemFromApi(simklId: Int, mediaType: MediaType): MediaItem = withContext(Dispatchers.IO) {
+    suspend fun fetchMediaItemFromApi(simklId: Int, mediaType: MediaType): MediaItemWithDetails = withContext(Dispatchers.IO) {
         when (mediaType) {
             MediaType.MOVIE -> fetchMovie(simklId)
             MediaType.TV -> fetchTvSeries(simklId)
@@ -95,7 +133,7 @@ class MediaRepository @Inject constructor(
         }
     }
 
-    private suspend fun fetchMovie(simklId: Int): MediaItem {
+    private suspend fun fetchMovie(simklId: Int): MediaItemWithDetails {
         val details = publicSimklApiService.getMovieDetails(simklId)
         val releaseDate = details.released?.let { parseLocalDate(it) }
         val dvdDateStr = details.extractDigitalOrDvdReleaseDate()
@@ -108,10 +146,13 @@ class MediaRepository @Inject constructor(
             boxOffice = details.revenue
         )
 
-        return MediaItem(
+        val (title, titleRomaji) = parseTitles(details.title, null)
+
+        val item = MediaItem(
             simklId = simklId,
             mediaType = MediaType.MOVIE,
-            title = details.title.unescapeHtml(),
+            title = title,
+            titleRomaji = titleRomaji,
             year = details.year,
             description = details.overview?.unescapeHtml(),
             poster = details.poster,
@@ -119,9 +160,43 @@ class MediaRepository @Inject constructor(
             rating = details.ratings?.simkl?.rating?.toFloat(),
             movieMetadata = movieMetadata
         )
+
+        val similarItems = details.similar?.map { sim ->
+            val (simTitle, simRomaji) = parseTitles(sim.title, sim.enTitle)
+            SimilarMediaItem(
+                simklId = simklId,
+                similarSimklId = sim.ids.simkl,
+                mediaType = MediaType.fromKey(sim.type ?: "movie"),
+                title = simTitle,
+                titleRomaji = simRomaji,
+                year = sim.year,
+                poster = sim.poster
+            )
+        } ?: emptyList()
+
+        val recommendedItems = details.usersRecommendations?.map { rec ->
+            val (recTitle, recRomaji) = parseTitles(rec.title, rec.enTitle)
+            RecommendedMediaItem(
+                simklId = simklId,
+                recommendedSimklId = rec.ids.simkl,
+                mediaType = MediaType.fromKey(rec.type ?: "movie"),
+                title = recTitle,
+                titleRomaji = recRomaji,
+                year = rec.year,
+                poster = rec.poster,
+                usersPercent = rec.usersPercent,
+                usersCount = rec.usersCount
+            )
+        } ?: emptyList()
+
+        return MediaItemWithDetails(
+            mediaItem = item,
+            similarItems = similarItems,
+            recommendedItems = recommendedItems
+        )
     }
 
-    private suspend fun fetchTvSeries(simklId: Int): MediaItem {
+    private suspend fun fetchTvSeries(simklId: Int): MediaItemWithDetails {
         val details = publicSimklApiService.getTvDetails(simklId)
         val episodes = publicSimklApiService.getTvEpisodes(simklId)
 
@@ -145,10 +220,13 @@ class MediaRepository @Inject constructor(
             status = SeriesStatus.fromKey(details.status)
         )
 
-        return MediaItem(
+        val (title, titleRomaji) = parseTitles(details.title, null)
+
+        val item = MediaItem(
             simklId = simklId,
             mediaType = MediaType.TV,
-            title = details.title.unescapeHtml(),
+            title = title,
+            titleRomaji = titleRomaji,
             year = details.year,
             description = details.overview?.unescapeHtml(),
             poster = details.poster,
@@ -156,20 +234,63 @@ class MediaRepository @Inject constructor(
             rating = details.ratings?.simkl?.rating?.toFloat(),
             seriesMetadata = seriesMetadata
         )
+
+        val mediaEpisodes = episodes.map { ep ->
+            MediaEpisode(
+                simklId = simklId,
+                season = ep.season ?: 1,
+                episodeNumber = ep.episode ?: 0,
+                title = ep.title.unescapeHtml(),
+                type = EpisodeType.fromKey(ep.type),
+                aired = ep.aired,
+                date = DateUtil.parseToInstant(ep.date)
+            )
+        }
+
+        val similarItems = details.similar?.map { sim ->
+            val (simTitle, simRomaji) = parseTitles(sim.title, sim.enTitle)
+            SimilarMediaItem(
+                simklId = simklId,
+                similarSimklId = sim.ids.simkl,
+                mediaType = MediaType.fromKey(sim.type ?: "tv"),
+                title = simTitle,
+                titleRomaji = simRomaji,
+                year = sim.year,
+                poster = sim.poster
+            )
+        } ?: emptyList()
+
+        val recommendedItems = details.usersRecommendations?.map { rec ->
+            val (recTitle, recRomaji) = parseTitles(rec.title, rec.enTitle)
+            RecommendedMediaItem(
+                simklId = simklId,
+                recommendedSimklId = rec.ids.simkl,
+                mediaType = MediaType.fromKey(rec.type ?: "tv"),
+                title = recTitle,
+                titleRomaji = recRomaji,
+                year = rec.year,
+                poster = rec.poster,
+                usersPercent = rec.usersPercent,
+                usersCount = rec.usersCount
+            )
+        } ?: emptyList()
+
+        return MediaItemWithDetails(
+            mediaItem = item,
+            episodes = mediaEpisodes,
+            similarItems = similarItems,
+            recommendedItems = recommendedItems
+        )
     }
 
-    private suspend fun fetchAnime(simklId: Int): MediaItem {
+    private suspend fun fetchAnime(simklId: Int): MediaItemWithDetails {
         val details = publicSimklApiService.getAnimeDetails(simklId)
         val episodes = publicSimklApiService.getAnimeEpisodes(simklId)
 
         val endYear = parseEndYear(details.yearStartEnd)
         val (seasonQuarter, seasonYear) = parseSeasonNameYear(details.seasonNameYear)
 
-        val rawEnTitle = stripSeasonSuffix(details.enTitle?.ifBlank { null }?.unescapeHtml())
-        val rawTitle = details.title.unescapeHtml()
-
-        val animeTitle = rawEnTitle ?: rawTitle
-        val titleRomaji = if (!rawEnTitle.isNullOrBlank()) rawTitle else null
+        val (animeTitle, titleRomaji) = parseTitles(details.title, details.enTitle)
 
         val seasonsCount = episodes.mapNotNull { it.season }
             .filter { it > 0 }
@@ -193,7 +314,7 @@ class MediaRepository @Inject constructor(
             season = details.season
         )
 
-        return MediaItem(
+        val item = MediaItem(
             simklId = simklId,
             mediaType = MediaType.ANIME,
             title = animeTitle,
@@ -205,6 +326,77 @@ class MediaRepository @Inject constructor(
             rating = details.ratings?.simkl?.rating?.toFloat(),
             animeMetadata = animeMetadata
         )
+
+        val mediaEpisodes = episodes.map { ep ->
+            MediaEpisode(
+                simklId = simklId,
+                season = ep.season ?: 1,
+                episodeNumber = ep.episode ?: 0,
+                title = ep.title.unescapeHtml(),
+                type = EpisodeType.fromKey(ep.type),
+                aired = ep.aired,
+                date = DateUtil.parseToInstant(ep.date)
+            )
+        }
+
+        val relations = details.relations?.map { rel ->
+            val (relTitle, relRomaji) = parseTitles(rel.title, rel.enTitle)
+            RelatedMediaItem(
+                simklId = simklId,
+                relatedSimklId = rel.ids.simkl,
+                mediaType = MediaType.ANIME,
+                title = relTitle,
+                titleRomaji = relRomaji,
+                year = rel.year,
+                poster = rel.poster,
+                relationType = RelationType.fromKey(rel.relationType),
+                isDirect = rel.isDirect
+            )
+        } ?: emptyList()
+
+        val similarItems = details.similar?.map { sim ->
+            val (simTitle, simRomaji) = parseTitles(sim.title, sim.enTitle)
+            SimilarMediaItem(
+                simklId = simklId,
+                similarSimklId = sim.ids.simkl,
+                mediaType = MediaType.fromKey(sim.type ?: "anime"),
+                title = simTitle,
+                titleRomaji = simRomaji,
+                year = sim.year,
+                poster = sim.poster
+            )
+        } ?: emptyList()
+
+        val recommendedItems = details.usersRecommendations?.map { rec ->
+            val (recTitle, recRomaji) = parseTitles(rec.title, rec.enTitle)
+            RecommendedMediaItem(
+                simklId = simklId,
+                recommendedSimklId = rec.ids.simkl,
+                mediaType = MediaType.fromKey(rec.type ?: "anime"),
+                title = recTitle,
+                titleRomaji = recRomaji,
+                year = rec.year,
+                poster = rec.poster,
+                usersPercent = rec.usersPercent,
+                usersCount = rec.usersCount
+            )
+        } ?: emptyList()
+
+        return MediaItemWithDetails(
+            mediaItem = item,
+            episodes = mediaEpisodes,
+            relations = relations,
+            similarItems = similarItems,
+            recommendedItems = recommendedItems
+        )
+    }
+
+    private fun parseTitles(rawTitle: String, rawEnTitle: String?): Pair<String, String?> {
+        val cleanedEn = stripSeasonSuffix(rawEnTitle?.ifBlank { null }?.unescapeHtml())
+        val cleanedTitle = rawTitle.unescapeHtml()
+        val title = cleanedEn ?: cleanedTitle
+        val titleRomaji = if (!cleanedEn.isNullOrBlank()) cleanedTitle else null
+        return Pair(title, titleRomaji)
     }
 
     private fun parseLocalDate(dateStr: String): LocalDate? {
@@ -237,4 +429,8 @@ class MediaRepository @Inject constructor(
         val cleaned = title.replace(Regex("""(?i)[\s:-]*(?:\(season\s+\d+\)|season\s+\d+)\s*$"""), "").trim()
         return cleaned.ifBlank { null }
     }
+}
+
+fun MediaItem?.isExpired(): Boolean {
+    return this == null || Duration.between(lastUpdatedAt, Instant.now()).toHours() >= 24
 }

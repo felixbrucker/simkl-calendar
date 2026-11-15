@@ -4,44 +4,62 @@ import android.R.drawable.ic_menu_gallery
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.felixbrucker.simklcalendar.data.database.EpisodeType
+import com.felixbrucker.simklcalendar.data.database.MediaEpisode
 import com.felixbrucker.simklcalendar.data.database.MediaItem
+import com.felixbrucker.simklcalendar.data.database.MediaItemWithDetails
+import com.felixbrucker.simklcalendar.data.database.RecommendedMediaItem
+import com.felixbrucker.simklcalendar.data.database.RelatedMediaItem
+import com.felixbrucker.simklcalendar.data.database.SimilarMediaItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
+import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.displayTitle
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderOpenSimklButton
+import com.felixbrucker.simklcalendar.ui.composable.StandardEpisodeRow
 import com.felixbrucker.simklcalendar.ui.composable.sharedBoundsItem
 import com.felixbrucker.simklcalendar.ui.composable.sharedElementItem
 import com.felixbrucker.simklcalendar.ui.theme.*
 import com.felixbrucker.simklcalendar.ui.viewmodel.MediaItemDetailViewModel
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +67,7 @@ import java.util.Locale
 fun MediaItemDetailScreen(
     simklId: Int,
     onNavigateBack: () -> Unit,
+    onNavigateToDetail: (Int, MediaType) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MediaItemDetailViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -58,12 +77,15 @@ fun MediaItemDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val mediaItem by viewModel.mediaItem.collectAsState()
+    val mediaItemWithDetails by viewModel.mediaItem.collectAsState()
     val watchlistItem by viewModel.watchlistItem.collectAsState()
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
     val isUpdatingStatus by viewModel.isUpdatingStatus.collectAsState()
+    val watchlistStatusMap by viewModel.watchlistStatusMap.collectAsState()
+    val uiPreferences by viewModel.uiPreferences.collectAsState()
 
-    val categoryColor = when (mediaItem?.mediaType ?: MediaType.TV) {
+    val item = mediaItemWithDetails
+    val categoryColor = when (item?.mediaType ?: MediaType.TV) {
         MediaType.ANIME -> PurpleLight
         MediaType.MOVIE -> ErrorPink
         MediaType.TV -> BlueAccent
@@ -78,7 +100,7 @@ fun MediaItemDetailScreen(
             ),
         topBar = {
             TopAppBar(
-                title = { Text(mediaItem?.title ?: "Details", color = Color.White) },
+                title = { Text(item?.title ?: "Details", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -90,18 +112,16 @@ fun MediaItemDetailScreen(
         containerColor = SurfaceDark,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        if (mediaItem == null) {
+        if (item == null) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else {
-            val item = mediaItem!!
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // Header Layout with adaptive mobile / wide layout
                 item {
                     MediaDetailHeaderContent(
                         simklId = simklId,
@@ -120,7 +140,6 @@ fun MediaItemDetailScreen(
                     )
                 }
 
-                // Search Links Section
                 item {
                     CustomSearchLinksCard(
                         searchLinks = customSearchLinks,
@@ -135,7 +154,478 @@ fun MediaItemDetailScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
+
+                if (item.mediaType != MediaType.MOVIE) {
+                    item {
+                        MediaEpisodeListSection(
+                            episodes = item.episodes,
+                            mediaType = item.mediaType,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+
+                if (item.relations.isNotEmpty()) {
+                    item {
+                        RelatedMediaCarousel(
+                            relations = item.relations,
+                            watchlistStatusMap = watchlistStatusMap,
+                            onNavigateToDetail = onNavigateToDetail,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                }
+
+                if (item.similarItems.isNotEmpty()) {
+                    item {
+                        SimilarMediaCarousel(
+                            similarItems = item.similarItems,
+                            watchlistStatusMap = watchlistStatusMap,
+                            hideWatchlist = uiPreferences.hideWatchlistItemsInSimilar,
+                            onToggleHide = { viewModel.toggleHideWatchlistItemsInSimilar(it) },
+                            onNavigateToDetail = onNavigateToDetail,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                }
+
+                if (item.recommendedItems.isNotEmpty()) {
+                    item {
+                        RecommendedMediaCarousel(
+                            recommendedItems = item.recommendedItems,
+                            watchlistStatusMap = watchlistStatusMap,
+                            hideWatchlist = uiPreferences.hideWatchlistItemsInRecommended,
+                            onToggleHide = { viewModel.toggleHideWatchlistItemsInRecommended(it) },
+                            onNavigateToDetail = onNavigateToDetail,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun CarouselHeaderWithToggle(
+    title: String,
+    hideWatchlist: Boolean,
+    onToggleChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            fontSize = 15.sp
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "Hide watchlist",
+                fontSize = 11.sp,
+                color = TextSubtle
+            )
+            Switch(
+                checked = hideWatchlist,
+                onCheckedChange = onToggleChange,
+                modifier = Modifier.scale(0.7f),
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = SurfaceDark,
+                    checkedTrackColor = PurpleLight,
+                    uncheckedThumbColor = TextSubtle,
+                    uncheckedTrackColor = SurfaceContainer
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun MediaEpisodeListSection(
+    episodes: List<MediaEpisode>,
+    mediaType: MediaType,
+    modifier: Modifier = Modifier
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val filteredEpisodes = remember(episodes) {
+        episodes.filter { it.type != EpisodeType.SPECIAL && it.season > 0 }
+    }
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (mediaType == MediaType.MOVIE) "Releases (${filteredEpisodes.size})" else "Episodes (${filteredEpisodes.size})",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    fontSize = 15.sp
+                )
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+            }
+
+            if (isExpanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+                if (filteredEpisodes.isEmpty()) {
+                    Text(text = "No episodes available", fontSize = 13.sp, color = TextSubtle)
+                } else {
+                    val grouped = remember(filteredEpisodes) { filteredEpisodes.groupBy { it.season }.toSortedMap() }
+                    grouped.forEach { (season, seasonEpisodes) ->
+                        if (season > 0 && grouped.size > 1) {
+                            Text(
+                                text = "Season $season",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PurpleLight,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                        }
+                        seasonEpisodes.forEach { ep ->
+                            val episodeCode = if (mediaType == MediaType.MOVIE) "MOVIE" else MediaFormatter.formatEpisodeCode(mediaType, ep.season, ep.episodeNumber)
+                            StandardEpisodeRow(
+                                title = ep.title.takeIf { it.isNotBlank() } ?: "TBA",
+                                episodeCode = episodeCode,
+                                date = ep.date
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RelatedMediaCarousel(
+    relations: List<RelatedMediaItem>,
+    watchlistStatusMap: Map<Int, WatchlistStatus>,
+    onNavigateToDetail: (Int, MediaType) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "Related",
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            fontSize = 15.sp,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(relations) { rel ->
+                val watchlistStatus = watchlistStatusMap[rel.relatedSimklId]
+                MediaItemCard(
+                    simklId = rel.relatedSimklId,
+                    title = rel.title,
+                    poster = rel.poster,
+                    year = rel.year,
+                    mediaType = rel.mediaType,
+                    topStartBadge = rel.relationType.displayName,
+                    topEndBadge = if (rel.isDirect == false) "Spin-off" else null,
+                    subtitleBadge = null,
+                    watchlistStatus = watchlistStatus,
+                    onNavigateToDetail = onNavigateToDetail
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SimilarMediaCarousel(
+    similarItems: List<SimilarMediaItem>,
+    watchlistStatusMap: Map<Int, WatchlistStatus>,
+    hideWatchlist: Boolean,
+    onToggleHide: (Boolean) -> Unit,
+    onNavigateToDetail: (Int, MediaType) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val displayItems = remember(similarItems, watchlistStatusMap, hideWatchlist) {
+        if (hideWatchlist) similarItems.filter { watchlistStatusMap[it.similarSimklId] == null } else similarItems
+    }
+
+    if (similarItems.isNotEmpty()) {
+        Column(modifier = modifier.fillMaxWidth()) {
+            CarouselHeaderWithToggle(
+                title = "Similar",
+                hideWatchlist = hideWatchlist,
+                onToggleChange = onToggleHide
+            )
+            if (displayItems.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = "No items available",
+                        fontSize = 12.sp,
+                        color = TextSubtle
+                    )
+                }
+            } else {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(displayItems) { sim ->
+                        val watchlistStatus = watchlistStatusMap[sim.similarSimklId]
+                        MediaItemCard(
+                            simklId = sim.similarSimklId,
+                            title = sim.title,
+                            poster = sim.poster,
+                            year = sim.year,
+                            mediaType = sim.mediaType,
+                            topStartBadge = null,
+                            topEndBadge = null,
+                            subtitleBadge = null,
+                            watchlistStatus = watchlistStatus,
+                            onNavigateToDetail = onNavigateToDetail
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RecommendedMediaCarousel(
+    recommendedItems: List<RecommendedMediaItem>,
+    watchlistStatusMap: Map<Int, WatchlistStatus>,
+    hideWatchlist: Boolean,
+    onToggleHide: (Boolean) -> Unit,
+    onNavigateToDetail: (Int, MediaType) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val displayItems = remember(recommendedItems, watchlistStatusMap, hideWatchlist) {
+        if (hideWatchlist) recommendedItems.filter { watchlistStatusMap[it.recommendedSimklId] == null } else recommendedItems
+    }
+
+    if (recommendedItems.isNotEmpty()) {
+        Column(modifier = modifier.fillMaxWidth()) {
+            CarouselHeaderWithToggle(
+                title = "Recommended",
+                hideWatchlist = hideWatchlist,
+                onToggleChange = onToggleHide
+            )
+            if (displayItems.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = "No items available",
+                        fontSize = 12.sp,
+                        color = TextSubtle
+                    )
+                }
+            } else {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(displayItems) { rec ->
+                        val watchlistStatus = watchlistStatusMap[rec.recommendedSimklId]
+                        MediaItemCard(
+                            simklId = rec.recommendedSimklId,
+                            title = rec.title,
+                            poster = rec.poster,
+                            year = rec.year,
+                            mediaType = rec.mediaType,
+                            topStartBadge = null,
+                            topEndBadge = null,
+                            subtitleBadge = rec.usersPercent,
+                            watchlistStatus = watchlistStatus,
+                            onNavigateToDetail = onNavigateToDetail
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MediaItemCard(
+    simklId: Int,
+    title: String,
+    poster: String?,
+    year: Int?,
+    mediaType: MediaType,
+    topStartBadge: String?,
+    topEndBadge: String?,
+    subtitleBadge: String?,
+    watchlistStatus: WatchlistStatus?,
+    onNavigateToDetail: (Int, MediaType) -> Unit
+) {
+    val context = LocalContext.current
+    val posterUrl = remember(poster) { poster.toPosterUrl(PosterSize.COMPACT) }
+    val isFaded = watchlistStatus != null
+    val alphaVal = if (isFaded) 0.6f else 1.0f
+    val categoryColor = when (mediaType) {
+        MediaType.ANIME -> PurpleLight
+        MediaType.MOVIE -> ErrorPink
+        MediaType.TV -> BlueAccent
+    }
+
+    val overlayIcon = when (watchlistStatus) {
+        WatchlistStatus.COMPLETED -> Icons.Default.Visibility
+        WatchlistStatus.HOLD -> Icons.Default.Pause
+        WatchlistStatus.DROPPED -> Icons.Default.Cancel
+        else -> Icons.Default.Star
+    }
+
+    Column(
+        modifier = Modifier
+            .width(110.dp)
+            .alpha(alphaVal)
+            .clickable { onNavigateToDetail(simklId, mediaType) },
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(110.dp)
+                .clip(RoundedCornerShape(8.dp))
+        ) {
+            Column(
+                modifier = Modifier.width(110.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context).data(posterUrl).crossfade(enable = true).build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .width(110.dp)
+                        .height(150.dp),
+                    error = painterResource(id = ic_menu_gallery)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(categoryColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = mediaType.displayName.uppercase(),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(vertical = 2.dp)
+                    )
+                }
+            }
+
+            if (isFaded) {
+                Box(
+                    modifier = Modifier
+                        .width(110.dp)
+                        .height(150.dp)
+                        .background(Color.Black.copy(alpha = 0.35f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = overlayIcon,
+                        contentDescription = watchlistStatus.displayName,
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            if (!topStartBadge.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = topStartBadge,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+
+            if (!topEndBadge.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = topEndBadge,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+
+        Text(
+            text = title,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            minLines = 2
+        )
+
+        val yearStr = year?.toString() ?: ""
+        val infoText = buildString {
+            if (yearStr.isNotBlank()) append(yearStr)
+            if (!subtitleBadge.isNullOrBlank()) {
+                if (isNotEmpty()) append(" • ")
+                append(subtitleBadge)
+            }
+        }
+        if (infoText.isNotBlank()) {
+            Text(
+                text = infoText,
+                fontSize = 10.sp,
+                color = TextSubtle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -143,7 +633,7 @@ fun MediaItemDetailScreen(
 @Composable
 fun MediaDetailHeaderContent(
     simklId: Int,
-    item: MediaItem,
+    item: MediaItemWithDetails,
     categoryColor: Color,
     watchlistItem: WatchlistItem?,
     isUpdatingStatus: Boolean,
@@ -163,7 +653,7 @@ fun MediaDetailHeaderContent(
             ) {
                 MediaDetailPosterColumn(
                     simklId = simklId,
-                    item = item,
+                    item = item.mediaItem,
                     categoryColor = categoryColor,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
@@ -171,7 +661,7 @@ fun MediaDetailHeaderContent(
                 )
                 MediaDetailInfoColumn(
                     simklId = simklId,
-                    item = item,
+                    item = item.mediaItem,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
                     modifier = Modifier.fillMaxWidth()
@@ -193,7 +683,7 @@ fun MediaDetailHeaderContent(
             ) {
                 MediaDetailPosterColumn(
                     simklId = simklId,
-                    item = item,
+                    item = item.mediaItem,
                     categoryColor = categoryColor,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
@@ -201,7 +691,7 @@ fun MediaDetailHeaderContent(
                 )
                 MediaDetailInfoColumn(
                     simklId = simklId,
-                    item = item,
+                    item = item.mediaItem,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
                     modifier = Modifier.weight(1f)

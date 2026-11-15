@@ -425,14 +425,55 @@ interface ItemDownloadSettingsDao {
 
 @Dao
 interface MediaItemDao {
+    @Transaction
     @Query("SELECT * FROM media_items WHERE simklId = :simklId LIMIT 1")
-    fun getMediaItemFlow(simklId: Int): Flow<MediaItem?>
+    fun getMediaItemWithDetailsStream(simklId: Int): Flow<MediaItemWithDetails?>
+
+    @Transaction
+    @Query("SELECT * FROM media_items WHERE simklId = :simklId LIMIT 1")
+    suspend fun getMediaItemWithDetails(simklId: Int): MediaItemWithDetails?
 
     @Query("SELECT * FROM media_items WHERE simklId = :simklId LIMIT 1")
     suspend fun getMediaItem(simklId: Int): MediaItem?
 
     @Upsert
     suspend fun upsertMediaItem(item: MediaItem)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEpisodes(episodes: List<MediaEpisode>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRelations(relations: List<RelatedMediaItem>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSimilarItems(items: List<SimilarMediaItem>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecommendedItems(items: List<RecommendedMediaItem>)
+
+    @Query("DELETE FROM related_media_items WHERE simklId = :simklId AND relatedSimklId NOT IN (:keepIds)")
+    suspend fun deleteRelationsNotIn(simklId: Int, keepIds: List<Int>)
+
+    @Query("DELETE FROM related_media_items WHERE simklId = :simklId")
+    suspend fun deleteAllRelations(simklId: Int)
+
+    @Query("DELETE FROM similar_media_items WHERE simklId = :simklId AND similarSimklId NOT IN (:keepIds)")
+    suspend fun deleteSimilarNotIn(simklId: Int, keepIds: List<Int>)
+
+    @Query("DELETE FROM similar_media_items WHERE simklId = :simklId")
+    suspend fun deleteAllSimilar(simklId: Int)
+
+    @Query("DELETE FROM recommended_media_items WHERE simklId = :simklId AND recommendedSimklId NOT IN (:keepIds)")
+    suspend fun deleteRecommendedNotIn(simklId: Int, keepIds: List<Int>)
+
+    @Query("DELETE FROM recommended_media_items WHERE simklId = :simklId")
+    suspend fun deleteAllRecommended(simklId: Int)
+
+    @Query("DELETE FROM media_episodes WHERE simklId = :simklId")
+    suspend fun deleteAllEpisodes(simklId: Int)
+
+    @Query("DELETE FROM media_episodes WHERE simklId = :simklId AND (season || '_' || episodeNumber) NOT IN (:keepKeys)")
+    suspend fun deleteEpisodesNotIn(simklId: Int, keepKeys: List<String>)
 
     @Query("DELETE FROM media_items WHERE lastUpdatedAt < :cutoff")
     suspend fun deleteExpiredMediaItems(cutoff: Instant): Int
@@ -527,6 +568,9 @@ interface TrendingEntryDao {
 interface WatchlistItemDao {
     @Query("SELECT * FROM watchlist_items WHERE simklId = :simklId LIMIT 1")
     fun getWatchlistItemFlow(simklId: Int): Flow<WatchlistItem?>
+
+    @Query("SELECT * FROM watchlist_items WHERE simklId IN (:simklIds)")
+    fun getWatchlistItemsFlow(simklIds: List<Int>): Flow<List<WatchlistItem>>
 
     @Query("SELECT simklId FROM watchlist_items")
     suspend fun getAllWatchlistSimklIds(): List<Int>
