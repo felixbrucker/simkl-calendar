@@ -6,6 +6,8 @@ import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,7 +42,11 @@ data class UiPreferences(
     val trendingExcludeOnMyLists: Boolean = true,
     val trendingShowMovies: Boolean = true,
     val trendingShowTv: Boolean = true,
-    val trendingShowAnime: Boolean = true
+    val trendingShowAnime: Boolean = true,
+    val trendingMinRating: Float = 0f,
+    val trendingMinYear: Int = 0,
+    val trendingHasDvd: Boolean = false,
+    val trendingFilterSidebarVisible: Boolean = false
 )
 
 @Singleton
@@ -63,6 +69,10 @@ class UiRepository @Inject constructor(
         private val KEY_TRENDING_SHOW_MOVIES = booleanPreferencesKey("trending_show_movies")
         private val KEY_TRENDING_SHOW_TV = booleanPreferencesKey("trending_show_tv")
         private val KEY_TRENDING_SHOW_ANIME = booleanPreferencesKey("trending_show_anime")
+        private val KEY_TRENDING_MIN_RATING = floatPreferencesKey("trending_min_rating")
+        private val KEY_TRENDING_MIN_YEAR = intPreferencesKey("trending_min_year")
+        private val KEY_TRENDING_HAS_DVD = booleanPreferencesKey("trending_has_dvd")
+        private val KEY_TRENDING_FILTER_SIDEBAR_VISIBLE = booleanPreferencesKey("trending_filter_sidebar_visible")
     }
 
     val preferencesFlow: Flow<UiPreferences> = dataStore.data.map { preferences ->
@@ -81,7 +91,11 @@ class UiRepository @Inject constructor(
             trendingExcludeOnMyLists = preferences[KEY_TRENDING_EXCLUDE_ON_MY_LISTS] ?: true,
             trendingShowMovies = preferences[KEY_TRENDING_SHOW_MOVIES] ?: true,
             trendingShowTv = preferences[KEY_TRENDING_SHOW_TV] ?: true,
-            trendingShowAnime = preferences[KEY_TRENDING_SHOW_ANIME] ?: true
+            trendingShowAnime = preferences[KEY_TRENDING_SHOW_ANIME] ?: true,
+            trendingMinRating = preferences[KEY_TRENDING_MIN_RATING] ?: 0f,
+            trendingMinYear = preferences[KEY_TRENDING_MIN_YEAR] ?: 0,
+            trendingHasDvd = preferences[KEY_TRENDING_HAS_DVD] ?: false,
+            trendingFilterSidebarVisible = preferences[KEY_TRENDING_FILTER_SIDEBAR_VISIBLE] ?: false
         )
     }
 
@@ -106,7 +120,11 @@ class UiRepository @Inject constructor(
                 trendingExcludeOnMyLists = preferences[KEY_TRENDING_EXCLUDE_ON_MY_LISTS] ?: true,
                 trendingShowMovies = preferences[KEY_TRENDING_SHOW_MOVIES] ?: true,
                 trendingShowTv = preferences[KEY_TRENDING_SHOW_TV] ?: true,
-                trendingShowAnime = preferences[KEY_TRENDING_SHOW_ANIME] ?: true
+                trendingShowAnime = preferences[KEY_TRENDING_SHOW_ANIME] ?: true,
+                trendingMinRating = preferences[KEY_TRENDING_MIN_RATING] ?: 0f,
+                trendingMinYear = preferences[KEY_TRENDING_MIN_YEAR] ?: 0,
+                trendingHasDvd = preferences[KEY_TRENDING_HAS_DVD] ?: false,
+                trendingFilterSidebarVisible = preferences[KEY_TRENDING_FILTER_SIDEBAR_VISIBLE] ?: false
             )
             val updated = transform(current)
             preferences[KEY_FILTER_SHOW_TV] = updated.filterShowTv
@@ -121,6 +139,10 @@ class UiRepository @Inject constructor(
             preferences[KEY_TRENDING_SHOW_MOVIES] = updated.trendingShowMovies
             preferences[KEY_TRENDING_SHOW_TV] = updated.trendingShowTv
             preferences[KEY_TRENDING_SHOW_ANIME] = updated.trendingShowAnime
+            preferences[KEY_TRENDING_MIN_RATING] = updated.trendingMinRating
+            preferences[KEY_TRENDING_MIN_YEAR] = updated.trendingMinYear
+            preferences[KEY_TRENDING_HAS_DVD] = updated.trendingHasDvd
+            preferences[KEY_TRENDING_FILTER_SIDEBAR_VISIBLE] = updated.trendingFilterSidebarVisible
         }
     }
 
@@ -143,6 +165,10 @@ class UiRepository @Inject constructor(
             preferences[KEY_TRENDING_SHOW_MOVIES] = prefs.trendingShowMovies
             preferences[KEY_TRENDING_SHOW_TV] = prefs.trendingShowTv
             preferences[KEY_TRENDING_SHOW_ANIME] = prefs.trendingShowAnime
+            preferences[KEY_TRENDING_MIN_RATING] = prefs.trendingMinRating
+            preferences[KEY_TRENDING_MIN_YEAR] = prefs.trendingMinYear
+            preferences[KEY_TRENDING_HAS_DVD] = prefs.trendingHasDvd
+            preferences[KEY_TRENDING_FILTER_SIDEBAR_VISIBLE] = prefs.trendingFilterSidebarVisible
         }
     }
 }

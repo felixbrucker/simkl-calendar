@@ -453,6 +453,9 @@ interface TrendingEntryDao {
             (:excludeOnMyLists = 0) OR
             (te.simklId NOT IN (SELECT simklId FROM watchlist_items))
         )
+        AND (:minRating <= 0.0 OR mi.rating >= :minRating)
+        AND (:minYear <= 0 OR mi.year >= :minYear)
+        AND (:hasDvd = 0 OR te.mediaType <> 'movie' OR mi.movie_dvdDate IS NOT NULL)
         AND (
             (:searchQuery = '' OR :searchQuery IS NULL) OR
             (
@@ -471,8 +474,17 @@ interface TrendingEntryDao {
     fun getFilteredTrendingMediaItemsFlow(
         allowedTypes: List<MediaType>,
         excludeOnMyLists: Boolean,
+        minRating: Float,
+        minYear: Int,
+        hasDvd: Boolean,
         searchQuery: String
     ): Flow<List<TrendingMediaItem>>
+
+    @Query("SELECT MIN(mi.year) FROM trending_entries te INNER JOIN media_items mi ON te.simklId = mi.simklId WHERE mi.year > 0")
+    fun getMinTrendingYearFlow(): Flow<Int?>
+
+    @Query("SELECT MAX(mi.year) FROM trending_entries te INNER JOIN media_items mi ON te.simklId = mi.simklId WHERE mi.year > 0")
+    fun getMaxTrendingYearFlow(): Flow<Int?>
 
     @Transaction
     @Query("SELECT * FROM trending_entries WHERE mediaType = :mediaType ORDER BY rank ASC")

@@ -35,13 +35,25 @@ class MediaRepository @Inject constructor(
     @ApplicationScope private val externalScope: CoroutineScope
 ) {
 
+    val minTrendingYearFlow: Flow<Int?> = trendingEntryDao.getMinTrendingYearFlow().flowOn(Dispatchers.IO)
+    val maxTrendingYearFlow: Flow<Int?> = trendingEntryDao.getMaxTrendingYearFlow().flowOn(Dispatchers.IO)
+
     fun getFilteredTrendingMediaItemsFlow(
         allowedTypes: List<MediaType>,
         excludeOnMyLists: Boolean,
+        minRating: Float,
+        minYear: Int,
+        hasDvd: Boolean,
         searchQuery: String
     ): Flow<List<TrendingMediaItem>> {
-        return trendingEntryDao.getFilteredTrendingMediaItemsFlow(allowedTypes, excludeOnMyLists, searchQuery)
-            .flowOn(Dispatchers.IO)
+        return trendingEntryDao.getFilteredTrendingMediaItemsFlow(
+            allowedTypes = allowedTypes,
+            excludeOnMyLists = excludeOnMyLists,
+            minRating = minRating,
+            minYear = minYear,
+            hasDvd = hasDvd,
+            searchQuery = searchQuery
+        ).flowOn(Dispatchers.IO)
     }
 
     suspend fun pruneExpiredMediaItems(months: Long = 3): Int = withContext(Dispatchers.IO) {
