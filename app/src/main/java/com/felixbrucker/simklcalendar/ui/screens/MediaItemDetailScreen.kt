@@ -449,7 +449,8 @@ fun RelatedMediaCarousel(
                     topEndBadge = if (rel.isDirect == false) "Spin-off" else null,
                     subtitleBadge = null,
                     watchlistStatus = watchlistStatus,
-                    onNavigateToDetail = onNavigateToDetail
+                    onNavigateToDetail = onNavigateToDetail,
+                    modifier = Modifier.animateItem(),
                 )
             }
         }
@@ -506,7 +507,8 @@ fun SimilarMediaCarousel(
                             topEndBadge = null,
                             subtitleBadge = null,
                             watchlistStatus = watchlistStatus,
-                            onNavigateToDetail = onNavigateToDetail
+                            onNavigateToDetail = onNavigateToDetail,
+                            modifier = Modifier.animateItem(),
                         )
                     }
                 }
@@ -565,7 +567,8 @@ fun RecommendedMediaCarousel(
                             topEndBadge = null,
                             subtitleBadge = rec.usersPercent,
                             watchlistStatus = watchlistStatus,
-                            onNavigateToDetail = onNavigateToDetail
+                            onNavigateToDetail = onNavigateToDetail,
+                            modifier = Modifier.animateItem(),
                         )
                     }
                 }
@@ -585,7 +588,8 @@ fun MediaItemCard(
     topEndBadge: String?,
     subtitleBadge: String?,
     watchlistStatus: WatchlistStatus?,
-    onNavigateToDetail: (Int, MediaType) -> Unit
+    onNavigateToDetail: (Int, MediaType) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val posterUrl = remember(poster) { poster.toPosterUrl(PosterSize.COMPACT) }
@@ -595,7 +599,7 @@ fun MediaItemCard(
     val overlayIcon = watchlistStatus.overlayIcon
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .width(110.dp)
             .alpha(alphaVal)
             .clickable { onNavigateToDetail(simklId, mediaType) },
