@@ -634,7 +634,9 @@ fun DetailHeader(
         DetailHeaderOpenSimklButton(
             simklId = data.simklId,
             type = data.type,
-            modifier = Modifier.align(Alignment.BottomEnd)
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
         )
     }
 }
@@ -804,7 +806,7 @@ private fun DetailMediaTypeBadge(
 }
 
 @Composable
-private fun DetailHeaderOpenSimklButton(
+fun DetailHeaderOpenSimklButton(
     simklId: Int,
     type: MediaType,
     modifier: Modifier = Modifier,
@@ -818,7 +820,7 @@ private fun DetailHeaderOpenSimklButton(
             )
             context.startActivity(intent)
         },
-        modifier = modifier.padding(16.dp).height(32.dp),
+        modifier = modifier.height(32.dp),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = PurplePrimaryDark.copy(alpha = 0.8f),
@@ -910,8 +912,19 @@ fun DownloadSettingsCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Quality
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .padding(end = 8.dp)
+                ) {
                     Text("Preferred Quality", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text("Target video resolution for torrent searches.", color = TextSubtle, fontSize = 11.sp)
                 }

@@ -98,8 +98,14 @@ class SimklRepositoryDeepSyncTest {
             autoDownloadRepo = autoDownloadRepo,
             downloadRepository = mockk(relaxed = true),
             mediaStatusResolver = mediaStatusResolver,
-            alarmScheduler = mockk(relaxed = true)
+            alarmScheduler = mockk(relaxed = true),
+            trendingEntryDao = mockk(relaxed = true),
+            watchlistItemDao = mockk(relaxed = true),
+            seenTrendingItemDao = mockk(relaxed = true),
+            mediaRepository = mockk(relaxed = true),
+            notificationManager = mockk(relaxed = true)
         )
+
 
         every { authRepo.preferencesFlow } returns flowOf(AuthPreferences())
         every { syncMetadataRepo.preferencesFlow } returns flowOf(SyncMetadataPreferences())
@@ -411,6 +417,7 @@ class SimklRepositoryDeepSyncTest {
         coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(303)) } returns existingTracked
         val movieDetail = SimklMovieDetailResponse(
             title = "New Movie Title",
+            year = 2026,
             poster = "new_poster.jpg",
             released = "2026-03-01",
             releaseDates = listOf(
@@ -461,6 +468,7 @@ class SimklRepositoryDeepSyncTest {
         coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(303, 304)) } returns existingTracked
         val movieDetail303 = SimklMovieDetailResponse(
             title = "Movie A Updated",
+            year = 2026,
             poster = "a_new.jpg",
             released = "2026-03-01",
             ratings = SimklRatings(simkl = SimklRating(rating = 8.1)),
@@ -468,11 +476,13 @@ class SimklRepositoryDeepSyncTest {
         )
         val movieDetail304 = SimklMovieDetailResponse(
             title = "Movie B Updated",
+            year = 2026,
             poster = "b_new.jpg",
             released = "2026-04-01",
             ratings = SimklRatings(simkl = SimklRating(rating = 8.2)),
             ids = SimklIds(simkl = 304)
         )
+
         coEvery { publicApiService.getMovieDetails(303) } returns movieDetail303
         coEvery { publicApiService.getMovieDetails(304) } returns movieDetail304
         val updatedTrackedSlot = slot<List<TrackedWatchlistItem>>()

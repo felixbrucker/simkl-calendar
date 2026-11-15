@@ -157,10 +157,17 @@ data class SimklRatings(
 @JsonClass(generateAdapter = true)
 data class SimklMovieDetailResponse(
     @Json(name = "title") val title: String,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "overview") val overview: String? = null,
     @Json(name = "poster") val poster: String? = null,
+    @Json(name = "genres") val genres: List<String>? = null,
+    @Json(name = "budget") val budget: Long? = null,
+    @Json(name = "revenue") val revenue: Long? = null,
     @Json(name = "released") val released: String? = null,
     @Json(name = "release_dates") val releaseDates: List<SimklMovieReleaseDateCountry>? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
+    @Json(name = "similar") val similar: List<SimklSimilarItem>? = null,
+    @Json(name = "users_recommendations") val usersRecommendations: List<SimklUserRecommendationItem>? = null,
     @Json(name = "ids") val ids: SimklIds
 ) {
     /**
@@ -194,18 +201,122 @@ data class SimklMovieDetailResponse(
 @JsonClass(generateAdapter = true)
 data class SimklTvDetailResponse(
     @Json(name = "title") val title: String,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "overview") val overview: String? = null,
     @Json(name = "poster") val poster: String? = null,
+    @Json(name = "genres") val genres: List<String>? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "total_episodes") val totalEpisodes: Int? = null,
+    @Json(name = "year_start_end") val yearStartEnd: String? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
+    @Json(name = "similar") val similar: List<SimklSimilarItem>? = null,
+    @Json(name = "users_recommendations") val usersRecommendations: List<SimklUserRecommendationItem>? = null,
     @Json(name = "ids") val ids: SimklIds
 )
 
 @JsonClass(generateAdapter = true)
 data class SimklAnimeDetailResponse(
     @Json(name = "title") val title: String,
+    @Json(name = "en_title") val enTitle: String? = null,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "overview") val overview: String? = null,
     @Json(name = "poster") val poster: String? = null,
+    @Json(name = "genres") val genres: List<String>? = null,
+    @Json(name = "anime_type") val animeType: String? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "total_episodes") val totalEpisodes: Int? = null,
+    @Json(name = "year_start_end") val yearStartEnd: String? = null,
+    @Json(name = "season_name_year") val seasonNameYear: String? = null,
     @Json(name = "ratings") val ratings: SimklRatings? = null,
     @Json(name = "season") val season: Int? = null,
+    @Json(name = "relations") val relations: List<SimklRelationItem>? = null,
+    @Json(name = "similar") val similar: List<SimklSimilarItem>? = null,
+    @Json(name = "users_recommendations") val usersRecommendations: List<SimklUserRecommendationItem>? = null,
     @Json(name = "ids") val ids: SimklIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklRelationItem(
+    @Json(name = "title") val title: String,
+    @Json(name = "en_title") val enTitle: String? = null,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "poster") val poster: String? = null,
+    @Json(name = "relation_type") val relationType: String? = null,
+    @Json(name = "is_direct") val isDirect: Boolean? = null,
+    @Json(name = "ids") val ids: SimklIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklUserRecommendationItem(
+    @Json(name = "title") val title: String,
+    @Json(name = "en_title") val enTitle: String? = null,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "poster") val poster: String? = null,
+    @Json(name = "type") val type: String? = null,
+    @Json(name = "users_percent") val usersPercent: String? = null,
+    @Json(name = "users_count") val usersCount: Int? = null,
+    @Json(name = "ids") val ids: SimklIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklSimilarItem(
+    @Json(name = "title") val title: String,
+    @Json(name = "en_title") val enTitle: String? = null,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "poster") val poster: String? = null,
+    @Json(name = "type") val type: String? = null,
+    @Json(name = "ids") val ids: SimklIds
+)
+
+// POST /sync/add-to-list models
+@JsonClass(generateAdapter = true)
+data class SyncAddToListRequest(
+    @Json(name = "movies") val movies: List<SyncAddToListMovieItem>? = null,
+    @Json(name = "shows") val shows: List<SyncAddToListShowItem>? = null,
+    @Json(name = "anime") val anime: List<SyncAddToListShowItem>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncAddToListMovieItem(
+    @Json(name = "to") val to: String,
+    @Json(name = "ids") val ids: SimklIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncAddToListShowItem(
+    @Json(name = "to") val to: String,
+    @Json(name = "ids") val ids: SimklIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncAddToListResponseNotFoundItem(
+    @Json(name = "ids") val ids: SimklIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncAddToListResponseNotFoundResult(
+    @Json(name = "movies") val movies: List<SyncAddToListResponseNotFoundItem>? = null,
+    @Json(name = "shows") val shows: List<SyncAddToListResponseNotFoundItem>? = null,
+    @Json(name = "episodes") val anime: List<SyncAddToListResponseNotFoundItem>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncAddToListResponseAddedItem(
+    @Json(name = "to") val to: String,
+    @Json(name = "ids") val ids: SimklIds,
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncAddToListResponseAddedResult(
+    @Json(name = "movies") val movies: List<SyncAddToListResponseAddedItem>? = null,
+    @Json(name = "shows") val shows: List<SyncAddToListResponseAddedItem>? = null,
+    @Json(name = "anime") val anime: List<SyncAddToListResponseAddedItem>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncAddToListResponse(
+    @Json(name = "added") val added: SyncAddToListResponseAddedResult? = null,
+    @Json(name = "not_found") val notFound: SyncAddToListResponseNotFoundResult? = null
 )
 
 // POST /sync/history models
@@ -255,6 +366,17 @@ data class SyncHistoryAddedResult(
     @Json(name = "anime") val anime: Int? = null,
     @Json(name = "episodes") val episodes: Int? = null
 )
+
+@JsonClass(generateAdapter = true)
+data class SimklTrendingItem(
+    @Json(name = "ids") val ids: SimklTrendingIds
+)
+
+@JsonClass(generateAdapter = true)
+data class SimklTrendingIds(
+    @Json(name = "simkl_id") val simklId: Int
+)
+
 
 
 

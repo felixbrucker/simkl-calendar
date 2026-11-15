@@ -133,7 +133,7 @@ fun WatchlistItemDetailScreen(
     val initialWatchlistItem = remember(simklId) {
         viewModel.selectedWatchlistTableItem.value?.takeIf { it.watchlistItem.simklId == simklId }?.watchlistItem
     }
-    val watchlistItemDelegate by viewModel.getWatchlistItemFlow(simklId).collectAsState(initialWatchlistItem)
+    val watchlistItemDelegate by viewModel.getTrackedWatchlistItemFlow(simklId).collectAsState(initialWatchlistItem)
     val watchlistItem = watchlistItemDelegate // Required for smart casting
 
     val tableItem = remember(tableItems, simklId) {

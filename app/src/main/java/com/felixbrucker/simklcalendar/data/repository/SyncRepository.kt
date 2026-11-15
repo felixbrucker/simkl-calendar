@@ -20,12 +20,19 @@ import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
 import com.felixbrucker.simklcalendar.data.network.SyncMovieItem
 import com.felixbrucker.simklcalendar.data.network.SyncSeasonItem
 import com.felixbrucker.simklcalendar.data.network.SyncShowItem
+import com.felixbrucker.simklcalendar.data.database.SeenTrendingItem
+import com.felixbrucker.simklcalendar.data.database.SeenTrendingItemDao
+import com.felixbrucker.simklcalendar.data.database.TrendingEntry
+import com.felixbrucker.simklcalendar.data.database.TrendingEntryDao
+import com.felixbrucker.simklcalendar.data.database.WatchlistItem
+import com.felixbrucker.simklcalendar.data.database.WatchlistItemDao
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
 import com.felixbrucker.simklcalendar.data.preferences.SyncMetadataRepository
 import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
+import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -53,6 +60,7 @@ private data class SyncItemDetailResult(
     val calendarItems: List<Pair<CalendarItem, MediaStatus>> = emptyList()
 )
 
+
 @Singleton
 class SyncRepository @Inject constructor(
     private val tokenDao: UserTokenDao,
@@ -69,7 +77,13 @@ class SyncRepository @Inject constructor(
     private val downloadRepository: DownloadRepository,
     private val mediaStatusResolver: MediaStatusResolver,
     private val alarmScheduler: AlarmScheduler,
+    private val trendingEntryDao: TrendingEntryDao,
+    private val watchlistItemDao: WatchlistItemDao,
+    private val seenTrendingItemDao: SeenTrendingItemDao,
+    private val mediaRepository: MediaRepository,
+    private val notificationManager: NotificationManager,
 ) {
+
     companion object {
         private const val TAG = "SyncRepository"
     }
@@ -189,34 +203,51 @@ class SyncRepository @Inject constructor(
                     }
                 }
 
+                val allWatchlistItems = mutableListOf<WatchlistItem>()
+
                 // Process TV Shows
                 syncResponse.shows?.forEach { item ->
+                    val statusEnum = WatchlistStatus.fromString(item.status)
+                    allWatchlistItems.add(WatchlistItem(simklId = item.show.ids.simkl, mediaType = MediaType.TV, status = statusEnum))
                     val trackedWatchlistItem = TrackedWatchlistItem.fromShowItem(item, type = MediaType.TV)
                     extractWatched(trackedWatchlistItem.simklId, item.seasons)
                     processWatchlistItem(
-                        status = WatchlistStatus.fromString(item.status),
+                        status = statusEnum,
                         newItem = trackedWatchlistItem,
                     )
                 }
 
                 // Process Anime
                 syncResponse.anime?.forEach { item ->
+                    val statusEnum = WatchlistStatus.fromString(item.status)
+                    allWatchlistItems.add(WatchlistItem(simklId = item.show.ids.simkl, mediaType = MediaType.ANIME, status = statusEnum))
                     val trackedWatchlistItem = TrackedWatchlistItem.fromShowItem(item, type = MediaType.ANIME)
                     extractWatched(trackedWatchlistItem.simklId, item.seasons)
                     processWatchlistItem(
-                        status = WatchlistStatus.fromString(item.status),
+                        status = statusEnum,
                         newItem = trackedWatchlistItem,
                     )
                 }
 
                 // Process Movies
                 syncResponse.movies?.forEach { item ->
+                    val statusEnum = WatchlistStatus.fromString(item.status)
+                    allWatchlistItems.add(WatchlistItem(simklId = item.movie.ids.simkl, mediaType = MediaType.MOVIE, status = statusEnum))
                     val trackedWatchlistItem = TrackedWatchlistItem.fromMovieItem(item)
                     processWatchlistItem(
-                        status = WatchlistStatus.fromString(item.status),
+                        status = statusEnum,
                         newItem = trackedWatchlistItem,
                     )
                 }
+
+                if (allWatchlistItems.isNotEmpty()) {
+                    if (savedTimestamp == null) {
+                        watchlistItemDao.clearAll()
+                    }
+                    watchlistItemDao.insertWatchlistItems(allWatchlistItems)
+                    Timber.tag(TAG).d("Synced ${allWatchlistItems.size} WatchlistItem entries into DB")
+                }
+
 
                 // Remove tracked items no longer in user's active watchlist
                 if (trackedToDelete.isNotEmpty()) {
@@ -320,6 +351,122 @@ class SyncRepository @Inject constructor(
             newlyCreatedWatchlistItemIds = newlyCreatedIds,
         )
     }
+
+    suspend fun syncTrending(force: Boolean = false) = withContext(Dispatchers.IO) {
+        val oneHourMillis = 60 * 60 * 1000L
+        val nowMillis = System.currentTimeMillis()
+        val mediaTypes = listOf(
+            "movies" to MediaType.MOVIE,
+            "tv" to MediaType.TV,
+            "anime" to MediaType.ANIME
+        )
+        val syncMetadata = syncMetadataRepo.preferencesFlow.first()
+        val notifPrefs = notificationRepo.preferencesFlow.first()
+        val semaphore = Semaphore(16)
+
+        coroutineScope {
+            mediaTypes.map { (typeKey, mediaType) ->
+                async {
+                    val lastSyncKey = "trending_last_mod_$typeKey"
+                    val lastHeaderKey = "trending_header_$typeKey"
+
+                    val lastSyncTimestamp = if (force) 0L else syncMetadata.trendingLastModifiedAt[lastSyncKey] ?: 0L
+                    val savedHeader = if (force) null else syncMetadata.trendingLastModifiedHeader[lastHeaderKey]
+
+                    val isOverOneHour = (nowMillis - lastSyncTimestamp) >= oneHourMillis
+                    if (lastSyncTimestamp > 0L && !isOverOneHour) {
+                        return@async
+                    }
+
+                    val response = semaphore.withPermit {
+                        publicSimklApiService.getTrending(
+                            type = typeKey,
+                            ifModifiedSince = savedHeader
+                        )
+                    }
+
+                    if (response.code() == 304) {
+                        Timber.tag(TAG).d("Trending for $typeKey not modified (HTTP 304)")
+                        syncMetadataRepo.setTrendingLastModifiedAt(lastSyncKey, nowMillis)
+                        return@async
+                    }
+
+                    if (!response.isSuccessful) {
+                        Timber.tag(TAG).w("HTTP ${response.code()} for trending $typeKey")
+                        return@async
+                    }
+
+                    val trendingItems = response.body() ?: return@async
+
+                    val responseHeader = response.headers()["Last-Modified"]
+                    val parsedHeaderMillis = DateUtil.parseHttpDateToMillis(responseHeader) ?: nowMillis
+                    syncMetadataRepo.setTrendingLastModifiedAt(lastSyncKey, parsedHeaderMillis)
+                    syncMetadataRepo.setTrendingLastModifiedHeader(lastHeaderKey, responseHeader ?: "")
+
+                    val entries = trendingItems.mapIndexed { index, item ->
+                        TrendingEntry(
+                            mediaType = mediaType,
+                            rank = index + 1,
+                            simklId = item.ids.simklId
+                        )
+                    }
+
+                    trendingEntryDao.replaceTrendingEntriesForType(mediaType, entries)
+
+                    // 1. Immediately fetch missing MediaItems for this mediaType concurrently using the shared semaphore
+                    val missingSimklIds = trendingEntryDao.getTrendingSimklIdsMissingMediaItems(mediaType)
+                    if (missingSimklIds.isNotEmpty()) {
+                        missingSimklIds.map { simklId ->
+                            async {
+                                semaphore.withPermit {
+                                    try {
+                                        mediaRepository.refreshMediaItem(simklId = simklId, mediaType = mediaType)
+                                    } catch (e: Exception) {
+                                        Timber.tag(TAG).e(e, "Error fetching media item for trending simklId=$simklId")
+                                    }
+                                }
+                            }
+                        }.awaitAll()
+                    }
+
+                    // 2. Obtain unseen + untracked items FIRST before updating seen_trending_items
+                    val shouldNotify = when (mediaType) {
+                        MediaType.MOVIE -> notifPrefs.notifyNewUntrackedTrendingMovies
+                        MediaType.TV -> notifPrefs.notifyNewUntrackedTrendingTv
+                        MediaType.ANIME -> notifPrefs.notifyNewUntrackedTrendingAnime
+                    }
+
+                    val untrackedItems = if (shouldNotify) {
+                        trendingEntryDao.getUnseenUntrackedTrendingMediaItems(mediaType)
+                    } else {
+                        emptyList()
+                    }
+
+                    // 3. Insert ALL unseen trending items into seen_trending_items (independent of watchlist)
+                    val unseenSimklIds = trendingEntryDao.getUnseenTrendingSimklIds(mediaType)
+                    if (unseenSimklIds.isNotEmpty()) {
+                        val nowInstant = Instant.ofEpochMilli(nowMillis)
+                        val seenItems = unseenSimklIds.map { simklId ->
+                            SeenTrendingItem(
+                                simklId = simklId,
+                                mediaType = mediaType,
+                                firstSeenAt = nowInstant
+                            )
+                        }
+                        seenTrendingItemDao.insertSeenTrendingItems(seenItems)
+                    }
+
+                    // 4. Post notifications for unseen + untracked items
+                    if (shouldNotify && untrackedItems.isNotEmpty()) {
+                        for (untrackedItem in untrackedItems) {
+                            notificationManager.showTrendingNotification(untrackedItem)
+                        }
+                    }
+                }
+            }.awaitAll()
+        }
+    }
+
 
     /**
      * Synchronizes CDN calendar JSON files (TV, Anime, Movies) covering current month plus next 3 months (0..3).
@@ -1120,6 +1267,14 @@ class SyncRepository @Inject constructor(
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error cleaning up old watched calendar items")
             0
+        }
+    }
+
+    suspend fun removeWatchlistItem(simklId: Int) {
+        withContext(Dispatchers.IO) {
+            watchlistDao.deleteItem(simklId)
+            watchlistItemDao.deleteWatchlistItem(simklId)
+            Timber.tag(TAG).d("Removed watchlist item and related data for simklId=$simklId")
         }
     }
 }

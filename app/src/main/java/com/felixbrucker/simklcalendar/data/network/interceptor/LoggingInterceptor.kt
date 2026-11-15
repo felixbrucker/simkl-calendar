@@ -37,7 +37,7 @@ class LoggingInterceptor: Interceptor {
         }
 
         if (logBuffer.isNotEmpty()) {
-            if (response.isSuccessful) {
+            if (response.isSuccessful || response.code == 304) {
                 Timber.tag(TAG).d(logBuffer.toString())
             } else {
                 Timber.tag(TAG).e(logBuffer.toString())

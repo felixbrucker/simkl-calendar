@@ -423,5 +423,178 @@ interface ItemDownloadSettingsDao {
     suspend fun insertOrUpdate(settings: ItemDownloadSettings)
 }
 
+@Dao
+interface MediaItemDao {
+    @Transaction
+    @Query("SELECT * FROM media_items WHERE simklId = :simklId LIMIT 1")
+    fun getMediaItemWithDetailsStream(simklId: Int): Flow<MediaItemWithDetails?>
+
+    @Transaction
+    @Query("SELECT * FROM media_items WHERE simklId = :simklId LIMIT 1")
+    suspend fun getMediaItemWithDetails(simklId: Int): MediaItemWithDetails?
+
+    @Query("SELECT * FROM media_items WHERE simklId = :simklId LIMIT 1")
+    suspend fun getMediaItem(simklId: Int): MediaItem?
+
+    @Upsert
+    suspend fun upsertMediaItem(item: MediaItem)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEpisodes(episodes: List<MediaEpisode>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRelations(relations: List<RelatedMediaItem>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSimilarItems(items: List<SimilarMediaItem>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecommendedItems(items: List<RecommendedMediaItem>)
+
+    @Query("DELETE FROM related_media_items WHERE simklId = :simklId AND relatedSimklId NOT IN (:keepIds)")
+    suspend fun deleteRelationsNotIn(simklId: Int, keepIds: List<Int>)
+
+    @Query("DELETE FROM related_media_items WHERE simklId = :simklId")
+    suspend fun deleteAllRelations(simklId: Int)
+
+    @Query("DELETE FROM similar_media_items WHERE simklId = :simklId AND similarSimklId NOT IN (:keepIds)")
+    suspend fun deleteSimilarNotIn(simklId: Int, keepIds: List<Int>)
+
+    @Query("DELETE FROM similar_media_items WHERE simklId = :simklId")
+    suspend fun deleteAllSimilar(simklId: Int)
+
+    @Query("DELETE FROM recommended_media_items WHERE simklId = :simklId AND recommendedSimklId NOT IN (:keepIds)")
+    suspend fun deleteRecommendedNotIn(simklId: Int, keepIds: List<Int>)
+
+    @Query("DELETE FROM recommended_media_items WHERE simklId = :simklId")
+    suspend fun deleteAllRecommended(simklId: Int)
+
+    @Query("DELETE FROM media_episodes WHERE simklId = :simklId")
+    suspend fun deleteAllEpisodes(simklId: Int)
+
+    @Query("DELETE FROM media_episodes WHERE simklId = :simklId AND (season || '_' || episodeNumber) NOT IN (:keepKeys)")
+    suspend fun deleteEpisodesNotIn(simklId: Int, keepKeys: List<String>)
+
+    @Query("DELETE FROM media_items WHERE lastUpdatedAt < :cutoff")
+    suspend fun deleteExpiredMediaItems(cutoff: Instant): Int
+}
+
+@Dao
+interface TrendingEntryDao {
+    @Transaction
+    @Query("SELECT * FROM trending_entries WHERE mediaType = :mediaType ORDER BY rank ASC")
+    fun getTrendingMediaItemsFlow(mediaType: MediaType): Flow<List<TrendingMediaItem>>
+
+    @Transaction
+    @Query("""
+        SELECT te.* FROM trending_entries te
+        LEFT JOIN media_items mi ON te.simklId = mi.simklId
+        WHERE te.mediaType IN (:allowedTypes)
+        AND (
+            (:excludeOnMyLists = 0) OR
+            (te.simklId NOT IN (SELECT simklId FROM watchlist_items))
+        )
+        AND (:minRating <= 0.0 OR mi.rating >= :minRating)
+        AND (:minYear <= 0 OR mi.year >= :minYear)
+        AND (:hasDvd = 0 OR te.mediaType <> 'movie' OR mi.movie_dvdDate IS NOT NULL)
+        AND (
+            (:searchQuery = '' OR :searchQuery IS NULL) OR
+            (
+                mi.title LIKE '%' || :searchQuery || '%' OR
+                mi.titleRomaji LIKE '%' || :searchQuery || '%' OR
+                mi.description LIKE '%' || :searchQuery || '%' OR
+                mi.genres LIKE '%' || :searchQuery || '%' OR
+                CAST(mi.year AS TEXT) LIKE '%' || :searchQuery || '%' OR
+                CAST(mi.series_endYear AS TEXT) LIKE '%' || :searchQuery || '%' OR
+                CAST(mi.anime_endYear AS TEXT) LIKE '%' || :searchQuery || '%' OR
+                CAST(mi.anime_seasonYear AS TEXT) LIKE '%' || :searchQuery || '%'
+            )
+        )
+        ORDER BY te.rank ASC
+    """)
+    fun getFilteredTrendingMediaItemsFlow(
+        allowedTypes: List<MediaType>,
+        excludeOnMyLists: Boolean,
+        minRating: Float,
+        minYear: Int,
+        hasDvd: Boolean,
+        searchQuery: String
+    ): Flow<List<TrendingMediaItem>>
+
+    @Query("SELECT MIN(mi.year) FROM trending_entries te INNER JOIN media_items mi ON te.simklId = mi.simklId WHERE mi.year > 0")
+    fun getMinTrendingYearFlow(): Flow<Int?>
+
+    @Query("SELECT MAX(mi.year) FROM trending_entries te INNER JOIN media_items mi ON te.simklId = mi.simklId WHERE mi.year > 0")
+    fun getMaxTrendingYearFlow(): Flow<Int?>
+
+    @Transaction
+    @Query("SELECT * FROM trending_entries WHERE mediaType = :mediaType ORDER BY rank ASC")
+    suspend fun getTrendingMediaItems(mediaType: MediaType): List<TrendingMediaItem>
+
+    @Query("SELECT DISTINCT te.simklId FROM trending_entries te WHERE te.mediaType = :mediaType AND te.simklId NOT IN (SELECT simklId FROM media_items)")
+    suspend fun getTrendingSimklIdsMissingMediaItems(mediaType: MediaType): List<Int>
+
+
+    @Query("SELECT DISTINCT te.simklId FROM trending_entries te WHERE te.mediaType = :mediaType AND te.simklId NOT IN (SELECT simklId FROM seen_trending_items)")
+    suspend fun getUnseenTrendingSimklIds(mediaType: MediaType): List<Int>
+
+    @Transaction
+    @Query("""
+        SELECT te.* FROM trending_entries te
+        WHERE te.mediaType = :mediaType
+          AND te.simklId NOT IN (SELECT simklId FROM seen_trending_items)
+          AND te.simklId NOT IN (SELECT simklId FROM watchlist_items)
+        ORDER BY te.rank ASC
+    """)
+    suspend fun getUnseenUntrackedTrendingMediaItems(mediaType: MediaType): List<TrendingMediaItem>
+
+    @Transaction
+    suspend fun replaceTrendingEntriesForType(mediaType: MediaType, entries: List<TrendingEntry>) {
+        deleteTrendingEntriesForType(mediaType)
+        insertTrendingEntries(entries)
+    }
+
+    @Query("DELETE FROM trending_entries WHERE mediaType = :mediaType")
+    suspend fun deleteTrendingEntriesForType(mediaType: MediaType)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTrendingEntries(entries: List<TrendingEntry>)
+
+    @Query("DELETE FROM trending_entries")
+    suspend fun clearAll()
+}
+
+@Dao
+interface WatchlistItemDao {
+    @Query("SELECT * FROM watchlist_items WHERE simklId = :simklId LIMIT 1")
+    fun getWatchlistItemFlow(simklId: Int): Flow<WatchlistItem?>
+
+    @Query("SELECT * FROM watchlist_items WHERE simklId IN (:simklIds)")
+    fun getWatchlistItemsFlow(simklIds: List<Int>): Flow<List<WatchlistItem>>
+
+    @Query("SELECT simklId FROM watchlist_items")
+    suspend fun getAllWatchlistSimklIds(): List<Int>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWatchlistItems(items: List<WatchlistItem>)
+
+    @Query("DELETE FROM watchlist_items WHERE simklId = :simklId")
+    suspend fun deleteWatchlistItem(simklId: Int)
+
+    @Query("DELETE FROM watchlist_items")
+    suspend fun clearAll()
+}
+
+@Dao
+interface SeenTrendingItemDao {
+    @Query("SELECT simklId FROM seen_trending_items")
+    suspend fun getAllSeenSimklIds(): List<Int>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSeenTrendingItems(items: List<SeenTrendingItem>)
+}
+
+
+
 
 

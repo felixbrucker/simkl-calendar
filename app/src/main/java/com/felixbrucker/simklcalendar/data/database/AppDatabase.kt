@@ -16,7 +16,11 @@ import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import java.time.Instant
+import java.time.LocalDate
 
 class Converters {
     @TypeConverter
@@ -99,6 +103,16 @@ class Converters {
     }
 
     @TypeConverter
+    fun fromWatchlistStatus(status: WatchlistStatus?): String? {
+        return status?.key
+    }
+
+    @TypeConverter
+    fun toWatchlistStatus(value: String?): WatchlistStatus? {
+        return value?.let { WatchlistStatus.fromKey(it) }
+    }
+
+    @TypeConverter
     fun fromEpisodeSearchStyle(style: EpisodeSearchStyle?): String? {
         return style?.name
     }
@@ -113,11 +127,86 @@ class Converters {
             }
         }
     }
+
+    @TypeConverter
+    fun fromLocalDate(value: LocalDate?): String? {
+        return value?.toString()
+    }
+
+    @TypeConverter
+    fun toLocalDate(value: String?): LocalDate? {
+        return value?.let {
+            try {
+                LocalDate.parse(it)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    private val stringListJsonAdapter by lazy {
+        val type = Types.newParameterizedType(List::class.java, String::class.java)
+        Moshi.Builder().build().adapter<List<String>>(type)
+    }
+
+    @TypeConverter
+    fun fromStringList(value: List<String>?): String? {
+        return value?.let { stringListJsonAdapter.toJson(it) }
+    }
+
+    @TypeConverter
+    fun toStringList(value: String?): List<String>? {
+        return value?.let {
+            try {
+                stringListJsonAdapter.fromJson(it)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    @TypeConverter
+    fun fromAnimeType(type: AnimeType?): String? {
+        return type?.key
+    }
+
+    @TypeConverter
+    fun toAnimeType(value: String?): AnimeType? {
+        return value?.let { AnimeType.fromKey(it) }
+    }
+
+    @TypeConverter
+    fun fromSeriesStatus(status: SeriesStatus?): String? {
+        return status?.key
+    }
+
+    @TypeConverter
+    fun toSeriesStatus(value: String?): SeriesStatus? {
+        return value?.let { SeriesStatus.fromKey(it) }
+    }
 }
 
 @Database(
-    entities = [UserToken::class, CalendarItem::class, NotificationSetting::class, TrackedWatchlistItem::class, WatchedEpisode::class, CustomSearchLink::class, ItemDownloadSettings::class, LocalItemState::class, ActiveNotification::class],
-    version = 36,
+    entities = [
+        UserToken::class,
+        CalendarItem::class,
+        NotificationSetting::class,
+        TrackedWatchlistItem::class,
+        WatchedEpisode::class,
+        CustomSearchLink::class,
+        ItemDownloadSettings::class,
+        LocalItemState::class,
+        ActiveNotification::class,
+        MediaItem::class,
+        TrendingEntry::class,
+        WatchlistItem::class,
+        SeenTrendingItem::class,
+        MediaEpisode::class,
+        RelatedMediaItem::class,
+        SimilarMediaItem::class,
+        RecommendedMediaItem::class,
+    ],
+    version = 44,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -144,9 +233,17 @@ class Converters {
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 34, to = 35),
         AutoMigration(from = 35, to = 36),
+        AutoMigration(from = 36, to = 37),
+        AutoMigration(from = 37, to = 38),
+        AutoMigration(from = 38, to = 39),
+        AutoMigration(from = 39, to = 40),
+        AutoMigration(from = 40, to = 41),
+        AutoMigration(from = 41, to = 42),
+        AutoMigration(from = 42, to = 43),
+        AutoMigration(from = 43, to = 44),
     ]
 )
-@TypeConverters(Converters::class)
+@TypeConverters(Converters::class, EpisodeTypeConverter::class, RelationTypeConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     @DeleteColumn(tableName = "calendar_items", columnName = "isWatched")
     class Migration8To9 : AutoMigrationSpec
@@ -178,6 +275,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun customSearchLinkDao(): CustomSearchLinkDao
     abstract fun activeNotificationDao(): ActiveNotificationDao
     abstract fun itemDownloadSettingsDao(): ItemDownloadSettingsDao
+    abstract fun mediaItemDao(): MediaItemDao
+    abstract fun trendingEntryDao(): TrendingEntryDao
+    abstract fun watchlistItemDao(): WatchlistItemDao
+    abstract fun seenTrendingItemDao(): SeenTrendingItemDao
 
     companion object {
         private val MIGRATION_23_24 = object : Migration(23, 24) {

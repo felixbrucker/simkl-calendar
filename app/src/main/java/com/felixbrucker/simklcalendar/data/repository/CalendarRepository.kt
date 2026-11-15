@@ -5,6 +5,8 @@ import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.SimklCalendarStats
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
+import com.felixbrucker.simklcalendar.data.database.WatchlistItem
+import com.felixbrucker.simklcalendar.data.database.WatchlistItemDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
@@ -40,6 +42,7 @@ data class CalendarFilterParams(
 class CalendarRepository @Inject constructor(
     private val calendarDao: CalendarItemDao,
     private val watchlistDao: WatchlistDao,
+    private val watchlistItemDao: WatchlistItemDao,
     private val mediaStatusResolver: MediaStatusResolver,
 ) {
     val simklCalendarStats: Flow<List<SimklCalendarStats>> = calendarDao.getSimklCalendarStats()
@@ -66,7 +69,11 @@ class CalendarRepository @Inject constructor(
         calendarDao.getItemsInSeasonOrRelatedItems(simklId, season)
     }
 
-    fun getWatchlistItemFlow(simklId: Int): Flow<TrackedWatchlistItem?> = watchlistDao.getItemFlow(simklId)
+    fun getTrackedWatchlistItemFlow(simklId: Int): Flow<TrackedWatchlistItem?> =
+        watchlistDao.getItemFlow(simklId)
+
+    fun getWatchlistItemFlow(simklId: Int): Flow<WatchlistItem?> =
+        watchlistItemDao.getWatchlistItemFlow(simklId)
 
     suspend fun updateMediaStatus(primaryKey: String, status: MediaStatus) = withContext(Dispatchers.IO) {
         calendarDao.updateMediaStatus(primaryKey, status)

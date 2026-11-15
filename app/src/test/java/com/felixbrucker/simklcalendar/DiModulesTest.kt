@@ -117,6 +117,7 @@ class DiModulesTest {
         val calendarRepo = CalendarRepository(
             calendarDao = calendarDao,
             watchlistDao = watchlistDao,
+            watchlistItemDao = mockk(relaxed = true),
             mediaStatusResolver = mediaStatusResolver
         )
 

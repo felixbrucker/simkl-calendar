@@ -23,7 +23,9 @@ data class SyncMetadataPreferences(
     val lastCalendarJsonSync: Long = 0L,
     val lastActivitiesAll: String? = null,
     val calendarLastModifiedAt: Map<String, Long> = emptyMap(),
-    val calendarLastModifiedHeader: Map<String, String> = emptyMap()
+    val calendarLastModifiedHeader: Map<String, String> = emptyMap(),
+    val trendingLastModifiedAt: Map<String, Long> = emptyMap(),
+    val trendingLastModifiedHeader: Map<String, String> = emptyMap()
 )
 
 @Singleton
@@ -40,12 +42,18 @@ class SyncMetadataRepository @Inject constructor(
     val preferencesFlow: Flow<SyncMetadataPreferences> = dataStore.data.map { preferences ->
         val calendarLastModifiedAt = mutableMapOf<String, Long>()
         val calendarLastModifiedHeader = mutableMapOf<String, String>()
+        val trendingLastModifiedAt = mutableMapOf<String, Long>()
+        val trendingLastModifiedHeader = mutableMapOf<String, String>()
 
         preferences.asMap().forEach { (key, value) ->
             if (key.name.startsWith("cal_json_last_mod_")) {
                 (value as? Long)?.let { calendarLastModifiedAt[key.name] = it }
             } else if (key.name.startsWith("cal_json_header_")) {
                 (value as? String)?.let { calendarLastModifiedHeader[key.name] = it }
+            } else if (key.name.startsWith("trending_last_mod_")) {
+                (value as? Long)?.let { trendingLastModifiedAt[key.name] = it }
+            } else if (key.name.startsWith("trending_header_")) {
+                (value as? String)?.let { trendingLastModifiedHeader[key.name] = it }
             }
         }
 
@@ -53,7 +61,9 @@ class SyncMetadataRepository @Inject constructor(
             lastCalendarJsonSync = preferences[KEY_LAST_CALENDAR_JSON_SYNC] ?: 0L,
             lastActivitiesAll = preferences[KEY_LAST_ACTIVITIES_ALL],
             calendarLastModifiedAt = calendarLastModifiedAt,
-            calendarLastModifiedHeader = calendarLastModifiedHeader
+            calendarLastModifiedHeader = calendarLastModifiedHeader,
+            trendingLastModifiedAt = trendingLastModifiedAt,
+            trendingLastModifiedHeader = trendingLastModifiedHeader
         )
     }
 
@@ -79,7 +89,16 @@ class SyncMetadataRepository @Inject constructor(
         dataStore.edit { it[stringPreferencesKey(key)] = header }
     }
 
+    suspend fun setTrendingLastModifiedAt(key: String, timestamp: Long) {
+        dataStore.edit { it[longPreferencesKey(key)] = timestamp }
+    }
+
+    suspend fun setTrendingLastModifiedHeader(key: String, header: String) {
+        dataStore.edit { it[stringPreferencesKey(key)] = header }
+    }
+
     suspend fun clear() {
         dataStore.edit { it.clear() }
     }
 }
+

@@ -45,5 +45,12 @@ interface PublicSimklApiService {
     suspend fun getAnimeEpisodes(
         @Path("id") id: Int
     ): List<SimklEpisodeResponse>
+
+    @GET("https://data.simkl.in/discover/trending/{type}/today_100.json")
+    suspend fun getTrending(
+        @Path("type") type: String,
+        @Header("If-Modified-Since") ifModifiedSince: String? = null
+    ): retrofit2.Response<List<SimklTrendingItem>>
 }
+
 

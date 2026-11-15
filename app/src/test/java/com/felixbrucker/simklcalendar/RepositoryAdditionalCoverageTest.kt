@@ -56,6 +56,7 @@ class RepositoryAdditionalCoverageTest {
         calendarRepository = CalendarRepository(
             calendarDao = calendarDao,
             watchlistDao = mockk(relaxed = true),
+            watchlistItemDao = mockk(relaxed = true),
             mediaStatusResolver = mediaStatusResolver
         )
 

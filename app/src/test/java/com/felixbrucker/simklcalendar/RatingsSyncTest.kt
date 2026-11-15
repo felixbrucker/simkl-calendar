@@ -88,8 +88,14 @@ class RatingsSyncTest {
             autoDownloadRepo = autoDownloadRepo,
             downloadRepository = downloadRepository,
             mediaStatusResolver = mediaStatusResolver,
-            alarmScheduler = alarmScheduler
+            alarmScheduler = alarmScheduler,
+            trendingEntryDao = mockk(relaxed = true),
+            watchlistItemDao = mockk(relaxed = true),
+            seenTrendingItemDao = mockk(relaxed = true),
+            mediaRepository = mockk(relaxed = true),
+            notificationManager = mockk(relaxed = true)
         )
+
 
         every { syncMetadataRepo.preferencesFlow } returns flowOf(SyncMetadataPreferences())
         every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences())
@@ -141,19 +147,23 @@ class RatingsSyncTest {
         coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(30)) } returns listOf(animeItem)
         coEvery { publicApiService.getMovieDetails(10) } returns SimklMovieDetailResponse(
             title = "Movie Updated",
+            year = 2024,
             ratings = SimklRatings(simkl = SimklRating(rating = 8.4)),
             ids = SimklIds(simkl = 10)
         )
         coEvery { publicApiService.getTvDetails(20) } returns SimklTvDetailResponse(
             title = "TV Show Updated",
+            year = 2024,
             ratings = SimklRatings(simkl = SimklRating(rating = 9.1)),
             ids = SimklIds(simkl = 20)
         )
         coEvery { publicApiService.getAnimeDetails(30) } returns SimklAnimeDetailResponse(
             title = "Anime Updated",
+            year = 2024,
             ratings = SimklRatings(simkl = SimklRating(rating = 7.8)),
             ids = SimklIds(simkl = 30)
         )
+
         val updatedSlot = slot<List<TrackedWatchlistItem>>()
         coEvery { watchlistDao.updateItems(capture(updatedSlot)) } returns Unit
 
@@ -210,6 +220,7 @@ class RatingsSyncTest {
         coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(30)) } returns listOf(animeItem)
         coEvery { publicApiService.getAnimeDetails(30) } returns SimklAnimeDetailResponse(
             title = "Shingeki no Kyojin",
+            year = 2024,
             ratings = SimklRatings(simkl = SimklRating(rating = 9.0)),
             season = 2,
             ids = SimklIds(simkl = 30)
@@ -255,9 +266,11 @@ class RatingsSyncTest {
         coEvery { watchlistDao.getTrackedItemsBySimklIds(listOf(20, 21)) } returns listOf(tvItem1, tvItem2)
         coEvery { publicApiService.getTvDetails(20) } returns SimklTvDetailResponse(
             title = "TV Show 1 Updated",
+            year = 2024,
             ratings = SimklRatings(simkl = SimklRating(rating = 8.0)),
             ids = SimklIds(simkl = 20)
         )
+
         coEvery { publicApiService.getTvDetails(21) } throws RuntimeException("Network Error")
 
         val syncResult = syncRepository.syncWatchlistItemDetails(force = false)
@@ -275,6 +288,7 @@ class RatingsSyncTest {
         val jsonString = """
             {
                 "title": "Inception",
+                "year": 2010,
                 "ratings": {
                     "simkl": { "rating": 8.8 },
                     "imdb": { "rating": 8.8 }
@@ -282,6 +296,7 @@ class RatingsSyncTest {
                 "ids": { "simkl": 123 }
             }
         """.trimIndent()
+
 
         val parsed = adapter.fromJson(jsonString)
         val rating = parsed?.ratings?.simkl?.rating

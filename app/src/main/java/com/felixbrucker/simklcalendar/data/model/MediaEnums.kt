@@ -31,12 +31,12 @@ enum class MovieReleaseType(val displayName: String) {
     DIGITAL("Digital / DVD Release");
 }
 
-enum class WatchlistStatus(val key: String) {
-    WATCHING("watching"),
-    PLAN_TO_WATCH("plantowatch"),
-    COMPLETED("completed"),
-    HOLD("hold"),
-    DROPPED("dropped");
+enum class WatchlistStatus(val key: String, val displayName: String) {
+    WATCHING("watching", "Watching"),
+    PLAN_TO_WATCH("plantowatch", "Plan To Watch"),
+    COMPLETED("completed", "Completed"),
+    HOLD("hold", "On Hold"),
+    DROPPED("dropped", "Dropped");
 
     companion object {
         fun fromKey(key: String?): WatchlistStatus {

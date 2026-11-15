@@ -7,8 +7,10 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
+import androidx.room.TypeConverter
 import com.felixbrucker.simklcalendar.data.model.EpisodeSearchStyle
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.squareup.moshi.JsonClass
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
@@ -449,6 +451,230 @@ data class SimklCalendarStats(
     val hasUnwatched: Boolean get() = unwatchedCount > 0
     val hasUnwatchedReleased: Boolean get() = unwatchedReleasedCount > 0
 }
+
+@Entity(
+    tableName = "trending_entries",
+    primaryKeys = ["mediaType", "rank"],
+    indices = [Index(value = ["simklId"])]
+)
+data class TrendingEntry(
+    val mediaType: MediaType,
+    val rank: Int,
+    val simklId: Int
+)
+
+@Entity(
+    tableName = "watchlist_items",
+    indices = [Index(value = ["mediaType"])]
+)
+data class WatchlistItem(
+    @PrimaryKey val simklId: Int,
+    val mediaType: MediaType,
+    val status: WatchlistStatus? = null
+)
+
+@Entity(
+    tableName = "seen_trending_items"
+)
+data class SeenTrendingItem(
+    @PrimaryKey val simklId: Int,
+    val mediaType: MediaType,
+    val firstSeenAt: Instant = now()
+)
+
+@Immutable
+data class TrendingMediaItem(
+    @Embedded val trendingEntry: TrendingEntry,
+    @Relation(
+        parentColumn = "simklId",
+        entityColumn = "simklId"
+    )
+    val mediaItem: MediaItem? = null
+)
+
+enum class EpisodeType(val key: String) {
+    EPISODE("episode"),
+    SPECIAL("special"),
+    UNKNOWN("unknown");
+
+    companion object {
+        fun fromKey(key: String?): EpisodeType {
+            return entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: UNKNOWN
+        }
+    }
+}
+
+sealed interface RelationType {
+    val key: String
+    val displayName: String
+
+    data object Prequel : RelationType {
+        override val key: String = "prequel"
+        override val displayName: String = "Prequel"
+    }
+    data object Sequel : RelationType {
+        override val key: String = "sequel"
+        override val displayName: String = "Sequel"
+    }
+    data object Summary : RelationType {
+        override val key: String = "summary"
+        override val displayName: String = "Summary"
+    }
+    data object SideStory : RelationType {
+        override val key: String = "side story"
+        override val displayName: String = "Side Story"
+    }
+    data object Other : RelationType {
+        override val key: String = "other"
+        override val displayName: String = "Other"
+    }
+    data class Season(val number: Int) : RelationType {
+        override val key: String = "season $number"
+        override val displayName: String = "Season $number"
+    }
+    data object Unknown : RelationType {
+        override val key: String = "unknown"
+        override val displayName: String = "Unknown"
+    }
+
+    companion object {
+        fun fromKey(key: String?): RelationType {
+            if (key.isNullOrBlank()) return Unknown
+            val trimmed = key.trim().lowercase()
+            if (trimmed.startsWith("season")) {
+                val numStr = trimmed.substringAfter("season").trim()
+                val num = numStr.toIntOrNull() ?: 1
+                return Season(num)
+            }
+            return when (trimmed) {
+                "prequel" -> Prequel
+                "sequel" -> Sequel
+                "summary" -> Summary
+                "side story", "sidestory" -> SideStory
+                "other" -> Other
+                else -> Unknown
+            }
+        }
+    }
+}
+
+class EpisodeTypeConverter {
+    @TypeConverter
+    fun fromEpisodeType(type: EpisodeType): String = type.key
+
+    @TypeConverter
+    fun toEpisodeType(value: String?): EpisodeType = EpisodeType.fromKey(value)
+}
+
+class RelationTypeConverter {
+    @TypeConverter
+    fun fromRelationType(type: RelationType): String = type.key
+
+    @TypeConverter
+    fun toRelationType(value: String?): RelationType = RelationType.fromKey(value)
+}
+
+@Entity(
+    tableName = "media_episodes",
+    primaryKeys = ["simklId", "season", "episodeNumber"],
+    foreignKeys = [
+        ForeignKey(
+            entity = MediaItem::class,
+            parentColumns = ["simklId"],
+            childColumns = ["simklId"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index(value = ["simklId"])]
+)
+data class MediaEpisode(
+    val simklId: Int,
+    val season: Int,
+    val episodeNumber: Int,
+    val title: String,
+    val type: EpisodeType = EpisodeType.EPISODE,
+    val aired: Boolean = false,
+    val date: Instant? = null
+)
+
+@Entity(
+    tableName = "related_media_items",
+    primaryKeys = ["simklId", "relatedSimklId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = MediaItem::class,
+            parentColumns = ["simklId"],
+            childColumns = ["simklId"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index(value = ["simklId"])]
+)
+data class RelatedMediaItem(
+    val simklId: Int,
+    val relatedSimklId: Int,
+    val mediaType: MediaType,
+    val title: String,
+    val titleRomaji: String? = null,
+    val year: Int? = null,
+    val poster: String? = null,
+    val relationType: RelationType = RelationType.Unknown,
+    val isDirect: Boolean? = null
+)
+
+@Entity(
+    tableName = "similar_media_items",
+    primaryKeys = ["simklId", "similarSimklId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = MediaItem::class,
+            parentColumns = ["simklId"],
+            childColumns = ["simklId"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index(value = ["simklId"])]
+)
+data class SimilarMediaItem(
+    val simklId: Int,
+    val similarSimklId: Int,
+    val mediaType: MediaType,
+    val title: String,
+    val titleRomaji: String? = null,
+    val year: Int? = null,
+    val poster: String? = null
+)
+
+@Entity(
+    tableName = "recommended_media_items",
+    primaryKeys = ["simklId", "recommendedSimklId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = MediaItem::class,
+            parentColumns = ["simklId"],
+            childColumns = ["simklId"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index(value = ["simklId"])]
+)
+data class RecommendedMediaItem(
+    val simklId: Int,
+    val recommendedSimklId: Int,
+    val mediaType: MediaType,
+    val title: String,
+    val titleRomaji: String? = null,
+    val year: Int? = null,
+    val poster: String? = null,
+    val usersPercent: String? = null,
+    val usersCount: Int? = null
+)
+
+
 
 
 

@@ -1,9 +1,12 @@
 package com.felixbrucker.simklcalendar.data.util
 
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
+import com.felixbrucker.simklcalendar.data.database.MediaItem
+import com.felixbrucker.simklcalendar.data.database.SeriesStatus
 import com.felixbrucker.simklcalendar.data.database.TrackedWatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
+import java.util.Locale
 
 /**
  * Unified formatting utility for media items, seasons, and episodes.
@@ -116,8 +119,6 @@ object MediaFormatter {
 
     /**
      * Formats the toast message when an episode is marked as watched.
-     * Anime S1: "Marked [Title] E05 as watched"
-     * TV / Anime S2+: "Marked [Title] S01E05 as watched"
      */
     fun formatEpisodeWatchedToast(
         showTitle: String?,
@@ -132,8 +133,6 @@ object MediaFormatter {
 
     /**
      * Formats the toast message when a season is marked as watched.
-     * Anime S1: "Marked [Title] as watched"
-     * TV / Anime S2+: "Marked [Title] Season 2 as watched"
      */
     fun formatSeasonWatchedToast(
         showTitle: String?,
@@ -153,7 +152,6 @@ object MediaFormatter {
 
     /**
      * Formats the toast message when a movie is marked as watched.
-     * "Marked [Title] as watched"
      */
     fun formatMovieWatchedToast(showTitle: String?): String {
         val target = if (!showTitle.isNullOrBlank()) showTitle else "Movie"
@@ -249,8 +247,6 @@ object MediaFormatter {
 
     /**
      * Formats the label for an item in deletion or selection dialogs.
-     * For movies: "Movie Title (Release Type)" or "Movie Title"
-     * For shows/anime: "S01E01: Episode Title" or "S01E01: TBA"
      */
     fun formatItemLabel(
         mediaType: MediaType,
@@ -270,6 +266,126 @@ object MediaFormatter {
             val epCode = formatEpisodeCode(mediaType, season, episodeNumber)
             val epTitle = episodeTitle?.takeIf { it.isNotBlank() } ?: "TBA"
             "$epCode: $epTitle"
+        }
+    }
+
+    /**
+     * Formats the display title, appending (Season X) for anime items when season > 0 and not already present.
+     */
+    fun formatDisplayTitle(
+        title: String,
+        mediaType: MediaType,
+        season: Int?
+    ): String {
+        return if (mediaType == MediaType.ANIME && season != null && season > 0) {
+            if (!title.contains("Season $season", ignoreCase = true)) {
+                "$title (Season $season)"
+            } else {
+                title
+            }
+        } else {
+            title
+        }
+    }
+
+    /**
+     * Formats currency amounts (budget / box office).
+     */
+    fun formatCurrency(amount: Long): String {
+        return when {
+            amount >= 1_000_000_000 -> {
+                val value = amount / 1_000_000_000.0
+                String.format(Locale.US, "$%.2fB", value).replace(".00B", "B")
+            }
+            amount >= 1_000_000 -> {
+                val value = amount / 1_000_000.0
+                String.format(Locale.US, "$%.2fM", value).replace(".00M", "M")
+            }
+            amount >= 1_000 -> {
+                val value = amount / 1_000.0
+                String.format(Locale.US, "$%.1fK", value).replace(".0K", "K")
+            }
+            else -> "$$amount"
+        }
+    }
+
+    fun formatYearRange(year: Int?, endYear: Int?, status: SeriesStatus?, mediaType: MediaType): String {
+        val yearStr = year?.toString() ?: "TBA"
+        return when (mediaType) {
+            MediaType.MOVIE -> yearStr
+            MediaType.TV, MediaType.ANIME -> {
+                when {
+                    year == null && endYear == null -> "TBA"
+                    endYear != null -> "$yearStr-$endYear"
+                    status == SeriesStatus.AIRING -> "$yearStr-Now"
+                    else -> yearStr
+                }
+            }
+        }
+    }
+
+    fun formatYearRange(mediaItem: MediaItem): String {
+        val endYear = when (mediaItem.mediaType) {
+            MediaType.TV -> mediaItem.seriesMetadata?.endYear
+            MediaType.ANIME -> mediaItem.animeMetadata?.endYear
+            MediaType.MOVIE -> null
+        }
+        val status = when (mediaItem.mediaType) {
+            MediaType.TV -> mediaItem.seriesMetadata?.status
+            MediaType.ANIME -> mediaItem.animeMetadata?.status
+            MediaType.MOVIE -> null
+        }
+        return formatYearRange(mediaItem.year, endYear, status, mediaItem.mediaType)
+    }
+
+    fun formatMediaSubtitle(item: MediaItem): String {
+        return buildString {
+            append(formatYearRange(item))
+
+            when (item.mediaType) {
+                MediaType.MOVIE -> {
+                    if (item.hasDvd) {
+                        append(" • Has DVD")
+                    }
+                    item.movieMetadata?.budget?.takeIf { it > 0 }?.let {
+                        append(" • Budget ${formatCurrency(it)}")
+                    }
+                    item.movieMetadata?.boxOffice?.takeIf { it > 0 }?.let {
+                        append(" • Box Office ${formatCurrency(it)}")
+                    }
+                }
+                MediaType.TV -> {
+                    item.seriesMetadata?.seasonsCount?.takeIf { it > 0 }?.let {
+                        val label = if (it == 1) "1 Season" else "$it Seasons"
+                        append(" • $label")
+                    }
+                    item.seriesMetadata?.totalEpisodes?.takeIf { it > 0 }?.let {
+                        append(" • $it Episodes")
+                    }
+                    item.seriesMetadata?.status?.displayName?.let {
+                        append(" • $it")
+                    }
+                }
+                MediaType.ANIME -> {
+                    item.animeMetadata?.let { meta ->
+                        if (!meta.seasonQuarter.isNullOrBlank() && meta.seasonYear != null) {
+                            append(" • ${meta.seasonQuarter} ${meta.seasonYear}")
+                        }
+                    }
+                    item.animeMetadata?.animeType?.let {
+                        append(" • ${it.displayName}")
+                    }
+                    item.seriesMetadata?.seasonsCount?.takeIf { it > 1 }?.let {
+                        append(" • $it Seasons")
+                    }
+                    item.animeMetadata?.totalEpisodes?.takeIf { it > 0 }?.let {
+                        append(" • $it Episodes")
+                    }
+                    item.animeMetadata?.status?.displayName?.let {
+                        append(" • $it")
+                    }
+                }
+            }
         }
     }
 }
@@ -302,6 +418,9 @@ val CalendarItemWithWatchlist.formattedAnimeSeasonLabel: String?
 
 val TrackedWatchlistItem.formattedAnimeSeasonLabel: String?
     get() = MediaFormatter.formatAnimeSeasonLabel(type, animeSeason)
+
+val MediaItem.displayTitle: String
+    get() = MediaFormatter.formatDisplayTitle(title, mediaType, animeMetadata?.season)
 
 // Fast 2-digit zero-padding helper avoiding java.util.Formatter, primitive boxing, and Object[] varargs allocations
 internal fun formatTwoDigits(number: Int): String {
