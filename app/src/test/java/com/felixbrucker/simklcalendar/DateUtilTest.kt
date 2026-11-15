@@ -86,4 +86,36 @@ class DateUtilTest {
         assertEquals("1d 2h 3m 4s", DateUtil.formatDuration(86400 + 7200 + 180 + 4))
         assertEquals("0s", DateUtil.formatDuration(0))
     }
+
+    @Test
+    fun testFormatDisplayDateWithLocalDate() {
+        val date = LocalDate.of(2026, 8, 23)
+        val formatted = DateUtil.formatDisplayDate(date)
+        assertNotNull(formatted)
+        assertTrue(formatted.contains("2026"))
+        assertTrue(formatted.contains("23"))
+    }
+
+    @Test
+    fun testFormatRelativeTime() {
+        val zone = ZoneId.of("UTC")
+        val today = LocalDate.of(2026, 11, 15)
+
+        assertEquals("today", DateUtil.formatRelativeTime(today, zone, today))
+        assertEquals("tomorrow", DateUtil.formatRelativeTime(today.plusDays(1), zone, today))
+        assertEquals("yesterday", DateUtil.formatRelativeTime(today.minusDays(1), zone, today))
+        assertEquals("in 3 days", DateUtil.formatRelativeTime(today.plusDays(3), zone, today))
+        assertEquals("3 days ago", DateUtil.formatRelativeTime(today.minusDays(3), zone, today))
+        assertEquals("in 2 weeks", DateUtil.formatRelativeTime(today.plusDays(14), zone, today))
+        assertEquals("2 weeks ago", DateUtil.formatRelativeTime(today.minusDays(14), zone, today))
+        assertEquals("in 2 months", DateUtil.formatRelativeTime(today.plusDays(60), zone, today))
+        assertEquals("2 months ago", DateUtil.formatRelativeTime(today.minusDays(60), zone, today))
+        assertEquals("in 1 year", DateUtil.formatRelativeTime(today.plusDays(360), zone, today))
+        assertEquals("1 year ago", DateUtil.formatRelativeTime(today.minusDays(360), zone, today))
+        assertEquals("in 2 years", DateUtil.formatRelativeTime(today.plusDays(730), zone, today))
+        assertEquals("2 years ago", DateUtil.formatRelativeTime(today.minusDays(730), zone, today))
+
+        val instant = today.plusDays(5).atStartOfDay(zone).toInstant()
+        assertEquals("in 5 days", DateUtil.formatRelativeTime(instant, zone, today))
+    }
 }

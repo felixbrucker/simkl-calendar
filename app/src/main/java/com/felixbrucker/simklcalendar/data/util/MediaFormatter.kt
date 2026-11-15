@@ -316,8 +316,8 @@ object MediaFormatter {
             MediaType.TV, MediaType.ANIME -> {
                 when {
                     year == null && endYear == null -> "TBA"
-                    endYear != null -> "$yearStr-$endYear"
-                    status == SeriesStatus.AIRING -> "$yearStr-Now"
+                    endYear != null -> "$yearStr - $endYear"
+                    status == SeriesStatus.AIRING -> "$yearStr - Now"
                     else -> yearStr
                 }
             }

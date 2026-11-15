@@ -11,6 +11,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 import java.util.TimeZone
 import java.text.SimpleDateFormat
+import kotlin.math.abs
 
 object DateUtil {
 
@@ -156,6 +157,64 @@ object DateUtil {
     fun formatDisplayDate(date: Instant): String {
         val localDate = date.atZone(ZoneId.systemDefault()).toLocalDate()
         return localDate.format(displayDateFormatter)
+    }
+
+    /**
+     * Formats a LocalDate for display in release details (e.g. "August 23, 2026").
+     */
+    fun formatDisplayDate(localDate: LocalDate): String {
+        return localDate.format(displayDateFormatter)
+    }
+
+    /**
+     * Formats a LocalDate into a relative time string (e.g. "today", "tomorrow", "in 3 days", "2 months ago").
+     */
+    fun formatRelativeTime(
+        targetDate: LocalDate,
+        zone: ZoneId = ZoneId.systemDefault(),
+        today: LocalDate = LocalDate.now(zone)
+    ): String {
+        val diffDays = ChronoUnit.DAYS.between(today, targetDate)
+        val absDays = abs(diffDays)
+        val isFuture = diffDays > 0
+
+        return when {
+            absDays == 0L -> "today"
+            diffDays == 1L -> "tomorrow"
+            diffDays == -1L -> "yesterday"
+            absDays < 7L -> if (isFuture) "in $absDays days" else "$absDays days ago"
+            absDays < 30L -> {
+                val weeks = maxOf(1L, (absDays + 3) / 7)
+                val label = if (weeks == 1L) "1 week" else "$weeks weeks"
+                if (isFuture) "in $label" else "$label ago"
+            }
+            absDays < 365L -> {
+                val months = (absDays + 15) / 30
+                if (months >= 12L) {
+                    if (isFuture) "in 1 year" else "1 year ago"
+                } else {
+                    val label = if (months <= 1L) "1 month" else "$months months"
+                    if (isFuture) "in $label" else "$label ago"
+                }
+            }
+            else -> {
+                val years = maxOf(1L, (absDays + 182) / 365)
+                val label = if (years == 1L) "1 year" else "$years years"
+                if (isFuture) "in $label" else "$label ago"
+            }
+        }
+    }
+
+    /**
+     * Formats an Instant into a relative time string (e.g. "today", "tomorrow", "in 3 days", "2 months ago").
+     */
+    fun formatRelativeTime(
+        date: Instant,
+        zone: ZoneId = ZoneId.systemDefault(),
+        today: LocalDate = LocalDate.now(zone)
+    ): String {
+        val localDate = date.atZone(zone).toLocalDate()
+        return formatRelativeTime(localDate, zone, today)
     }
 
     /**

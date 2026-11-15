@@ -48,6 +48,7 @@ import com.felixbrucker.simklcalendar.data.database.SimilarMediaItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
+import com.felixbrucker.simklcalendar.data.util.DateUtil
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.displayTitle
@@ -64,6 +65,7 @@ import com.felixbrucker.simklcalendar.ui.composable.posterAlpha
 import com.felixbrucker.simklcalendar.ui.theme.*
 import com.felixbrucker.simklcalendar.ui.viewmodel.MediaItemDetailViewModel
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -849,6 +851,11 @@ fun MediaDetailInfoColumn(
             }
         }
 
+        MediaMovieReleaseDates(
+            releaseDate = item.movieMetadata?.releaseDate,
+            dvdDate = item.movieMetadata?.dvdDate
+        )
+
         if (!item.description.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -856,6 +863,55 @@ fun MediaDetailInfoColumn(
                 fontSize = 12.sp,
                 color = TextGrey,
             )
+        }
+    }
+}
+
+@Composable
+fun MediaReleaseDateRow(
+    label: String,
+    date: LocalDate,
+    modifier: Modifier = Modifier
+) {
+    val formattedDate = DateUtil.formatDisplayDate(date)
+    val relativeTime = DateUtil.formatRelativeTime(date)
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = TextSubtle
+        )
+        Text(
+            text = "$formattedDate ($relativeTime)",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.White
+        )
+    }
+}
+
+@Composable
+fun MediaMovieReleaseDates(
+    releaseDate: LocalDate?,
+    dvdDate: LocalDate?,
+    modifier: Modifier = Modifier
+) {
+    if (releaseDate == null && dvdDate == null) return
+
+    Column(
+        modifier = modifier.padding(vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        releaseDate?.let {
+            MediaReleaseDateRow(label = "Release Date:", date = it)
+        }
+        dvdDate?.let {
+            MediaReleaseDateRow(label = "DVD / Digital Release:", date = it)
         }
     }
 }
