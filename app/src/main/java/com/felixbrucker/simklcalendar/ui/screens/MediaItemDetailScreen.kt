@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,8 +39,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.felixbrucker.simklcalendar.data.database.AnimeType
-import com.felixbrucker.simklcalendar.data.database.EpisodeType
-import com.felixbrucker.simklcalendar.data.database.MediaEpisode
 import com.felixbrucker.simklcalendar.data.database.MediaItem
 import com.felixbrucker.simklcalendar.data.database.MediaItemWithDetails
 import com.felixbrucker.simklcalendar.data.database.RecommendedMediaItem
@@ -63,6 +62,8 @@ import com.felixbrucker.simklcalendar.ui.composable.categoryColor
 import com.felixbrucker.simklcalendar.ui.composable.overlayIcon
 import com.felixbrucker.simklcalendar.ui.composable.posterAlpha
 import com.felixbrucker.simklcalendar.ui.theme.*
+import com.felixbrucker.simklcalendar.ui.viewmodel.EpisodeListItemUiModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.EpisodeListUiState
 import com.felixbrucker.simklcalendar.ui.viewmodel.MediaItemDetailViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -90,6 +91,8 @@ fun MediaItemDetailScreen(
     val watchlistStatusMap by viewModel.watchlistStatusMap.collectAsState()
     val uiPreferences by viewModel.uiPreferences.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val episodeListUiState by viewModel.episodeListUiState.collectAsState()
+    var isEpisodesExpanded by remember { mutableStateOf(false) }
 
     val item = mediaItemWithDetails
     val categoryColor = when (item?.mediaType ?: MediaType.TV) {
@@ -174,13 +177,17 @@ fun MediaItemDetailScreen(
                     val isAnimeMovie = item.mediaType == MediaType.ANIME && item.animeMetadata?.animeType == AnimeType.MOVIE
                     val shouldShowEpisodes = item.mediaType != MediaType.MOVIE && !isAnimeMovie
                     if (shouldShowEpisodes) {
-                        item {
-                            MediaEpisodeListSection(
-                                episodes = item.episodes,
-                                mediaType = item.mediaType,
-                                modifier = Modifier.padding(16.dp)
-                            )
+                        val headerTitle = if (item.mediaType == MediaType.MOVIE) {
+                            "Releases (${episodeListUiState.totalCount})"
+                        } else {
+                            "Episodes (${episodeListUiState.totalCount})"
                         }
+                        mediaEpisodeCardSection(
+                            uiState = episodeListUiState,
+                            isExpanded = isEpisodesExpanded,
+                            headerTitle = headerTitle,
+                            onToggleExpand = { isEpisodesExpanded = !isEpisodesExpanded }
+                        )
                     }
 
                     if (item.relations.isNotEmpty()) {
@@ -270,68 +277,142 @@ fun CarouselHeaderWithToggle(
 }
 
 @Composable
-fun MediaEpisodeListSection(
-    episodes: List<MediaEpisode>,
-    mediaType: MediaType,
+fun MediaEpisodeCardHeader(
+    title: String,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-    val filteredEpisodes = remember(episodes) {
-        episodes.filter { it.type != EpisodeType.SPECIAL && it.season > 0 }
-    }
-
+    val shape = if (isExpanded) RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp) else RoundedCornerShape(12.dp)
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = shape,
         colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onToggleExpand() }
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (mediaType == MediaType.MOVIE) "Releases (${filteredEpisodes.size})" else "Episodes (${filteredEpisodes.size})",
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    fontSize = 15.sp
-                )
-                Icon(
-                    imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                    contentDescription = null,
-                    tint = Color.White
-                )
-            }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = title, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                contentDescription = if (isExpanded) "Collapse" else "Expand",
+                tint = Color.White
+            )
+        }
+    }
+}
 
-            if (isExpanded) {
-                Spacer(modifier = Modifier.height(12.dp))
-                if (filteredEpisodes.isEmpty()) {
-                    Text(text = "No episodes available", fontSize = 13.sp, color = TextSubtle)
-                } else {
-                    val grouped = remember(filteredEpisodes) { filteredEpisodes.groupBy { it.season }.toSortedMap() }
-                    grouped.forEach { (season, seasonEpisodes) ->
-                        if (season > 0 && grouped.size > 1) {
-                            Text(
-                                text = "Season $season",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PurpleLight,
-                                modifier = Modifier.padding(vertical = 6.dp)
-                            )
-                        }
-                        seasonEpisodes.forEach { ep ->
-                            val episodeCode = if (mediaType == MediaType.MOVIE) "MOVIE" else MediaFormatter.formatEpisodeCode(mediaType, ep.season, ep.episodeNumber)
-                            StandardEpisodeRow(
-                                title = ep.title.takeIf { it.isNotBlank() } ?: "TBA",
-                                episodeCode = episodeCode,
-                                date = ep.date
-                            )
-                        }
-                    }
-                }
+@Composable
+fun MediaEpisodeCardItemRow(
+    item: EpisodeListItemUiModel,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .background(SurfaceContainer)
+            .padding(horizontal = 16.dp)
+    ) {
+        when (item) {
+            is EpisodeListItemUiModel.SeasonHeader -> MediaSeasonHeader(season = item.season)
+            is EpisodeListItemUiModel.EpisodeRow -> StandardEpisodeRow(
+                title = item.title,
+                episodeCode = item.episodeCode,
+                date = item.date
+            )
+        }
+    }
+}
+
+@Composable
+fun MediaEpisodeCardEmptyFooter(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+            .background(
+                color = SurfaceContainer,
+                shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Text(text = "No episodes available", fontSize = 13.sp, color = TextSubtle)
+    }
+}
+
+@Composable
+fun MediaEpisodeCardBottomSpacer(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+            .background(
+                color = SurfaceContainer,
+                shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+            )
+            .height(16.dp)
+    )
+}
+
+@Composable
+fun MediaSeasonHeader(
+    season: Int,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = "Season $season",
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Bold,
+        color = PurpleLight,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+    )
+}
+
+fun LazyListScope.mediaEpisodeCardSection(
+    uiState: EpisodeListUiState,
+    isExpanded: Boolean,
+    headerTitle: String,
+    onToggleExpand: () -> Unit
+) {
+    item(key = "episode_header") {
+        MediaEpisodeCardHeader(
+            title = headerTitle,
+            isExpanded = isExpanded,
+            onToggleExpand = onToggleExpand,
+            modifier = if (isExpanded) {
+                Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)
+            } else {
+                Modifier.padding(16.dp)
+            }
+        )
+    }
+    if (isExpanded) {
+        if (uiState.items.isEmpty()) {
+            item(key = "episode_card_empty") {
+                MediaEpisodeCardEmptyFooter()
+            }
+        } else {
+            items(
+                items = uiState.items,
+                key = { it.key }
+            ) { episodeItem ->
+                MediaEpisodeCardItemRow(item = episodeItem)
+            }
+            item(key = "episode_card_bottom") {
+                MediaEpisodeCardBottomSpacer()
             }
         }
     }

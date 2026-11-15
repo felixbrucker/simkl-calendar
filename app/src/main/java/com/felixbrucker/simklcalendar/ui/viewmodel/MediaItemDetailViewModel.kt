@@ -25,6 +25,10 @@ import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository
 import com.felixbrucker.simklcalendar.data.repository.MediaRepository
 import com.felixbrucker.simklcalendar.data.repository.SyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import androidx.compose.runtime.Immutable
+import com.felixbrucker.simklcalendar.data.database.EpisodeType
+import com.felixbrucker.simklcalendar.data.util.MediaFormatter
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,10 +36,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.time.Instant
 import javax.inject.Inject
 
 object MediaItemHolder {
@@ -54,6 +60,32 @@ object MediaItemHolder {
     fun get(): MediaItem? = cachedItem
 }
 
+@Immutable
+sealed interface EpisodeListItemUiModel {
+    val key: String
+
+    @Immutable
+    data class SeasonHeader(
+        val season: Int,
+        override val key: String = "season_$season",
+    ) : EpisodeListItemUiModel
+
+    @Immutable
+    data class EpisodeRow(
+        val episodeKey: String,
+        val title: String,
+        val episodeCode: String,
+        val date: Instant?,
+        override val key: String = episodeKey,
+    ) : EpisodeListItemUiModel
+}
+
+@Immutable
+data class EpisodeListUiState(
+    val totalCount: Int = 0,
+    val items: List<EpisodeListItemUiModel> = emptyList()
+)
+
 @HiltViewModel
 class MediaItemDetailViewModel @Inject constructor(
     private val mediaRepository: MediaRepository,
@@ -63,7 +95,8 @@ class MediaItemDetailViewModel @Inject constructor(
     customSearchLinkRepository: CustomSearchLinkRepository,
     private val watchlistItemDao: WatchlistItemDao,
     private val uiRepository: UiRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    defaultDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
     private val simklIdFlow: StateFlow<Int> = savedStateHandle.getStateFlow("simklId", 0)
@@ -82,6 +115,51 @@ class MediaItemDetailViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = initialItem
+        )
+
+    val episodeListUiState: StateFlow<EpisodeListUiState> = mediaItem
+        .map { details ->
+            if (details == null) {
+                EpisodeListUiState()
+            } else {
+                val episodes = details.episodes
+                val mediaType = details.mediaType
+                val filteredEpisodes = episodes.filter { (it.type != EpisodeType.SPECIAL) && (it.season > 0) }
+                val grouped = filteredEpisodes.groupBy { it.season }.toSortedMap()
+                val items = ArrayList<EpisodeListItemUiModel>()
+                val showSeasonHeaders = grouped.size > 1
+                for ((season, seasonEpisodes) in grouped) {
+                    if ((season > 0) && showSeasonHeaders) {
+                        items.add(EpisodeListItemUiModel.SeasonHeader(season = season))
+                    }
+                    for (ep in seasonEpisodes.sortedBy { it.episodeNumber }) {
+                        val episodeCode = if (mediaType == MediaType.MOVIE) {
+                            "MOVIE"
+                        } else {
+                            MediaFormatter.formatEpisodeCode(mediaType, ep.season, ep.episodeNumber)
+                        }
+                        val title = ep.title.takeIf { it.isNotBlank() } ?: "TBA"
+                        items.add(
+                            EpisodeListItemUiModel.EpisodeRow(
+                                episodeKey = "${ep.simklId}_${ep.season}_${ep.episodeNumber}",
+                                title = title,
+                                episodeCode = episodeCode,
+                                date = ep.date
+                            )
+                        )
+                    }
+                }
+                EpisodeListUiState(
+                    totalCount = filteredEpisodes.size,
+                    items = items
+                )
+            }
+        }
+        .flowOn(defaultDispatcher)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = EpisodeListUiState()
         )
 
     @OptIn(ExperimentalCoroutinesApi::class)
