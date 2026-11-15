@@ -105,7 +105,7 @@ class NotificationManager @Inject constructor(
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setSubText(rankText)
-            .setContentText(description)
+            .setContentText(footer)
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .bigText(description)
