@@ -103,6 +103,17 @@ class MainActivity : ComponentActivity() {
         _pendingReleaseDetailKey.value = null
     }
 
+    private val _pendingMediaItemRoute = MutableStateFlow<String?>(null)
+    val pendingMediaItemRoute: StateFlow<String?> = _pendingMediaItemRoute.asStateFlow()
+
+    fun setPendingMediaItemRoute(route: String) {
+        _pendingMediaItemRoute.value = route
+    }
+
+    fun clearPendingMediaItemRoute() {
+        _pendingMediaItemRoute.value = null
+    }
+
     // Modern AuthTab ActivityResultLauncher
     private val authTabLauncher = AuthTabIntent.registerActivityResultLauncher(this) { result ->
         handleAuthTabResult(result)
@@ -176,7 +187,9 @@ class MainActivity : ComponentActivity() {
                 SimklCalendarApp(
                     viewModel = viewModel,
                     pendingReleaseDetailKey = pendingReleaseDetailKey,
+                    pendingMediaItemRoute = pendingMediaItemRoute,
                     onClearPendingReleaseDetailKey = ::clearPendingReleaseDetailKey,
+                    onClearPendingMediaItemRoute = ::clearPendingMediaItemRoute,
                     onLaunchAuthTab = { authUrl ->
                         launchAuthTab(authUrl, "simklcalendar")
                     }
@@ -210,6 +223,13 @@ class MainActivity : ComponentActivity() {
             if (!itemKey.isNullOrEmpty()) {
                 setPendingReleaseDetailKey(itemKey)
                 notificationManager.dismissNotification(itemKey)
+            }
+        } else if (uri.host == "media_item") {
+            val simklId = uri.pathSegments.getOrNull(0)
+            val mediaType = uri.pathSegments.getOrNull(1)
+            if (!simklId.isNullOrEmpty() && !mediaType.isNullOrEmpty()) {
+                val route = "media_item/$simklId/$mediaType"
+                setPendingMediaItemRoute(route)
             }
         }
     }
@@ -253,12 +273,15 @@ internal fun NavController.popBackStackSafely(): Boolean {
 fun SimklCalendarApp(
     viewModel: CalendarViewModel,
     pendingReleaseDetailKey: StateFlow<String?>,
+    pendingMediaItemRoute: StateFlow<String?>,
     onClearPendingReleaseDetailKey: () -> Unit,
+    onClearPendingMediaItemRoute: () -> Unit,
     onLaunchAuthTab: (url: String) -> Unit = {}
 ) {
     val navController = rememberNavController()
     val authState by viewModel.authState.collectAsState()
     val pendingReleaseDetailKey by pendingReleaseDetailKey.collectAsState()
+    val pendingMediaItemRoute by pendingMediaItemRoute.collectAsState()
     val context = LocalContext.current
 
     // Don't render navigation until we know if the user is logged in or not
@@ -279,6 +302,18 @@ fun SimklCalendarApp(
                 launchSingleTop = true
             }
             onClearPendingReleaseDetailKey()
+        }
+    }
+
+    // Automatically navigate to media item detail when a media item route is provided via notification
+    LaunchedEffect(pendingMediaItemRoute, authState.token) {
+        val targetRoute = pendingMediaItemRoute
+        val token = authState.token
+        if (targetRoute != null && token != null) {
+            navController.navigate(targetRoute) {
+                launchSingleTop = true
+            }
+            onClearPendingMediaItemRoute()
         }
     }
 
