@@ -9,6 +9,7 @@ import com.felixbrucker.simklcalendar.data.preferences.UiRepository
 import com.felixbrucker.simklcalendar.data.repository.MediaRepository
 import com.felixbrucker.simklcalendar.data.repository.SyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -20,7 +21,8 @@ import javax.inject.Inject
 class TrendingViewModel @Inject constructor(
     private val uiRepo: UiRepository,
     private val mediaRepository: MediaRepository,
-    private val syncRepository: SyncRepository
+    private val syncRepository: SyncRepository,
+    defaultDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
     val uiPreferences: StateFlow<UiPreferences> = uiRepo.preferencesFlow
@@ -83,7 +85,9 @@ class TrendingViewModel @Inject constructor(
             hasDvd = filterState.hasDvd,
             searchQuery = query
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+        .flowOn(defaultDispatcher)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         refreshTrending()
