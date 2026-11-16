@@ -437,7 +437,7 @@ fun RelatedMediaCarousel(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(relations) { rel ->
+            items(relations, key = { "${it.relatedSimklId}_${it.mediaType}" }) { rel ->
                 val watchlistStatus = watchlistStatusMap[rel.relatedSimklId]
                 MediaItemCard(
                     simklId = rel.relatedSimklId,
@@ -495,7 +495,7 @@ fun SimilarMediaCarousel(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(displayItems) { sim ->
+                    items(displayItems, key = { "${it.similarSimklId}_${it.mediaType}" }) { sim ->
                         val watchlistStatus = watchlistStatusMap[sim.similarSimklId]
                         MediaItemCard(
                             simklId = sim.similarSimklId,
@@ -555,7 +555,7 @@ fun RecommendedMediaCarousel(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(displayItems) { rec ->
+                    items(displayItems, key = { "${it.recommendedSimklId}_${it.mediaType}" }) { rec ->
                         val watchlistStatus = watchlistStatusMap[rec.recommendedSimklId]
                         MediaItemCard(
                             simklId = rec.recommendedSimklId,
