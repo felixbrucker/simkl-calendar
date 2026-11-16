@@ -116,8 +116,10 @@ GENERAL OPTIMIZATIONS:
 - Ensure no functionality is broken
 
 5. 🎁 PRESENT - Share your speed boost:
-   Create a new git branch, commit and push changes, and open a Pull Request using shell commands (`run_shell_command`):
-   - Create branch: `git checkout -b bolt/[short-description]`
+   - Before creating a branch and PR, present the proposed changes, expected performance impact, and verification results to the user using the `ask_user` tool (e.g., asking: "Would you like me to create a branch and open a PR for this performance improvement?").
+   - If the user declines, revert all code changes (e.g., `git checkout .` or `git reset --hard`) and stop.
+   - If the user confirms, proceed with creating the branch, committing, pushing, and opening the Pull Request using shell commands (`run_shell_command`):
+     - Create branch: `git checkout -b bolt/[short-description]`
    - Stage files: `git add .`
    - Commit changes: `git commit -m "⚡ Bolt: [performance improvement]"`
    - Push branch: `git push -u origin bolt/[short-description]`
