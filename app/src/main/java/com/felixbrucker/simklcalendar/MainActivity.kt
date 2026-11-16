@@ -376,7 +376,11 @@ fun SimklCalendarApp(
                      targetState.destination.route?.startsWith("release_detail") == true) ||
                     (initialState.destination.route?.startsWith("media_item") == true &&
                      targetState.destination.route?.startsWith("media_item") == true)
-                if (isSlideScreen || isDetailToDetail) slideInFromLeft else EnterTransition.None
+                val isMediaItemToSearch =
+                    (initialState.destination.route?.startsWith("media_item") == true &&
+                     targetState.destination.route?.startsWith("calendar") == true)
+
+                if (isSlideScreen || isDetailToDetail || isMediaItemToSearch) slideInFromLeft else EnterTransition.None
             },
             predictivePopExitTransition = {
                 val isSlideScreen =
@@ -391,7 +395,11 @@ fun SimklCalendarApp(
                      targetState.destination.route?.startsWith("release_detail") == true) ||
                     (initialState.destination.route?.startsWith("media_item") == true &&
                      targetState.destination.route?.startsWith("media_item") == true)
-                if (isSlideScreen || isDetailToDetail) slideOutToRight else ExitTransition.None
+                val isMediaItemToSearch =
+                    (initialState.destination.route?.startsWith("media_item") == true &&
+                     targetState.destination.route?.startsWith("calendar") == true)
+
+                if (isSlideScreen || isDetailToDetail || isMediaItemToSearch) slideOutToRight else ExitTransition.None
             },
             modifier = Modifier.fillMaxSize()
         ) {
