@@ -1,6 +1,7 @@
 package com.felixbrucker.simklcalendar.data.paging
 
 import androidx.paging.PagingSource
+import androidx.paging.PagingSource.LoadResult.Page.Companion.COUNT_UNDEFINED
 import androidx.paging.PagingState
 import com.felixbrucker.simklcalendar.data.network.AuthenticatedSimklApiService
 import com.felixbrucker.simklcalendar.data.network.SimklSearchItem
@@ -30,10 +31,20 @@ class SimklSearchPagingSource(
                 } else {
                     page + 1
                 }
+
+                val itemsBefore = (page - 1) * params.loadSize
+                val itemsAfter = if (totalPages != null) {
+                    val totalCount = totalPages * params.loadSize
+
+                    totalCount - (itemsBefore + items.size)
+                } else COUNT_UNDEFINED
+
                 LoadResult.Page(
                     data = items,
                     prevKey = if (page == 1) null else page - 1,
-                    nextKey = nextKey
+                    nextKey = nextKey,
+                    itemsBefore = itemsBefore,
+                    itemsAfter = itemsAfter
                 )
             } else {
                 LoadResult.Error(Exception("Search failed with code: ${response.code()}"))

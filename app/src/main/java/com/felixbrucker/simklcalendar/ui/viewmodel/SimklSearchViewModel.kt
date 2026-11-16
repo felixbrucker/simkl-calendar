@@ -71,7 +71,7 @@ class SimklSearchViewModel @Inject constructor(
                     config = PagingConfig(
                         pageSize = 20,
                         prefetchDistance = 5,
-                        enablePlaceholders = false,
+                        enablePlaceholders = true,
                         initialLoadSize = 20
                     ),
                     pagingSourceFactory = { SimklSearchPagingSource(apiService, query) }

@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -1294,6 +1295,80 @@ fun SearchItemDetails(
 }
 
 @Composable
+fun SearchItemSkeletonCard(
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+    Card(
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SkeletonPosterBox(alpha = alpha)
+            Spacer(modifier = Modifier.width(12.dp))
+            SkeletonDetailsColumn(alpha = alpha)
+        }
+    }
+}
+
+@Composable
+fun SkeletonPosterBox(alpha: Float) {
+    Box(
+        modifier = Modifier
+            .width(48.dp)
+            .height(70.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(OutlineVariant.copy(alpha = alpha))
+    )
+}
+
+@Composable
+fun SkeletonDetailsColumn(alpha: Float) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.7f)
+                .height(16.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(OutlineVariant.copy(alpha = alpha))
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.4f)
+                .height(12.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(OutlineVariant.copy(alpha = alpha))
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.3f)
+                .height(10.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(OutlineVariant.copy(alpha = alpha))
+        )
+    }
+}
+
+@Composable
 fun ApiSearchResultsList(
     searchResults: LazyPagingItems<SimklSearchItem>,
     watchlistStatusMap: Map<Int, WatchlistStatus>,
@@ -1328,6 +1403,10 @@ fun ApiSearchResultsList(
                     item = item,
                     watchlistStatus = watchlistStatus,
                     onClick = { onNavigateToDetail(item.ids.simklId, item.mediaType) },
+                    modifier = Modifier.animateItem()
+                )
+            } else {
+                SearchItemSkeletonCard(
                     modifier = Modifier.animateItem()
                 )
             }
