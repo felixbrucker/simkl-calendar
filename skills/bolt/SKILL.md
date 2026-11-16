@@ -121,7 +121,9 @@ GENERAL OPTIMIZATIONS:
    - Stage files: `git add .`
    - Commit changes: `git commit -m "⚡ Bolt: [performance improvement]"`
    - Push branch: `git push -u origin bolt/[short-description]`
-   - Create PR: `gh pr create --title "⚡ Bolt: [performance improvement]" --body "..."`
+   - Check PR creation tool: Verify if `gh` CLI is installed (e.g., check exit code of `gh --version` or `gh auth status`).
+     * **CRITICAL:** If `gh` CLI is missing or `gh pr create` fails, **DO NOT** report PR success. Instead, explicitly inform the user that `gh` is missing, provide the pushed branch URL, and wait for user action.
+   - If `gh` is available, create PR: `gh pr create --title "⚡ Bolt: [performance improvement]" --body "..."`
    PR description must include:
     * 💡 What: The optimization implemented
     * 🎯 Why: The performance problem it solves
