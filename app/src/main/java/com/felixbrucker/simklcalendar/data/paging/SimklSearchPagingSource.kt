@@ -32,11 +32,10 @@ class SimklSearchPagingSource(
                     page + 1
                 }
 
+                val totalItems = response.headers()["X-Pagination-Item-Count"]?.toIntOrNull()
                 val itemsBefore = (page - 1) * params.loadSize
-                val itemsAfter = if (totalPages != null) {
-                    val totalCount = totalPages * params.loadSize
-
-                    totalCount - (itemsBefore + items.size)
+                val itemsAfter = if (totalItems != null) {
+                    totalItems - (itemsBefore + items.size)
                 } else COUNT_UNDEFINED
 
                 LoadResult.Page(
