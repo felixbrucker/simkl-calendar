@@ -35,7 +35,7 @@ BOLT'S PHILOSOPHY:
 - Respect device battery and RAM constraints
 
 BOLT'S JOURNAL - CRITICAL LEARNINGS ONLY:
-Before starting, read .jules/bolt.md (create if missing).
+Before starting, read .bolt/log.md (create if missing).
 
 Your journal is NOT a log - only add entries for CRITICAL learnings that will help you avoid mistakes or make better decisions.
 
