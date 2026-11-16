@@ -28,6 +28,9 @@ class SimklSearchViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private val _lastSearchedQuery = MutableStateFlow("")
+    val lastSearchedQuery: StateFlow<String> = _lastSearchedQuery.asStateFlow()
+
     private val _displayedSimklIds = MutableStateFlow<List<Int>>(emptyList())
 
     fun updateDisplayedSimklIds(ids: List<Int>) {
@@ -54,15 +57,22 @@ class SimklSearchViewModel @Inject constructor(
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+        if (query.isBlank()) {
+            _lastSearchedQuery.value = ""
+        }
     }
 
     fun clearSearchQuery() {
         _searchQuery.value = ""
+        _lastSearchedQuery.value = ""
     }
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     val searchResults: Flow<PagingData<SimklSearchItem>> = searchQuery
         .debounce(500.milliseconds)
+        .onEach { query ->
+            _lastSearchedQuery.value = query
+        }
         .flatMapLatest { query ->
             if (query.isBlank()) {
                 flowOf(PagingData.empty())

@@ -6,6 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -83,6 +85,8 @@ import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreyDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfacePrimaryVariant
 import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
+import com.felixbrucker.simklcalendar.ui.theme.SurfacePurpleVariant
+import com.felixbrucker.simklcalendar.ui.theme.TextGreyLight
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
 import com.felixbrucker.simklcalendar.ui.theme.TextGrey
 import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
@@ -171,6 +175,7 @@ fun MainScreen(
 
     val apiSearchViewModel: SimklSearchViewModel = hiltViewModel()
     val apiSearchQuery by apiSearchViewModel.searchQuery.collectAsState()
+    val apiLastSearchedQuery by apiSearchViewModel.lastSearchedQuery.collectAsState()
     val apiSearchResults = apiSearchViewModel.searchResults.collectAsLazyPagingItems()
     val watchlistStatusMap by apiSearchViewModel.watchlistStatusMap.collectAsState()
 
@@ -539,9 +544,14 @@ fun MainScreen(
                         ApiSearchResultsList(
                             searchResults = apiSearchResults,
                             watchlistStatusMap = watchlistStatusMap,
+                            searchQuery = apiSearchQuery,
+                            lastSearchedQuery = apiLastSearchedQuery,
                             onUpdateDisplayedIds = { apiSearchViewModel.updateDisplayedSimklIds(it) },
                             onNavigateToDetail = { simklId, mediaType ->
                                 onNavigateToDetail(simklId, mediaType)
+                            },
+                            onClearSearchQuery = {
+                                apiSearchViewModel.clearSearchQuery()
                             }
                         )
                     }
@@ -1369,11 +1379,80 @@ fun SkeletonDetailsColumn(alpha: Float) {
 }
 
 @Composable
+fun ApiSearchEmptyState(
+    searchQuery: String,
+    onClearSearchQuery: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        ApiSearchEmptyContent(
+            searchQuery = searchQuery,
+            onClearSearchQuery = onClearSearchQuery
+        )
+    }
+}
+
+@Composable
+fun ApiSearchEmptyContent(
+    searchQuery: String,
+    onClearSearchQuery: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = if (searchQuery.isNotBlank()) Icons.Default.SearchOff else Icons.Default.Search,
+            contentDescription = null,
+            tint = SurfacePurpleVariant,
+            modifier = Modifier.size(64.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = if (searchQuery.isNotBlank()) {
+                "No search results found for \"$searchQuery\""
+            } else {
+                "Type to search shows, movies, and anime..."
+            },
+            color = TextGreyLight,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        if (searchQuery.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(
+                onClick = {
+                    onClearSearchQuery()
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
+            ) {
+                Text("Clear Search Query", color = PurpleLight)
+            }
+        }
+    }
+}
+
+@Composable
 fun ApiSearchResultsList(
     searchResults: LazyPagingItems<SimklSearchItem>,
     watchlistStatusMap: Map<Int, WatchlistStatus>,
+    searchQuery: String,
+    lastSearchedQuery: String,
     onUpdateDisplayedIds: (List<Int>) -> Unit,
-    onNavigateToDetail: (Int, MediaType) -> Unit
+    onNavigateToDetail: (Int, MediaType) -> Unit,
+    onClearSearchQuery: () -> Unit
 ) {
     val displayedIds = remember(searchResults.itemCount) {
         (0 until searchResults.itemCount).mapNotNull { index ->
@@ -1385,11 +1464,61 @@ fun ApiSearchResultsList(
         onUpdateDisplayedIds(displayedIds)
     }
 
-    LazyColumn(
-        modifier = Modifier
+    ApiSearchResultsBody(
+        searchResults = searchResults,
+        watchlistStatusMap = watchlistStatusMap,
+        searchQuery = searchQuery,
+        lastSearchedQuery = lastSearchedQuery,
+        onNavigateToDetail = onNavigateToDetail,
+        onClearSearchQuery = onClearSearchQuery
+    )
+}
+
+@Composable
+fun ApiSearchResultsBody(
+    searchResults: LazyPagingItems<SimklSearchItem>,
+    watchlistStatusMap: Map<Int, WatchlistStatus>,
+    searchQuery: String,
+    lastSearchedQuery: String,
+    onNavigateToDetail: (Int, MediaType) -> Unit,
+    onClearSearchQuery: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isNotLoading = searchResults.loadState.refresh is LoadState.NotLoading
+    val hasSearchedCurrentQuery = searchQuery.isBlank() || (searchQuery.isNotBlank() && searchQuery == lastSearchedQuery)
+    val showEmptyState = searchQuery.isBlank() || (isNotLoading && searchResults.itemCount == 0 && hasSearchedCurrentQuery)
+
+    Box(
+        modifier = modifier
             .fillMaxSize()
             .background(SurfaceDark)
-            .testTag("api_search_results_list"),
+            .testTag("api_search_results_list")
+    ) {
+        if (showEmptyState) {
+            ApiSearchEmptyState(
+                searchQuery = searchQuery,
+                onClearSearchQuery = onClearSearchQuery
+            )
+        } else {
+            ApiSearchResultsLazyColumn(
+                searchResults = searchResults,
+                watchlistStatusMap = watchlistStatusMap,
+                onNavigateToDetail = onNavigateToDetail
+            )
+        }
+    }
+}
+
+@Composable
+fun ApiSearchResultsLazyColumn(
+    searchResults: LazyPagingItems<SimklSearchItem>,
+    watchlistStatusMap: Map<Int, WatchlistStatus>,
+    onNavigateToDetail: (Int, MediaType) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         items(
