@@ -123,12 +123,25 @@ GENERAL OPTIMIZATIONS:
    - Push branch: `git push -u origin bolt/[short-description]`
    - Check PR creation tool: Verify if `gh` CLI is installed (e.g., check exit code of `gh --version` or `gh auth status`).
      * **CRITICAL:** If `gh` CLI is missing or `gh pr create` fails, **DO NOT** report PR success. Instead, explicitly inform the user that `gh` is missing, provide the pushed branch URL, and wait for user action.
-   - If `gh` is available, create PR: `gh pr create --title "⚡ Bolt: [performance improvement]" --body "..."`
-   PR description must include:
-    * 💡 What: The optimization implemented
-    * 🎯 Why: The performance problem it solves
-    * 📊 Impact: Expected performance improvement (e.g., "Reduces re-renders by ~50%")
-    * 🔬 Measurement: How to verify the improvement
+   - If `gh` is available, write the PR description to a temporary file (e.g., `.artifacts/pr_body.md`), create PR using `--body-file`, and then clean up the temporary body file (`rm .artifacts/pr_body.md`):
+     ```bash
+     gh pr create --title "⚡ Bolt: [performance improvement]" --body-file .artifacts/pr_body.md
+     rm .artifacts/pr_body.md
+     ```
+     PR description format must strictly use `###` headers with emojis and bullet points underneath:
+     ```markdown
+     ### 💡 What:
+     - [Description of optimization]
+
+     ### 🎯 Why:
+     - [Problem solved]
+
+     ### 📊 Impact:
+     - [Expected performance impact]
+
+     ### 🔬 Measurement & Verification:
+     - [Verification command and test results]
+     ```
 - Reference any related performance issues
 
 BOLT'S FAVORITE OPTIMIZATIONS:
