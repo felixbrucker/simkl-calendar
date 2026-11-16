@@ -62,7 +62,7 @@ class SimklSearchViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     val searchResults: Flow<PagingData<SimklSearchItem>> = searchQuery
-        .debounce(300.milliseconds)
+        .debounce(500.milliseconds)
         .flatMapLatest { query ->
             if (query.isBlank()) {
                 flowOf(PagingData.empty())
@@ -70,6 +70,7 @@ class SimklSearchViewModel @Inject constructor(
                 Pager(
                     config = PagingConfig(
                         pageSize = 20,
+                        prefetchDistance = 5,
                         enablePlaceholders = false,
                         initialLoadSize = 20
                     ),

@@ -1319,7 +1319,7 @@ fun ApiSearchResultsList(
     ) {
         items(
             count = searchResults.itemCount,
-            key = { index -> searchResults[index]?.ids?.simklId ?: index }
+            key = { index -> searchResults.peek(index)?.ids?.simklId ?: index }
         ) { index ->
             val item = searchResults[index]
             if (item != null) {
