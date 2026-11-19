@@ -310,9 +310,7 @@ fun SimklCalendarApp(
         val targetRoute = pendingMediaItemRoute
         val token = authState.token
         if (targetRoute != null && token != null) {
-            navController.navigate(targetRoute) {
-                launchSingleTop = true
-            }
+            navController.navigate(targetRoute)
             onClearPendingMediaItemRoute()
         }
     }
