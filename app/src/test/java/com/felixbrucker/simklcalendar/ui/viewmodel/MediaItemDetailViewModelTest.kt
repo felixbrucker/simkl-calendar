@@ -104,12 +104,12 @@ class MediaItemDetailViewModelTest {
 
         val epRows = state.items.filterIsInstance<EpisodeListItemUiModel.EpisodeRow>()
         assertEquals(3, epRows.size)
-        assertEquals("Pilot", epRows[0].title)
-        assertEquals("S01E01", epRows[0].episodeCode)
+        assertEquals("S2 Pilot", epRows[0].title)
+        assertEquals("S02E01", epRows[0].episodeCode)
         assertEquals("Episode 2", epRows[1].title)
         assertEquals("S01E02", epRows[1].episodeCode)
-        assertEquals("S2 Pilot", epRows[2].title)
-        assertEquals("S02E01", epRows[2].episodeCode)
+        assertEquals("Pilot", epRows[2].title)
+        assertEquals("S01E01", epRows[2].episodeCode)
 
         job.cancel()
     }
@@ -156,8 +156,8 @@ class MediaItemDetailViewModelTest {
 
         val epRows = state.items.filterIsInstance<EpisodeListItemUiModel.EpisodeRow>()
         assertEquals(2, epRows.size)
-        assertEquals("E01", epRows[0].episodeCode)
-        assertEquals("E02", epRows[1].episodeCode)
+        assertEquals("E02", epRows[0].episodeCode)
+        assertEquals("E01", epRows[1].episodeCode)
 
         job.cancel()
     }

@@ -122,44 +122,70 @@ fun EpisodeListContent(
     modifier: Modifier = Modifier,
 ) {
     if (state.mediaType == MediaType.MOVIE) {
-        Column(modifier = modifier) {
-            state.items.forEach { epItem ->
-                EpisodeListRow(
-                    epItem = epItem,
-                    state = state,
-                    actions = actions
-                )
-            }
-        }
+        MovieEpisodeListContent(state = state, actions = actions, modifier = modifier)
     } else {
-        val grouped = remember(state.items) {
-            state.items.groupBy { it.season ?: 1 }.toSortedMap()
+        ShowEpisodeListContent(state = state, actions = actions, modifier = modifier)
+    }
+}
+
+@Composable
+private fun MovieEpisodeListContent(
+    state: EpisodeListState,
+    actions: EpisodeListActions,
+    modifier: Modifier = Modifier,
+) {
+    val sortedMovieItems = remember(state.items) {
+        state.items.sortedByDescending { it.date }
+    }
+    Column(modifier = modifier) {
+        sortedMovieItems.forEach { epItem ->
+            EpisodeListRow(epItem = epItem, state = state, actions = actions)
         }
-        Column(modifier = modifier) {
-            grouped.forEach { (season, seasonEpisodes) ->
-                if (state.showSeasonHeaders) {
-                    val headerState = remember(season, seasonEpisodes, state.updatingWatchKeys, actions) {
-                        SeasonHeaderState(
-                            season = season,
-                            episodes = seasonEpisodes,
-                            updatingWatchKeys = state.updatingWatchKeys,
-                            onMarkSeasonWatched = actions.onMarkSeasonWatched,
-                            onMarkSeasonUnwatched = actions.onMarkSeasonUnwatched,
-                            onUpdateSeasonMediaStatus = actions.onUpdateSeasonMediaStatus,
-                            onSearchSeasonManually = actions.onSearchSeasonManually
-                        )
-                    }
-                    SeasonSectionHeader(state = headerState)
-                }
-                seasonEpisodes.forEach { epItem ->
-                    EpisodeListRow(
-                        epItem = epItem,
-                        state = state,
-                        actions = actions
-                    )
-                }
-            }
+    }
+}
+
+@Composable
+private fun ShowEpisodeListContent(
+    state: EpisodeListState,
+    actions: EpisodeListActions,
+    modifier: Modifier = Modifier,
+) {
+    val grouped = remember(state.items) { state.items.groupBy { it.season ?: 1 } }
+    val sortedSeasons = remember(grouped) { grouped.keys.sortedDescending() }
+    Column(modifier = modifier) {
+        sortedSeasons.forEach { season ->
+            SeasonEpisodesSection(season = season, grouped = grouped, state = state, actions = actions)
         }
+    }
+}
+
+@Composable
+private fun SeasonEpisodesSection(
+    season: Int,
+    grouped: Map<Int, List<CalendarItemWithWatchlist>>,
+    state: EpisodeListState,
+    actions: EpisodeListActions,
+) {
+    val seasonEpisodes = grouped[season] ?: emptyList()
+    val sortedSeasonEpisodes = remember(seasonEpisodes) {
+        seasonEpisodes.sortedByDescending { it.episodeNumber ?: 0 }
+    }
+    if (state.showSeasonHeaders) {
+        val headerState = remember(season, sortedSeasonEpisodes, state.updatingWatchKeys, actions) {
+            SeasonHeaderState(
+                season = season,
+                episodes = sortedSeasonEpisodes,
+                updatingWatchKeys = state.updatingWatchKeys,
+                onMarkSeasonWatched = actions.onMarkSeasonWatched,
+                onMarkSeasonUnwatched = actions.onMarkSeasonUnwatched,
+                onUpdateSeasonMediaStatus = actions.onUpdateSeasonMediaStatus,
+                onSearchSeasonManually = actions.onSearchSeasonManually
+            )
+        }
+        SeasonSectionHeader(state = headerState)
+    }
+    sortedSeasonEpisodes.forEach { epItem ->
+        EpisodeListRow(epItem = epItem, state = state, actions = actions)
     }
 }
 

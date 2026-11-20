@@ -125,14 +125,16 @@ class MediaItemDetailViewModel @Inject constructor(
                 val episodes = details.episodes
                 val mediaType = details.mediaType
                 val filteredEpisodes = episodes.filter { (it.type != EpisodeType.SPECIAL) && (it.season > 0) }
-                val grouped = filteredEpisodes.groupBy { it.season }.toSortedMap()
+                val grouped = filteredEpisodes.groupBy { it.season }
+                val sortedSeasons = grouped.keys.sortedDescending()
                 val items = ArrayList<EpisodeListItemUiModel>()
-                val showSeasonHeaders = grouped.size > 1
-                for ((season, seasonEpisodes) in grouped) {
+                val showSeasonHeaders = sortedSeasons.size > 1
+                for (season in sortedSeasons) {
+                    val seasonEpisodes = grouped[season] ?: continue
                     if ((season > 0) && showSeasonHeaders) {
                         items.add(EpisodeListItemUiModel.SeasonHeader(season = season))
                     }
-                    for (ep in seasonEpisodes.sortedBy { it.episodeNumber }) {
+                    for (ep in seasonEpisodes.sortedByDescending { it.episodeNumber }) {
                         val episodeCode = if (mediaType == MediaType.MOVIE) {
                             "MOVIE"
                         } else {
