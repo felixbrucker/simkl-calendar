@@ -1,9 +1,7 @@
 package com.felixbrucker.simklcalendar.ui.composable
 
-import android.R.drawable.ic_menu_gallery
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,27 +13,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.displayTitle
-import com.felixbrucker.simklcalendar.data.util.PosterSize
-import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.theme.*
 import java.util.Locale
 
 @Composable
 fun TrendingItemCard(
     trendingItem: TrendingMediaItem,
+    watchlistStatus: WatchlistStatus?,
     onItemClick: (Int, MediaType) -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -46,7 +41,6 @@ fun TrendingItemCard(
     val mediaType = trendingItem.trendingEntry.mediaType
     val rank = trendingItem.trendingEntry.rank
 
-    val categoryColor = mediaType.categoryColor
     val density = LocalDensity.current
     val isTablet = with(density) { LocalWindowInfo.current.containerSize.width.toDp() >= 600.dp }
 
@@ -99,27 +93,15 @@ fun TrendingItemCard(
                     .clip(RoundedCornerShape(8.dp)),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AsyncImage(
-                    model = mediaItem?.poster?.toPosterUrl(PosterSize.COMPACT),
+                WatchlistOverlayPosterWithBadge(
+                    posterFragment = mediaItem?.poster,
                     contentDescription = "${mediaItem?.title} Poster",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                    error = painterResource(id = ic_menu_gallery)
+                    mediaType = mediaType,
+                    watchlistStatus = watchlistStatus,
+                    modifier = Modifier.width(75.dp),
+                    posterHeight = 110.dp,
+                    iconSize = 24.dp
                 )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(categoryColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = mediaType.displayName.uppercase(),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = mediaType.badgeTextColor,
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))

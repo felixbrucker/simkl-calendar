@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.preferences.UiPreferences
 import com.felixbrucker.simklcalendar.data.preferences.UiRepository
 import com.felixbrucker.simklcalendar.data.repository.MediaRepository
@@ -88,6 +89,24 @@ class TrendingViewModel @Inject constructor(
     }
         .flowOn(defaultDispatcher)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val watchlistStatusMap: StateFlow<Map<Int, WatchlistStatus>> = trendingMediaItems
+        .map { items -> items.map { it.trendingEntry.simklId } }
+        .distinctUntilChanged()
+        .flatMapLatest { ids ->
+            if (ids.isEmpty()) {
+                flowOf(emptyMap())
+            } else {
+                mediaRepository.getWatchlistItemsFlow(ids).map { list ->
+                    list.mapNotNull { item ->
+                        item.status?.let { item.simklId to it }
+                    }.toMap()
+                }
+            }
+        }
+        .flowOn(defaultDispatcher)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     init {
         refreshTrending()

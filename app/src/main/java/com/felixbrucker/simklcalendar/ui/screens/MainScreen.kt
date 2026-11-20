@@ -30,18 +30,13 @@ import androidx.paging.compose.LazyPagingItems
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.network.SimklSearchItem
-import com.felixbrucker.simklcalendar.data.util.PosterSize
-import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.viewmodel.SimklSearchViewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
@@ -94,8 +89,7 @@ import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.composable.MediaTypeBadge
 import com.felixbrucker.simklcalendar.ui.composable.MediaTypeFilterChips
-import com.felixbrucker.simklcalendar.ui.composable.overlayIcon
-import com.felixbrucker.simklcalendar.ui.composable.posterAlpha
+import com.felixbrucker.simklcalendar.ui.composable.WatchlistOverlayPoster
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1177,41 +1171,16 @@ fun SearchItemPoster(
     item: SimklSearchItem,
     watchlistStatus: WatchlistStatus?
 ) {
-    val context = LocalContext.current
-    val posterUrl = remember(item.poster) { item.poster.toPosterUrl(PosterSize.COMPACT) }
-    val overlayIcon = watchlistStatus.overlayIcon
-    val isFaded = watchlistStatus != null
-
-    Box(
+    WatchlistOverlayPoster(
+        posterFragment = item.poster,
+        contentDescription = "${item.displayTitle} Poster",
+        watchlistStatus = watchlistStatus,
         modifier = Modifier
             .width(48.dp)
             .height(70.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .alpha(watchlistStatus.posterAlpha),
-        contentAlignment = Alignment.Center
-    ) {
-        AsyncImage(
-            model = ImageRequest.Builder(context).data(posterUrl).crossfade(enable = true).build(),
-            contentDescription = "${item.displayTitle} Poster",
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-        if (isFaded && overlayIcon != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.35f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = overlayIcon,
-                    contentDescription = watchlistStatus.displayName,
-                    tint = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
-    }
+            .clip(RoundedCornerShape(6.dp)),
+        iconSize = 22.dp
+    )
 }
 
 @Composable

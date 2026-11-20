@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.preferences.UiPreferences
 import com.felixbrucker.simklcalendar.ui.composable.MediaTypeFilterChips
 import com.felixbrucker.simklcalendar.ui.composable.TrendingItemCard
@@ -73,6 +74,7 @@ fun TrendingScreen(
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val trendingItems by viewModel.trendingMediaItems.collectAsState()
+    val watchlistStatusMap by viewModel.watchlistStatusMap.collectAsState()
     val uiPreferences by viewModel.uiPreferences.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -187,6 +189,7 @@ fun TrendingScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
             trendingItems = trendingItems,
+            watchlistStatusMap = watchlistStatusMap,
             uiPreferences = uiPreferences,
             isRefreshing = isRefreshing,
             isFilterOpen = isFilterSidebarOpen,
@@ -209,6 +212,7 @@ fun TrendingScreen(
 private fun TrendingContentHost(
     modifier: Modifier = Modifier,
     trendingItems: List<TrendingMediaItem>,
+    watchlistStatusMap: Map<Int, WatchlistStatus>,
     uiPreferences: UiPreferences,
     isRefreshing: Boolean,
     isFilterOpen: Boolean,
@@ -227,6 +231,7 @@ private fun TrendingContentHost(
         if (isTablet) {
             TrendingTabletLayout(
                 trendingItems = trendingItems,
+                watchlistStatusMap = watchlistStatusMap,
                 uiPreferences = uiPreferences,
                 isRefreshing = isRefreshing,
                 isFilterOpen = isFilterOpen,
@@ -242,6 +247,7 @@ private fun TrendingContentHost(
         } else {
             TrendingMobileLayout(
                 trendingItems = trendingItems,
+                watchlistStatusMap = watchlistStatusMap,
                 uiPreferences = uiPreferences,
                 isRefreshing = isRefreshing,
                 isFilterOpen = isFilterOpen,
@@ -262,6 +268,7 @@ private fun TrendingContentHost(
 @Composable
 private fun TrendingTabletLayout(
     trendingItems: List<TrendingMediaItem>,
+    watchlistStatusMap: Map<Int, WatchlistStatus>,
     uiPreferences: UiPreferences,
     isRefreshing: Boolean,
     isFilterOpen: Boolean,
@@ -282,6 +289,7 @@ private fun TrendingTabletLayout(
         ) {
             TrendingMainContent(
                 trendingItems = trendingItems,
+                watchlistStatusMap = watchlistStatusMap,
                 isRefreshing = isRefreshing,
                 listState = listState,
                 onRefresh = onRefresh,
@@ -317,6 +325,7 @@ private fun TrendingTabletLayout(
 @Composable
 private fun TrendingMobileLayout(
     trendingItems: List<TrendingMediaItem>,
+    watchlistStatusMap: Map<Int, WatchlistStatus>,
     uiPreferences: UiPreferences,
     isRefreshing: Boolean,
     isFilterOpen: Boolean,
@@ -333,6 +342,7 @@ private fun TrendingMobileLayout(
     Box(modifier = Modifier.fillMaxSize()) {
         TrendingMainContent(
             trendingItems = trendingItems,
+            watchlistStatusMap = watchlistStatusMap,
             isRefreshing = isRefreshing,
             listState = listState,
             onRefresh = onRefresh,
@@ -382,6 +392,7 @@ private fun TrendingMobileLayout(
 @Composable
 private fun TrendingMainContent(
     trendingItems: List<TrendingMediaItem>,
+    watchlistStatusMap: Map<Int, WatchlistStatus>,
     isRefreshing: Boolean,
     listState: LazyListState,
     onRefresh: () -> Unit,
@@ -404,8 +415,10 @@ private fun TrendingMainContent(
                     trendingItems,
                     key = { "${it.trendingEntry.mediaType}_${it.trendingEntry.simklId}" }
                 ) { item ->
+                    val watchlistStatus = watchlistStatusMap[item.trendingEntry.simklId]
                     TrendingItemCard(
                         trendingItem = item,
+                        watchlistStatus = watchlistStatus,
                         onItemClick = { simklId, mediaType ->
                             item.mediaItem?.let { MediaItemHolder.set(it) }
                             onItemClick(simklId, mediaType)

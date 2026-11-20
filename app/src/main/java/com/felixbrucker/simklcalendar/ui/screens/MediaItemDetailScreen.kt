@@ -23,7 +23,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -58,9 +57,8 @@ import com.felixbrucker.simklcalendar.ui.composable.StandardEpisodeRow
 import com.felixbrucker.simklcalendar.ui.composable.sharedBoundsItem
 import com.felixbrucker.simklcalendar.ui.composable.sharedElementItem
 import com.felixbrucker.simklcalendar.ui.composable.badgeTextColor
-import com.felixbrucker.simklcalendar.ui.composable.categoryColor
 import com.felixbrucker.simklcalendar.ui.composable.overlayIcon
-import com.felixbrucker.simklcalendar.ui.composable.posterAlpha
+import com.felixbrucker.simklcalendar.ui.composable.WatchlistOverlayPosterWithBadge
 import com.felixbrucker.simklcalendar.ui.theme.*
 import com.felixbrucker.simklcalendar.ui.viewmodel.EpisodeListItemUiModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.EpisodeListUiState
@@ -591,17 +589,9 @@ fun MediaItemCard(
     onNavigateToDetail: (Int, MediaType) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val posterUrl = remember(poster) { poster.toPosterUrl(PosterSize.COMPACT) }
-    val isFaded = watchlistStatus != null
-    val alphaVal = watchlistStatus.posterAlpha
-    val categoryColor = mediaType.categoryColor
-    val overlayIcon = watchlistStatus.overlayIcon
-
     Column(
         modifier = modifier
             .width(110.dp)
-            .alpha(alphaVal)
             .clickable { onNavigateToDetail(simklId, mediaType) },
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -610,52 +600,15 @@ fun MediaItemCard(
                 .width(110.dp)
                 .clip(RoundedCornerShape(8.dp))
         ) {
-            Column(
+            WatchlistOverlayPosterWithBadge(
+                posterFragment = poster,
+                contentDescription = null,
+                mediaType = mediaType,
+                watchlistStatus = watchlistStatus,
                 modifier = Modifier.width(110.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context).data(posterUrl).crossfade(enable = true).build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .width(110.dp)
-                        .height(150.dp),
-                    error = painterResource(id = ic_menu_gallery)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(categoryColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = mediaType.displayName.uppercase(),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = mediaType.badgeTextColor,
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    )
-                }
-            }
-
-            if (isFaded && overlayIcon != null) {
-                Box(
-                    modifier = Modifier
-                        .width(110.dp)
-                        .height(150.dp)
-                        .background(Color.Black.copy(alpha = 0.35f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = overlayIcon,
-                        contentDescription = watchlistStatus.displayName,
-                        tint = Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
+                posterHeight = 150.dp,
+                iconSize = 32.dp
+            )
 
             if (!topStartBadge.isNullOrBlank() || !topEndBadge.isNullOrBlank()) {
                 Column(
