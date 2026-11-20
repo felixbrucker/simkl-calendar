@@ -406,6 +406,18 @@ interface ActiveNotificationDao {
 }
 
 @Dao
+interface ActiveTrendingNotificationDao {
+    @Query("SELECT * FROM active_trending_notifications")
+    suspend fun getAllActiveTrendingNotifications(): List<ActiveTrendingNotification>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertActiveTrendingNotification(notification: ActiveTrendingNotification)
+
+    @Query("DELETE FROM active_trending_notifications WHERE simklId = :simklId")
+    suspend fun deleteActiveTrendingNotification(simklId: Int)
+}
+
+@Dao
 interface ItemDownloadSettingsDao {
     @Query("SELECT * FROM item_download_settings WHERE simklId = :simklId LIMIT 1")
     suspend fun getSettings(simklId: Int): ItemDownloadSettings?

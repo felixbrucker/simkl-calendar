@@ -230,6 +230,9 @@ class MainActivity : ComponentActivity() {
             if (!simklId.isNullOrEmpty() && !mediaType.isNullOrEmpty()) {
                 val route = "media_item/$simklId/$mediaType"
                 setPendingMediaItemRoute(route)
+                simklId.toIntOrNull()?.let { id ->
+                    notificationManager.dismissTrendingNotification(id)
+                }
             }
         }
     }

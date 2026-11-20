@@ -197,6 +197,7 @@ class Converters {
         ItemDownloadSettings::class,
         LocalItemState::class,
         ActiveNotification::class,
+        ActiveTrendingNotification::class,
         MediaItem::class,
         TrendingEntry::class,
         WatchlistItem::class,
@@ -206,7 +207,7 @@ class Converters {
         SimilarMediaItem::class,
         RecommendedMediaItem::class,
     ],
-    version = 44,
+    version = 45,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 7, to = 8),
@@ -241,6 +242,7 @@ class Converters {
         AutoMigration(from = 41, to = 42),
         AutoMigration(from = 42, to = 43),
         AutoMigration(from = 43, to = 44),
+        AutoMigration(from = 44, to = 45),
     ]
 )
 @TypeConverters(Converters::class, EpisodeTypeConverter::class, RelationTypeConverter::class)
@@ -274,6 +276,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun watchedEpisodeDao(): WatchedEpisodeDao
     abstract fun customSearchLinkDao(): CustomSearchLinkDao
     abstract fun activeNotificationDao(): ActiveNotificationDao
+    abstract fun activeTrendingNotificationDao(): ActiveTrendingNotificationDao
     abstract fun itemDownloadSettingsDao(): ItemDownloadSettingsDao
     abstract fun mediaItemDao(): MediaItemDao
     abstract fun trendingEntryDao(): TrendingEntryDao

@@ -412,6 +412,23 @@ data class ActiveNotification(
 )
 
 @Entity(
+    tableName = "active_trending_notifications",
+    foreignKeys = [
+        ForeignKey(
+            entity = MediaItem::class,
+            parentColumns = ["simklId"],
+            childColumns = ["simklId"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE,
+        )
+    ]
+)
+data class ActiveTrendingNotification(
+    @PrimaryKey val simklId: Int,
+    val rank: Int
+)
+
+@Entity(
     tableName = "item_download_settings",
     foreignKeys = [
         ForeignKey(

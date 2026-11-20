@@ -23,9 +23,13 @@ import com.felixbrucker.simklcalendar.MainActivity
 import com.felixbrucker.simklcalendar.R
 import com.felixbrucker.simklcalendar.data.database.ActiveNotification
 import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
+import com.felixbrucker.simklcalendar.data.database.ActiveTrendingNotification
+import com.felixbrucker.simklcalendar.data.database.ActiveTrendingNotificationDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.MediaItem
+import com.felixbrucker.simklcalendar.data.database.MediaItemDao
+import com.felixbrucker.simklcalendar.data.database.TrendingEntry
 import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
@@ -48,7 +52,9 @@ import javax.inject.Singleton
 class NotificationManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val calendarItemDao: CalendarItemDao,
+    private val mediaItemDao: MediaItemDao,
     private val activeNotificationDao: ActiveNotificationDao,
+    private val activeTrendingNotificationDao: ActiveTrendingNotificationDao,
     private val torrentServiceHelper: TorrentServiceHelper
 ) {
     companion object {
@@ -77,6 +83,14 @@ class NotificationManager @Inject constructor(
     }
 
     suspend fun showTrendingNotification(item: TrendingMediaItem) {
+        showTrendingNotificationInternal(item)
+        addActiveTrendingNotification(
+            simklId = item.trendingEntry.simklId,
+            rank = item.trendingEntry.rank
+        )
+    }
+
+    private suspend fun showTrendingNotificationInternal(item: TrendingMediaItem) {
         createNotificationChannel()
         val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
         if (!isNotificationPermissionGranted) return
@@ -86,19 +100,33 @@ class NotificationManager @Inject constructor(
         val rankText = "#${item.trendingEntry.rank} Trending"
         val description = mediaItem?.description ?: ""
         val footer = formatTrendingFooter(mediaItem)
+        val mediaType = item.trendingEntry.mediaType
+        val simklId = item.trendingEntry.simklId
 
-        val notificationId = abs(("trending_${item.trendingEntry.mediaType.key}_${item.trendingEntry.simklId}").hashCode())
+        val notificationId = abs(("trending_${mediaType.key}_$simklId").hashCode())
 
         val openIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(MainActivity.EXTRA_ITEM_KEY, item.trendingEntry.simklId.toString())
-            data = "simklcalendar://media_item/${item.trendingEntry.simklId}/${item.trendingEntry.mediaType.key}".toUri()
+            putExtra(MainActivity.EXTRA_ITEM_KEY, simklId.toString())
+            data = "simklcalendar://media_item/$simklId/${mediaType.key}".toUri()
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
             notificationId,
             openIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val dismissIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_TRENDING_NOTIFICATION_DISMISSED
+            data = "simklcalendar://trending/$simklId".toUri()
+            putExtra(NotificationActionReceiver.EXTRA_TRENDING_SIMKL_ID, simklId)
+        }
+        val dismissPendingIntent = PendingIntent.getBroadcast(
+            context,
+            notificationId * 10 + 6,
+            dismissIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -115,6 +143,7 @@ class NotificationManager @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(pendingIntent)
+            .setDeleteIntent(dismissPendingIntent)
             .setAutoCancel(true)
 
         val posterBitmap = loadPosterBitmap(mediaItem?.poster)
@@ -124,7 +153,7 @@ class NotificationManager @Inject constructor(
 
         try {
             context.getSystemNotificationManager().notify(notificationId, builder.build())
-            Timber.tag(TAG).d("Successfully displayed trending notification id=$notificationId for ${item.trendingEntry.simklId}")
+            Timber.tag(TAG).d("Successfully displayed trending notification id=$notificationId for $simklId")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error posting trending notification")
         }
@@ -228,6 +257,46 @@ class NotificationManager @Inject constructor(
         }
     }
 
+    suspend fun addActiveTrendingNotification(simklId: Int, rank: Int) {
+        try {
+            activeTrendingNotificationDao.insertActiveTrendingNotification(
+                ActiveTrendingNotification(simklId = simklId, rank = rank)
+            )
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error inserting active trending notification simklId=$simklId")
+        }
+    }
+
+    suspend fun removeActiveTrendingNotification(simklId: Int) {
+        try {
+            activeTrendingNotificationDao.deleteActiveTrendingNotification(simklId)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error removing active trending notification simklId=$simklId")
+        }
+    }
+
+    suspend fun getActiveTrendingNotifications(): List<ActiveTrendingNotification> {
+        return try {
+            activeTrendingNotificationDao.getAllActiveTrendingNotifications()
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error fetching active trending notifications")
+            emptyList()
+        }
+    }
+
+    suspend fun dismissTrendingNotification(simklId: Int) {
+        val mediaItem = mediaItemDao.getMediaItem(simklId)
+        val mediaTypeKey = mediaItem?.mediaType?.key ?: "tv"
+        val notificationId = abs(("trending_${mediaTypeKey}_$simklId").hashCode())
+        try {
+            context.getSystemNotificationManager().cancel(notificationId)
+            removeActiveTrendingNotification(simklId)
+            Timber.tag(TAG).d("Successfully dismissed trending notification simklId=$simklId")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error dismissing trending notification simklId=$simklId")
+        }
+    }
+
     suspend fun restoreActiveNotifications() {
         createNotificationChannel()
         val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
@@ -236,27 +305,67 @@ class NotificationManager @Inject constructor(
         }
 
         val activeKeys = getActiveNotifications()
-        if (activeKeys.isEmpty()) {
+        if (activeKeys.isNotEmpty()) {
+            val systemNotificationManager = context.getSystemNotificationManager()
+            val currentlyPostedIds = systemNotificationManager.activeNotifications.map { it.id }.toSet()
+
+            for (primaryKey in activeKeys) {
+                val item = calendarItemDao.findItem(primaryKey)
+                if (item == null) {
+                    removeActiveNotification(primaryKey)
+                    continue
+                }
+
+                if (!currentlyPostedIds.contains(item.notificationId)) {
+                    val notification = buildNotification(item)
+                    try {
+                        systemNotificationManager.notify(item.notificationId, notification)
+                        Timber.tag(TAG).d("Restored missing notification primaryKey=$primaryKey id=${item.notificationId}")
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).e(e, "Error restoring notification primaryKey=$primaryKey")
+                    }
+                }
+            }
+        }
+
+        restoreActiveTrendingNotifications()
+    }
+
+    suspend fun restoreActiveTrendingNotifications() {
+        val activeTrending = getActiveTrendingNotifications()
+        if (activeTrending.isEmpty()) {
             return
         }
 
         val systemNotificationManager = context.getSystemNotificationManager()
         val currentlyPostedIds = systemNotificationManager.activeNotifications.map { it.id }.toSet()
 
-        for (primaryKey in activeKeys) {
-            val item = calendarItemDao.findItem(primaryKey)
-            if (item == null) {
-                removeActiveNotification(primaryKey)
+        for (active in activeTrending) {
+            val simklId = active.simklId
+            val rank = active.rank
+
+            val mediaItem = mediaItemDao.getMediaItem(simklId)
+            if (mediaItem == null) {
+                removeActiveTrendingNotification(simklId)
                 continue
             }
 
-            if (!currentlyPostedIds.contains(item.notificationId)) {
-                val notification = buildNotification(item)
+            val trendingItem = TrendingMediaItem(
+                trendingEntry = TrendingEntry(
+                    mediaType = mediaItem.mediaType,
+                    rank = rank,
+                    simklId = simklId
+                ),
+                mediaItem = mediaItem
+            )
+
+            val notificationId = abs(("trending_${mediaItem.mediaType.key}_$simklId").hashCode())
+            if (!currentlyPostedIds.contains(notificationId)) {
                 try {
-                    systemNotificationManager.notify(item.notificationId, notification)
-                    Timber.tag(TAG).d("Restored missing notification primaryKey=$primaryKey id=${item.notificationId}")
+                    showTrendingNotificationInternal(trendingItem)
+                    Timber.tag(TAG).d("Restored missing trending notification simklId=$simklId id=$notificationId")
                 } catch (e: Exception) {
-                    Timber.tag(TAG).e(e, "Error restoring notification primaryKey=$primaryKey")
+                    Timber.tag(TAG).e(e, "Error restoring trending notification simklId=$simklId")
                 }
             }
         }

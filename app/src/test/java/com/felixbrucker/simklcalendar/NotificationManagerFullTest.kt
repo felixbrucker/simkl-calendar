@@ -16,6 +16,8 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.felixbrucker.simklcalendar.data.database.ActiveNotificationDao
+import com.felixbrucker.simklcalendar.data.database.ActiveTrendingNotificationDao
+import com.felixbrucker.simklcalendar.data.database.MediaItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItem
 import com.felixbrucker.simklcalendar.data.database.CalendarItemDao
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -71,6 +73,8 @@ class NotificationManagerFullTest {
     private lateinit var searchLinkDao: CustomSearchLinkDao
     private lateinit var itemDownloadSettingsDao: ItemDownloadSettingsDao
     private lateinit var activeNotificationDao: ActiveNotificationDao
+    private lateinit var activeTrendingNotificationDao: ActiveTrendingNotificationDao
+    private lateinit var mediaItemDao: MediaItemDao
     private lateinit var torrentServiceHelper: TorrentServiceHelper
     private lateinit var notificationManager: NotificationManager
 
@@ -117,6 +121,8 @@ class NotificationManagerFullTest {
         searchLinkDao = mockk(relaxed = true)
         itemDownloadSettingsDao = mockk(relaxed = true)
         activeNotificationDao = mockk(relaxed = true)
+        activeTrendingNotificationDao = mockk(relaxed = true)
+        mediaItemDao = mockk(relaxed = true)
         torrentServiceHelper = mockk(relaxed = true)
 
         every { context.applicationContext } returns context
@@ -140,8 +146,16 @@ class NotificationManagerFullTest {
 
         coEvery { calendarDao.getItemsInSeasonOrRelatedItems(any(), any()) } returns emptyList()
         coEvery { activeNotificationDao.getAllActiveKeys() } returns emptyList()
+        coEvery { activeTrendingNotificationDao.getAllActiveTrendingNotifications() } returns emptyList()
 
-        notificationManager = NotificationManager(context, calendarDao, activeNotificationDao, torrentServiceHelper)
+        notificationManager = NotificationManager(
+            context,
+            calendarDao,
+            mediaItemDao,
+            activeNotificationDao,
+            activeTrendingNotificationDao,
+            torrentServiceHelper
+        )
     }
 
     @After

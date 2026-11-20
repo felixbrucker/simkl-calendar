@@ -50,7 +50,10 @@ class NotificationActionReceiver: BroadcastReceiver() {
             "com.felixbrucker.simklcalendar.ACTION_DOWNLOAD_SEASON_MISSING_EPISODES"
         const val ACTION_NOTIFICATION_DISMISSED =
             "com.felixbrucker.simklcalendar.ACTION_NOTIFICATION_DISMISSED"
+        const val ACTION_TRENDING_NOTIFICATION_DISMISSED =
+            "com.felixbrucker.simklcalendar.ACTION_TRENDING_NOTIFICATION_DISMISSED"
         const val EXTRA_ITEM_PRIMARY_KEY = "extra_item_primary_key"
+        const val EXTRA_TRENDING_SIMKL_ID = "extra_trending_simkl_id"
     }
 
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -79,6 +82,11 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
             ACTION_NOTIFICATION_DISMISSED -> {
                 handleNotificationDismissed(intent)
+                return
+            }
+
+            ACTION_TRENDING_NOTIFICATION_DISMISSED -> {
+                handleTrendingNotificationDismissed(intent)
                 return
             }
         }
@@ -202,6 +210,22 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 notificationManager.removeActiveNotification(itemPrimaryKey)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error removing active notification on dismiss")
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private fun handleTrendingNotificationDismissed(intent: Intent) {
+        val simklId = intent.getIntExtra(EXTRA_TRENDING_SIMKL_ID, -1)
+        if (simklId == -1) return
+        Timber.tag(TAG).d("Handling trending notification dismissed action for simklId=$simklId")
+        val pendingResult = goAsync()
+        scope.launch {
+            try {
+                notificationManager.removeActiveTrendingNotification(simklId)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Error removing active trending notification on dismiss")
             } finally {
                 pendingResult.finish()
             }
