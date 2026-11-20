@@ -224,7 +224,6 @@ private fun PosterCategoryBadge(mediaType: MediaType) {
             fontSize = 9.sp,
             fontWeight = FontWeight.Bold,
             color = mediaType.badgeTextColor,
-            modifier = Modifier.padding(vertical = 2.dp)
         )
     }
 }
