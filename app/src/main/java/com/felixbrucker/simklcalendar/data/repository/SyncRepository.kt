@@ -299,9 +299,9 @@ class SyncRepository @Inject constructor(
                     val allWatchedToRemove = mutableListOf<WatchedEpisode>()
                     newWatchedEpisodesBySimklId.forEach { (simklId, newWatchedEpisodes) ->
                         val existingEpisodes = existingWatchedBySimklId[simklId] ?: emptyList()
-                        val newWatchedKeys = newWatchedEpisodes.map { "${it.simklId}_${it.season}_${it.episodeNumber}" }.toSet()
+                        val newWatchedKeys = newWatchedEpisodes.map { Triple(it.simklId, it.season, it.episodeNumber) }.toSet()
                         val watchedToRemove = existingEpisodes.filter {
-                            "${it.simklId}_${it.season}_${it.episodeNumber}" !in newWatchedKeys
+                            Triple(it.simklId, it.season, it.episodeNumber) !in newWatchedKeys
                         }
                         allWatchedToRemove.addAll(watchedToRemove)
                     }
