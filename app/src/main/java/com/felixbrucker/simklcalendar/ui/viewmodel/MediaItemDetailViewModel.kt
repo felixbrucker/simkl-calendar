@@ -109,7 +109,6 @@ sealed interface EpisodeListItemUiModel {
         val date: Instant?,
         val calendarItem: CalendarItemWithWatchlist? = null,
         val isWatched: Boolean = false,
-        val downloadProgress: DownloadProgress? = null,
         val isUpdatingWatchStatus: Boolean = false,
         override val key: String = episodeKey,
     ) : EpisodeListItemUiModel
@@ -399,13 +398,14 @@ class MediaItemDetailViewModel @Inject constructor(
 
     val downloadSubdirectories: StateFlow<List<String>> = downloadRepository.downloadSubdirectories
 
+    val downloads: StateFlow<Map<String, DownloadProgress>> = torrentServiceHelper.downloads
+
     val episodeListUiState: StateFlow<EpisodeListUiState> = combine(
         mediaItem,
         episodesForSeasons,
         calendarItemsFlow,
         watchedSetFlow,
-        updatingWatchStatusKeys,
-        torrentServiceHelper.downloads
+        updatingWatchStatusKeys
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val details = args[0] as MediaItemWithDetails?
@@ -417,8 +417,6 @@ class MediaItemDetailViewModel @Inject constructor(
         val watchedSet = args[3] as Set<Pair<Int, Int>>
         @Suppress("UNCHECKED_CAST")
         val updatingKeys = args[4] as Set<String>
-        @Suppress("UNCHECKED_CAST")
-        val downloads = args[5] as Map<String, DownloadProgress>
 
         if (details == null) {
             EpisodeListUiState()
@@ -468,7 +466,6 @@ class MediaItemDetailViewModel @Inject constructor(
                     val episodeCode = MediaFormatter.formatEpisodeCode(mediaType, ep.season, ep.episodeNumber)
                     val title = ep.title.takeIf { it.isNotBlank() } ?: "TBA"
                     val key = "${ep.simklId}_${ep.season}_${ep.episodeNumber}"
-                    val downloadProgress = calItem?.downloadTaskId?.let { downloads[it] }
                     val isUpdatingWatchStatus = updatingKeys.contains(key)
 
                     seasonRows.add(
@@ -481,7 +478,6 @@ class MediaItemDetailViewModel @Inject constructor(
                             date = ep.date,
                             calendarItem = calItem,
                             isWatched = isEpWatched,
-                            downloadProgress = downloadProgress,
                             isUpdatingWatchStatus = isUpdatingWatchStatus
                         )
                     )

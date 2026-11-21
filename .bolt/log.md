@@ -87,3 +87,10 @@
 **Learning:** Bit-shifting or bit-packing composite keys (e.g., packing `season` and `episodeNumber` integers into a `Long` using `shl` and `or`) is strictly forbidden across this codebase. It introduces unnecessary low-level complexity, reduces readability, and creates fragile code for negligible memory/CPU gains.
 
 **Action:** NEVER use bit-shifting or bit-packing for composite keys or data structures anywhere in this project under any circumstances. Always use standard Kotlin data classes, `Pair`, or standard maps/collections instead.
+
+## 2027-06-04 - Decoupling Transient Download Progress from Heavy Episode List State Re-Allocation
+
+**Learning:** Including high-frequency transient state flows (such as active torrent `downloadProgress` maps updating multiple times per second) inside `combine` blocks that reconstruct and re-sort large UI collection models (`EpisodeListUiState` with seasons and episodes) causes continuous full-list re-allocation, sorting, and GC pressure during downloads. Decoupling transient progress maps from structural view state combines and observing them reactively at the row/item level avoids redundant $O(N)$ list rebuilds and prevents UI jank.
+
+**Action:** Never include high-frequency transient progress or tick flows inside structural UI state `combine` flows; instead, expose progress flows independently and observe them directly at the component/row level.
+
