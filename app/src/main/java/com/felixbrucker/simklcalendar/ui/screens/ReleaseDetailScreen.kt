@@ -335,6 +335,7 @@ fun ReleaseDetailScreen(
                     // Dynamic Action Buttons Section (Max 2 per row)
                     val actions = remember(
                         activeItem,
+                        showScheduleItems,
                         showWatched,
                         isMarkingWatched,
                         appSettingsPrefs.showDebugActions
