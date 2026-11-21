@@ -60,6 +60,9 @@ import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.PosterSize
 import com.felixbrucker.simklcalendar.data.util.displayTitle
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderOpenSimklButton
@@ -118,7 +121,6 @@ fun MediaItemDetailScreen(
     val autoDownloadPrefs by viewModel.autoDownloadPreferences.collectAsState()
     val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
     val availableSubdirectories by viewModel.downloadSubdirectories.collectAsState()
-    val downloads by viewModel.downloads.collectAsState()
 
     val isMovie by viewModel.isMovie.collectAsState()
     val manualSearchSeasonNum by viewModel.manualSearchSeasonNum.collectAsState()
@@ -258,7 +260,7 @@ fun MediaItemDetailScreen(
                         }
                         mediaEpisodeCardSection(
                             uiState = episodeListUiState,
-                            downloads = downloads,
+                            downloadsFlow = viewModel.downloads,
                             isExpanded = isEpisodesExpanded,
                             headerTitle = headerTitle,
                             onToggleExpand = { isEpisodesExpanded = !isEpisodesExpanded },
@@ -563,9 +565,27 @@ private fun MediaSeasonHeaderActions(
 }
 
 @Composable
+private fun EpisodeDownloadProgressCell(
+    downloadTaskId: String?,
+    downloadsFlow: StateFlow<Map<String, DownloadProgress>>,
+    modifier: Modifier = Modifier
+) {
+    if (downloadTaskId == null) return
+    val progressFlow = remember(downloadTaskId) {
+        downloadsFlow
+            .map { it[downloadTaskId] }
+            .distinctUntilChanged()
+    }
+    val progress by progressFlow.collectAsState(initial = null)
+    progress?.let { prog ->
+        EpisodeDownloadProgress(downloadProgress = prog, modifier = modifier)
+    }
+}
+
+@Composable
 private fun EpisodeRowActions(
     epRow: EpisodeListItemUiModel.EpisodeRow,
-    downloads: Map<String, DownloadProgress>,
+    downloadsFlow: StateFlow<Map<String, DownloadProgress>>,
     onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
     onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
     modifier: Modifier = Modifier
@@ -576,10 +596,10 @@ private fun EpisodeRowActions(
         itemVerticalAlignment = Alignment.CenterVertically,
         modifier = modifier
     ) {
-        val downloadProgress = epRow.calendarItem?.downloadTaskId?.let { downloads[it] }
-        downloadProgress?.let { prog ->
-            EpisodeDownloadProgress(downloadProgress = prog)
-        }
+        EpisodeDownloadProgressCell(
+            downloadTaskId = epRow.calendarItem?.downloadTaskId,
+            downloadsFlow = downloadsFlow
+        )
 
         WatchedStatusDropdown(
             isWatched = epRow.isWatched,
@@ -693,7 +713,7 @@ fun MediaSeasonHeader(
 @Composable
 fun EpisodeRowContent(
     epRow: EpisodeListItemUiModel.EpisodeRow,
-    downloads: Map<String, DownloadProgress>,
+    downloadsFlow: StateFlow<Map<String, DownloadProgress>>,
     onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
     onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
     modifier: Modifier = Modifier
@@ -752,7 +772,7 @@ fun EpisodeRowContent(
 
             EpisodeRowActions(
                 epRow = epRow,
-                downloads = downloads,
+                downloadsFlow = downloadsFlow,
                 onMarkEpisodeWatched = onMarkEpisodeWatched,
                 onUpdateMediaStatus = onUpdateMediaStatus
             )
@@ -763,7 +783,7 @@ fun EpisodeRowContent(
 @Composable
 fun MediaEpisodeCardItemRow(
     item: EpisodeListItemUiModel,
-    downloads: Map<String, DownloadProgress>,
+    downloadsFlow: StateFlow<Map<String, DownloadProgress>>,
     onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
     onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
     onMarkSeasonWatched: (Int, Boolean) -> Unit,
@@ -787,7 +807,7 @@ fun MediaEpisodeCardItemRow(
             )
             is EpisodeListItemUiModel.EpisodeRow -> EpisodeRowContent(
                 epRow = item,
-                downloads = downloads,
+                downloadsFlow = downloadsFlow,
                 onMarkEpisodeWatched = onMarkEpisodeWatched,
                 onUpdateMediaStatus = onUpdateMediaStatus
             )
@@ -831,7 +851,7 @@ fun MediaEpisodeCardBottomSpacer(
 
 fun LazyListScope.mediaEpisodeCardSection(
     uiState: EpisodeListUiState,
-    downloads: Map<String, DownloadProgress>,
+    downloadsFlow: StateFlow<Map<String, DownloadProgress>>,
     isExpanded: Boolean,
     headerTitle: String,
     onToggleExpand: () -> Unit,
@@ -869,7 +889,7 @@ fun LazyListScope.mediaEpisodeCardSection(
             ) { episodeItem ->
                 MediaEpisodeCardItemRow(
                     item = episodeItem,
-                    downloads = downloads,
+                    downloadsFlow = downloadsFlow,
                     onMarkEpisodeWatched = onMarkEpisodeWatched,
                     onUpdateMediaStatus = onUpdateMediaStatus,
                     onMarkSeasonWatched = onMarkSeasonWatched,
