@@ -429,49 +429,44 @@ class MediaItemDetailViewModel @Inject constructor(
 
             for (season in sortedSeasons) {
                 val seasonEpisodes = grouped[season] ?: continue
-                val seasonCalendarItems = seasonEpisodes.mapNotNull { ep ->
-                    calendarItemMap[Pair(ep.season, ep.episodeNumber)]
-                }
-                val isSeasonFullyWatched = seasonEpisodes.isNotEmpty() && seasonEpisodes.all { ep ->
-                    watchedSet.contains(Pair(ep.season, ep.episodeNumber))
-                }
-                val commonMediaStatus = if (seasonCalendarItems.isNotEmpty()) {
-                    val first = seasonCalendarItems.first().mediaStatus
-                    if (seasonCalendarItems.all { it.mediaStatus == first }) first else null
-                } else null
-                val hasSearchableEpisode = seasonCalendarItems.any { it.mediaStatus.isSearchable }
-                val hasCalendarItems = seasonCalendarItems.isNotEmpty()
-                val isSeasonUpdatingWatchStatus = updatingKeys.contains("${details.mediaItem.simklId}_season_${season}") || seasonEpisodes.any { ep ->
-                    updatingKeys.contains("${ep.simklId}_${ep.season}_${ep.episodeNumber}")
-                }
+                val sortedEpisodes = seasonEpisodes.sortedByDescending { it.episodeNumber }
 
-                val headerModel = EpisodeListItemUiModel.SeasonHeader(
-                    season = season,
-                    totalEpisodes = seasonEpisodes.size,
-                    isFullyWatched = isSeasonFullyWatched,
-                    commonMediaStatus = commonMediaStatus,
-                    hasSearchableEpisode = hasSearchableEpisode,
-                    hasCalendarItems = hasCalendarItems,
-                    isSeasonUpdatingWatchStatus = isSeasonUpdatingWatchStatus,
-                    showTitleText = !isSingleSeason
-                )
+                var isSeasonFullyWatched = sortedEpisodes.isNotEmpty()
+                var firstMediaStatus: MediaStatus? = null
+                var hasDifferentMediaStatus = false
+                var hasSearchableEpisode = false
+                var hasCalendarItems = false
+                val isSeasonUpdatingWatchStatus = updatingKeys.contains("${details.mediaItem.simklId}_season_${season}")
+                val seasonRows = ArrayList<EpisodeListItemUiModel.EpisodeRow>(sortedEpisodes.size)
 
-                if (isSingleSeason) {
-                    singleSeasonHeader = headerModel
-                } else {
-                    items.add(headerModel)
-                }
+                for (ep in sortedEpisodes) {
+                    val epKey = Pair(ep.season, ep.episodeNumber)
+                    val calItem = calendarItemMap[epKey]
+                    val isEpWatched = watchedSet.contains(epKey)
+                    if (!isEpWatched) {
+                        isSeasonFullyWatched = false
+                    }
 
-                for (ep in seasonEpisodes.sortedByDescending { it.episodeNumber }) {
-                    val calItem = calendarItemMap[Pair(ep.season, ep.episodeNumber)]
-                    val isEpWatched = watchedSet.contains(Pair(ep.season, ep.episodeNumber))
+                    if (calItem != null) {
+                        hasCalendarItems = true
+                        val status = calItem.mediaStatus
+                        if (status.isSearchable) {
+                            hasSearchableEpisode = true
+                        }
+                        if (firstMediaStatus == null) {
+                            firstMediaStatus = status
+                        } else if (status != firstMediaStatus) {
+                            hasDifferentMediaStatus = true
+                        }
+                    }
+
                     val episodeCode = MediaFormatter.formatEpisodeCode(mediaType, ep.season, ep.episodeNumber)
                     val title = ep.title.takeIf { it.isNotBlank() } ?: "TBA"
                     val key = "${ep.simklId}_${ep.season}_${ep.episodeNumber}"
                     val downloadProgress = calItem?.downloadTaskId?.let { downloads[it] }
                     val isUpdatingWatchStatus = updatingKeys.contains(key)
 
-                    items.add(
+                    seasonRows.add(
                         EpisodeListItemUiModel.EpisodeRow(
                             episodeKey = key,
                             season = ep.season,
@@ -486,6 +481,26 @@ class MediaItemDetailViewModel @Inject constructor(
                         )
                     )
                 }
+
+                val commonMediaStatus = if (hasCalendarItems && !hasDifferentMediaStatus) firstMediaStatus else null
+
+                val headerModel = EpisodeListItemUiModel.SeasonHeader(
+                    season = season,
+                    totalEpisodes = sortedEpisodes.size,
+                    isFullyWatched = isSeasonFullyWatched,
+                    commonMediaStatus = commonMediaStatus,
+                    hasSearchableEpisode = hasSearchableEpisode,
+                    hasCalendarItems = hasCalendarItems,
+                    isSeasonUpdatingWatchStatus = isSeasonUpdatingWatchStatus,
+                    showTitleText = !isSingleSeason
+                )
+
+                if (isSingleSeason) {
+                    singleSeasonHeader = headerModel
+                } else {
+                    items.add(headerModel)
+                }
+                items.addAll(seasonRows)
             }
             EpisodeListUiState(
                 totalCount = episodes.size,
