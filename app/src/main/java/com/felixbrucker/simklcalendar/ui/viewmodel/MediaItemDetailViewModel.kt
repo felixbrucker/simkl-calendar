@@ -360,7 +360,7 @@ class MediaItemDetailViewModel @Inject constructor(
                     addAll(details.relations.map { it.relatedSimklId })
                     addAll(details.similarItems.map { it.similarSimklId })
                     addAll(details.recommendedItems.map { it.recommendedSimklId })
-                }
+                }.distinct()
             }
         }
         .distinctUntilChanged()
