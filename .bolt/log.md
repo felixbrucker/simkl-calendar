@@ -105,3 +105,10 @@
 **Learning:** Checks for equality internally in `StateFlow` and `stateIn` make `.distinctUntilChanged()` directly preceding `.stateIn` redundant when no intermediate computation or non-state-in operator (like `flatMapLatest`) intervenes.
 
 **Action:** Avoid placing `.distinctUntilChanged()` immediately before `.stateIn`; use it only before operators like `flatMapLatest` where deduplication prevents unnecessary upstream collection restarts.
+
+## 2026-11-21 - Caching Sorted Seasons and Pre-Grouping Episode Streams in MediaItemDetailViewModel
+
+**Learning:** Including heavy structural collection operations like `.groupBy { it.season }` and `.keys.sortedDescending()` inside UI state `combine` blocks that react to high-frequency dynamic states (`watchedSetFlow` or `updatingWatchStatusKeys`) causes redundant $O(N \log N)$ sorting and grouping allocations on every episode check-off or watch state change. Extracting season grouping/sorting into dedicated upstream flow transformations (`groupedEpisodesFlow` and `sortedSeasonsFlow`) ensures grouping and sorting occur once upon episode stream changes rather than on every user action.
+
+**Action:** Separate static structural grouping and sorting operations from dynamic transient flows in ViewModel state combination pipelines.
+
