@@ -55,6 +55,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
@@ -351,26 +352,29 @@ class MediaItemDetailViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val watchlistStatusMap: StateFlow<Map<Int, WatchlistStatus>> = mediaItem
-        .flatMapLatest { details ->
+        .map { details ->
             if (details == null) {
-                flowOf(emptyMap())
+                emptyList()
             } else {
-                val ids = buildList {
+                buildList {
                     addAll(details.relations.map { it.relatedSimklId })
                     addAll(details.similarItems.map { it.similarSimklId })
                     addAll(details.recommendedItems.map { it.recommendedSimklId })
                 }
-                if (ids.isEmpty()) {
-                    flowOf(emptyMap())
-                } else {
-                    watchlistItemDao.getWatchlistItemsFlow(ids)
-                        .map { list ->
-                            list.associateBy(
-                                keySelector = { it.simklId },
-                                valueTransform = { it.status ?: WatchlistStatus.PLAN_TO_WATCH }
-                            )
-                        }
-                }
+            }
+        }
+        .distinctUntilChanged()
+        .flatMapLatest { ids ->
+            if (ids.isEmpty()) {
+                flowOf(emptyMap())
+            } else {
+                watchlistItemDao.getWatchlistItemsFlow(ids)
+                    .map { list ->
+                        list.associateBy(
+                            keySelector = { it.simklId },
+                            valueTransform = { it.status ?: WatchlistStatus.PLAN_TO_WATCH }
+                        )
+                    }
             }
         }
         .flowOn(defaultDispatcher)
