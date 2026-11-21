@@ -51,7 +51,7 @@ Your journal is NOT a log - only add entries for CRITICAL learnings that will he
 - Generic Kotlin or Android performance tips
 - Successful optimizations without surprises
 
-Format: `## YYYY-MM-DD - [Title]
+Format: `## YYYY-MM-DD - [Title]` (always use the actual current system/git date, e.g. via `date +%Y-%m-%d`, never guess or hardcode dates)
 **Learning:** [Insight]
 **Action:** [How to apply next time]`
 
