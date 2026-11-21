@@ -404,9 +404,17 @@ class MediaItemDetailViewModel @Inject constructor(
 
     val downloads: StateFlow<Map<String, DownloadProgress>> = torrentServiceHelper.downloads
 
+    private val groupedEpisodesFlow: StateFlow<Pair<Map<Int, List<MediaEpisode>>, List<Int>>> = episodesForSeasons
+        .map { eps ->
+            val grouped = eps.groupBy { it.season }
+            Pair(grouped, grouped.keys.sortedDescending())
+        }
+        .flowOn(defaultDispatcher)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Pair(emptyMap(), emptyList()))
+
     val episodeListUiState: StateFlow<EpisodeListUiState> = combine(
         mediaItem,
-        episodesForSeasons,
+        groupedEpisodesFlow,
         calendarItemsFlow,
         watchedSetFlow,
         updatingWatchStatusKeys
@@ -414,7 +422,7 @@ class MediaItemDetailViewModel @Inject constructor(
         @Suppress("UNCHECKED_CAST")
         val details = args[0] as MediaItemWithDetails?
         @Suppress("UNCHECKED_CAST")
-        val episodes = args[1] as List<MediaEpisode>
+        val groupedPair = args[1] as Pair<Map<Int, List<MediaEpisode>>, List<Int>>
         @Suppress("UNCHECKED_CAST")
         val calendarItems = args[2] as List<CalendarItemWithWatchlist>
         @Suppress("UNCHECKED_CAST")
@@ -422,14 +430,16 @@ class MediaItemDetailViewModel @Inject constructor(
         @Suppress("UNCHECKED_CAST")
         val updatingKeys = args[4] as Set<String>
 
+        val grouped = groupedPair.first
+        val sortedSeasons = groupedPair.second
+        val totalCount = grouped.values.sumOf { it.size }
+
         if (details == null) {
             EpisodeListUiState()
         } else {
             val mediaType = details.mediaType
             val calendarItemMap = calendarItems.associateBy { Pair(it.season ?: 1, it.episodeNumber ?: 1) }
 
-            val grouped = episodes.groupBy { it.season }
-            val sortedSeasons = grouped.keys.sortedDescending()
             val items = ArrayList<EpisodeListItemUiModel>()
             val isSingleSeason = sortedSeasons.size == 1
             var singleSeasonHeader: EpisodeListItemUiModel.SeasonHeader? = null
@@ -508,7 +518,7 @@ class MediaItemDetailViewModel @Inject constructor(
                 items.addAll(seasonRows)
             }
             EpisodeListUiState(
-                totalCount = episodes.size,
+                totalCount = totalCount,
                 items = items,
                 singleSeasonHeader = singleSeasonHeader
             )
