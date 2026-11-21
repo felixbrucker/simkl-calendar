@@ -199,4 +199,61 @@ class MediaItemDetailViewModelTest {
 
         job.cancel()
     }
+
+    @Test
+    fun watchProgressState_countsOnlyAiredEpisodesAndReportsNotAiredCount() = runTest {
+        val simklId = 789
+        val savedStateHandle = SavedStateHandle(mapOf("simklId" to simklId, "mediaType" to "tv"))
+
+        val mediaItem = MediaItem(
+            simklId = simklId,
+            mediaType = MediaType.TV,
+            title = "Aired Test Show",
+            lastUpdatedAt = Instant.now(),
+        )
+        val pastDate = Instant.now().minusSeconds(86400)
+        val futureDate = Instant.now().plusSeconds(86400)
+
+        val episodes = listOf(
+            MediaEpisode(simklId = simklId, season = 1, episodeNumber = 1, title = "Ep 1", type = EpisodeType.EPISODE, date = pastDate),
+            MediaEpisode(simklId = simklId, season = 1, episodeNumber = 2, title = "Ep 2", type = EpisodeType.EPISODE, date = pastDate),
+            MediaEpisode(simklId = simklId, season = 1, episodeNumber = 3, title = "Ep 3", type = EpisodeType.EPISODE, date = futureDate),
+            MediaEpisode(simklId = simklId, season = 1, episodeNumber = 4, title = "Ep 4", type = EpisodeType.EPISODE, date = null),
+        )
+        val details = MediaItemWithDetails(
+            mediaItem = mediaItem,
+            episodes = episodes
+        )
+
+        every { mediaRepository.getMediaItemStream(simklId, MediaType.TV) } returns flowOf(details)
+
+        val viewModel = MediaItemDetailViewModel(
+            mediaRepository = mediaRepository,
+            syncRepository = syncRepository,
+            authenticatedSimklApiService = authenticatedSimklApiService,
+            calendarRepository = calendarRepository,
+            customSearchLinkRepository = customSearchLinkRepository,
+            watchlistItemDao = watchlistItemDao,
+            uiRepository = uiRepository,
+            downloadRepository = downloadRepository,
+            notificationSettingRepository = notificationSettingRepository,
+            autoDownloadRepo = autoDownloadRepo,
+            notificationRepo = notificationRepo,
+            torrentServiceHelper = torrentServiceHelper,
+            watchHistoryRepository = watchHistoryRepository,
+            savedStateHandle = savedStateHandle,
+            defaultDispatcher = testDispatcher
+        )
+
+        val job = launch(testDispatcher) { viewModel.watchProgressState.collect() }
+
+        val progress = viewModel.watchProgressState.value
+        org.junit.Assert.assertNotNull(progress)
+        assertEquals(2, progress?.totalAiredCount)
+        assertEquals(0, progress?.watchedCount)
+        assertEquals(2, progress?.unwatchedCount)
+        assertEquals(2, progress?.notAiredCount)
+
+        job.cancel()
+    }
 }

@@ -316,6 +316,29 @@ class MediaFormatterTest {
         assertEquals("Inception", itemMovieTheater.formattedAutoDownloadLabel)
     }
 
+    @Test
+    fun testFormatMediaSubtitleWithUnwatchedAndNotAired() {
+        val show = com.felixbrucker.simklcalendar.data.database.MediaItem(
+            simklId = 1,
+            mediaType = MediaType.TV,
+            title = "Test Show",
+            year = 2024,
+            seriesMetadata = com.felixbrucker.simklcalendar.data.database.SeriesMetadata(
+                seasonsCount = 1,
+                totalEpisodes = 12
+            )
+        )
+
+        val subBoth = MediaFormatter.formatMediaSubtitle(show, unwatchedCount = 8, notAiredCount = 4)
+        assertTrue(subBoth.contains("12 Episodes (8 unwatched, 4 not aired yet)"))
+
+        val subUnwatchedOnly = MediaFormatter.formatMediaSubtitle(show, unwatchedCount = 8, notAiredCount = 0)
+        assertTrue(subUnwatchedOnly.contains("12 Episodes (8 unwatched)"))
+
+        val subNotAiredOnly = MediaFormatter.formatMediaSubtitle(show, unwatchedCount = 0, notAiredCount = 4)
+        assertTrue(subNotAiredOnly.contains("12 Episodes (4 not aired yet)"))
+    }
+
     private fun createTestCalendarItem(
         key: String,
         simklId: Int,

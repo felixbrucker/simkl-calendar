@@ -508,6 +508,90 @@ fun CarouselHeaderWithToggle(
 }
 
 @Composable
+private fun MediaSeasonHeaderActions(
+    hasSearchableEpisode: Boolean,
+    isFullyWatched: Boolean,
+    isUpdatingWatchStatus: Boolean,
+    hasCalendarItems: Boolean,
+    commonMediaStatus: MediaStatus?,
+    onManualSearchSeason: () -> Unit,
+    onMarkSeasonWatched: (Boolean) -> Unit,
+    onUpdateSeasonMediaStatus: (MediaStatus) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+    ) {
+        if (hasSearchableEpisode) {
+            OutlinedButton(
+                onClick = onManualSearchSeason,
+                shape = RoundedCornerShape(6.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = PurpleLight,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Search", fontSize = 11.sp, color = PurpleLight, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        WatchedStatusDropdown(
+            isWatched = isFullyWatched,
+            onStatusChange = onMarkSeasonWatched,
+            isLoading = isUpdatingWatchStatus
+        )
+
+        if (hasCalendarItems) {
+            MediaStatusDropdown(
+                currentStatus = commonMediaStatus ?: MediaStatus.IGNORED,
+                onStatusChange = onUpdateSeasonMediaStatus
+            )
+        }
+    }
+}
+
+@Composable
+private fun EpisodeRowActions(
+    epRow: EpisodeListItemUiModel.EpisodeRow,
+    onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
+    onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+    ) {
+        epRow.downloadProgress?.let { prog ->
+            EpisodeDownloadProgress(downloadProgress = prog)
+        }
+
+        WatchedStatusDropdown(
+            isWatched = epRow.isWatched,
+            onStatusChange = { watched -> onMarkEpisodeWatched(epRow, watched) },
+            isLoading = epRow.isUpdatingWatchStatus
+        )
+
+        if (epRow.calendarItem != null) {
+            ItemMediaStatusDropdown(
+                item = epRow.calendarItem,
+                onStatusChange = { status -> onUpdateMediaStatus(epRow, status) }
+            )
+        }
+    }
+}
+
+@Composable
 fun MediaEpisodeCardHeader(
     title: String,
     isExpanded: Boolean,
@@ -540,37 +624,16 @@ fun MediaEpisodeCardHeader(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (singleSeasonHeader != null) {
-                    if (singleSeasonHeader.hasSearchableEpisode) {
-                        OutlinedButton(
-                            onClick = { onManualSearchSeason(singleSeasonHeader.season) },
-                            shape = RoundedCornerShape(6.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                            border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = PurpleLight,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Search", fontSize = 11.sp, color = PurpleLight, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    WatchedStatusDropdown(
-                        isWatched = singleSeasonHeader.isFullyWatched,
-                        onStatusChange = { watched -> onMarkSeasonWatched(singleSeasonHeader.season, watched) },
-                        isLoading = singleSeasonHeader.isSeasonUpdatingWatchStatus
+                    MediaSeasonHeaderActions(
+                        hasSearchableEpisode = singleSeasonHeader.hasSearchableEpisode,
+                        isFullyWatched = singleSeasonHeader.isFullyWatched,
+                        isUpdatingWatchStatus = singleSeasonHeader.isSeasonUpdatingWatchStatus,
+                        hasCalendarItems = singleSeasonHeader.hasCalendarItems,
+                        commonMediaStatus = singleSeasonHeader.commonMediaStatus,
+                        onManualSearchSeason = { onManualSearchSeason(singleSeasonHeader.season) },
+                        onMarkSeasonWatched = { watched -> onMarkSeasonWatched(singleSeasonHeader.season, watched) },
+                        onUpdateSeasonMediaStatus = { status -> onUpdateSeasonMediaStatus(singleSeasonHeader.season, status) }
                     )
-
-                    if (singleSeasonHeader.hasCalendarItems) {
-                        MediaStatusDropdown(
-                            currentStatus = singleSeasonHeader.commonMediaStatus ?: MediaStatus.IGNORED,
-                            onStatusChange = { status -> onUpdateSeasonMediaStatus(singleSeasonHeader.season, status) }
-                        )
-                    }
 
                     Spacer(modifier = Modifier.width(4.dp))
                 }
@@ -609,42 +672,16 @@ fun MediaSeasonHeader(
             )
         }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            if (seasonHeader.hasSearchableEpisode) {
-                OutlinedButton(
-                    onClick = { onManualSearchSeason(seasonHeader.season) },
-                    shape = RoundedCornerShape(6.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = PurpleLight,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Search", fontSize = 11.sp, color = PurpleLight, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            WatchedStatusDropdown(
-                isWatched = seasonHeader.isFullyWatched,
-                onStatusChange = { watched -> onMarkSeasonWatched(seasonHeader.season, watched) },
-                isLoading = seasonHeader.isSeasonUpdatingWatchStatus
-            )
-
-            if (seasonHeader.hasCalendarItems) {
-                MediaStatusDropdown(
-                    currentStatus = seasonHeader.commonMediaStatus ?: MediaStatus.IGNORED,
-                    onStatusChange = { status -> onUpdateSeasonMediaStatus(seasonHeader.season, status) }
-                )
-            }
-        }
+        MediaSeasonHeaderActions(
+            hasSearchableEpisode = seasonHeader.hasSearchableEpisode,
+            isFullyWatched = seasonHeader.isFullyWatched,
+            isUpdatingWatchStatus = seasonHeader.isSeasonUpdatingWatchStatus,
+            hasCalendarItems = seasonHeader.hasCalendarItems,
+            commonMediaStatus = seasonHeader.commonMediaStatus,
+            onManualSearchSeason = { onManualSearchSeason(seasonHeader.season) },
+            onMarkSeasonWatched = { watched -> onMarkSeasonWatched(seasonHeader.season, watched) },
+            onUpdateSeasonMediaStatus = { status -> onUpdateSeasonMediaStatus(seasonHeader.season, status) }
+        )
     }
 }
 
@@ -707,27 +744,11 @@ fun EpisodeRowContent(
                 }
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                epRow.downloadProgress?.let { prog ->
-                    EpisodeDownloadProgress(downloadProgress = prog)
-                }
-
-                WatchedStatusDropdown(
-                    isWatched = epRow.isWatched,
-                    onStatusChange = { watched -> onMarkEpisodeWatched(epRow, watched) },
-                    isLoading = epRow.isUpdatingWatchStatus
-                )
-
-                if (epRow.calendarItem != null) {
-                    ItemMediaStatusDropdown(
-                        item = epRow.calendarItem,
-                        onStatusChange = { status -> onUpdateMediaStatus(epRow, status) }
-                    )
-                }
-            }
+            EpisodeRowActions(
+                epRow = epRow,
+                onMarkEpisodeWatched = onMarkEpisodeWatched,
+                onUpdateMediaStatus = onUpdateMediaStatus
+            )
         }
     }
 }
@@ -1319,7 +1340,11 @@ fun MediaDetailInfoColumn(
         }
 
         val subtitle = remember(item, watchProgressState) {
-            MediaFormatter.formatMediaSubtitle(item, watchProgressState?.unwatchedCount)
+            MediaFormatter.formatMediaSubtitle(
+                item = item,
+                unwatchedCount = watchProgressState?.unwatchedCount,
+                notAiredCount = watchProgressState?.notAiredCount
+            )
         }
         if (subtitle.isNotBlank()) {
             Text(
@@ -1478,7 +1503,7 @@ fun MediaDetailActionSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(40.dp),
-                        shape = if (isWatching && watchProgressState != null && watchProgressState.totalCount > 0) {
+                        shape = if (isWatching && watchProgressState != null && watchProgressState.totalAiredCount > 0) {
                             RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)
                         } else {
                             RoundedCornerShape(10.dp)
@@ -1517,7 +1542,7 @@ fun MediaDetailActionSection(
                         }
                     }
 
-                    if (isWatching && watchProgressState != null && watchProgressState.totalCount > 0) {
+                    if (isWatching && watchProgressState != null && watchProgressState.totalAiredCount > 0) {
                         LinearProgressIndicator(
                             progress = { watchProgressState.percentage },
                             modifier = Modifier

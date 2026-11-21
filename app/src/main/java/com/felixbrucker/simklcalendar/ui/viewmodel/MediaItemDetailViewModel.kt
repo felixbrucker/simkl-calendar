@@ -125,10 +125,11 @@ data class EpisodeListUiState(
 @Immutable
 data class WatchProgressUiState(
     val watchedCount: Int = 0,
-    val totalCount: Int = 0,
+    val totalAiredCount: Int = 0,
     val percentage: Float = 0f,
+    val notAiredCount: Int = 0,
 ) {
-    val unwatchedCount: Int = totalCount - watchedCount
+    val unwatchedCount: Int = (totalAiredCount - watchedCount).coerceAtLeast(0)
 }
 
 @HiltViewModel
@@ -318,25 +319,31 @@ class MediaItemDetailViewModel @Inject constructor(
     ) { details, episodes, watchedSet ->
         if (episodes.isEmpty() || details == null) null
         else {
+            val now = Instant.now()
             var watchedCount = 0
-            var nextEp: MediaEpisode? = null
+            var airedCount = 0
+            var notAiredCount = 0
 
             for (ep in episodes) {
-                if (watchedSet.contains(Pair(ep.season, ep.episodeNumber))) {
-                    watchedCount++
+                val isAired = ep.date != null && ep.date.isBefore(now)
+                if (isAired) {
+                    airedCount++
                 } else {
-                    if (nextEp == null || ep.season < nextEp.season || (ep.season == nextEp.season && ep.episodeNumber < nextEp.episodeNumber)) {
-                        nextEp = ep
-                    }
+                    notAiredCount++
+                }
+
+                val isWatched = watchedSet.contains(Pair(ep.season, ep.episodeNumber))
+                if (isWatched) {
+                    watchedCount++
                 }
             }
 
-            val totalCount = episodes.size
-            val percentage = if (totalCount > 0) watchedCount.toFloat() / totalCount else 0f
+            val percentage = if (airedCount > 0) (watchedCount.toFloat() / airedCount).coerceAtMost(1f) else 0f
             WatchProgressUiState(
                 watchedCount = watchedCount,
-                totalCount = totalCount,
+                totalAiredCount = airedCount,
                 percentage = percentage,
+                notAiredCount = notAiredCount,
             )
         }
     }
