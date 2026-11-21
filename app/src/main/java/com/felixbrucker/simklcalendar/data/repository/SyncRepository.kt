@@ -17,6 +17,8 @@ import com.felixbrucker.simklcalendar.data.model.MovieReleaseType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.network.AuthenticatedSimklApiService
 import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
+import com.felixbrucker.simklcalendar.data.network.SimklV2CalendarEntry
+import com.felixbrucker.simklcalendar.data.network.SimklV2Metadata
 import com.felixbrucker.simklcalendar.data.network.SyncMovieItem
 import com.felixbrucker.simklcalendar.data.network.SyncSeasonItem
 import com.felixbrucker.simklcalendar.data.network.SyncShowItem
@@ -59,6 +61,12 @@ internal data class SyncResult(
 private data class SyncItemDetailResult(
     val newItem: TrackedWatchlistItem,
     val calendarItems: List<Pair<CalendarItem, MediaStatus>> = emptyList()
+)
+
+private data class FetchedCalendarJson(
+    val mediaType: MediaType,
+    val relevantEntries: List<SimklV2CalendarEntry>,
+    val metadataMap: Map<String, SimklV2Metadata>
 )
 
 
@@ -479,7 +487,7 @@ class SyncRepository @Inject constructor(
      * Skips inserting episodes that were already watched over a month ago to prevent calendar backlog clutter.
      */
     internal suspend fun syncCalendarJsons(forceFullSync: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
-        // Load local tracked items (IDs only for filtering)
+        // 1. Load local tracked items (IDs only for filtering)
         val allTrackedIds = watchlistDao.getAllTrackedIds().toSet()
         if (allTrackedIds.isEmpty()) {
             Timber.tag(TAG).d("No tracked items in watchlist, skipping calendar json sync.")
@@ -554,208 +562,229 @@ class SyncRepository @Inject constructor(
             "movie_release" to MediaType.MOVIE
         )
 
-        for ((year, month) in monthsToFetch) {
-            for ((endpointType, defaultType) in mediaTypes) {
-                val lastModifiedPrefKey = "cal_json_last_mod_${year}_${month}_$endpointType"
-                val lastModifiedHeaderKey = "cal_json_header_${year}_${month}_$endpointType"
+        val semaphore = Semaphore(16)
 
-                val syncMetadata = syncMetadataRepo.preferencesFlow.first()
-                val lastModifiedTimestamp = if (forceFullSync) 0L else syncMetadata.calendarLastModifiedAt[lastModifiedPrefKey] ?: 0L
-                val savedHeader = if (forceFullSync) null else syncMetadata.calendarLastModifiedHeader[lastModifiedHeaderKey]
+        // 3. Parallel API requests with minimal pre-filtering to keep only relevant data in memory
+        val fetchedCalendars = coroutineScope {
+            monthsToFetch.flatMap { (year, month) ->
+                mediaTypes.map { (endpointType, defaultType) ->
+                    async {
+                        val lastModifiedPrefKey = "cal_json_last_mod_${year}_${month}_$endpointType"
+                        val lastModifiedHeaderKey = "cal_json_header_${year}_${month}_$endpointType"
 
-                // Only sync calendar jsons when their last modified was over 6h in the past
-                val isOver6Hours = (nowMillis - lastModifiedTimestamp) >= sixHoursMillis
-                if (lastModifiedTimestamp > 0L && !isOver6Hours) {
-                    continue
-                }
+                        val syncMetadata = syncMetadataRepo.preferencesFlow.first()
+                        val lastModifiedTimestamp = if (forceFullSync) 0L else syncMetadata.calendarLastModifiedAt[lastModifiedPrefKey] ?: 0L
+                        val savedHeader = if (forceFullSync) null else syncMetadata.calendarLastModifiedHeader[lastModifiedHeaderKey]
 
-                try {
-                    val response = publicSimklApiService.getV2Calendar(
-                        year = year,
-                        month = month,
-                        type = endpointType,
-                        ifModifiedSince = savedHeader
-                    )
-
-                    if (response.code() == 304) {
-                        Timber.tag(TAG).d("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
-                        syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, nowMillis)
-                        continue
-                    }
-
-                    if (!response.isSuccessful) {
-                        Timber.tag(TAG).w("HTTP ${response.code()} for calendar JSON $year/$month/$endpointType")
-                        continue
-                    }
-
-                    val calendarResponse = response.body() ?: continue
-
-                    // Track Last-Modified header from response
-                    val responseLastModifiedHeader = response.headers()["Last-Modified"]
-                    val parsedHeaderMillis = DateUtil.parseHttpDateToMillis(responseLastModifiedHeader) ?: nowMillis
-                    syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, parsedHeaderMillis)
-                    syncMetadataRepo.setCalendarLastModifiedHeader(
-                        lastModifiedHeaderKey,
-                        responseLastModifiedHeader ?: ""
-                    )
-
-                    val relevantEntries = calendarResponse.calendar.filter {
-                        // Exclude season 0 (specials)
-                        allTrackedIds.contains(it.simklId) && it.episode?.season != 0
-                    }
-                    if (relevantEntries.isEmpty()) continue
-
-                    val metadataMap = calendarResponse.metadata
-
-                    // Targeted DB fetch for this JSON's content
-                    val relevantSimklIds = relevantEntries.map { it.simklId }.distinct()
-                    val currentTrackedItemMap = watchlistDao
-                        .getTrackedItemsBySimklIds(relevantSimklIds)
-                        .associateBy { it.simklId }
-                    val currentExistingItemsMap = calendarDao
-                        .getCalendarEntitiesForSimklIds(relevantSimklIds)
-                        .associateBy { it.primaryKey }
-                    val currentWatchedLookup = watchedDao
-                        .getWatchedEpisodesForSimklIds(relevantSimklIds)
-                        .groupBy { it.simklId }
-                    val currentSettingsMap = itemDownloadSettingsDao
-                        .getSettingsBySimklIds(relevantSimklIds)
-                        .associateBy { it.simklId }
-
-                    for (entry in relevantEntries) {
-                        val simklId = entry.simklId
-                        val meta = metadataMap[simklId.toString()]
-                        if (meta != null) {
-                            processTrackedItem(
-                                TrackedWatchlistItem(
-                                    simklId = simklId,
-                                    type = defaultType,
-                                    title = meta.title,
-                                    titleRomaji = meta.titleRomaji,
-                                    poster = meta.poster,
-                                    rating = meta.ratings?.simkl?.rating
-                                ),
-                                currentTrackedItemMap
-                            )
+                        // Only sync calendar jsons when their last modified was over 6h in the past
+                        val isOver6Hours = (nowMillis - lastModifiedTimestamp) >= sixHoursMillis
+                        if (lastModifiedTimestamp > 0L && !isOver6Hours) {
+                            return@async null
                         }
 
-                        if (defaultType == MediaType.MOVIE) {
-                            // 1. Process Theater Release
-                            DateUtil.parseToInstant(entry.date)?.let { theaterInstant ->
-                                val status = mediaStatusResolver.resolve(
-                                    airDate = theaterInstant,
-                                    settings = currentSettingsMap[simklId],
-                                    mediaType = MediaType.MOVIE,
-                                    isTheaterRelease = true,
-                                    isWatched = false,
-                                    autoDownloadSettings = autoDownloadPrefs,
-                                    now = nowInstant,
-                                )
-                                processCalendarItem(
-                                    CalendarItem(
-                                        primaryKey = "v2_${simklId}_theater",
-                                        simklId = simklId,
-                                        episodeTitle = null,
-                                        season = null,
-                                        episodeNumber = null,
-                                        date = theaterInstant,
-                                        movieReleaseType = MovieReleaseType.THEATER,
-                                        isSeasonPremiere = false,
-                                        isSeasonFinale = false,
-                                    ),
-                                    initialStatus = status,
-                                    currentExistingItemsMap
+                        try {
+                            val response = semaphore.withPermit {
+                                publicSimklApiService.getV2Calendar(
+                                    year = year,
+                                    month = month,
+                                    type = endpointType,
+                                    ifModifiedSince = savedHeader
                                 )
                             }
 
-                            // 2. Process Digital / DVD Release from metadata if available
-                            meta?.dvdDate?.takeIf { it.isNotBlank() }?.let { dvdDateStr ->
-                                DateUtil.parseToInstant(dvdDateStr)?.let { dvdInstant ->
-                                    val status = mediaStatusResolver.resolve(
-                                        airDate = dvdInstant,
-                                        settings = currentSettingsMap[simklId],
-                                        mediaType = MediaType.MOVIE,
-                                        isTheaterRelease = false,
-                                        isWatched = false,
-                                        autoDownloadSettings = autoDownloadPrefs,
-                                        now = nowInstant,
-                                    )
-                                    processCalendarItem(
-                                        CalendarItem(
-                                            primaryKey = "v2_${simklId}_digital",
-                                            simklId = simklId,
-                                            episodeTitle = null,
-                                            season = null,
-                                            episodeNumber = null,
-                                            date = dvdInstant,
-                                            movieReleaseType = MovieReleaseType.DIGITAL,
-                                            isSeasonPremiere = false,
-                                            isSeasonFinale = false,
-                                        ),
-                                        initialStatus = status,
-                                        currentExistingItemsMap
-                                    )
-                                }
-                            }
-                        } else {
-                            val instant = DateUtil.parseToInstant(entry.date) ?: continue
-
-                            val ep = entry.episode
-                            val seasonNum = ep?.season ?: 1
-                            val epNum = ep?.episode ?: 1
-                            val epTitle = ep?.title
-
-                            val isPremiere = epNum == 1
-                            val isExplicitFinale = entry.finaleType != null && entry.finaleType != 0
-                            val isMetadataFinale = meta?.totalEpisodes != null &&
-                                meta.totalEpisodes > 1 &&
-                                epNum > 1 &&
-                                epNum >= meta.totalEpisodes
-                            val isFinale = isExplicitFinale || isMetadataFinale
-
-                            val keyUnique = "v2_${simklId}_${seasonNum}_$epNum"
-
-                            val showWatchedList = currentWatchedLookup[simklId]
-                            val watchedEntry = showWatchedList?.firstOrNull {
-                                it.season == seasonNum && it.episodeNumber == epNum
-                            }
-                            val epWatchedTimestamp = watchedEntry?.watchedAt
-
-                            // Automatic cleanup filter: Omit episodes that have already been watched over 1 month ago
-                            if (epWatchedTimestamp != null && epWatchedTimestamp.isBefore(oneMonthAgo)) {
-                                continue
+                            if (response.code() == 304) {
+                                Timber.tag(TAG).d("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
+                                syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, nowMillis)
+                                return@async null
                             }
 
-                            val status = mediaStatusResolver.resolve(
-                                airDate = instant,
-                                settings = currentSettingsMap[simklId],
+                            if (!response.isSuccessful) {
+                                Timber.tag(TAG).w("HTTP ${response.code()} for calendar JSON $year/$month/$endpointType")
+                                return@async null
+                            }
+
+                            val calendarResponse = response.body() ?: return@async null
+
+                            // Track Last-Modified header from response
+                            val responseLastModifiedHeader = response.headers()["Last-Modified"]
+                            val parsedHeaderMillis = DateUtil.parseHttpDateToMillis(responseLastModifiedHeader) ?: nowMillis
+                            syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, parsedHeaderMillis)
+                            syncMetadataRepo.setCalendarLastModifiedHeader(
+                                lastModifiedHeaderKey,
+                                responseLastModifiedHeader ?: ""
+                            )
+
+                            val relevantEntries = calendarResponse.calendar.filter {
+                                // Exclude season 0 (specials)
+                                allTrackedIds.contains(it.simklId) && it.episode?.season != 0
+                            }
+                            if (relevantEntries.isEmpty()) return@async null
+
+                            FetchedCalendarJson(
                                 mediaType = defaultType,
+                                relevantEntries = relevantEntries,
+                                metadataMap = calendarResponse.metadata
+                            )
+                        } catch (e: Exception) {
+                            Timber.tag(TAG).e(e, "Failed fetching CDN v2 calendar for $year/$month/$endpointType")
+                            null
+                        }
+                    }
+                }
+            }.awaitAll().filterNotNull()
+        }
+
+        // 4. Sequential DB queries and processing of fetched data
+        for (fetched in fetchedCalendars) {
+            val mediaType = fetched.mediaType
+            val relevantEntries = fetched.relevantEntries
+            val metadataMap = fetched.metadataMap
+
+            // Targeted DB fetch for this JSON's content
+            val relevantSimklIds = relevantEntries.map { it.simklId }.distinct()
+            val currentTrackedItemMap = watchlistDao
+                .getTrackedItemsBySimklIds(relevantSimklIds)
+                .associateBy { it.simklId }
+            val currentExistingItemsMap = calendarDao
+                .getCalendarEntitiesForSimklIds(relevantSimklIds)
+                .associateBy { it.primaryKey }
+            val currentWatchedLookup = watchedDao
+                .getWatchedEpisodesForSimklIds(relevantSimklIds)
+                .groupBy { it.simklId }
+            val currentSettingsMap = itemDownloadSettingsDao
+                .getSettingsBySimklIds(relevantSimklIds)
+                .associateBy { it.simklId }
+
+            for (entry in relevantEntries) {
+                val simklId = entry.simklId
+                val meta = metadataMap[simklId.toString()]
+                if (meta != null) {
+                    processTrackedItem(
+                        TrackedWatchlistItem(
+                            simklId = simklId,
+                            type = mediaType,
+                            title = meta.title,
+                            titleRomaji = meta.titleRomaji,
+                            poster = meta.poster,
+                            rating = meta.ratings?.simkl?.rating
+                        ),
+                        currentTrackedItemMap
+                    )
+                }
+
+                if (mediaType == MediaType.MOVIE) {
+                    // 1. Process Theater Release
+                    DateUtil.parseToInstant(entry.date)?.let { theaterInstant ->
+                        val status = mediaStatusResolver.resolve(
+                            airDate = theaterInstant,
+                            settings = currentSettingsMap[simklId],
+                            mediaType = MediaType.MOVIE,
+                            isTheaterRelease = true,
+                            isWatched = false,
+                            autoDownloadSettings = autoDownloadPrefs,
+                            now = nowInstant,
+                        )
+                        processCalendarItem(
+                            CalendarItem(
+                                primaryKey = "v2_${simklId}_theater",
+                                simklId = simklId,
+                                episodeTitle = null,
+                                season = null,
+                                episodeNumber = null,
+                                date = theaterInstant,
+                                movieReleaseType = MovieReleaseType.THEATER,
+                                isSeasonPremiere = false,
+                                isSeasonFinale = false,
+                            ),
+                            initialStatus = status,
+                            currentExistingItemsMap
+                        )
+                    }
+
+                    // 2. Process Digital / DVD Release from metadata if available
+                    meta?.dvdDate?.takeIf { it.isNotBlank() }?.let { dvdDateStr ->
+                        DateUtil.parseToInstant(dvdDateStr)?.let { dvdInstant ->
+                            val status = mediaStatusResolver.resolve(
+                                airDate = dvdInstant,
+                                settings = currentSettingsMap[simklId],
+                                mediaType = MediaType.MOVIE,
                                 isTheaterRelease = false,
-                                isWatched = epWatchedTimestamp != null,
+                                isWatched = false,
                                 autoDownloadSettings = autoDownloadPrefs,
                                 now = nowInstant,
                             )
-
                             processCalendarItem(
                                 CalendarItem(
-                                    primaryKey = keyUnique,
+                                    primaryKey = "v2_${simklId}_digital",
                                     simklId = simklId,
-                                    episodeTitle = epTitle,
-                                    season = seasonNum,
-                                    episodeNumber = epNum,
-                                    date = instant,
-                                    movieReleaseType = null,
-                                    isSeasonPremiere = isPremiere,
-                                    isSeasonFinale = isFinale,
-                                    watchedAt = epWatchedTimestamp,
+                                    episodeTitle = null,
+                                    season = null,
+                                    episodeNumber = null,
+                                    date = dvdInstant,
+                                    movieReleaseType = MovieReleaseType.DIGITAL,
+                                    isSeasonPremiere = false,
+                                    isSeasonFinale = false,
                                 ),
                                 initialStatus = status,
                                 currentExistingItemsMap
                             )
                         }
                     }
-                } catch (e: Exception) {
-                    Timber.tag(TAG).e(e, "Failed fetching CDN v2 calendar for $year/$month/$endpointType")
+                } else {
+                    val instant = DateUtil.parseToInstant(entry.date) ?: continue
+
+                    val ep = entry.episode
+                    val seasonNum = ep?.season ?: 1
+                    val epNum = ep?.episode ?: 1
+                    val epTitle = ep?.title
+
+                    val isPremiere = epNum == 1
+                    val isExplicitFinale = entry.finaleType != null && entry.finaleType != 0
+                    val isMetadataFinale = meta?.totalEpisodes != null &&
+                        meta.totalEpisodes > 1 &&
+                        epNum > 1 &&
+                        epNum >= meta.totalEpisodes
+                    val isFinale = isExplicitFinale || isMetadataFinale
+
+                    val keyUnique = "v2_${simklId}_${seasonNum}_$epNum"
+
+                    val showWatchedList = currentWatchedLookup[simklId]
+                    val watchedEntry = showWatchedList?.firstOrNull {
+                        it.season == seasonNum && it.episodeNumber == epNum
+                    }
+                    val epWatchedTimestamp = watchedEntry?.watchedAt
+
+                    // Automatic cleanup filter: Omit episodes that have already been watched over 1 month ago
+                    if (epWatchedTimestamp != null && epWatchedTimestamp.isBefore(oneMonthAgo)) {
+                        continue
+                    }
+
+                    val status = mediaStatusResolver.resolve(
+                        airDate = instant,
+                        settings = currentSettingsMap[simklId],
+                        mediaType = mediaType,
+                        isTheaterRelease = false,
+                        isWatched = epWatchedTimestamp != null,
+                        autoDownloadSettings = autoDownloadPrefs,
+                        now = nowInstant,
+                    )
+
+                    processCalendarItem(
+                        CalendarItem(
+                            primaryKey = keyUnique,
+                            simklId = simklId,
+                            episodeTitle = epTitle,
+                            season = seasonNum,
+                            episodeNumber = epNum,
+                            date = instant,
+                            movieReleaseType = null,
+                            isSeasonPremiere = isPremiere,
+                            isSeasonFinale = isFinale,
+                            watchedAt = epWatchedTimestamp,
+                        ),
+                        initialStatus = status,
+                        currentExistingItemsMap
+                    )
                 }
             }
         }
