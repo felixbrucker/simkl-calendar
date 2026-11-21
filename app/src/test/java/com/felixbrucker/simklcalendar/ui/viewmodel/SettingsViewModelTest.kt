@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -34,6 +35,7 @@ import org.junit.Test
 class SettingsViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
+    private val testScope = TestScope(testDispatcher)
     private val userRepositoryMock: UserRepository = mockk(relaxed = true)
     private val customSearchLinkRepositoryMock: CustomSearchLinkRepository = mockk(relaxed = true)
     private val syncRepositoryMock: SyncRepository = mockk(relaxed = true)
@@ -79,7 +81,8 @@ class SettingsViewModelTest {
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
             sentryManager = sentryManager,
-            backupManager = backupManager
+            backupManager = backupManager,
+            appScope = testScope
         )
 
         viewModel.logoutUser()
@@ -120,7 +123,8 @@ class SettingsViewModelTest {
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
             sentryManager = sentryManager,
-            backupManager = backupManager
+            backupManager = backupManager,
+            appScope = testScope
         )
 
         viewModel.updateAutoDownloadQuality("1080p")
@@ -172,7 +176,8 @@ class SettingsViewModelTest {
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
             sentryManager = sentryManager,
-            backupManager = backupManager
+            backupManager = backupManager,
+            appScope = testScope
         )
         val link1 = CustomSearchLink(id = 0L, name = "Link 1", urlTemplate = "https://test.com/{query}", position = 0)
         val link2 = CustomSearchLink(id = 2L, name = "Link 2", urlTemplate = "https://test2.com/{query}", position = 1)
@@ -202,7 +207,8 @@ class SettingsViewModelTest {
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
             sentryManager = sentryManager,
-            backupManager = backupManager
+            backupManager = backupManager,
+            appScope = testScope
         )
 
         var noTokenOk = true
@@ -241,7 +247,8 @@ class SettingsViewModelTest {
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
             sentryManager = sentryManager,
-            backupManager = backupManager
+            backupManager = backupManager,
+            appScope = testScope
         )
 
         val isRunning = viewModel.isSentryRunning
@@ -262,7 +269,8 @@ class SettingsViewModelTest {
             torrentServiceHelper = torrentServiceHelper,
             alarmScheduler = alarmScheduler,
             sentryManager = sentryManager,
-            backupManager = backupManager
+            backupManager = backupManager,
+            appScope = testScope
         )
 
         val isRunning = viewModel.isSentryRunning

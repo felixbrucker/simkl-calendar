@@ -77,3 +77,16 @@ enum class EpisodeSearchStyle {
     SeasonAndEpisode,
     Episode
 }
+
+@JsonClass(generateAdapter = false)
+enum class TrendingPeriod(val key: String, val displayName: String, val titleLabel: String) {
+    DAILY("today_100", "Daily", "Today"),
+    WEEKLY("week_100", "Weekly", "Week"),
+    MONTHLY("month_100", "Monthly", "Month");
+
+    companion object {
+        fun fromKey(key: String?): TrendingPeriod {
+            return entries.find { it.key == key } ?: DAILY
+        }
+    }
+}

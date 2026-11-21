@@ -6,6 +6,7 @@ import com.felixbrucker.simklcalendar.data.backup.SettingsBackupManager
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.database.UserToken
 import com.felixbrucker.simklcalendar.data.model.AppBackupData
+import com.felixbrucker.simklcalendar.data.model.TrendingPeriod
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
@@ -18,14 +19,17 @@ import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import com.felixbrucker.simklcalendar.data.sentry.SentryManager
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
+import com.felixbrucker.simklcalendar.di.ApplicationScope
 import android.net.Uri
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -39,7 +43,8 @@ class SettingsViewModel @Inject constructor(
     private val torrentServiceHelper: TorrentServiceHelper,
     private val alarmScheduler: AlarmScheduler,
     private val sentryManager: SentryManager,
-    private val backupManager: SettingsBackupManager
+    private val backupManager: SettingsBackupManager,
+    @ApplicationScope private val appScope: CoroutineScope
 ) : ViewModel() {
 
     val userToken: StateFlow<UserToken?> = userRepository.activeUserToken
@@ -63,6 +68,13 @@ class SettingsViewModel @Inject constructor(
     private val _isForceSyncing = MutableStateFlow(false)
     val isForceSyncing: StateFlow<Boolean> = _isForceSyncing.asStateFlow()
 
+    private val _isTrendingPeriodSyncing = MutableStateFlow(false)
+    val isTrendingPeriodSyncing: StateFlow<Boolean> = _isTrendingPeriodSyncing.asStateFlow()
+
+    companion object {
+        private const val TAG = "SettingsViewModel"
+    }
+
     fun logoutUser() {
         userRepository.logout()
     }
@@ -70,6 +82,20 @@ class SettingsViewModel @Inject constructor(
     fun updateSyncInterval(hours: Int) {
         viewModelScope.launch {
             appSettingsRepo.setSyncIntervalHours(hours)
+        }
+    }
+
+    fun updateTrendingPeriod(period: TrendingPeriod) {
+        appScope.launch {
+            _isTrendingPeriodSyncing.value = true
+            appSettingsRepo.setTrendingPeriod(period.key)
+            try {
+                syncRepository.syncTrending(force = true)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to sync trending items after period change")
+            } finally {
+                _isTrendingPeriodSyncing.value = false
+            }
         }
     }
 

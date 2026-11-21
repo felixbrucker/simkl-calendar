@@ -64,10 +64,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.felixbrucker.simklcalendar.data.database.CustomSearchLink
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.TrendingPeriod
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
 import com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
+import com.felixbrucker.simklcalendar.ui.composable.TrendingPeriodSelector
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
 import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
@@ -647,15 +649,19 @@ fun SettingsCategoryContentView(
     onExportClick: () -> Unit,
     onImportClick: () -> Unit
 ) {
+    val isTrendingPeriodSyncing by viewModel.isTrendingPeriodSyncing.collectAsState()
     when (category) {
         SettingsCategory.GENERAL -> {
             SettingsGeneralCategorySection(
                 username = username,
                 syncIntervalHours = syncIntervalHours,
+                trendingPeriod = appSettings.trendingPeriod,
+                isTrendingSyncing = isTrendingPeriodSyncing,
                 localLinks = localLinks,
                 onLogout = onLogout,
                 onSyncIntervalChange = onSyncIntervalChange,
                 onSyncIntervalChangeFinished = onSyncIntervalChangeFinished,
+                onTrendingPeriodSelected = { viewModel.updateTrendingPeriod(it) },
                 onOpenAddDialog = onOpenAddDialog,
                 onOpenEditDialog = onOpenEditDialog,
                 onDeleteLink = onDeleteLink,
@@ -808,10 +814,13 @@ private fun SettingsCategoryItemContent(
 fun SettingsGeneralCategorySection(
     username: String,
     syncIntervalHours: Float,
+    trendingPeriod: String,
+    isTrendingSyncing: Boolean,
     localLinks: List<CustomSearchLink>,
     onLogout: () -> Unit,
     onSyncIntervalChange: (Float) -> Unit,
     onSyncIntervalChangeFinished: () -> Unit,
+    onTrendingPeriodSelected: (TrendingPeriod) -> Unit,
     onOpenAddDialog: () -> Unit,
     onOpenEditDialog: (CustomSearchLink) -> Unit,
     onDeleteLink: (CustomSearchLink) -> Unit,
@@ -831,12 +840,79 @@ fun SettingsGeneralCategorySection(
             onSyncIntervalChange = onSyncIntervalChange,
             onSyncIntervalChangeFinished = onSyncIntervalChangeFinished
         )
+        SettingsTrendingPeriodCard(
+            trendingPeriod = trendingPeriod,
+            isSyncing = isTrendingSyncing,
+            onTrendingPeriodSelected = onTrendingPeriodSelected
+        )
         SettingsCustomSearchLinksCard(
             localLinks = localLinks,
             onOpenAddDialog = onOpenAddDialog,
             onOpenEditDialog = onOpenEditDialog,
             onDeleteLink = onDeleteLink,
             onReorderLinks = onReorderLinks
+        )
+    }
+}
+
+@Composable
+fun SettingsTrendingPeriodCard(
+    trendingPeriod: String,
+    isSyncing: Boolean,
+    onTrendingPeriodSelected: (TrendingPeriod) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
+        border = BorderStroke(1.dp, OutlineVariant),
+        modifier = modifier
+    ) {
+        SettingsTrendingPeriodContent(
+            trendingPeriod = trendingPeriod,
+            isSyncing = isSyncing,
+            onTrendingPeriodSelected = onTrendingPeriodSelected
+        )
+    }
+}
+
+@Composable
+private fun SettingsTrendingPeriodContent(
+    trendingPeriod: String,
+    isSyncing: Boolean,
+    onTrendingPeriodSelected: (TrendingPeriod) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SettingsPeriodInfoColumn(modifier = Modifier.weight(1f).padding(end = 16.dp))
+        TrendingPeriodSelector(
+            trendingPeriod = TrendingPeriod.fromKey(trendingPeriod),
+            isSyncing = isSyncing,
+            onPeriodSelected = onTrendingPeriodSelected
+        )
+    }
+}
+
+@Composable
+private fun SettingsPeriodInfoColumn(modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(
+            "Trending Data Period",
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            fontSize = 16.sp
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "Choose whether trending data is based on daily, weekly, or monthly top 100 media.",
+            color = TextSubtle,
+            fontSize = 12.sp,
+            lineHeight = 16.sp
         )
     }
 }

@@ -94,6 +94,7 @@ class SimklRepositoryDeepSyncTest {
             publicSimklApiService = publicApiService,
             authenticatedSimklApiService = authenticatedApiService,
             notificationRepo = notificationRepo,
+            appSettingsRepo = appSettingsRepo,
             syncMetadataRepo = syncMetadataRepo,
             autoDownloadRepo = autoDownloadRepo,
             downloadRepository = mockk(relaxed = true),
@@ -108,6 +109,7 @@ class SimklRepositoryDeepSyncTest {
 
 
         every { authRepo.preferencesFlow } returns flowOf(AuthPreferences())
+        every { appSettingsRepo.preferencesFlow } returns flowOf(AppSettingsPreferences())
         every { syncMetadataRepo.preferencesFlow } returns flowOf(SyncMetadataPreferences())
         every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences())
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())

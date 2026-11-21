@@ -26,6 +26,7 @@ import com.felixbrucker.simklcalendar.data.database.TrendingEntry
 import com.felixbrucker.simklcalendar.data.database.TrendingEntryDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistItemDao
+import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
 import com.felixbrucker.simklcalendar.data.preferences.SyncMetadataRepository
@@ -72,6 +73,7 @@ class SyncRepository @Inject constructor(
     private val publicSimklApiService: PublicSimklApiService,
     private val authenticatedSimklApiService: AuthenticatedSimklApiService,
     private val notificationRepo: NotificationRepository,
+    private val appSettingsRepo: AppSettingsRepository,
     private val syncMetadataRepo: SyncMetadataRepository,
     private val autoDownloadRepo: AutoDownloadRepository,
     private val downloadRepository: DownloadRepository,
@@ -362,13 +364,15 @@ class SyncRepository @Inject constructor(
         )
         val syncMetadata = syncMetadataRepo.preferencesFlow.first()
         val notifPrefs = notificationRepo.preferencesFlow.first()
+        val appSettings = appSettingsRepo.preferencesFlow.first()
+        val trendingPeriod = appSettings.trendingPeriod
         val semaphore = Semaphore(16)
 
         coroutineScope {
             mediaTypes.map { (typeKey, mediaType) ->
                 async {
-                    val lastSyncKey = "trending_last_mod_$typeKey"
-                    val lastHeaderKey = "trending_header_$typeKey"
+                    val lastSyncKey = "trending_last_mod_${trendingPeriod}_$typeKey"
+                    val lastHeaderKey = "trending_header_${trendingPeriod}_$typeKey"
 
                     val lastSyncTimestamp = if (force) 0L else syncMetadata.trendingLastModifiedAt[lastSyncKey] ?: 0L
                     val savedHeader = if (force) null else syncMetadata.trendingLastModifiedHeader[lastHeaderKey]
@@ -381,6 +385,7 @@ class SyncRepository @Inject constructor(
                     val response = semaphore.withPermit {
                         publicSimklApiService.getTrending(
                             type = typeKey,
+                            period = trendingPeriod,
                             ifModifiedSince = savedHeader
                         )
                     }

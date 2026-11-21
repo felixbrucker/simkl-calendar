@@ -17,6 +17,8 @@ import com.felixbrucker.simklcalendar.data.network.SimklRating
 import com.felixbrucker.simklcalendar.data.network.SimklRatings
 import com.felixbrucker.simklcalendar.data.network.SimklTvDetailResponse
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
+import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences
+import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences
 import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
@@ -50,6 +52,7 @@ class RatingsSyncTest {
     private lateinit var publicApiService: PublicSimklApiService
     private lateinit var authenticatedApiService: AuthenticatedSimklApiService
     private lateinit var notificationRepo: NotificationRepository
+    private lateinit var appSettingsRepo: AppSettingsRepository
     private lateinit var syncMetadataRepo: SyncMetadataRepository
     private lateinit var autoDownloadRepo: AutoDownloadRepository
     private lateinit var downloadRepository: DownloadRepository
@@ -68,6 +71,7 @@ class RatingsSyncTest {
         publicApiService = mockk(relaxed = true)
         authenticatedApiService = mockk(relaxed = true)
         notificationRepo = mockk(relaxed = true)
+        appSettingsRepo = mockk(relaxed = true)
         syncMetadataRepo = mockk(relaxed = true)
         autoDownloadRepo = mockk(relaxed = true)
         downloadRepository = mockk(relaxed = true)
@@ -84,6 +88,7 @@ class RatingsSyncTest {
             publicSimklApiService = publicApiService,
             authenticatedSimklApiService = authenticatedApiService,
             notificationRepo = notificationRepo,
+            appSettingsRepo = appSettingsRepo,
             syncMetadataRepo = syncMetadataRepo,
             autoDownloadRepo = autoDownloadRepo,
             downloadRepository = downloadRepository,
@@ -97,6 +102,7 @@ class RatingsSyncTest {
         )
 
 
+        every { appSettingsRepo.preferencesFlow } returns flowOf(AppSettingsPreferences())
         every { syncMetadataRepo.preferencesFlow } returns flowOf(SyncMetadataPreferences())
         every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences())
         every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())

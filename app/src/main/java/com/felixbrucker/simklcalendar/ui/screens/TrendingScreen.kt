@@ -48,10 +48,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.TrendingPeriod
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.preferences.UiPreferences
 import com.felixbrucker.simklcalendar.ui.composable.MediaTypeFilterChips
 import com.felixbrucker.simklcalendar.ui.composable.TrendingItemCard
+import com.felixbrucker.simklcalendar.ui.composable.TrendingPeriodSelector
 import com.felixbrucker.simklcalendar.ui.theme.*
 import com.felixbrucker.simklcalendar.ui.viewmodel.MediaItemHolder
 import com.felixbrucker.simklcalendar.ui.viewmodel.TrendingViewModel
@@ -76,6 +78,7 @@ fun TrendingScreen(
     val trendingItems by viewModel.trendingMediaItems.collectAsState()
     val watchlistStatusMap by viewModel.watchlistStatusMap.collectAsState()
     val uiPreferences by viewModel.uiPreferences.collectAsState()
+    val trendingPeriod by viewModel.trendingPeriod.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val minYearBound by viewModel.minTrendingYear.collectAsState()
@@ -129,6 +132,7 @@ fun TrendingScreen(
             TopAppBar(
                 title = {
                     TrendingTopAppBarTitleSection(
+                        trendingPeriod = trendingPeriod,
                         searchDisplayMode = searchDisplayMode,
                         searchQuery = searchQuery,
                         focusRequester = focusRequester,
@@ -447,12 +451,21 @@ private fun TrendingFilterSidebarContent(
     maxYearBound: Int,
     viewModel: TrendingViewModel
 ) {
+    val trendingPeriod by viewModel.trendingPeriod.collectAsState()
+    val isSyncing by viewModel.isTrendingPeriodSyncing.collectAsState()
+
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         TrendingFilterRowMediaType(
             uiPreferences = uiPreferences,
+            viewModel = viewModel
+        )
+
+        TrendingFilterRowTrendingPeriod(
+            trendingPeriod = trendingPeriod,
+            isSyncing = isSyncing,
             viewModel = viewModel
         )
 
@@ -493,6 +506,28 @@ private fun TrendingFilterRowMediaType(
             onToggleShowTv = { viewModel.toggleShowTv() },
             onToggleShowAnime = { viewModel.toggleShowAnime() },
             onToggleShowMovies = { viewModel.toggleShowMovies() }
+        )
+    }
+}
+
+@Composable
+private fun TrendingFilterRowTrendingPeriod(
+    trendingPeriod: TrendingPeriod,
+    isSyncing: Boolean,
+    viewModel: TrendingViewModel
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Period", color = TextPrimary, fontSize = 14.sp)
+        TrendingPeriodSelector(
+            trendingPeriod = trendingPeriod,
+            isSyncing = isSyncing,
+            onPeriodSelected = { viewModel.updateTrendingPeriod(it) }
         )
     }
 }
@@ -701,6 +736,7 @@ private fun TrendingTopBarActions(
 
 @Composable
 private fun TrendingTopAppBarTitleSection(
+    trendingPeriod: TrendingPeriod,
     searchDisplayMode: TrendingSearchBarDisplayMode,
     searchQuery: String,
     focusRequester: FocusRequester,
@@ -746,7 +782,7 @@ private fun TrendingTopAppBarTitleSection(
             }
 
             TrendingSearchBarDisplayMode.DEFAULT -> {
-                Text("Trending", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Trending (${trendingPeriod.titleLabel})", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }

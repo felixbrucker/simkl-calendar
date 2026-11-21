@@ -4,13 +4,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.data.model.TrendingPeriod
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
+import com.felixbrucker.simklcalendar.data.preferences.AppSettingsPreferences
+import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.UiPreferences
 import com.felixbrucker.simklcalendar.data.preferences.UiRepository
 import com.felixbrucker.simklcalendar.data.repository.MediaRepository
 import com.felixbrucker.simklcalendar.data.repository.SyncRepository
+import com.felixbrucker.simklcalendar.di.ApplicationScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -23,11 +28,39 @@ class TrendingViewModel @Inject constructor(
     private val uiRepo: UiRepository,
     private val mediaRepository: MediaRepository,
     private val syncRepository: SyncRepository,
+    private val appSettingsRepo: AppSettingsRepository,
+    @ApplicationScope private val appScope: CoroutineScope,
     defaultDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
     val uiPreferences: StateFlow<UiPreferences> = uiRepo.preferencesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiPreferences())
+
+    val trendingPeriod: StateFlow<TrendingPeriod> = appSettingsRepo.preferencesFlow
+        .map { TrendingPeriod.fromKey(it.trendingPeriod) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TrendingPeriod.DAILY)
+
+    private val _isTrendingPeriodSyncing = MutableStateFlow(false)
+    val isTrendingPeriodSyncing: StateFlow<Boolean> = _isTrendingPeriodSyncing.asStateFlow()
+
+    companion object {
+        private const val TAG = "TrendingViewModel"
+    }
+
+    fun updateTrendingPeriod(period: TrendingPeriod) {
+        appScope.launch {
+            _isTrendingPeriodSyncing.value = true
+            appSettingsRepo.setTrendingPeriod(period.key)
+            try {
+                syncRepository.syncTrending(force = true)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to sync trending items after period change")
+            } finally {
+                _isTrendingPeriodSyncing.value = false
+            }
+        }
+    }
 
     val minTrendingYear: StateFlow<Int> = mediaRepository.minTrendingYearFlow
         .map { it ?: 1950 }
