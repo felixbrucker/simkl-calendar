@@ -130,9 +130,11 @@ class WatchHistoryRepository @Inject constructor(
             val sortedSeasons = seasonsSet.sorted()
             val isLastSeason = sortedSeasons.isNotEmpty() && season == sortedSeasons.last()
             val prevSeasons = sortedSeasons.filter { it < season }
+            val calendarBySeason = showCalendarItems.groupBy { it.season ?: 1 }
+            val watchedBySeason = showWatchedItems.groupBy { it.season }
             val allPrevWatched = prevSeasons.all { sNum ->
-                val epInSeason = showCalendarItems.filter { (it.season ?: 1) == sNum }
-                val watchedInSeason = showWatchedItems.filter { it.season == sNum }
+                val epInSeason = calendarBySeason[sNum] ?: emptyList()
+                val watchedInSeason = watchedBySeason[sNum] ?: emptyList()
                 if (epInSeason.isNotEmpty()) {
                     epInSeason.all { it.isWatched }
                 } else {
