@@ -81,3 +81,9 @@
 **Learning:** Assigning model properties like `SearchResultItem.uri` as explicit item keys in Jetpack Compose `LazyColumn` (`items(results, key = { it.uri.toString() })`) introduces crash risks (`IllegalArgumentException: Key already exists`). In multi-provider or aggregator torrent searches, different sources or mirrors may return duplicate magnet links or identical URI schemes. When an item model lacks an explicitly unique, server-backed primary identifier, falling back to Compose default index keys or ensuring deduplication upstream is required to avoid breaking UI composition.
 
 **Action:** Never use external or third-party entity fields (such as search result download URIs) as Compose `LazyColumn` keys unless uniqueness is strictly guaranteed or enforced via prior deduplication.
+
+## 2027-05-18 - Prohibition of Bit-Shifting or Bit-Packing Optimizations
+
+**Learning:** Bit-shifting or bit-packing composite keys (e.g., packing `season` and `episodeNumber` integers into a `Long` using `shl` and `or`) is strictly forbidden across this codebase. It introduces unnecessary low-level complexity, reduces readability, and creates fragile code for negligible memory/CPU gains.
+
+**Action:** NEVER use bit-shifting or bit-packing for composite keys or data structures anywhere in this project under any circumstances. Always use standard Kotlin data classes, `Pair`, or standard maps/collections instead.

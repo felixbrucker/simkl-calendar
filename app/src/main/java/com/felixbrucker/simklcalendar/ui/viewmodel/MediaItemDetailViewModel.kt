@@ -365,7 +365,12 @@ class MediaItemDetailViewModel @Inject constructor(
                     flowOf(emptyMap())
                 } else {
                     watchlistItemDao.getWatchlistItemsFlow(ids)
-                        .map { list -> list.associate { it.simklId to (it.status ?: WatchlistStatus.PLAN_TO_WATCH) } }
+                        .map { list ->
+                            list.associateBy(
+                                keySelector = { it.simklId },
+                                valueTransform = { it.status ?: WatchlistStatus.PLAN_TO_WATCH }
+                            )
+                        }
                 }
             }
         }
