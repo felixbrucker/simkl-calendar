@@ -1147,7 +1147,7 @@ fun SearchItemCard(
     Card(
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
-        border = androidx.compose.foundation.BorderStroke(1.dp, OutlineVariant),
+        border = BorderStroke(1.dp, OutlineVariant),
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)

@@ -31,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.Instant
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
@@ -482,66 +481,6 @@ private fun EpisodeListRowDropdowns(
                 item = epItem,
                 onStatusChange = { newStatus -> onMediaStatusChange(epItem.primaryKey, newStatus) }
             )
-        }
-    }
-}
-
-@Composable
-fun StandardEpisodeRow(
-    title: String,
-    episodeCode: String,
-    date: Instant?,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = SurfaceDark,
-        border = BorderStroke(1.dp, SurfaceVariantGrey),
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = SurfacePurple,
-                    contentColor = PurpleContainerSoft
-                ) {
-                    Text(
-                        text = episodeCode,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-
-                Column(modifier = Modifier.align(Alignment.CenterVertically)) {
-                    Text(
-                        text = title,
-                        color = TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    if (date != null) {
-                        Text(
-                            text = DateUtil.formatDisplayDate(date),
-                            color = TextGreyLight,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-            }
         }
     }
 }

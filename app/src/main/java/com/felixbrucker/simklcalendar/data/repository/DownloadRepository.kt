@@ -9,6 +9,7 @@ import com.felixbrucker.simklcalendar.data.database.ItemDownloadSettingsDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
 import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.network.TorrentSearchManager
+import com.felixbrucker.simklcalendar.data.util.DirectoryUtils
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.data.util.formattedAutoDownloadLabel
 import com.felixbrucker.simklcalendar.extensions.destinationSubdirectory
@@ -16,11 +17,17 @@ import com.felixbrucker.simklcalendar.receiver.download.DownloadCompletedReceive
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import com.felixbrucker.torrent_search_api.SearchResultItem
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration
@@ -37,6 +44,19 @@ class DownloadRepository @Inject constructor(
     private val torrentServiceHelper: TorrentServiceHelper,
     private val notificationManager: NotificationManager,
 ) {
+    private val _downloadSubdirectories = MutableStateFlow<List<String>>(emptyList())
+    val downloadSubdirectories: StateFlow<List<String>> = _downloadSubdirectories.asStateFlow()
+
+    fun refreshDownloadSubdirectories() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                _downloadSubdirectories.value = DirectoryUtils.getDownloadSubdirectories()
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Could not load download subdirectories")
+            }
+        }
+    }
+
     suspend fun saveItemDownloadSettings(settings: ItemDownloadSettings) = withContext(Dispatchers.IO) {
         itemDownloadSettingsDao.insertOrUpdate(settings)
     }
@@ -191,5 +211,9 @@ class DownloadRepository @Inject constructor(
             putExtra(DownloadCompletedReceiver.EXTRA_SEASON, season)
         }
         return intent.toUri(Intent.URI_INTENT_SCHEME)
+    }
+
+    companion object {
+        private const val TAG = "DownloadRepository"
     }
 }

@@ -30,7 +30,6 @@ import com.felixbrucker.simklcalendar.data.repository.NotificationSettingReposit
 import com.felixbrucker.simklcalendar.data.repository.SyncRepository
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository
-import com.felixbrucker.simklcalendar.data.util.DirectoryUtils
 import com.felixbrucker.simklcalendar.data.util.DownloadProgress
 import com.felixbrucker.simklcalendar.data.util.MediaFormatter
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
@@ -118,13 +117,6 @@ class CalendarViewModel @Inject constructor(
 
     fun setSelectedCalendarItem(item: CalendarItemWithWatchlist?) {
         _selectedCalendarItem.value = item
-    }
-
-    private val _selectedWatchlistTableItem = MutableStateFlow<WatchlistTableItem?>(null)
-    val selectedWatchlistTableItem: StateFlow<WatchlistTableItem?> = _selectedWatchlistTableItem.asStateFlow()
-
-    fun setSelectedWatchlistTableItem(item: WatchlistTableItem?) {
-        _selectedWatchlistTableItem.value = item
     }
 
     val customSearchLinks: StateFlow<List<CustomSearchLink>> = customSearchLinkRepository.customSearchLinks
@@ -368,10 +360,6 @@ class CalendarViewModel @Inject constructor(
         return notificationSettingRepository.getSettingForSimklIdFlow(simklId).flowOn(Dispatchers.IO)
     }
 
-    fun getTrackedWatchlistItemFlow(simklId: Int): Flow<TrackedWatchlistItem?> {
-        return calendarRepository.getTrackedWatchlistItemFlow(simklId).flowOn(Dispatchers.IO)
-    }
-
     fun saveItemDownloadSettings(settings: ItemDownloadSettings) {
         viewModelScope.launch {
             downloadRepository.saveItemDownloadSettings(settings)
@@ -439,14 +427,7 @@ class CalendarViewModel @Inject constructor(
         return downloadRepository.getItemDownloadSettingsFlow(simklId)
     }
 
-    private val _downloadSubdirectories = MutableStateFlow<List<String>>(emptyList())
-    val downloadSubdirectories: StateFlow<List<String>> = _downloadSubdirectories.asStateFlow()
-
-    fun refreshDownloadSubdirectories() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _downloadSubdirectories.value = DirectoryUtils.getDownloadSubdirectories()
-        }
-    }
+    val downloadSubdirectories: StateFlow<List<String>> = downloadRepository.downloadSubdirectories
 
     private val _updatingWatchStatusKeys = MutableStateFlow<Set<String>>(emptySet())
     val updatingWatchStatusKeys: StateFlow<Set<String>> = _updatingWatchStatusKeys.asStateFlow()
@@ -669,7 +650,6 @@ class CalendarViewModel @Inject constructor(
     private val _syncError = MutableStateFlow<String?>(null)
 
     init {
-        refreshDownloadSubdirectories()
         viewModelScope.launch {
             userRepository.resetAuthIfNeeded()
             // Automatically sync calendar on startup and after logging

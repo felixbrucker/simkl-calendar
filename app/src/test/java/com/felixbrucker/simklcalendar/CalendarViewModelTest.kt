@@ -143,6 +143,7 @@ class CalendarViewModelTest {
         every { torrentServiceHelper.downloads } returns MutableStateFlow(emptyMap())
         every { torrentServiceHelper.isBound } returns MutableStateFlow(false)
         every { torrentServiceHelper.isInstalled } returns MutableStateFlow(false)
+        every { downloadRepositoryMock.downloadSubdirectories } returns MutableStateFlow(emptyList())
         coEvery { downloadRepositoryMock.searchAndDownloadItem(any()) } returns Result.failure(Exception("No torrents"))
 
         every { calendarRepositoryMock.getFilteredCalendarItems(any()) } returns filteredCalendarItemsFlow
@@ -250,17 +251,6 @@ class CalendarViewModelTest {
         assertEquals(1, results.size)
         assertEquals(mockResult, results[0])
         coVerify { downloadRepositoryMock.detectTorrents(100, "Test Anime") }
-    }
-
-    @Test
-    fun testRefreshDownloadSubdirectories() = runTest {
-        val viewModel = createViewModel()
-
-        viewModel.refreshDownloadSubdirectories()
-        advanceUntilIdle()
-
-        val subdirs = viewModel.downloadSubdirectories.value
-        assertEquals(emptyList<String>(), subdirs)
     }
 
     @Test

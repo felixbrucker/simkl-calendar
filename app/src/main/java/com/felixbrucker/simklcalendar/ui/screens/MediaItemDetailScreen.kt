@@ -1,8 +1,14 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
+import android.Manifest
 import android.R.drawable.ic_menu_gallery
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,6 +24,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -44,6 +52,7 @@ import com.felixbrucker.simklcalendar.data.database.RecommendedMediaItem
 import com.felixbrucker.simklcalendar.data.database.RelatedMediaItem
 import com.felixbrucker.simklcalendar.data.database.SimilarMediaItem
 import com.felixbrucker.simklcalendar.data.database.WatchlistItem
+import com.felixbrucker.simklcalendar.data.model.MediaStatus
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.util.DateUtil
@@ -53,7 +62,15 @@ import com.felixbrucker.simklcalendar.data.util.displayTitle
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderOpenSimklButton
-import com.felixbrucker.simklcalendar.ui.composable.StandardEpisodeRow
+import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
+import com.felixbrucker.simklcalendar.ui.composable.EpisodeDownloadProgress
+import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
+import com.felixbrucker.simklcalendar.ui.composable.ManualSearchDialog
+import com.felixbrucker.simklcalendar.ui.composable.MediaStatusDropdown
+import com.felixbrucker.simklcalendar.ui.composable.NotificationSettingsCard
+import com.felixbrucker.simklcalendar.ui.composable.MediaWatchButton
+import com.felixbrucker.simklcalendar.ui.composable.SeasonWatchButton
+import com.felixbrucker.simklcalendar.ui.composable.WatchedStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.sharedBoundsItem
 import com.felixbrucker.simklcalendar.ui.composable.sharedElementItem
 import com.felixbrucker.simklcalendar.ui.composable.badgeTextColor
@@ -63,6 +80,7 @@ import com.felixbrucker.simklcalendar.ui.theme.*
 import com.felixbrucker.simklcalendar.ui.viewmodel.EpisodeListItemUiModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.EpisodeListUiState
 import com.felixbrucker.simklcalendar.ui.viewmodel.MediaItemDetailViewModel
+import com.felixbrucker.simklcalendar.ui.viewmodel.WatchProgressUiState
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.Locale
@@ -84,13 +102,46 @@ fun MediaItemDetailScreen(
 
     val mediaItemWithDetails by viewModel.mediaItem.collectAsState()
     val watchlistItem by viewModel.watchlistItem.collectAsState()
+    val trackedWatchlistItem by viewModel.getTrackedWatchlistItemFlow(simklId).collectAsState(null)
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
     val isUpdatingStatus by viewModel.isUpdatingStatus.collectAsState()
     val watchlistStatusMap by viewModel.watchlistStatusMap.collectAsState()
     val uiPreferences by viewModel.uiPreferences.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val episodeListUiState by viewModel.episodeListUiState.collectAsState()
+    val watchProgressState by viewModel.watchProgressState.collectAsState()
     var isEpisodesExpanded by remember { mutableStateOf(false) }
+
+    val notificationSetting by viewModel.getSettingForSimklIdFlow(simklId).collectAsState(null)
+    val itemSettings by viewModel.getItemDownloadSettingsFlow(simklId).collectAsState(null)
+    val autoDownloadPrefs by viewModel.autoDownloadPreferences.collectAsState()
+    val isDownloaderInstalled by viewModel.isTorrentServiceInstalled.collectAsState()
+    val availableSubdirectories by viewModel.downloadSubdirectories.collectAsState()
+
+    val isMovie by viewModel.isMovie.collectAsState()
+    val manualSearchSeasonNum by viewModel.manualSearchSeasonNum.collectAsState()
+    val isMovieManualSearchOpen by viewModel.isMovieManualSearchOpen.collectAsState()
+
+    val targetSeason by viewModel.targetSeason.collectAsState()
+    val isTargetSeasonFullyWatched by viewModel.isTargetSeasonFullyWatched.collectAsState()
+    val isTargetSeasonOrMovieSearchable by viewModel.isTargetSeasonOrMovieSearchable.collectAsState()
+    val isTargetSeasonUpdatingWatchStatus by viewModel.isTargetSeasonUpdatingWatchStatus.collectAsState()
+
+    val notificationPrefs by viewModel.notificationPreferences.collectAsState()
+    val notifyEveryEpisode = notificationSetting?.notifyEveryEpisode ?: (if (isMovie) notificationPrefs.defaultNotifyMovieTheater else notificationPrefs.defaultNotifyAiring)
+    val notifySeasonFinished = notificationSetting?.notifyAiredLastEpisode ?: (if (isMovie) notificationPrefs.defaultNotifyMovieDigital else notificationPrefs.defaultNotifySeasonFinished)
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { /* Permission callback */ }
+
+    fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
 
     val item = mediaItemWithDetails
     val categoryColor = when (item?.mediaType ?: MediaType.TV) {
@@ -151,9 +202,32 @@ fun MediaItemDetailScreen(
                                     scope.launch { snackbarHostState.showSnackbar(msg) }
                                 }
                             },
+                            targetSeason = targetSeason,
+                            isTargetSeasonFullyWatched = isTargetSeasonFullyWatched,
+                            isTargetSeasonOrMovieSearchable = isTargetSeasonOrMovieSearchable,
+                            isTargetSeasonUpdatingWatchStatus = isTargetSeasonUpdatingWatchStatus,
+                            watchProgressState = watchProgressState,
+                            onMarkSeasonWatched = { sNum ->
+                                viewModel.markSeasonWatched(simklId, sNum, item.mediaType) { _, msg ->
+                                    scope.launch { snackbarHostState.showSnackbar(msg) }
+                                }
+                            },
+                            onManualSearch = { sNum -> viewModel.setManualSearchSeason(sNum) },
+                            onMovieManualSearch = { viewModel.setMovieManualSearchOpen(true) },
+                            onMovieWatchedChange = { watched ->
+                                if (watched) {
+                                    viewModel.markMovieWatched(simklId, showTitle = item.title) { _, msg ->
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
+                                } else {
+                                    viewModel.markMovieUnwatched(simklId, showTitle = item.title) { _, msg ->
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
+                                }
+                            },
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope,
-                            modifier = Modifier.padding(16.dp)
+                            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
                         )
                     }
 
@@ -168,7 +242,7 @@ fun MediaItemDetailScreen(
                             snackbarHostState = snackbarHostState,
                             scope = scope,
                             context = context,
-                            modifier = Modifier.padding(16.dp)
+                            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 8.dp)
                         )
                     }
 
@@ -184,7 +258,38 @@ fun MediaItemDetailScreen(
                             uiState = episodeListUiState,
                             isExpanded = isEpisodesExpanded,
                             headerTitle = headerTitle,
-                            onToggleExpand = { isEpisodesExpanded = !isEpisodesExpanded }
+                            onToggleExpand = { isEpisodesExpanded = !isEpisodesExpanded },
+                            onMarkEpisodeWatched = { epRow, watched ->
+                                if (watched) {
+                                    viewModel.markEpisodeWatched(simklId, epRow.season, epRow.episodeNumber, item.mediaType, showTitle = epRow.title) { _, msg ->
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
+                                } else {
+                                    viewModel.markEpisodeUnwatched(simklId, epRow.season, epRow.episodeNumber, item.mediaType, showTitle = epRow.title) { _, msg ->
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
+                                }
+                            },
+                            onUpdateMediaStatus = { epRow, status ->
+                                epRow.calendarItem?.primaryKey?.let { key ->
+                                    viewModel.updateMediaStatus(key, status)
+                                }
+                            },
+                            onMarkSeasonWatched = { season, watched ->
+                                if (watched) {
+                                    viewModel.markSeasonWatched(simklId, season, item.mediaType) { _, msg ->
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
+                                } else {
+                                    viewModel.markSeasonUnwatched(simklId, season, item.mediaType) { _, msg ->
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
+                                }
+                            },
+                            onUpdateSeasonMediaStatus = { season, status ->
+                                viewModel.updateSeasonMediaStatus(simklId, season, status)
+                            },
+                            onManualSearchSeason = { season -> viewModel.setManualSearchSeason(season) }
                         )
                     }
 
@@ -224,9 +329,137 @@ fun MediaItemDetailScreen(
                             )
                         }
                     }
+
+                    if (trackedWatchlistItem != null) {
+                        item {
+                            NotificationSettingsCard(
+                                isMovie = isMovie,
+                                notifyEveryEpisode = notifyEveryEpisode,
+                                notifySeasonFinished = notifySeasonFinished,
+                                onNotifyEveryEpisodeChange = { isChecked ->
+                                    viewModel.toggleNotification(
+                                        simklId = simklId,
+                                        notifyEpisode = isChecked,
+                                        notifySeasonFinished = notifySeasonFinished
+                                    )
+                                },
+                                onNotifySeasonFinishedChange = { isChecked ->
+                                    viewModel.toggleNotification(
+                                        simklId = simklId,
+                                        notifyEpisode = notifyEveryEpisode,
+                                        notifySeasonFinished = isChecked
+                                    )
+                                },
+                                checkPermission = { checkAndRequestNotificationPermission() },
+                                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 8.dp)
+                            )
+                        }
+
+                        item {
+                            DownloadSettingsCard(
+                                watchlistItem = trackedWatchlistItem!!,
+                                autoDownloadPrefs = autoDownloadPrefs,
+                                itemSettings = itemSettings,
+                                isDownloaderInstalled = isDownloaderInstalled,
+                                availableSubdirectories = availableSubdirectories,
+                                onSaveItemDownloadSettings = { viewModel.saveItemDownloadSettings(it) },
+                                onSearchTorrents = { term -> viewModel.detectTorrents(simklId = simklId, customTitle = term) },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
                 }
             }
+
+            if (manualSearchSeasonNum != null) {
+                val seasonOfItem = manualSearchSeasonNum!!
+                val initialSearchTitle = remember(item, itemSettings) {
+                    item?.title ?: ""
+                }
+                ManualSearchDialog(
+                    initialTitle = initialSearchTitle,
+                    mediaType = item?.mediaType ?: MediaType.TV,
+                    animeSeasonOrSeason = seasonOfItem,
+                    itemSettings = itemSettings,
+                    initialIncludeSeason = true,
+                    dialogTitle = "Search Season $seasonOfItem Manually",
+                    onPerformSearch = { customTitle ->
+                        viewModel.searchSeasonTorrents(
+                            simklId = simklId,
+                            season = seasonOfItem,
+                            customTitle = customTitle,
+                        )
+                    },
+                    onSelectResult = { selectedResult ->
+                        viewModel.downloadSeasonResult(
+                            simklId = simklId,
+                            season = seasonOfItem,
+                            resultItem = selectedResult,
+                            onResult = { _, msg ->
+                                scope.launch { snackbarHostState.showSnackbar(msg) }
+                            }
+                        )
+                    },
+                    onDismiss = { viewModel.setManualSearchSeason(null) }
+                )
+            }
+
+            if (isMovieManualSearchOpen) {
+                val initialSearchTitle = remember(item, itemSettings) {
+                    item?.title ?: ""
+                }
+                ManualSearchDialog(
+                    initialTitle = initialSearchTitle,
+                    mediaType = MediaType.MOVIE,
+                    animeSeasonOrSeason = null,
+                    itemSettings = itemSettings,
+                    initialIncludeSeason = false,
+                    dialogTitle = "Search Movie Manually",
+                    onPerformSearch = { customTitle ->
+                        viewModel.detectTorrents(
+                            simklId = simklId,
+                            customTitle = customTitle,
+                        )
+                    },
+                    onSelectResult = { selectedResult ->
+                        viewModel.downloadMovieResult(
+                            resultItem = selectedResult,
+                            onResult = { _, msg ->
+                                scope.launch { snackbarHostState.showSnackbar(msg) }
+                            }
+                        )
+                    },
+                    onDismiss = { viewModel.setMovieManualSearchOpen(false) }
+                )
+            }
         }
+    }
+}
+
+@Composable
+fun ManualSearchButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(36.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = SurfacePrimaryVariant,
+            contentColor = PurpleContainerSoft
+        ),
+        shape = RoundedCornerShape(10.dp),
+        contentPadding = PaddingValues(horizontal = 4.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text("Search manually", fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
     }
 }
 
@@ -279,6 +512,10 @@ fun MediaEpisodeCardHeader(
     title: String,
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
+    singleSeasonHeader: EpisodeListItemUiModel.SeasonHeader?,
+    onMarkSeasonWatched: (Int, Boolean) -> Unit,
+    onUpdateSeasonMediaStatus: (Int, MediaStatus) -> Unit,
+    onManualSearchSeason: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val shape = if (isExpanded) RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp) else RoundedCornerShape(12.dp)
@@ -297,11 +534,200 @@ fun MediaEpisodeCardHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = title, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
-            Icon(
-                imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                contentDescription = if (isExpanded) "Collapse" else "Expand",
-                tint = Color.White
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (singleSeasonHeader != null) {
+                    if (singleSeasonHeader.hasSearchableEpisode) {
+                        OutlinedButton(
+                            onClick = { onManualSearchSeason(singleSeasonHeader.season) },
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = PurpleLight,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Search", fontSize = 11.sp, color = PurpleLight, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    WatchedStatusDropdown(
+                        isWatched = singleSeasonHeader.isFullyWatched,
+                        onStatusChange = { watched -> onMarkSeasonWatched(singleSeasonHeader.season, watched) },
+                        isLoading = singleSeasonHeader.isSeasonUpdatingWatchStatus
+                    )
+
+                    if (singleSeasonHeader.hasCalendarItems) {
+                        MediaStatusDropdown(
+                            currentStatus = singleSeasonHeader.commonMediaStatus ?: MediaStatus.IGNORED,
+                            onStatusChange = { status -> onUpdateSeasonMediaStatus(singleSeasonHeader.season, status) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    tint = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MediaSeasonHeader(
+    seasonHeader: EpisodeListItemUiModel.SeasonHeader,
+    onMarkSeasonWatched: (Int, Boolean) -> Unit,
+    onUpdateSeasonMediaStatus: (Int, MediaStatus) -> Unit,
+    onManualSearchSeason: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (seasonHeader.showTitleText) Arrangement.SpaceBetween else Arrangement.End
+    ) {
+        if (seasonHeader.showTitleText) {
+            Text(
+                text = "Season ${seasonHeader.season} (${seasonHeader.totalEpisodes})",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = PurpleLight
             )
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (seasonHeader.hasSearchableEpisode) {
+                OutlinedButton(
+                    onClick = { onManualSearchSeason(seasonHeader.season) },
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = PurpleLight,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Search", fontSize = 11.sp, color = PurpleLight, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            WatchedStatusDropdown(
+                isWatched = seasonHeader.isFullyWatched,
+                onStatusChange = { watched -> onMarkSeasonWatched(seasonHeader.season, watched) },
+                isLoading = seasonHeader.isSeasonUpdatingWatchStatus
+            )
+
+            if (seasonHeader.hasCalendarItems) {
+                MediaStatusDropdown(
+                    currentStatus = seasonHeader.commonMediaStatus ?: MediaStatus.IGNORED,
+                    onStatusChange = { status -> onUpdateSeasonMediaStatus(seasonHeader.season, status) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EpisodeRowContent(
+    epRow: EpisodeListItemUiModel.EpisodeRow,
+    onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
+    onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = SurfaceDark,
+        border = BorderStroke(1.dp, OutlineVariant),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = SurfacePurple,
+                    contentColor = PurpleContainerSoft
+                ) {
+                    Text(
+                        text = epRow.episodeCode,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = epRow.title,
+                        color = TextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (epRow.date != null) {
+                        Text(
+                            text = DateUtil.formatDisplayDate(epRow.date),
+                            color = TextSubtle,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                epRow.downloadProgress?.let { prog ->
+                    EpisodeDownloadProgress(downloadProgress = prog)
+                }
+
+                WatchedStatusDropdown(
+                    isWatched = epRow.isWatched,
+                    onStatusChange = { watched -> onMarkEpisodeWatched(epRow, watched) },
+                    isLoading = epRow.isUpdatingWatchStatus
+                )
+
+                if (epRow.calendarItem != null) {
+                    ItemMediaStatusDropdown(
+                        item = epRow.calendarItem,
+                        onStatusChange = { status -> onUpdateMediaStatus(epRow, status) }
+                    )
+                }
+            }
         }
     }
 }
@@ -309,6 +735,11 @@ fun MediaEpisodeCardHeader(
 @Composable
 fun MediaEpisodeCardItemRow(
     item: EpisodeListItemUiModel,
+    onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
+    onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
+    onMarkSeasonWatched: (Int, Boolean) -> Unit,
+    onUpdateSeasonMediaStatus: (Int, MediaStatus) -> Unit,
+    onManualSearchSeason: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -319,11 +750,16 @@ fun MediaEpisodeCardItemRow(
             .padding(horizontal = 16.dp)
     ) {
         when (item) {
-            is EpisodeListItemUiModel.SeasonHeader -> MediaSeasonHeader(season = item.season)
-            is EpisodeListItemUiModel.EpisodeRow -> StandardEpisodeRow(
-                title = item.title,
-                episodeCode = item.episodeCode,
-                date = item.date
+            is EpisodeListItemUiModel.SeasonHeader -> MediaSeasonHeader(
+                seasonHeader = item,
+                onMarkSeasonWatched = onMarkSeasonWatched,
+                onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus,
+                onManualSearchSeason = onManualSearchSeason
+            )
+            is EpisodeListItemUiModel.EpisodeRow -> EpisodeRowContent(
+                epRow = item,
+                onMarkEpisodeWatched = onMarkEpisodeWatched,
+                onUpdateMediaStatus = onUpdateMediaStatus
             )
         }
     }
@@ -354,28 +790,12 @@ fun MediaEpisodeCardBottomSpacer(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+            .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
             .background(
                 color = SurfaceContainer,
                 shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
             )
-            .height(16.dp)
-    )
-}
-
-@Composable
-fun MediaSeasonHeader(
-    season: Int,
-    modifier: Modifier = Modifier
-) {
-    Text(
-        text = "Season $season",
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Bold,
-        color = PurpleLight,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .height(8.dp)
     )
 }
 
@@ -383,17 +803,26 @@ fun LazyListScope.mediaEpisodeCardSection(
     uiState: EpisodeListUiState,
     isExpanded: Boolean,
     headerTitle: String,
-    onToggleExpand: () -> Unit
+    onToggleExpand: () -> Unit,
+    onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
+    onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
+    onMarkSeasonWatched: (Int, Boolean) -> Unit,
+    onUpdateSeasonMediaStatus: (Int, MediaStatus) -> Unit,
+    onManualSearchSeason: (Int) -> Unit
 ) {
     item(key = "episode_header") {
         MediaEpisodeCardHeader(
             title = headerTitle,
             isExpanded = isExpanded,
             onToggleExpand = onToggleExpand,
+            singleSeasonHeader = uiState.singleSeasonHeader,
+            onMarkSeasonWatched = onMarkSeasonWatched,
+            onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus,
+            onManualSearchSeason = onManualSearchSeason,
             modifier = if (isExpanded) {
-                Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)
+                Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)
             } else {
-                Modifier.padding(16.dp)
+                Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
             }
         )
     }
@@ -407,7 +836,14 @@ fun LazyListScope.mediaEpisodeCardSection(
                 items = uiState.items,
                 key = { it.key }
             ) { episodeItem ->
-                MediaEpisodeCardItemRow(item = episodeItem)
+                MediaEpisodeCardItemRow(
+                    item = episodeItem,
+                    onMarkEpisodeWatched = onMarkEpisodeWatched,
+                    onUpdateMediaStatus = onUpdateMediaStatus,
+                    onMarkSeasonWatched = onMarkSeasonWatched,
+                    onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus,
+                    onManualSearchSeason = onManualSearchSeason
+                )
             }
             item(key = "episode_card_bottom") {
                 MediaEpisodeCardBottomSpacer()
@@ -689,6 +1125,15 @@ fun MediaDetailHeaderContent(
     watchlistItem: WatchlistItem?,
     isUpdatingStatus: Boolean,
     onUpdateStatus: (WatchlistStatus?) -> Unit,
+    targetSeason: Int,
+    isTargetSeasonFullyWatched: Boolean,
+    isTargetSeasonOrMovieSearchable: Boolean,
+    isTargetSeasonUpdatingWatchStatus: Boolean,
+    watchProgressState: WatchProgressUiState?,
+    onMarkSeasonWatched: (Int) -> Unit,
+    onManualSearch: (Int) -> Unit,
+    onMovieManualSearch: () -> Unit,
+    onMovieWatchedChange: (Boolean) -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?,
     modifier: Modifier = Modifier
@@ -713,6 +1158,7 @@ fun MediaDetailHeaderContent(
                 MediaDetailInfoColumn(
                     simklId = simklId,
                     item = item.mediaItem,
+                    watchProgressState = watchProgressState,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
                     modifier = Modifier.fillMaxWidth()
@@ -723,6 +1169,15 @@ fun MediaDetailHeaderContent(
                     watchlistItem = watchlistItem,
                     isUpdatingStatus = isUpdatingStatus,
                     onUpdateStatus = onUpdateStatus,
+                    targetSeason = targetSeason,
+                    isTargetSeasonFullyWatched = isTargetSeasonFullyWatched,
+                    isTargetSeasonOrMovieSearchable = isTargetSeasonOrMovieSearchable,
+                    isTargetSeasonUpdatingWatchStatus = isTargetSeasonUpdatingWatchStatus,
+                    watchProgressState = watchProgressState,
+                    onMarkSeasonWatched = onMarkSeasonWatched,
+                    onManualSearch = onManualSearch,
+                    onMovieManualSearch = onMovieManualSearch,
+                    onMovieWatchedChange = onMovieWatchedChange,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -743,6 +1198,7 @@ fun MediaDetailHeaderContent(
                 MediaDetailInfoColumn(
                     simklId = simklId,
                     item = item.mediaItem,
+                    watchProgressState = watchProgressState,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
                     modifier = Modifier.weight(1f)
@@ -753,7 +1209,16 @@ fun MediaDetailHeaderContent(
                     watchlistItem = watchlistItem,
                     isUpdatingStatus = isUpdatingStatus,
                     onUpdateStatus = onUpdateStatus,
-                    modifier = Modifier.width(160.dp)
+                    targetSeason = targetSeason,
+                    isTargetSeasonFullyWatched = isTargetSeasonFullyWatched,
+                    isTargetSeasonOrMovieSearchable = isTargetSeasonOrMovieSearchable,
+                    isTargetSeasonUpdatingWatchStatus = isTargetSeasonUpdatingWatchStatus,
+                    watchProgressState = watchProgressState,
+                    onMarkSeasonWatched = onMarkSeasonWatched,
+                    onManualSearch = onManualSearch,
+                    onMovieManualSearch = onMovieManualSearch,
+                    onMovieWatchedChange = onMovieWatchedChange,
+                    modifier = Modifier.width(200.dp)
                 )
             }
         }
@@ -822,6 +1287,7 @@ fun MediaDetailPosterColumn(
 fun MediaDetailInfoColumn(
     simklId: Int,
     item: MediaItem,
+    watchProgressState: WatchProgressUiState?,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?,
     modifier: Modifier = Modifier
@@ -852,7 +1318,9 @@ fun MediaDetailInfoColumn(
             )
         }
 
-        val subtitle = MediaFormatter.formatMediaSubtitle(item)
+        val subtitle = remember(item, watchProgressState) {
+            MediaFormatter.formatMediaSubtitle(item, watchProgressState?.unwatchedCount)
+        }
         if (subtitle.isNotBlank()) {
             Text(
                 text = subtitle,
@@ -961,6 +1429,15 @@ fun MediaDetailActionSection(
     watchlistItem: WatchlistItem?,
     isUpdatingStatus: Boolean,
     onUpdateStatus: (WatchlistStatus?) -> Unit,
+    targetSeason: Int,
+    isTargetSeasonFullyWatched: Boolean,
+    isTargetSeasonOrMovieSearchable: Boolean,
+    isTargetSeasonUpdatingWatchStatus: Boolean,
+    watchProgressState: WatchProgressUiState?,
+    onMarkSeasonWatched: (Int) -> Unit,
+    onManualSearch: (Int) -> Unit,
+    onMovieManualSearch: () -> Unit,
+    onMovieWatchedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var watchlistStatusDropdownExpanded by remember { mutableStateOf(false) }
@@ -973,50 +1450,83 @@ fun MediaDetailActionSection(
         DetailHeaderOpenSimklButton(
             simklId = simklId,
             type = mediaType,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp),
+            iconSize = 18.dp,
+            textSize = 12.sp
         )
 
         Box(modifier = Modifier.fillMaxWidth()) {
             val isInWatchlist = watchlistItem != null
             val currentStatus = watchlistItem?.status
+            val isWatching = currentStatus == WatchlistStatus.WATCHING
             val buttonText = if (isUpdatingStatus) "Updating..." else (currentStatus?.displayName ?: "Add to list")
             val currentIcon = if (isInWatchlist) currentStatus.overlayIcon ?: Icons.Default.Bookmark else Icons.Default.Add
-            Button(
-                onClick = { watchlistStatusDropdownExpanded = true },
-                enabled = !isUpdatingStatus,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp),
+
+            Card(
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isInWatchlist) SurfacePrimaryVariant else PurpleLight,
-                    contentColor = if (isInWatchlist) PurpleContainerSoft else SurfaceDark
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isInWatchlist) SurfacePrimaryVariant else PurpleLight
                 ),
-                contentPadding = PaddingValues(horizontal = 8.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                if (isUpdatingStatus) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = if (isInWatchlist) PurpleContainerSoft else SurfaceDark
-                    )
-                } else {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { watchlistStatusDropdownExpanded = true },
+                        enabled = !isUpdatingStatus,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp),
+                        shape = if (isWatching && watchProgressState != null && watchProgressState.totalCount > 0) {
+                            RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)
+                        } else {
+                            RoundedCornerShape(10.dp)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isInWatchlist) SurfacePrimaryVariant else PurpleLight,
+                            contentColor = if (isInWatchlist) PurpleContainerSoft else SurfaceDark
+                        ),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
-                        Icon(
-                            imageVector = currentIcon,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = buttonText,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                        if (isUpdatingStatus) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = if (isInWatchlist) PurpleContainerSoft else SurfaceDark
+                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = currentIcon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = buttonText,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
+                    if (isWatching && watchProgressState != null && watchProgressState.totalCount > 0) {
+                        LinearProgressIndicator(
+                            progress = { watchProgressState.percentage },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp),
+                            color = PurpleLight,
+                            trackColor = SurfacePrimaryVariant,
+                            gapSize = 0.dp,
+                            drawStopIndicator = {}
                         )
                     }
                 }
@@ -1072,6 +1582,44 @@ fun MediaDetailActionSection(
                         }
                     )
                 }
+            }
+        }
+
+        if (mediaType == MediaType.MOVIE) {
+            val isCompleted = watchlistItem?.status == WatchlistStatus.COMPLETED
+            if (!isCompleted) {
+                MediaWatchButton(
+                    isMarkingWatched = isTargetSeasonUpdatingWatchStatus,
+                    isWatched = false,
+                    unwatchedLabel = "Mark as Watched",
+                    watchedLabel = "Watched",
+                    onToggleWatched = {
+                        onMovieWatchedChange(true)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    textSize = 12.sp
+                )
+            }
+
+            if (isTargetSeasonOrMovieSearchable) {
+                ManualSearchButton(onClick = onMovieManualSearch)
+            }
+        } else {
+            if (!isTargetSeasonFullyWatched) {
+                val seasonLabel = if (mediaType == MediaType.ANIME && targetSeason == 1) "Season" else "Season $targetSeason"
+
+                SeasonWatchButton(
+                    isMarkingWatched = isTargetSeasonUpdatingWatchStatus,
+                    isSeasonFullyWatched = false,
+                    seasonLabel = seasonLabel,
+                    onMarkSeasonWatched = { onMarkSeasonWatched(targetSeason) },
+                    modifier = Modifier.fillMaxWidth(),
+                    textSize = 12.sp
+                )
+            }
+
+            if (isTargetSeasonOrMovieSearchable) {
+                ManualSearchButton(onClick = { onManualSearch(targetSeason) })
             }
         }
     }

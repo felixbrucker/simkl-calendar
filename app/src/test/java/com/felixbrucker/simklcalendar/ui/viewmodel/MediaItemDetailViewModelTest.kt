@@ -8,16 +8,26 @@ import com.felixbrucker.simklcalendar.data.database.MediaItemWithDetails
 import com.felixbrucker.simklcalendar.data.database.WatchlistItemDao
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.network.AuthenticatedSimklApiService
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadPreferences
+import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
+import com.felixbrucker.simklcalendar.data.preferences.NotificationPreferences
+import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
 import com.felixbrucker.simklcalendar.data.preferences.UiPreferences
 import com.felixbrucker.simklcalendar.data.preferences.UiRepository
 import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
 import com.felixbrucker.simklcalendar.data.repository.CustomSearchLinkRepository
+import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
 import com.felixbrucker.simklcalendar.data.repository.MediaRepository
+import com.felixbrucker.simklcalendar.data.repository.NotificationSettingRepository
 import com.felixbrucker.simklcalendar.data.repository.SyncRepository
+import com.felixbrucker.simklcalendar.data.repository.WatchHistoryRepository
+import com.felixbrucker.simklcalendar.data.util.DownloadProgress
+import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -43,6 +53,15 @@ class MediaItemDetailViewModelTest {
     private val customSearchLinkRepository: CustomSearchLinkRepository = mockk(relaxed = true)
     private val watchlistItemDao: WatchlistItemDao = mockk(relaxed = true)
     private val uiRepository: UiRepository = mockk(relaxed = true)
+    private val downloadRepository: DownloadRepository = mockk(relaxed = true)
+    private val notificationSettingRepository: NotificationSettingRepository = mockk(relaxed = true)
+    private val autoDownloadRepo: AutoDownloadRepository = mockk(relaxed = true)
+    private val notificationRepo: NotificationRepository = mockk(relaxed = true)
+    private val torrentServiceHelper: TorrentServiceHelper = mockk(relaxed = true)
+    private val watchHistoryRepository: WatchHistoryRepository = mockk(relaxed = true)
+
+    private val downloadsFlow = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
+    private val isInstalledFlow = MutableStateFlow(true)
 
     @Before
     fun setUp() {
@@ -50,6 +69,12 @@ class MediaItemDetailViewModelTest {
         every { customSearchLinkRepository.customSearchLinks } returns flowOf(emptyList())
         every { uiRepository.preferencesFlow } returns flowOf(UiPreferences())
         every { calendarRepository.getWatchlistItemFlow(any()) } returns flowOf(null)
+        every { calendarRepository.getSortedCalendarItemsForSimklIdFlow(any()) } returns flowOf(emptyList())
+        every { watchHistoryRepository.getWatchedEpisodesForSimklIdFlow(any()) } returns flowOf(emptyList())
+        every { autoDownloadRepo.preferencesFlow } returns flowOf(AutoDownloadPreferences())
+        every { notificationRepo.preferencesFlow } returns flowOf(NotificationPreferences())
+        every { torrentServiceHelper.downloads } returns downloadsFlow
+        every { torrentServiceHelper.isInstalled } returns isInstalledFlow
     }
 
     @After
@@ -89,6 +114,12 @@ class MediaItemDetailViewModelTest {
             customSearchLinkRepository = customSearchLinkRepository,
             watchlistItemDao = watchlistItemDao,
             uiRepository = uiRepository,
+            downloadRepository = downloadRepository,
+            notificationSettingRepository = notificationSettingRepository,
+            autoDownloadRepo = autoDownloadRepo,
+            notificationRepo = notificationRepo,
+            torrentServiceHelper = torrentServiceHelper,
+            watchHistoryRepository = watchHistoryRepository,
             savedStateHandle = savedStateHandle,
             defaultDispatcher = testDispatcher
         )
@@ -144,6 +175,12 @@ class MediaItemDetailViewModelTest {
             customSearchLinkRepository = customSearchLinkRepository,
             watchlistItemDao = watchlistItemDao,
             uiRepository = uiRepository,
+            downloadRepository = downloadRepository,
+            notificationSettingRepository = notificationSettingRepository,
+            autoDownloadRepo = autoDownloadRepo,
+            notificationRepo = notificationRepo,
+            torrentServiceHelper = torrentServiceHelper,
+            watchHistoryRepository = watchHistoryRepository,
             savedStateHandle = savedStateHandle,
             defaultDispatcher = testDispatcher
         )
@@ -153,6 +190,7 @@ class MediaItemDetailViewModelTest {
         val state = viewModel.episodeListUiState.value
         assertEquals(2, state.totalCount)
         assertTrue(state.items.none { it is EpisodeListItemUiModel.SeasonHeader })
+        org.junit.Assert.assertNotNull(state.singleSeasonHeader)
 
         val epRows = state.items.filterIsInstance<EpisodeListItemUiModel.EpisodeRow>()
         assertEquals(2, epRows.size)

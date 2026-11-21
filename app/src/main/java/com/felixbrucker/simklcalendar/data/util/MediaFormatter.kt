@@ -338,7 +338,7 @@ object MediaFormatter {
         return formatYearRange(mediaItem.year, endYear, status, mediaItem.mediaType)
     }
 
-    fun formatMediaSubtitle(item: MediaItem): String {
+    fun formatMediaSubtitle(item: MediaItem, unwatchedCount: Int? = null): String {
         return buildString {
             append(formatYearRange(item))
 
@@ -361,6 +361,9 @@ object MediaFormatter {
                     }
                     item.seriesMetadata?.totalEpisodes?.takeIf { it > 0 }?.let {
                         append(" • $it Episodes")
+                        if (unwatchedCount != null && unwatchedCount > 0) {
+                            append(" ($unwatchedCount unwatched)")
+                        }
                     }
                     item.seriesMetadata?.status?.displayName?.let {
                         append(" • $it")
@@ -380,6 +383,9 @@ object MediaFormatter {
                     }
                     item.animeMetadata?.totalEpisodes?.takeIf { it > 0 }?.let {
                         append(" • $it Episodes")
+                        if (unwatchedCount != null && unwatchedCount > 0) {
+                            append(" ($unwatchedCount unwatched)")
+                        }
                     }
                     item.animeMetadata?.status?.displayName?.let {
                         append(" • $it")

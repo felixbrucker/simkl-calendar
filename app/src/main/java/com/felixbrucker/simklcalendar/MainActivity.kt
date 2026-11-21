@@ -43,7 +43,6 @@ import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import com.felixbrucker.simklcalendar.ui.screens.MainScreen
 import com.felixbrucker.simklcalendar.ui.screens.LoginScreen
 import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen
-import com.felixbrucker.simklcalendar.ui.screens.WatchlistItemDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.TrendingScreen
 import com.felixbrucker.simklcalendar.ui.screens.MediaItemDetailScreen
 import com.felixbrucker.simklcalendar.ui.screens.SettingsScreen
@@ -65,6 +64,7 @@ import java.net.URLDecoder
 import dagger.hilt.android.AndroidEntryPoint
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
+import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
 import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.ui.viewmodel.TrendingViewModel
@@ -91,6 +91,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var torrentServiceHelper: TorrentServiceHelper
+
+    @Inject
+    lateinit var downloadRepository: DownloadRepository
 
     private val _pendingReleaseDetailKey = MutableStateFlow<String?>(null)
     val pendingReleaseDetailKey: StateFlow<String?> = _pendingReleaseDetailKey.asStateFlow()
@@ -175,6 +178,7 @@ class MainActivity : ComponentActivity() {
                 }
         }
 
+        downloadRepository.refreshDownloadSubdirectories()
         handleOAuthIntent(intent)
 
         lifecycleScope.launch(Dispatchers.Default) {
@@ -196,6 +200,11 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        downloadRepository.refreshDownloadSubdirectories()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -372,8 +381,8 @@ fun SimklCalendarApp(
                     (targetState.destination.route?.startsWith("trending") == true && initialState.destination.route?.startsWith("media_item") != true)
                 val isDetailToDetail =
                     (initialState.destination.route?.startsWith("release_detail") == true &&
-                     targetState.destination.route?.startsWith("watchlist_item_detail") == true) ||
-                    (initialState.destination.route?.startsWith("watchlist_item_detail") == true &&
+                     targetState.destination.route?.startsWith("media_item") == true) ||
+                    (initialState.destination.route?.startsWith("media_item") == true &&
                      targetState.destination.route?.startsWith("release_detail") == true) ||
                     (initialState.destination.route?.startsWith("media_item") == true &&
                      targetState.destination.route?.startsWith("media_item") == true)
@@ -391,8 +400,8 @@ fun SimklCalendarApp(
                     (targetState.destination.route?.startsWith("trending") == true && initialState.destination.route?.startsWith("media_item") != true)
                 val isDetailToDetail =
                     (initialState.destination.route?.startsWith("release_detail") == true &&
-                     targetState.destination.route?.startsWith("watchlist_item_detail") == true) ||
-                    (initialState.destination.route?.startsWith("watchlist_item_detail") == true &&
+                     targetState.destination.route?.startsWith("media_item") == true) ||
+                    (initialState.destination.route?.startsWith("media_item") == true &&
                      targetState.destination.route?.startsWith("release_detail") == true) ||
                     (initialState.destination.route?.startsWith("media_item") == true &&
                      targetState.destination.route?.startsWith("media_item") == true)
@@ -439,10 +448,7 @@ fun SimklCalendarApp(
                         }
                     },
                     onNavigateToWatchlistItemDetail = { tableItem ->
-                        viewModel.setSelectedWatchlistTableItem(tableItem)
-                        navController.navigate("watchlist_item_detail/${tableItem.watchlistItem.simklId}") {
-                            launchSingleTop = true
-                        }
+                        navController.navigate("media_item/${tableItem.watchlistItem.simklId}/${tableItem.watchlistItem.type.key}")
                     },
                     onNavigateToDetail = { simklId, mediaType ->
                         navController.navigate("media_item/$simklId/${mediaType.key}")
@@ -589,29 +595,8 @@ fun SimklCalendarApp(
                     onNavigateBack = {
                         navController.popBackStackSafely()
                     },
-                    onNavigateToWatchlistItem = { simklId ->
-                        navController.navigate("watchlist_item_detail/$simklId")
-                    },
-                    sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedVisibilityScope = this@composable
-                )
-            }
-
-            // 5. Watchlist Item Details screen
-            composable(
-                route = "watchlist_item_detail/{simklId}",
-                arguments = listOf(navArgument("simklId") { type = NavType.IntType }),
-                enterTransition = { slideInFromRight },
-                exitTransition = { slideOutToLeft },
-            ) { backStackEntry ->
-                val simklId = backStackEntry.arguments?.getInt("simklId") ?: 0
-                WatchlistItemDetailScreen(
-                    viewModel = viewModel,
-                    simklId = simklId,
-                    onNavigateBack = { navController.popBackStackSafely() },
-                    onNavigateToEpisode = { itemKey ->
-                        val encodedKey = URLEncoder.encode(itemKey, "UTF-8")
-                        navController.navigate("release_detail/$encodedKey")
+                    onNavigateToWatchlistItem = { simklId, mediaType ->
+                        navController.navigate("media_item/$simklId/${mediaType.key}")
                     },
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@composable

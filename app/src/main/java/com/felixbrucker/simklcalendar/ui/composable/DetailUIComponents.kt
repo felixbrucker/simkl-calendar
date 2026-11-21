@@ -91,6 +91,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -637,6 +639,7 @@ fun DetailHeader(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp)
+                .height(32.dp)
         )
     }
 }
@@ -810,6 +813,8 @@ fun DetailHeaderOpenSimklButton(
     simklId: Int,
     type: MediaType,
     modifier: Modifier = Modifier,
+    iconSize: Dp = 16.dp,
+    textSize: TextUnit = 11.sp
 ) {
     val context = LocalContext.current
     Button(
@@ -820,7 +825,7 @@ fun DetailHeaderOpenSimklButton(
             )
             context.startActivity(intent)
         },
-        modifier = modifier.height(32.dp),
+        modifier = modifier,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = PurplePrimaryDark.copy(alpha = 0.8f),
@@ -831,10 +836,10 @@ fun DetailHeaderOpenSimklButton(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.OpenInNew,
             contentDescription = null,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(iconSize)
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(text = "Open on SIMKL", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+        Text(text = "Open on SIMKL", fontWeight = FontWeight.Bold, fontSize = textSize)
     }
 }
 
@@ -1527,22 +1532,24 @@ fun DetectTitleDialog(
 }
 
 @Composable
-fun SeasonWatchButton(
+fun MediaWatchButton(
     isMarkingWatched: Boolean,
-    isSeasonFullyWatched: Boolean,
-    seasonLabel: String,
-    onMarkSeasonWatched: () -> Unit,
-    modifier: Modifier = Modifier
+    isWatched: Boolean,
+    unwatchedLabel: String,
+    watchedLabel: String,
+    onToggleWatched: () -> Unit,
+    modifier: Modifier = Modifier,
+    textSize: TextUnit = TextUnit.Unspecified
 ) {
     Button(
-        onClick = onMarkSeasonWatched,
-        enabled = !isMarkingWatched && !isSeasonFullyWatched,
-        modifier = modifier.height(48.dp),
+        onClick = onToggleWatched,
+        enabled = !isMarkingWatched && !isWatched,
+        modifier = modifier,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSeasonFullyWatched) SurfaceGreenDeep else SurfacePrimaryVariant,
-            contentColor = if (isSeasonFullyWatched) GreenSuccess else PurpleContainerSoft,
-            disabledContainerColor = if (isSeasonFullyWatched) SurfaceGreen else SurfaceVariantGrey,
-            disabledContentColor = if (isSeasonFullyWatched) GreenSuccess else OutlineGrey
+            containerColor = if (isWatched) SurfaceGreenDeep else SurfacePrimaryVariant,
+            contentColor = if (isWatched) GreenSuccess else PurpleContainerSoft,
+            disabledContainerColor = if (isWatched) SurfaceGreen else SurfaceVariantGrey,
+            disabledContentColor = if (isWatched) GreenSuccess else OutlineGrey
         ),
         shape = RoundedCornerShape(10.dp)
     ) {
@@ -1553,8 +1560,8 @@ fun SeasonWatchButton(
                 color = PurpleContainerSoft
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Updating SIMKL...", fontWeight = FontWeight.Bold)
-        } else if (isSeasonFullyWatched) {
+            Text("Updating SIMKL...", fontWeight = FontWeight.Bold, fontSize = textSize)
+        } else if (isWatched) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
@@ -1562,8 +1569,9 @@ fun SeasonWatchButton(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "$seasonLabel Watched",
-                fontWeight = FontWeight.Bold
+                text = watchedLabel,
+                fontWeight = FontWeight.Bold,
+                fontSize = textSize
             )
         } else {
             Icon(
@@ -1573,11 +1581,32 @@ fun SeasonWatchButton(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Mark $seasonLabel as Watched",
-                fontWeight = FontWeight.Bold
+                text = unwatchedLabel,
+                fontWeight = FontWeight.Bold,
+                fontSize = textSize
             )
         }
     }
+}
+
+@Composable
+fun SeasonWatchButton(
+    isMarkingWatched: Boolean,
+    isSeasonFullyWatched: Boolean,
+    seasonLabel: String,
+    onMarkSeasonWatched: () -> Unit,
+    modifier: Modifier = Modifier,
+    textSize: TextUnit = TextUnit.Unspecified
+) {
+    MediaWatchButton(
+        isMarkingWatched = isMarkingWatched,
+        isWatched = isSeasonFullyWatched,
+        unwatchedLabel = "Mark $seasonLabel as Watched",
+        watchedLabel = "$seasonLabel Watched",
+        onToggleWatched = onMarkSeasonWatched,
+        modifier = modifier,
+        textSize = textSize
+    )
 }
 
 @Composable

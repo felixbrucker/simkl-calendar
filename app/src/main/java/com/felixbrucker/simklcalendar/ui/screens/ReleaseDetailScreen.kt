@@ -116,7 +116,7 @@ fun ReleaseDetailScreen(
     viewModel: CalendarViewModel,
     itemKey: String,
     onNavigateBack: () -> Unit,
-    onNavigateToWatchlistItem: (Int) -> Unit,
+    onNavigateToWatchlistItem: (Int, MediaType) -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -286,7 +286,7 @@ fun ReleaseDetailScreen(
                         hasUniqueTitleRomaji = activeItem.hasUniqueTitleRomaji,
                         animeSeason = activeItem.animeSeason,
                     ),
-                    onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId) },
+                    onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId, activeItem.type) },
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
                     sharedItemKey = itemKey
@@ -381,7 +381,7 @@ fun ReleaseDetailScreen(
                                             }
                                         }
                                     },
-                                    modifier = mod
+                                    modifier = mod.height(48.dp)
                                 )
                             }
                         }
