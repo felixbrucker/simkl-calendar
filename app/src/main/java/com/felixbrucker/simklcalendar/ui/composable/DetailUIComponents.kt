@@ -1646,10 +1646,6 @@ fun ManualSearchDialog(
         }
     }
 
-    LaunchedEffect(Unit) {
-        performSearch()
-    }
-
     LaunchedEffect(includeSeason) {
         performSearch()
     }
