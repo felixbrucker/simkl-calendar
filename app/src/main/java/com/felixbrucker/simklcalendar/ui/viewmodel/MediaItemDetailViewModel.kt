@@ -436,8 +436,7 @@ class MediaItemDetailViewModel @Inject constructor(
                 var hasDifferentMediaStatus = false
                 var hasSearchableEpisode = false
                 var hasCalendarItems = false
-                var isSeasonUpdatingWatchStatus = updatingKeys.contains("${details.mediaItem.simklId}_season_${season}")
-
+                val isSeasonUpdatingWatchStatus = updatingKeys.contains("${details.mediaItem.simklId}_season_${season}")
                 val seasonRows = ArrayList<EpisodeListItemUiModel.EpisodeRow>(sortedEpisodes.size)
 
                 for (ep in sortedEpisodes) {
@@ -466,9 +465,6 @@ class MediaItemDetailViewModel @Inject constructor(
                     val key = "${ep.simklId}_${ep.season}_${ep.episodeNumber}"
                     val downloadProgress = calItem?.downloadTaskId?.let { downloads[it] }
                     val isUpdatingWatchStatus = updatingKeys.contains(key)
-                    if (isUpdatingWatchStatus) {
-                        isSeasonUpdatingWatchStatus = true
-                    }
 
                     seasonRows.add(
                         EpisodeListItemUiModel.EpisodeRow(
