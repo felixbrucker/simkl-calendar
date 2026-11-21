@@ -246,18 +246,13 @@ class MediaItemDetailViewModel @Inject constructor(
     .flowOn(defaultDispatcher)
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val sortedSeasonsFlow: StateFlow<List<Int>> = seasons
-        .map { it.keys.sorted() }
-        .flowOn(defaultDispatcher)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     val targetSeason: StateFlow<Int> = combine(
         seasons,
-        sortedSeasonsFlow,
         watchedSetFlow
-    ) { seasonMap, sortedSeasons, watchedSet ->
-        if (seasonMap.isEmpty() || sortedSeasons.isEmpty()) 1
+    ) { seasonMap, watchedSet ->
+        if (seasonMap.isEmpty()) 1
         else {
+            val sortedSeasons = seasonMap.keys.sorted()
             sortedSeasons.firstOrNull { s ->
                 val epList = seasonMap[s] ?: emptyList()
                 epList.any { ep -> !watchedSet.contains(Pair(ep.season, ep.episodeNumber)) }
