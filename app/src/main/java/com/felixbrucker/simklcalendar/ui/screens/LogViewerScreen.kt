@@ -129,6 +129,7 @@ fun LogViewerScreen(
     var showClearDialog by remember { mutableStateOf(false) }
     var topControlsHeightPx by remember { mutableFloatStateOf(0f) }
     var topControlsOffsetPx by remember { mutableFloatStateOf(0f) }
+    var shouldAutoScroll by remember { mutableStateOf(true) }
 
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
@@ -153,6 +154,21 @@ fun LogViewerScreen(
                     topControlsOffsetPx = 0f
                 }
             }
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress to listState.canScrollForward }
+            .collect { (isScrolling, canScrollForward) ->
+                if (isScrolling) {
+                    shouldAutoScroll = !canScrollForward
+                }
+            }
+    }
+
+    LaunchedEffect(filteredLogs) {
+        if (shouldAutoScroll && filteredLogs.isNotEmpty()) {
+            listState.scrollToItem(filteredLogs.size - 1)
+        }
     }
 
     fun copyLogsToClipboard() {
@@ -208,6 +224,7 @@ fun LogViewerScreen(
                 totalLogsCount = allLogs.size,
                 onJumpToBottom = {
                     if (filteredLogs.isNotEmpty()) {
+                        shouldAutoScroll = true
                         scope.launch {
                             listState.animateScrollToItem(filteredLogs.size - 1)
                         }
