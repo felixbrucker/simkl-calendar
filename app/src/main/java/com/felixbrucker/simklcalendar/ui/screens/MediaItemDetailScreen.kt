@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +49,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.felixbrucker.simklcalendar.data.database.AnimeType
+import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.database.MediaItem
 import com.felixbrucker.simklcalendar.data.database.MediaItemWithDetails
 import com.felixbrucker.simklcalendar.data.database.RecommendedMediaItem
@@ -88,6 +90,7 @@ import com.felixbrucker.simklcalendar.ui.viewmodel.EpisodeListUiState
 import com.felixbrucker.simklcalendar.ui.viewmodel.MediaItemDetailViewModel
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchProgressUiState
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.util.Locale
 
@@ -97,6 +100,7 @@ fun MediaItemDetailScreen(
     simklId: Int,
     onNavigateBack: () -> Unit,
     onNavigateToDetail: (Int, MediaType) -> Unit,
+    onNavigateToReleaseDetail: (CalendarItemWithWatchlist) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MediaItemDetailViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -111,6 +115,7 @@ fun MediaItemDetailScreen(
 
     val mediaItemWithDetails by viewModel.mediaItem.collectAsState()
     val watchlistItem by viewModel.watchlistItem.collectAsState()
+    val targetMovieCalendarItemDelegate by viewModel.targetMovieCalendarItem.collectAsState()
     val trackedWatchlistItem by viewModel.getTrackedWatchlistItemFlow(simklId).collectAsState(null)
     val customSearchLinks by viewModel.customSearchLinks.collectAsState()
     val isUpdatingStatus by viewModel.isUpdatingStatus.collectAsState()
@@ -119,7 +124,7 @@ fun MediaItemDetailScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val episodeListUiState by viewModel.episodeListUiState.collectAsState()
     val watchProgressState by viewModel.watchProgressState.collectAsState()
-    var isEpisodesExpanded by remember { mutableStateOf(false) }
+    var isEpisodesExpanded by rememberSaveable { mutableStateOf(false) }
 
     val notificationSetting by viewModel.getSettingForSimklIdFlow(simklId).collectAsState(null)
     val itemSettings by viewModel.getItemDownloadSettingsFlow(simklId).collectAsState(null)
@@ -130,6 +135,7 @@ fun MediaItemDetailScreen(
     val isMovie by viewModel.isMovie.collectAsState()
     val manualSearchSeasonNum by viewModel.manualSearchSeasonNum.collectAsState()
     val isMovieManualSearchOpen by viewModel.isMovieManualSearchOpen.collectAsState()
+    val manualSearchCalendarItem by viewModel.manualSearchCalendarItem.collectAsState()
 
     val targetSeason by viewModel.targetSeason.collectAsState()
     val isTargetSeasonFullyWatched by viewModel.isTargetSeasonFullyWatched.collectAsState()
@@ -300,7 +306,9 @@ fun MediaItemDetailScreen(
                             onUpdateSeasonMediaStatus = { season, status ->
                                 viewModel.updateSeasonMediaStatus(simklId, season, status)
                             },
-                            onManualSearchSeason = { season -> viewModel.setManualSearchSeason(season) }
+                            onManualSearchSeason = { season -> viewModel.setManualSearchSeason(season) },
+                            onNavigateToReleaseDetail = onNavigateToReleaseDetail,
+                            onManualSearchEpisode = { calItem -> viewModel.setManualSearchCalendarItem(calItem) }
                         )
                     }
 
@@ -382,18 +390,19 @@ fun MediaItemDetailScreen(
                 }
             }
 
-            if (manualSearchSeasonNum != null) {
+            if (manualSearchSeasonNum != null && item != null) {
                 val seasonOfItem = manualSearchSeasonNum!!
+                val season = item.animeMetadata?.season ?: seasonOfItem
                 val initialSearchTitle = remember(item, itemSettings) {
-                    item?.title ?: ""
+                    item.getSearchTitle(itemSettings)
                 }
                 ManualSearchDialog(
                     initialTitle = initialSearchTitle,
-                    mediaType = item?.mediaType ?: MediaType.TV,
-                    animeSeasonOrSeason = seasonOfItem,
+                    mediaType = item.mediaType,
+                    animeSeasonOrSeason = season,
                     itemSettings = itemSettings,
                     initialIncludeSeason = true,
-                    dialogTitle = "Search Season $seasonOfItem Manually",
+                    dialogTitle = "Search Season $season Manually",
                     onPerformSearch = { customTitle ->
                         viewModel.searchSeasonTorrents(
                             simklId = simklId,
@@ -415,9 +424,10 @@ fun MediaItemDetailScreen(
                 )
             }
 
-            if (isMovieManualSearchOpen) {
-                val initialSearchTitle = remember(item, itemSettings) {
-                    item?.title ?: ""
+            val targetMovieCalendarItem = targetMovieCalendarItemDelegate // required for smart casting
+            if (isMovieManualSearchOpen && targetMovieCalendarItem != null) {
+                val initialSearchTitle = remember(targetMovieCalendarItem.watchlistItem) {
+                    targetMovieCalendarItem.getSearchTitle()
                 }
                 ManualSearchDialog(
                     initialTitle = initialSearchTitle,
@@ -427,13 +437,14 @@ fun MediaItemDetailScreen(
                     initialIncludeSeason = false,
                     dialogTitle = "Search Movie Manually",
                     onPerformSearch = { customTitle ->
-                        viewModel.detectTorrents(
-                            simklId = simklId,
+                        viewModel.searchTorrents(
+                            item = targetMovieCalendarItem,
                             customTitle = customTitle,
                         )
                     },
                     onSelectResult = { selectedResult ->
-                        viewModel.downloadMovieResult(
+                        viewModel.downloadItemResult(
+                            item = targetMovieCalendarItem,
                             resultItem = selectedResult,
                             onResult = { _, msg ->
                                 scope.launch { snackbarHostState.showSnackbar(msg) }
@@ -443,12 +454,43 @@ fun MediaItemDetailScreen(
                     onDismiss = { viewModel.setMovieManualSearchOpen(false) }
                 )
             }
+
+            if (manualSearchCalendarItem != null) {
+                val activeItem = manualSearchCalendarItem!!
+                val initialSearchTitle = remember(activeItem.watchlistItem) {
+                    activeItem.getSearchTitle()
+                }
+                ManualSearchDialog(
+                    initialTitle = initialSearchTitle,
+                    mediaType = activeItem.type,
+                    animeSeasonOrSeason = activeItem.animeSeason ?: activeItem.season,
+                    itemSettings = itemSettings,
+                    initialIncludeSeason = false,
+                    dialogTitle = "Search Episode Manually",
+                    onPerformSearch = { customTitle ->
+                        viewModel.searchTorrents(
+                            item = activeItem,
+                            customTitle = customTitle,
+                        )
+                    },
+                    onSelectResult = { selectedResult ->
+                        viewModel.downloadItemResult(
+                            item = activeItem,
+                            resultItem = selectedResult,
+                            onResult = { _, msg ->
+                                scope.launch { snackbarHostState.showSnackbar(msg) }
+                            }
+                        )
+                    },
+                    onDismiss = { viewModel.setManualSearchCalendarItem(null) }
+                )
+            }
         }
     }
 }
 
 @Composable
-fun ManualSearchButton(
+fun ManualSearchActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -537,22 +579,7 @@ private fun MediaSeasonHeaderActions(
         modifier = modifier
     ) {
         if (hasSearchableEpisode) {
-            OutlinedButton(
-                onClick = onManualSearchSeason,
-                shape = RoundedCornerShape(6.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
-                modifier = Modifier.height(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = PurpleLight,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Search", fontSize = 11.sp, color = PurpleLight, fontWeight = FontWeight.Bold)
-            }
+            ManualSearchButton(onManualSearchSeason)
         }
 
         WatchedStatusDropdown(
@@ -567,6 +594,26 @@ private fun MediaSeasonHeaderActions(
                 onStatusChange = onUpdateSeasonMediaStatus
             )
         }
+    }
+}
+
+@Composable
+private fun ManualSearchButton(onManualSearch: () -> Unit) {
+    OutlinedButton(
+        onClick = onManualSearch,
+        shape = RoundedCornerShape(6.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+        border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
+        modifier = Modifier.height(32.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = null,
+            tint = PurpleLight,
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text("Search", fontSize = 11.sp, color = PurpleLight, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -592,8 +639,13 @@ private fun EpisodeDownloadProgressCell(
 private fun EpisodeRowActionsContent(
     epRow: EpisodeListItemUiModel.EpisodeRow,
     onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
-    onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit
+    onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
+    onManualSearchEpisode: (CalendarItemWithWatchlist) -> Unit
 ) {
+    if (epRow.calendarItem != null && epRow.calendarItem.mediaStatus.isSearchable) {
+        ManualSearchButton(onManualSearch = { onManualSearchEpisode(epRow.calendarItem) })
+    }
+
     WatchedStatusDropdown(
         isWatched = epRow.isWatched,
         onStatusChange = { watched -> onMarkEpisodeWatched(epRow, watched) },
@@ -613,6 +665,7 @@ private fun EpisodeRowActions(
     epRow: EpisodeListItemUiModel.EpisodeRow,
     onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
     onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
+    onManualSearchEpisode: (CalendarItemWithWatchlist) -> Unit,
     isSmallScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -625,7 +678,8 @@ private fun EpisodeRowActions(
             EpisodeRowActionsContent(
                 epRow = epRow,
                 onMarkEpisodeWatched = onMarkEpisodeWatched,
-                onUpdateMediaStatus = onUpdateMediaStatus
+                onUpdateMediaStatus = onUpdateMediaStatus,
+                onManualSearchEpisode = onManualSearchEpisode
             )
         }
     } else {
@@ -637,7 +691,8 @@ private fun EpisodeRowActions(
             EpisodeRowActionsContent(
                 epRow = epRow,
                 onMarkEpisodeWatched = onMarkEpisodeWatched,
-                onUpdateMediaStatus = onUpdateMediaStatus
+                onUpdateMediaStatus = onUpdateMediaStatus,
+                onManualSearchEpisode = onManualSearchEpisode
             )
         }
     }
@@ -738,14 +793,95 @@ fun MediaSeasonHeader(
 }
 
 @Composable
+private fun EpisodeCodeBadge(
+    episodeCode: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = SurfacePurple,
+        contentColor = PurpleContainerSoft,
+        modifier = modifier
+    ) {
+        Text(
+            text = episodeCode,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
+private fun EpisodeRowTitleAndDate(
+    title: String,
+    date: Instant?,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = title,
+            color = TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (date != null) {
+            Text(
+                text = DateUtil.formatDisplayDate(date),
+                color = TextSubtle,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun EpisodeRowInfo(
+    epRow: EpisodeListItemUiModel.EpisodeRow,
+    downloadsFlow: StateFlow<Map<String, DownloadProgress>>,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
+    ) {
+        EpisodeCodeBadge(episodeCode = epRow.episodeCode)
+
+        FlowRow(
+            itemVerticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            EpisodeRowTitleAndDate(title = epRow.title, date = epRow.date)
+            EpisodeDownloadProgressCell(
+                downloadTaskId = epRow.calendarItem?.downloadTaskId,
+                downloadsFlow = downloadsFlow
+            )
+        }
+    }
+}
+
+@Composable
 fun EpisodeRowContent(
     epRow: EpisodeListItemUiModel.EpisodeRow,
     downloadsFlow: StateFlow<Map<String, DownloadProgress>>,
     onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
     onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
+    onNavigateToReleaseDetail: (CalendarItemWithWatchlist) -> Unit,
+    onManualSearchEpisode: (CalendarItemWithWatchlist) -> Unit,
     isSmallScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val calItem = epRow.calendarItem
+    val clickableModifier = if (calItem != null) {
+        Modifier.clickable { onNavigateToReleaseDetail(calItem) }
+    } else {
+        Modifier
+    }
+
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = SurfaceDark,
@@ -753,6 +889,7 @@ fun EpisodeRowContent(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
+            .then(clickableModifier)
     ) {
         Row(
             modifier = Modifier
@@ -761,58 +898,17 @@ fun EpisodeRowContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            EpisodeRowInfo(
+                epRow = epRow,
+                downloadsFlow = downloadsFlow,
                 modifier = Modifier.weight(1f)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = SurfacePurple,
-                    contentColor = PurpleContainerSoft
-                ) {
-                    Text(
-                        text = epRow.episodeCode,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-
-                FlowRow(
-                    itemVerticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Column {
-                        Text(
-                            text = epRow.title,
-                            color = TextPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (epRow.date != null) {
-                            Text(
-                                text = DateUtil.formatDisplayDate(epRow.date),
-                                color = TextSubtle,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-
-                    EpisodeDownloadProgressCell(
-                        downloadTaskId = epRow.calendarItem?.downloadTaskId,
-                        downloadsFlow = downloadsFlow
-                    )
-                }
-            }
+            )
 
             EpisodeRowActions(
                 epRow = epRow,
                 onMarkEpisodeWatched = onMarkEpisodeWatched,
                 onUpdateMediaStatus = onUpdateMediaStatus,
+                onManualSearchEpisode = onManualSearchEpisode,
                 isSmallScreen = isSmallScreen
             )
         }
@@ -828,6 +924,8 @@ fun MediaEpisodeCardItemRow(
     onMarkSeasonWatched: (Int, Boolean) -> Unit,
     onUpdateSeasonMediaStatus: (Int, MediaStatus) -> Unit,
     onManualSearchSeason: (Int) -> Unit,
+    onNavigateToReleaseDetail: (CalendarItemWithWatchlist) -> Unit,
+    onManualSearchEpisode: (CalendarItemWithWatchlist) -> Unit,
     isSmallScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -850,6 +948,8 @@ fun MediaEpisodeCardItemRow(
                 downloadsFlow = downloadsFlow,
                 onMarkEpisodeWatched = onMarkEpisodeWatched,
                 onUpdateMediaStatus = onUpdateMediaStatus,
+                onNavigateToReleaseDetail = onNavigateToReleaseDetail,
+                onManualSearchEpisode = onManualSearchEpisode,
                 isSmallScreen = isSmallScreen
             )
         }
@@ -901,7 +1001,9 @@ fun LazyListScope.mediaEpisodeCardSection(
     onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
     onMarkSeasonWatched: (Int, Boolean) -> Unit,
     onUpdateSeasonMediaStatus: (Int, MediaStatus) -> Unit,
-    onManualSearchSeason: (Int) -> Unit
+    onManualSearchSeason: (Int) -> Unit,
+    onNavigateToReleaseDetail: (CalendarItemWithWatchlist) -> Unit,
+    onManualSearchEpisode: (CalendarItemWithWatchlist) -> Unit
 ) {
     item(key = "episode_header") {
         MediaEpisodeCardHeader(
@@ -937,6 +1039,8 @@ fun LazyListScope.mediaEpisodeCardSection(
                     onMarkSeasonWatched = onMarkSeasonWatched,
                     onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus,
                     onManualSearchSeason = onManualSearchSeason,
+                    onNavigateToReleaseDetail = onNavigateToReleaseDetail,
+                    onManualSearchEpisode = onManualSearchEpisode,
                     isSmallScreen = isSmallScreen
                 )
             }
@@ -1701,7 +1805,7 @@ fun MediaDetailActionSection(
             }
 
             if (isTargetSeasonOrMovieSearchable) {
-                ManualSearchButton(onClick = onMovieManualSearch)
+                ManualSearchActionButton(onClick = onMovieManualSearch)
             }
         } else {
             if (!isTargetSeasonFullyWatched) {
@@ -1718,7 +1822,7 @@ fun MediaDetailActionSection(
             }
 
             if (isTargetSeasonOrMovieSearchable) {
-                ManualSearchButton(onClick = { onManualSearch(targetSeason) })
+                ManualSearchActionButton(onClick = { onManualSearch(targetSeason) })
             }
         }
     }

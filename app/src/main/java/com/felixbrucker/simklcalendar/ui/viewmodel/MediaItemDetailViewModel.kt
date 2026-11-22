@@ -193,6 +193,9 @@ class MediaItemDetailViewModel @Inject constructor(
     private val _isMovieManualSearchOpen = MutableStateFlow(false)
     val isMovieManualSearchOpen: StateFlow<Boolean> = _isMovieManualSearchOpen.asStateFlow()
 
+    private val _manualSearchCalendarItem = MutableStateFlow<CalendarItemWithWatchlist?>(null)
+    val manualSearchCalendarItem: StateFlow<CalendarItemWithWatchlist?> = _manualSearchCalendarItem.asStateFlow()
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val watchlistItem: StateFlow<WatchlistItem?> = simklIdFlow
         .flatMapLatest { id ->
@@ -539,6 +542,10 @@ class MediaItemDetailViewModel @Inject constructor(
         _isMovieManualSearchOpen.value = open
     }
 
+    fun setManualSearchCalendarItem(item: CalendarItemWithWatchlist?) {
+        _manualSearchCalendarItem.value = item
+    }
+
     fun toggleHideWatchlistItemsInSimilar(hide: Boolean) {
         viewModelScope.launch {
             uiRepository.updateFilters { it.copy(hideWatchlistItemsInSimilar = hide) }
@@ -700,6 +707,28 @@ class MediaItemDetailViewModel @Inject constructor(
         return downloadRepository.searchSeason(simklId, season, customTitle)
     }
 
+    suspend fun searchTorrents(
+        item: CalendarItemWithWatchlist,
+        customTitle: String? = null,
+    ): List<SearchResultItem> {
+        return downloadRepository.search(item, customTitle)
+    }
+
+    fun downloadItemResult(
+        item: CalendarItemWithWatchlist,
+        resultItem: SearchResultItem,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = downloadRepository.downloadItemResult(item, resultItem)
+            result.onSuccess {
+                onResult(true, "Download started")
+            }.onFailure {
+                onResult(false, it.message ?: "Error starting download")
+            }
+        }
+    }
+
     fun downloadSeasonResult(
         simklId: Int,
         season: Int,
@@ -712,25 +741,6 @@ class MediaItemDetailViewModel @Inject constructor(
                 onResult(true, "Season download started")
             }.onFailure {
                 onResult(false, it.message ?: "Error starting season download")
-            }
-        }
-    }
-
-    fun downloadMovieResult(
-        resultItem: SearchResultItem,
-        onResult: (Boolean, String) -> Unit
-    ) {
-        viewModelScope.launch {
-            val movieItem = targetMovieCalendarItem.value
-            if (movieItem == null) {
-                onResult(false, "No calendar item available for this movie")
-                return@launch
-            }
-            val dlResult = downloadRepository.downloadItemResult(movieItem, resultItem)
-            dlResult.onSuccess {
-                onResult(true, "Movie download started")
-            }.onFailure {
-                onResult(false, it.message ?: "Error starting movie download")
             }
         }
     }

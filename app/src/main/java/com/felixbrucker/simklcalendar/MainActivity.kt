@@ -508,6 +508,13 @@ fun SimklCalendarApp(
                     onNavigateToDetail = { id, mType ->
                         navController.navigate("media_item/$id/${mType.key}")
                     },
+                    onNavigateToReleaseDetail = { item ->
+                        viewModel.setSelectedCalendarItem(item)
+                        val encodedKey = URLEncoder.encode(item.primaryKey, "UTF-8")
+                        navController.navigate("release_detail/$encodedKey") {
+                            launchSingleTop = true
+                        }
+                    },
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@composable
                 )

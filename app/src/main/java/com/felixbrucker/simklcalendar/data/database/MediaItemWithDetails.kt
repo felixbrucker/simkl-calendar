@@ -4,6 +4,7 @@ import androidx.room.Embedded
 import androidx.room.Relation
 import androidx.compose.runtime.Immutable
 import com.felixbrucker.simklcalendar.data.model.MediaType
+import com.felixbrucker.simklcalendar.extensions.toNormalizedAnimeTitle
 import java.time.Instant
 
 @Immutable
@@ -43,4 +44,19 @@ data class MediaItemWithDetails(
     val movieMetadata get() = mediaItem.movieMetadata
     val seriesMetadata get() = mediaItem.seriesMetadata
     val animeMetadata get() = mediaItem.animeMetadata
+
+    fun getSearchTitle(settings: ItemDownloadSettings?): String {
+        val titleOverride = settings?.titleOverride?.takeIf { it.isNotBlank() }
+
+        return if (titleOverride != null) {
+            titleOverride
+        } else {
+            val baseTitle = titleRomaji ?: title
+            if (mediaItem.mediaType == MediaType.ANIME) {
+                baseTitle.toNormalizedAnimeTitle()
+            } else {
+                baseTitle
+            }
+        }
+    }
 }
