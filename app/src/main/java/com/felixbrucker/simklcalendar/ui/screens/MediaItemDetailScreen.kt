@@ -35,6 +35,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -101,6 +103,9 @@ fun MediaItemDetailScreen(
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
+    val windowInfo = LocalWindowInfo.current
+    val isSmallScreen = with(density) { windowInfo.containerSize.width.toDp() } < 600.dp
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -263,6 +268,7 @@ fun MediaItemDetailScreen(
                             downloadsFlow = viewModel.downloads,
                             isExpanded = isEpisodesExpanded,
                             headerTitle = headerTitle,
+                            isSmallScreen = isSmallScreen,
                             onToggleExpand = { isEpisodesExpanded = !isEpisodesExpanded },
                             onMarkEpisodeWatched = { epRow, watched ->
                                 if (watched) {
@@ -583,34 +589,55 @@ private fun EpisodeDownloadProgressCell(
 }
 
 @Composable
+private fun EpisodeRowActionsContent(
+    epRow: EpisodeListItemUiModel.EpisodeRow,
+    onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
+    onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit
+) {
+    WatchedStatusDropdown(
+        isWatched = epRow.isWatched,
+        onStatusChange = { watched -> onMarkEpisodeWatched(epRow, watched) },
+        isLoading = epRow.isUpdatingWatchStatus
+    )
+
+    if (epRow.calendarItem != null) {
+        ItemMediaStatusDropdown(
+            item = epRow.calendarItem,
+            onStatusChange = { status -> onUpdateMediaStatus(epRow, status) }
+        )
+    }
+}
+
+@Composable
 private fun EpisodeRowActions(
     epRow: EpisodeListItemUiModel.EpisodeRow,
-    downloadsFlow: StateFlow<Map<String, DownloadProgress>>,
     onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
     onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
+    isSmallScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        itemVerticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-    ) {
-        EpisodeDownloadProgressCell(
-            downloadTaskId = epRow.calendarItem?.downloadTaskId,
-            downloadsFlow = downloadsFlow
-        )
-
-        WatchedStatusDropdown(
-            isWatched = epRow.isWatched,
-            onStatusChange = { watched -> onMarkEpisodeWatched(epRow, watched) },
-            isLoading = epRow.isUpdatingWatchStatus
-        )
-
-        if (epRow.calendarItem != null) {
-            ItemMediaStatusDropdown(
-                item = epRow.calendarItem,
-                onStatusChange = { status -> onUpdateMediaStatus(epRow, status) }
+    if (isSmallScreen) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.End,
+            modifier = modifier
+        ) {
+            EpisodeRowActionsContent(
+                epRow = epRow,
+                onMarkEpisodeWatched = onMarkEpisodeWatched,
+                onUpdateMediaStatus = onUpdateMediaStatus
+            )
+        }
+    } else {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = modifier
+        ) {
+            EpisodeRowActionsContent(
+                epRow = epRow,
+                onMarkEpisodeWatched = onMarkEpisodeWatched,
+                onUpdateMediaStatus = onUpdateMediaStatus
             )
         }
     }
@@ -716,6 +743,7 @@ fun EpisodeRowContent(
     downloadsFlow: StateFlow<Map<String, DownloadProgress>>,
     onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
     onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
+    isSmallScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -751,30 +779,41 @@ fun EpisodeRowContent(
                     )
                 }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = epRow.title,
-                        color = TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (epRow.date != null) {
+                FlowRow(
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Column {
                         Text(
-                            text = DateUtil.formatDisplayDate(epRow.date),
-                            color = TextSubtle,
-                            fontSize = 11.sp
+                            text = epRow.title,
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
+                        if (epRow.date != null) {
+                            Text(
+                                text = DateUtil.formatDisplayDate(epRow.date),
+                                color = TextSubtle,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
+
+                    EpisodeDownloadProgressCell(
+                        downloadTaskId = epRow.calendarItem?.downloadTaskId,
+                        downloadsFlow = downloadsFlow
+                    )
                 }
             }
 
             EpisodeRowActions(
                 epRow = epRow,
-                downloadsFlow = downloadsFlow,
                 onMarkEpisodeWatched = onMarkEpisodeWatched,
-                onUpdateMediaStatus = onUpdateMediaStatus
+                onUpdateMediaStatus = onUpdateMediaStatus,
+                isSmallScreen = isSmallScreen
             )
         }
     }
@@ -789,6 +828,7 @@ fun MediaEpisodeCardItemRow(
     onMarkSeasonWatched: (Int, Boolean) -> Unit,
     onUpdateSeasonMediaStatus: (Int, MediaStatus) -> Unit,
     onManualSearchSeason: (Int) -> Unit,
+    isSmallScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -809,7 +849,8 @@ fun MediaEpisodeCardItemRow(
                 epRow = item,
                 downloadsFlow = downloadsFlow,
                 onMarkEpisodeWatched = onMarkEpisodeWatched,
-                onUpdateMediaStatus = onUpdateMediaStatus
+                onUpdateMediaStatus = onUpdateMediaStatus,
+                isSmallScreen = isSmallScreen
             )
         }
     }
@@ -854,6 +895,7 @@ fun LazyListScope.mediaEpisodeCardSection(
     downloadsFlow: StateFlow<Map<String, DownloadProgress>>,
     isExpanded: Boolean,
     headerTitle: String,
+    isSmallScreen: Boolean,
     onToggleExpand: () -> Unit,
     onMarkEpisodeWatched: (EpisodeListItemUiModel.EpisodeRow, Boolean) -> Unit,
     onUpdateMediaStatus: (EpisodeListItemUiModel.EpisodeRow, MediaStatus) -> Unit,
@@ -894,7 +936,8 @@ fun LazyListScope.mediaEpisodeCardSection(
                     onUpdateMediaStatus = onUpdateMediaStatus,
                     onMarkSeasonWatched = onMarkSeasonWatched,
                     onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus,
-                    onManualSearchSeason = onManualSearchSeason
+                    onManualSearchSeason = onManualSearchSeason,
+                    isSmallScreen = isSmallScreen
                 )
             }
             item(key = "episode_card_bottom") {
