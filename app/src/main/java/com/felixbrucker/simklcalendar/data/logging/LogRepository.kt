@@ -2,7 +2,6 @@ package com.felixbrucker.simklcalendar.data.logging
 
 import android.content.Context
 import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,9 +18,7 @@ object LogRepository {
     private const val PRUNE_THRESHOLD = 3500
     private const val MAX_AGE_MS = 7L * 24 * 60 * 60 * 1000 // 7 days
 
-    private val moshi = Moshi.Builder()
-        .addLast(KotlinJsonAdapterFactory())
-        .build()
+    private val moshi = Moshi.Builder().build()
     private val adapter = moshi.adapter(LogEntry::class.java)
 
     private val mutex = Mutex()

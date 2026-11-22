@@ -11,7 +11,6 @@ import com.felixbrucker.simklcalendar.data.network.interceptor.LoggingIntercepto
 import com.felixbrucker.simklcalendar.data.network.interceptor.SimklApiAuthenticator
 import com.felixbrucker.simklcalendar.data.network.interceptor.SimklAuthenticatedApiParameterInterceptor
 import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,9 +28,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideMoshi(): Moshi {
-        return Moshi.Builder()
-            .addLast(KotlinJsonAdapterFactory())
-            .build()
+        return Moshi.Builder().build()
     }
 
     @Provides

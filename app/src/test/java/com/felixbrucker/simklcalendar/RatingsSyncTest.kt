@@ -29,7 +29,6 @@ import com.felixbrucker.simklcalendar.data.repository.SyncRepository
 import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import com.felixbrucker.simklcalendar.receiver.alarm.AlarmScheduler
 import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -288,7 +287,7 @@ class RatingsSyncTest {
 
     @Test
     fun testMoshiParsesSimklRatings() {
-        val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
+        val moshi = Moshi.Builder().build()
         val adapter = moshi.adapter(SimklMovieDetailResponse::class.java)
 
         val jsonString = """
