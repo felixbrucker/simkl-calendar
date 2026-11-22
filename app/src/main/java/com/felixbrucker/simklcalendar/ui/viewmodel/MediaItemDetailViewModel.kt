@@ -151,6 +151,10 @@ class MediaItemDetailViewModel @Inject constructor(
     defaultDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
+    companion object {
+        private const val TAG = "MediaItemDetailViewModel"
+    }
+
     private val simklIdFlow: StateFlow<Int> = savedStateHandle.getStateFlow("simklId", 0)
 
     private val initialMediaItem = MediaItemHolder.getAndClear()
@@ -568,7 +572,7 @@ class MediaItemDetailViewModel @Inject constructor(
                 mediaRepository.refreshMediaItem(currentId, type)
                 onResult(true, "Refreshed successfully")
             } catch (e: Exception) {
-                Timber.e(e, "Failed to refresh media item")
+                Timber.tag(TAG).e(e, "Failed to refresh media item")
                 onResult(false, "Failed to refresh: ${e.localizedMessage ?: "Unknown error"}")
             } finally {
                 _isRefreshing.value = false
@@ -665,7 +669,7 @@ class MediaItemDetailViewModel @Inject constructor(
                 val message = if (status == null) "Removed from watchlist" else "Updated list to ${status.displayName}"
                 onResult(true, message)
             } catch (e: Exception) {
-                Timber.e(e, "Failed to update watchlist status on SIMKL")
+                Timber.tag(TAG).e(e, "Failed to update watchlist status on SIMKL")
                 onResult(false, "Failed to update watchlist: ${e.localizedMessage ?: "Unknown error"}")
             } finally {
                 _isUpdatingStatus.value = false

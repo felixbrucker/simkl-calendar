@@ -45,6 +45,9 @@ class MediaRepository @Inject constructor(
     private val publicSimklApiService: PublicSimklApiService,
     @ApplicationScope private val externalScope: CoroutineScope
 ) {
+    companion object {
+        private const val TAG = "MediaRepository"
+    }
 
     fun getWatchlistItemsFlow(simklIds: List<Int>): Flow<List<WatchlistItem>> {
         return watchlistItemDao.getWatchlistItemsFlow(simklIds).flowOn(Dispatchers.IO)
@@ -75,7 +78,7 @@ class MediaRepository @Inject constructor(
         val cutoff = Instant.now().minus(months * 30, ChronoUnit.DAYS)
         val deletedCount = mediaItemDao.deleteExpiredMediaItems(cutoff)
         if (deletedCount > 0) {
-            Timber.d("Pruned $deletedCount expired MediaItem entities older than $months months")
+            Timber.tag(TAG).d("Pruned $deletedCount expired MediaItem entities older than $months months")
         }
         deletedCount
     }
@@ -88,7 +91,7 @@ class MediaRepository @Inject constructor(
                     refreshMediaItem(simklId = simklId, mediaType = mediaType)
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Failed to refresh MediaItem for simklId=$simklId")
+                Timber.tag(TAG).e(e, "Failed to refresh MediaItem for simklId=$simklId")
             }
         }
         return mediaItemDao.getMediaItemWithDetailsStream(simklId)

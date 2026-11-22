@@ -33,6 +33,9 @@ class SettingsBackupManager @Inject constructor(
     private val watchlistDao: WatchlistDao,
     private val moshi: Moshi
 ) {
+    companion object {
+        private const val TAG = "SettingsBackupManager"
+    }
     suspend fun exportSettings(
         uri: Uri,
         exportAppSettings: Boolean,
@@ -69,7 +72,7 @@ class SettingsBackupManager @Inject constructor(
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Timber.e(e, "Failed to export settings")
+            Timber.tag(TAG).e(e, "Failed to export settings")
             Result.failure(e)
         }
     }
@@ -85,7 +88,7 @@ class SettingsBackupManager @Inject constructor(
 
             Result.success(backupData)
         } catch (e: Exception) {
-            Timber.e(e, "Failed to read backup metadata")
+            Timber.tag(TAG).e(e, "Failed to read backup metadata")
             Result.failure(e)
         }
     }
@@ -161,11 +164,11 @@ class SettingsBackupManager @Inject constructor(
                     parts.add("excludedDownloadSettings=$excludedDlCount")
                 }
             }
-            Timber.i("Settings imported: version=${backupData.version}, ${parts.joinToString(", ")}")
+            Timber.tag(TAG).i("Settings imported: version=${backupData.version}, ${parts.joinToString(", ")}")
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Timber.e(e, "Failed to import settings")
+            Timber.tag(TAG).e(e, "Failed to import settings")
             Result.failure(e)
         }
     }

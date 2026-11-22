@@ -12,6 +12,10 @@ class SimklSearchPagingSource(
     private val query: String
 ) : PagingSource<Int, SimklSearchItem>() {
 
+    companion object {
+        private const val TAG = "SimklSearchPagingSource"
+    }
+
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, SimklSearchItem> {
         val page = params.key ?: 1
         return try {
@@ -49,7 +53,7 @@ class SimklSearchPagingSource(
                 LoadResult.Error(Exception("Search failed with code: ${response.code()}"))
             }
         } catch (e: Exception) {
-            Timber.e(e, "Error loading search results for query: $query")
+            Timber.tag(TAG).e(e, "Error loading search results for query: $query")
             LoadResult.Error(e)
         }
     }

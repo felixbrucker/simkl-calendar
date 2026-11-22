@@ -151,7 +151,7 @@ class TrendingViewModel @Inject constructor(
             try {
                 syncRepository.syncTrending()
             } catch (e: Exception) {
-                Timber.e(e, "Failed to sync trending items")
+                Timber.tag(TAG).e(e, "Failed to sync trending items")
             } finally {
                 _isRefreshing.value = false
             }

@@ -31,7 +31,7 @@ class WatchHistoryRepository @Inject constructor(
     private val autoDownloadRepository: AutoDownloadRepository
 ) {
     companion object {
-        private const val TAG = "WatchHistoryRepository"
+        const val TAG = "WatchHistoryRepository"
     }
 
     fun getWatchedEpisodesForSimklIdFlow(simklId: Int): Flow<List<WatchedEpisode>> =
@@ -431,7 +431,7 @@ class WatchHistoryRepository @Inject constructor(
 internal fun File.deleteWith(removeEmptyParent: Boolean) {
     if (!exists()) return
     delete()
-    Timber.tag("WatchHistoryRepository").d("Deleted downloaded file: $absolutePath")
+    Timber.tag(WatchHistoryRepository.TAG).d("Deleted downloaded file: $absolutePath")
     if (removeEmptyParent) {
         parentFile?.deleteIfEmptyNonExcludedDirectory(
             excludedDirNames = listOf("anime", "series", "movies")
@@ -448,7 +448,7 @@ internal fun File.deleteIfEmptyNonExcludedDirectory(excludedDirNames: List<Strin
         return
     }
     delete()
-    Timber.tag("WatchHistoryRepository").d("Deleted empty directory: $absolutePath")
+    Timber.tag(WatchHistoryRepository.TAG).d("Deleted empty directory: $absolutePath")
 }
 
 internal fun File.isEmptyDirectory(): Boolean {
