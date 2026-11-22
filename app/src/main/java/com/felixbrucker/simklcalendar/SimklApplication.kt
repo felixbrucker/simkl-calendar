@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.felixbrucker.simklcalendar.data.logging.AppLogTree
-import com.felixbrucker.simklcalendar.data.logging.LogRepository
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
 import com.felixbrucker.simklcalendar.data.sentry.SentryManager
 import dagger.hilt.android.HiltAndroidApp
@@ -33,6 +32,9 @@ class SimklApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var sentryManager: SentryManager
 
+    @Inject
+    lateinit var appLogTree: AppLogTree
+
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override val workManagerConfiguration: Configuration
@@ -42,8 +44,7 @@ class SimklApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        LogRepository.init(this)
-        Timber.plant(AppLogTree())
+        Timber.plant(appLogTree)
         Timber.tag(TAG).i("SimklApplication initialized")
 
         applicationScope.launch {

@@ -14,6 +14,7 @@ import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
 import com.felixbrucker.simklcalendar.data.util.MediaStatusResolver
 import com.felixbrucker.simklcalendar.di.DatabaseModule
+import com.felixbrucker.simklcalendar.di.JsonModule
 import com.felixbrucker.simklcalendar.di.NetworkModule
 import io.mockk.every
 import io.mockk.mockk
@@ -89,8 +90,15 @@ class DiModulesTest {
     }
 
     @Test
+    fun testJsonModuleProviders() {
+        val moshi = JsonModule.provideMoshi()
+
+        assertNotNull(moshi)
+    }
+
+    @Test
     fun testNetworkModuleProviders() {
-        val moshi = NetworkModule.provideMoshi()
+        val moshi = JsonModule.provideMoshi()
         val apiService = NetworkModule.providePublicSimklApiService(moshi)
 
         assertNotNull(moshi)

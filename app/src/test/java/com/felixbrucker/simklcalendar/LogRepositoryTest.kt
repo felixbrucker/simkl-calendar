@@ -5,11 +5,19 @@ import android.util.Log
 import com.felixbrucker.simklcalendar.data.logging.AppLogTree
 import com.felixbrucker.simklcalendar.data.logging.LogEntry
 import com.felixbrucker.simklcalendar.data.logging.LogRepository
+import com.squareup.moshi.Moshi
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -24,14 +32,27 @@ class LogRepositoryTest {
     @get:Rule
     val tempFolder = TemporaryFolder()
 
+    private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var context: Context
     private lateinit var filesDir: File
+    private lateinit var moshi: Moshi
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+        mockkStatic(Dispatchers::class)
+        every { Dispatchers.IO } returns testDispatcher
+
         filesDir = tempFolder.newFolder("files")
         context = mockk(relaxed = true)
         every { context.filesDir } returns filesDir
+        moshi = Moshi.Builder().build()
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+        unmockkStatic(Dispatchers::class)
     }
 
     @Test
@@ -89,13 +110,16 @@ class LogRepositoryTest {
     }
 
     @Test
-    fun testPruneEntriesByAge() {
+    fun testPruneEntriesByAge() = runTest {
+        val logRepository = LogRepository(context, moshi, backgroundScope)
+        advanceUntilIdle()
+
         val now = 1000000L
         val oldEntry = LogEntry(timestamp = 100L, message = "Old")
         val newEntry = LogEntry(timestamp = 900000L, message = "New")
         val entries = listOf(oldEntry, newEntry)
 
-        val result = LogRepository.pruneEntries(entries, nowMs = now, maxAgeMs = 500000L, maxEntries = 10)
+        val result = logRepository.pruneEntries(entries, nowMs = now, maxAgeMs = 500000L, maxEntries = 10)
 
         val count = result.size
         val firstMessage = result.first().message
@@ -104,14 +128,17 @@ class LogRepositoryTest {
     }
 
     @Test
-    fun testPruneEntriesByMaxCount() {
+    fun testPruneEntriesByMaxCount() = runTest {
+        val logRepository = LogRepository(context, moshi, backgroundScope)
+        advanceUntilIdle()
+
         val now = 1000000L
         val entry1 = LogEntry(timestamp = 900000L, message = "E1")
         val entry2 = LogEntry(timestamp = 950000L, message = "E2")
         val entry3 = LogEntry(timestamp = 980000L, message = "E3")
         val entries = listOf(entry1, entry2, entry3)
 
-        val result = LogRepository.pruneEntries(entries, nowMs = now, maxAgeMs = 500000L, maxEntries = 2)
+        val result = logRepository.pruneEntries(entries, nowMs = now, maxAgeMs = 500000L, maxEntries = 2)
 
         val count = result.size
         val firstMsg = result[0].message
@@ -123,18 +150,24 @@ class LogRepositoryTest {
 
     @Test
     fun testRepositoryInitAddClear() = runTest {
-        val testDispatcher = UnconfinedTestDispatcher(testScheduler)
-        LogRepository.ioDispatcher = testDispatcher
-        LogRepository.init(context)
-        LogRepository.clearLogs()
-        val testEntry = LogEntry(timestamp = System.currentTimeMillis(), priority = Log.INFO, tag = "TestTag", message = "Hello Test")
+        val logRepository = LogRepository(context, moshi, backgroundScope)
+        advanceUntilIdle()
 
-        LogRepository.addLog(testEntry)
-        val logsAfterAdd = LogRepository.logsFlow.value
+        logRepository.clearLogs()
+        advanceUntilIdle()
+
+        val testEntry = LogEntry(timestamp = System.currentTimeMillis(), priority = Log.INFO, tag = "TestTag", message = "Hello Test")
+        logRepository.addLog(testEntry)
+        advanceUntilIdle()
+
+        val logsAfterAdd = logRepository.logsFlow.value
         val addSize = logsAfterAdd.size
         val addedMsg = logsAfterAdd.last().message
-        LogRepository.clearLogs()
-        val logsAfterClear = LogRepository.logsFlow.value
+
+        logRepository.clearLogs()
+        advanceUntilIdle()
+
+        val logsAfterClear = logRepository.logsFlow.value
         val clearSize = logsAfterClear.size
 
         assertEquals(1, addSize)
@@ -144,15 +177,19 @@ class LogRepositoryTest {
 
     @Test
     fun testAppLogTreeLog() = runTest {
-        val testDispatcher = UnconfinedTestDispatcher(testScheduler)
-        LogRepository.ioDispatcher = testDispatcher
-        LogRepository.init(context)
-        LogRepository.clearLogs()
-        val tree = AppLogTree()
+        val logRepository = LogRepository(context, moshi, backgroundScope)
+        advanceUntilIdle()
+
+        logRepository.clearLogs()
+        advanceUntilIdle()
+
+        val tree = AppLogTree(logRepository)
         val exception = RuntimeException("Test Exception")
 
         tree.e(exception, "Error occurred")
-        val logs = LogRepository.logsFlow.value
+        advanceUntilIdle()
+
+        val logs = logRepository.logsFlow.value
         val size = logs.size
         val lastEntry = logs.last()
         val priority = lastEntry.priority

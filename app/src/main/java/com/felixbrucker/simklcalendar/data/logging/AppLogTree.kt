@@ -2,8 +2,13 @@ package com.felixbrucker.simklcalendar.data.logging
 
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class AppLogTree : Timber.Tree() {
+@Singleton
+class AppLogTree @Inject constructor(
+    private val logRepository: LogRepository
+) : Timber.Tree() {
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
         if (t is CancellationException) return
         val stackTrace = t?.stackTraceToString()
@@ -14,6 +19,6 @@ class AppLogTree : Timber.Tree() {
             message = message,
             throwableStackTrace = stackTrace
         )
-        LogRepository.addLog(entry)
+        logRepository.addLog(entry)
     }
 }

@@ -1,8 +1,9 @@
 package com.felixbrucker.simklcalendar.data.logging
 
 import android.content.Context
+import com.felixbrucker.simklcalendar.di.ApplicationScope
 import com.squareup.moshi.Moshi
-import kotlinx.coroutines.CoroutineDispatcher
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,36 +13,45 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
 
-object LogRepository {
-    private const val MAX_ENTRIES = 3000
-    private const val PRUNE_THRESHOLD = 3500
-    private const val MAX_AGE_MS = 7L * 24 * 60 * 60 * 1000 // 7 days
+@Singleton
+class LogRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
+    moshi: Moshi,
+    @ApplicationScope private val appScope: CoroutineScope,
+) {
+    companion object {
+        private const val MAX_ENTRIES = 3000
+        private const val PRUNE_THRESHOLD = 3500
+        private const val MAX_AGE_MS = 7L * 24 * 60 * 60 * 1000 // 7 days
+    }
 
-    private val moshi = Moshi.Builder().build()
     private val adapter = moshi.adapter(LogEntry::class.java)
 
     private val mutex = Mutex()
     private val _logsFlow = MutableStateFlow<List<LogEntry>>(emptyList())
     val logsFlow: StateFlow<List<LogEntry>> = _logsFlow.asStateFlow()
 
-    private var logFile: File? = null
-    var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val logFile: File
 
-    fun init(context: Context) {
+    init {
         val logDir = File(context.filesDir, "logs")
         if (!logDir.exists()) {
             logDir.mkdirs()
         }
-        val file = File(logDir, "app_logs.jsonl")
-        logFile = file
+        logFile = File(logDir, "app_logs.jsonl")
+        loadLogs()
+    }
 
-        CoroutineScope(ioDispatcher).launch {
+    private fun loadLogs() {
+        appScope.launch(Dispatchers.IO) {
             mutex.withLock {
                 val loadedLogs = mutableListOf<LogEntry>()
-                if (file.exists()) {
+                if (logFile.exists()) {
                     try {
-                        file.useLines { lines ->
+                        logFile.useLines { lines ->
                             for (line in lines) {
                                 if (line.isNotBlank()) {
                                     try {
@@ -67,18 +77,15 @@ object LogRepository {
     }
 
     fun addLog(entry: LogEntry) {
-        CoroutineScope(ioDispatcher).launch {
+        appScope.launch(Dispatchers.IO) {
             mutex.withLock {
                 val current = _logsFlow.value.toMutableList()
                 current.add(entry)
 
-                val file = logFile
-                if (file != null) {
-                    try {
-                        val jsonLine = adapter.toJson(entry)
-                        file.appendText(jsonLine + "\n")
-                    } catch (_: Exception) {
-                    }
+                try {
+                    val jsonLine = adapter.toJson(entry)
+                    logFile.appendText(jsonLine + "\n")
+                } catch (_: Exception) {
                 }
 
                 if (current.size > PRUNE_THRESHOLD) {
@@ -94,13 +101,12 @@ object LogRepository {
     }
 
     fun clearLogs() {
-        CoroutineScope(ioDispatcher).launch {
+        appScope.launch(Dispatchers.IO) {
             mutex.withLock {
                 _logsFlow.value = emptyList()
-                val file = logFile
-                if (file != null && file.exists()) {
+                if (logFile.exists()) {
                     try {
-                        file.writeText("")
+                        logFile.writeText("")
                     } catch (_: Exception) {
                     }
                 }
@@ -124,9 +130,8 @@ object LogRepository {
     }
 
     private fun saveAllLocked(entries: List<LogEntry>) {
-        val file = logFile ?: return
         try {
-            file.bufferedWriter().use { writer ->
+            logFile.bufferedWriter().use { writer ->
                 for (entry in entries) {
                     writer.write(adapter.toJson(entry))
                     writer.newLine()

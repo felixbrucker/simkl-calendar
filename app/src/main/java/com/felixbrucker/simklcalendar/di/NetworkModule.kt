@@ -27,12 +27,6 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideMoshi(): Moshi {
-        return Moshi.Builder().build()
-    }
-
-    @Provides
-    @Singleton
     fun providePublicSimklApiService(
         moshi: Moshi,
     ): PublicSimklApiService {

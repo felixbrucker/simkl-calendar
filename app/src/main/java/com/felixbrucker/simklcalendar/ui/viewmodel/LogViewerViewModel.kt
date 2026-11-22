@@ -17,13 +17,15 @@ import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 @HiltViewModel
-class LogViewerViewModel @Inject constructor() : ViewModel() {
+class LogViewerViewModel @Inject constructor(
+    private val logRepository: LogRepository
+) : ViewModel() {
 
     companion object {
         var defaultDispatcher: CoroutineDispatcher = Dispatchers.Default
     }
 
-    val allLogs: StateFlow<List<LogEntry>> = LogRepository.logsFlow
+    val allLogs: StateFlow<List<LogEntry>> = logRepository.logsFlow
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -32,7 +34,7 @@ class LogViewerViewModel @Inject constructor() : ViewModel() {
     val selectedPriority: StateFlow<Int> = _selectedPriority.asStateFlow()
 
     val filteredLogs: StateFlow<List<LogEntry>> = combine(
-        LogRepository.logsFlow,
+        logRepository.logsFlow,
         _searchQuery,
         _selectedPriority
     ) { logs, query, priority ->
@@ -61,6 +63,6 @@ class LogViewerViewModel @Inject constructor() : ViewModel() {
     }
 
     fun clearLogs() {
-        LogRepository.clearLogs()
+        logRepository.clearLogs()
     }
 }
