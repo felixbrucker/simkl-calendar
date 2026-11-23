@@ -344,8 +344,7 @@ fun SimklCalendarApp(
     }
 
     // Determine initial active route exactly once when auth state is ready to avoid graph resets.
-    // We key by the 'is logged in' state to satisfy the lint while keeping the destination stable.
-    val startDestination = remember(authState.token == null) {
+    val startDestination = remember {
         if (authState.token == null) "login" else "calendar"
     }
 
@@ -552,6 +551,12 @@ fun SimklCalendarApp(
                         navController.navigate("log_viewer") {
                             launchSingleTop = true
                         }
+                    },
+                    onNavigateToLogin = {
+                        navController.navigate("login") {
+                            popUpTo("calendar") { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 )
             }
@@ -579,6 +584,12 @@ fun SimklCalendarApp(
                     onNavigateToCategory = {},
                     onNavigateToLogViewer = {
                         navController.navigate("log_viewer") {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToLogin = {
+                        navController.navigate("login") {
+                            popUpTo("calendar") { inclusive = true }
                             launchSingleTop = true
                         }
                     }

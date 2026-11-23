@@ -116,8 +116,9 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     initialCategory: SettingsCategory? = null,
     onNavigateBack: () -> Unit,
-    onNavigateToCategory: (SettingsCategory) -> Unit = {},
-    onNavigateToLogViewer: () -> Unit = {}
+    onNavigateToCategory: (SettingsCategory) -> Unit,
+    onNavigateToLogViewer: () -> Unit,
+    onNavigateToLogin: () -> Unit,
 ) {
     val context = LocalContext.current
     val windowInfo = LocalWindowInfo.current
@@ -324,7 +325,7 @@ fun SettingsScreen(
                     localLinks = localLinks,
                     onLogout = {
                         viewModel.logoutUser()
-                        onNavigateBack()
+                        onNavigateToLogin()
                     },
                     onSyncIntervalChange = { syncIntervalHours = it },
                     onSyncIntervalChangeFinished = {
@@ -390,7 +391,7 @@ fun SettingsScreen(
                         localLinks = localLinks,
                         onLogout = {
                             viewModel.logoutUser()
-                            onNavigateBack()
+                            onNavigateToLogin()
                         },
                         onSyncIntervalChange = { syncIntervalHours = it },
                         onSyncIntervalChangeFinished = {
