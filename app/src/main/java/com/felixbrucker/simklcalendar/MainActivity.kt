@@ -481,6 +481,7 @@ fun SimklCalendarApp(
             composable(
                 route = "trending",
                 enterTransition = { slideInFromRight },
+                popEnterTransition = { EnterTransition.None },
                 popExitTransition = { slideOutToRight },
             ) {
                 val trendingViewModel: TrendingViewModel = hiltViewModel()
