@@ -414,7 +414,10 @@ fun SimklCalendarApp(
             modifier = Modifier.fillMaxSize()
         ) {
             // 1. Authentication Login (OAuth via AuthTab)
-            composable("login") {
+            composable(
+                route = "login",
+                exitTransition = { slideOutToLeft },
+            ) {
                 LoginScreen(
                     onLoginSuccess = {
                         navController.navigate("calendar") {
@@ -427,7 +430,24 @@ fun SimklCalendarApp(
             }
 
             // 2. Calendar Schedule Dashboard
-            composable("calendar") {
+            composable(
+                route = "calendar",
+                enterTransition = { slideInFromRight },
+                exitTransition = {
+                    if (targetState.destination.route?.startsWith("release_detail") == true) {
+                        ExitTransition.None
+                    } else {
+                        slideOutToLeft
+                    }
+                },
+                popEnterTransition = {
+                    if (initialState.destination.route?.startsWith("release_detail") == true) {
+                        EnterTransition.None
+                    } else {
+                        slideInFromLeft
+                    }
+                },
+            ) {
                 MainScreen(
                     viewModel = viewModel,
                     onNavigateToSettings = {
@@ -461,20 +481,8 @@ fun SimklCalendarApp(
             // 6. Trending Screen
             composable(
                 route = "trending",
-                enterTransition = {
-                    if (initialState.destination.route?.startsWith("media_item") == true) {
-                        EnterTransition.None
-                    } else {
-                        slideInFromRight
-                    }
-                },
-                exitTransition = {
-                    if (targetState.destination.route?.startsWith("media_item") == true) {
-                        ExitTransition.None
-                    } else {
-                        slideOutToLeft
-                    }
-                }
+                enterTransition = { slideInFromRight },
+                popExitTransition = { slideOutToRight },
             ) {
                 val trendingViewModel: TrendingViewModel = hiltViewModel()
                 TrendingScreen(
@@ -500,6 +508,8 @@ fun SimklCalendarApp(
                 ),
                 enterTransition = { slideInFromRight },
                 exitTransition = { slideOutToLeft },
+                popEnterTransition = { slideInFromLeft },
+                popExitTransition = { slideOutToRight },
             ) { backStackEntry ->
                 val simklId = backStackEntry.arguments?.getInt("simklId") ?: 0
                 MediaItemDetailScreen(
@@ -525,6 +535,8 @@ fun SimklCalendarApp(
                 route = "settings",
                 enterTransition = { slideInFromRight },
                 exitTransition = { slideOutToLeft },
+                popEnterTransition = { slideInFromLeft },
+                popExitTransition = { slideOutToRight },
             ) {
                 SettingsScreen(
                     initialCategory = null,
@@ -550,6 +562,8 @@ fun SimklCalendarApp(
                 arguments = listOf(navArgument("categoryName") { type = NavType.StringType }),
                 enterTransition = { slideInFromRight },
                 exitTransition = { slideOutToLeft },
+                popEnterTransition = { slideInFromLeft },
+                popExitTransition = { slideOutToRight },
             ) { backStackEntry ->
                 val categoryName = backStackEntry.arguments?.getString("categoryName")
                 val category = try {
@@ -576,6 +590,8 @@ fun SimklCalendarApp(
                 route = "log_viewer",
                 enterTransition = { slideInFromRight },
                 exitTransition = { slideOutToLeft },
+                popEnterTransition = { slideInFromLeft },
+                popExitTransition = { slideOutToRight },
             ) {
                 LogViewerScreen {
                     navController.popBackStackSafely()
@@ -589,6 +605,8 @@ fun SimklCalendarApp(
                 deepLinks = listOf(navDeepLink { uriPattern = "simklcalendar://release_detail/{itemKey}" }),
                 enterTransition = { slideInFromRight },
                 exitTransition = { slideOutToLeft },
+                popEnterTransition = { slideInFromLeft },
+                popExitTransition = { slideOutToRight },
             ) { backStackEntry ->
                 val rawKey = backStackEntry.arguments?.getString("itemKey") ?: ""
                 val itemKey = try {
