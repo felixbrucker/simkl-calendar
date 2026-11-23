@@ -11,9 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -40,11 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -55,9 +49,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -88,6 +80,8 @@ import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.viewmodel.CalendarViewModel
 import com.felixbrucker.simklcalendar.ui.composable.MediaTypeBadge
 import com.felixbrucker.simklcalendar.ui.composable.MediaTypeFilterChips
+import com.felixbrucker.simklcalendar.ui.composable.SearchBarDisplayMode
+import com.felixbrucker.simklcalendar.ui.composable.TopAppBarTitleSectionWithExpandableSearch
 import com.felixbrucker.simklcalendar.ui.composable.WatchlistOverlayPoster
 import com.felixbrucker.simklcalendar.ui.viewmodel.WatchlistTableItem
 import kotlinx.coroutines.delay
@@ -95,10 +89,6 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
-private enum class SearchBarDisplayMode {
-    HIDDEN,
-    EXPANDED,
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -252,12 +242,10 @@ fun MainScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        MainTopAppBarTitleSection(
+                        TopAppBarTitleSectionWithExpandableSearch(
                             searchDisplayMode = effectiveSearchDisplayMode,
                             searchQuery = activeSearchQuery,
-                            username = username,
-                            viewMode = viewMode,
-                            isSmallScreen = isSmallScreen,
+                            searchQueryPlaceholder = "Search show, episode, movie...",
                             focusRequester = focusRequester,
                             onSearchQueryChange = {
                                 if (isApiSearchActive) {
@@ -289,9 +277,15 @@ fun MainScreen(
                                     keyboardController?.hide()
                                 }
                             },
-                            onViewModeChange = { viewModel.setViewMode(it) },
                             isLoading = isApiSearchActive && apiSearchQuery.isNotBlank() && apiSearchResults.loadState.refresh is LoadState.Loading
-                        )
+                        ) {
+                            MainDefaultTitleBar(
+                                username = username,
+                                viewMode = viewMode,
+                                isSmallScreen = isSmallScreen,
+                                onViewModeChange = { viewModel.setViewMode(it) }
+                            )
+                        }
                     },
                     actions = {
                         if (effectiveSearchDisplayMode == SearchBarDisplayMode.HIDDEN) {
@@ -543,144 +537,7 @@ fun MainScreen(
     }
 }
 
-@Composable
-private fun MainTopAppBarTitleSection(
-    searchDisplayMode: SearchBarDisplayMode,
-    searchQuery: String,
-    username: String,
-    viewMode: ViewMode,
-    isSmallScreen: Boolean,
-    focusRequester: FocusRequester,
-    onSearchQueryChange: (String) -> Unit,
-    onFocusChanged: (Boolean) -> Unit,
-    onSearch: () -> Unit,
-    onClearSearch: () -> Unit,
-    onViewModeChange: (ViewMode) -> Unit,
-    isLoading: Boolean = false
-) {
-    AnimatedContent(
-        targetState = searchDisplayMode,
-        transitionSpec = {
-            if (targetState == SearchBarDisplayMode.EXPANDED) {
-                (slideInHorizontally(animationSpec = tween(280)) { width -> width } + fadeIn(animationSpec = tween(250))) togetherWith
-                        (slideOutHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeOut(animationSpec = tween(200)))
-            } else if (initialState == SearchBarDisplayMode.EXPANDED && targetState == SearchBarDisplayMode.HIDDEN) {
-                (slideInHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeIn(animationSpec = tween(200))) togetherWith
-                        (slideOutHorizontally(animationSpec = tween(280)) { width -> width } + fadeOut(animationSpec = tween(250)))
-            } else {
-                fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
-            }
-        },
-        label = "top_bar_search_transition"
-    ) { mode ->
-        when (mode) {
-            SearchBarDisplayMode.EXPANDED -> {
-                MainExpandedSearchBar(
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = onSearchQueryChange,
-                    focusRequester = focusRequester,
-                    onFocusChanged = onFocusChanged,
-                    onSearch = onSearch,
-                    onClearSearch = onClearSearch,
-                    isLoading = isLoading
-                )
-            }
 
-            SearchBarDisplayMode.HIDDEN -> {
-                MainDefaultTitleBar(
-                    username = username,
-                    viewMode = viewMode,
-                    isSmallScreen = isSmallScreen,
-                    onViewModeChange = onViewModeChange
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MainExpandedSearchBar(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    focusRequester: FocusRequester,
-    onFocusChanged: (Boolean) -> Unit,
-    onSearch: () -> Unit,
-    onClearSearch: () -> Unit,
-    isLoading: Boolean = false
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(44.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(SurfaceContainer)
-            .border(1.dp, PurpleLight, RoundedCornerShape(22.dp))
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                strokeWidth = 2.dp,
-                color = PurpleLight
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Search active",
-                tint = PurpleLight,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        BasicTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(focusRequester)
-                .onFocusChanged { state -> onFocusChanged(state.isFocused) }
-                .testTag("search_input_field"),
-            singleLine = true,
-            textStyle = TextStyle(
-                color = TextPrimary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Normal
-            ),
-            cursorBrush = SolidColor(PurpleLight),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-            decorationBox = { innerTextField ->
-                Box(contentAlignment = Alignment.CenterStart) {
-                    if (searchQuery.isEmpty()) {
-                        Text(
-                            text = "Search show, episode, movie...",
-                            color = TextGrey,
-                            fontSize = 14.sp
-                        )
-                    }
-                    innerTextField()
-                }
-            }
-        )
-
-        IconButton(
-            onClick = onClearSearch,
-            modifier = Modifier
-                .size(32.dp)
-                .testTag("clear_search_button")
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Delete search query",
-                tint = TextSubtle,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
 
 @Composable
 private fun MainDefaultTitleBar(

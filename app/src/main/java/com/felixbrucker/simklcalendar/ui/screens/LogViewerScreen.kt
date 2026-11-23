@@ -193,6 +193,7 @@ fun LogViewerScreen(
         }
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("SimklCalendar Logs", text)
+        @Suppress("UsePropertyAccessSyntax")
         clipboard.setPrimaryClip(clip)
         Toast.makeText(context, "Copied ${filteredLogs.size} log entries to clipboard", Toast.LENGTH_SHORT).show()
     }
