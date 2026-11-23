@@ -70,7 +70,6 @@ import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
 import com.felixbrucker.simklcalendar.ui.theme.YellowAccent
 import java.util.Locale
-import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
 import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
 import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerLight
 import com.felixbrucker.simklcalendar.ui.theme.PurpleContainerSoft
@@ -97,9 +96,8 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
 private enum class SearchBarDisplayMode {
-    DEFAULT,
+    HIDDEN,
     EXPANDED,
-    DOCKED
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -196,10 +194,8 @@ fun MainScreen(
 
     // Determine current display mode
     val effectiveSearchDisplayMode = when {
-        isApiSearchActive -> SearchBarDisplayMode.EXPANDED
-        isSearchActive || isSearchFocused -> SearchBarDisplayMode.EXPANDED
-        searchQuery.isNotBlank() -> SearchBarDisplayMode.DOCKED
-        else -> SearchBarDisplayMode.DEFAULT
+        isApiSearchActive || isSearchActive || isSearchFocused -> SearchBarDisplayMode.EXPANDED
+        else -> SearchBarDisplayMode.HIDDEN
     }
 
     val activeSearchQuery = if (isApiSearchActive) apiSearchQuery else searchQuery
@@ -293,20 +289,12 @@ fun MainScreen(
                                     keyboardController?.hide()
                                 }
                             },
-                            onExpandSearch = {
-                                isSearchActive = true
-                                coroutineScope.launch {
-                                    delay(50.milliseconds)
-                                    focusRequester.requestFocus()
-                                    keyboardController?.show()
-                                }
-                            },
                             onViewModeChange = { viewModel.setViewMode(it) },
                             isLoading = isApiSearchActive && apiSearchQuery.isNotBlank() && apiSearchResults.loadState.refresh is LoadState.Loading
                         )
                     },
                     actions = {
-                        if (effectiveSearchDisplayMode == SearchBarDisplayMode.DEFAULT) {
+                        if (effectiveSearchDisplayMode == SearchBarDisplayMode.HIDDEN) {
                             if (isDownloaderInstalled && hasWantedCalendarItems) {
                                 MainAutoDownloadActionButton(
                                     shouldShowAutoDownloadStatus = shouldShowAutoDownloadStatus,
@@ -567,7 +555,6 @@ private fun MainTopAppBarTitleSection(
     onFocusChanged: (Boolean) -> Unit,
     onSearch: () -> Unit,
     onClearSearch: () -> Unit,
-    onExpandSearch: () -> Unit,
     onViewModeChange: (ViewMode) -> Unit,
     isLoading: Boolean = false
 ) {
@@ -577,7 +564,7 @@ private fun MainTopAppBarTitleSection(
             if (targetState == SearchBarDisplayMode.EXPANDED) {
                 (slideInHorizontally(animationSpec = tween(280)) { width -> width } + fadeIn(animationSpec = tween(250))) togetherWith
                         (slideOutHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeOut(animationSpec = tween(200)))
-            } else if (initialState == SearchBarDisplayMode.EXPANDED && targetState == SearchBarDisplayMode.DEFAULT) {
+            } else if (initialState == SearchBarDisplayMode.EXPANDED && targetState == SearchBarDisplayMode.HIDDEN) {
                 (slideInHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeIn(animationSpec = tween(200))) togetherWith
                         (slideOutHorizontally(animationSpec = tween(280)) { width -> width } + fadeOut(animationSpec = tween(250)))
             } else {
@@ -599,15 +586,7 @@ private fun MainTopAppBarTitleSection(
                 )
             }
 
-            SearchBarDisplayMode.DOCKED -> {
-                MainDockedSearchBar(
-                    searchQuery = searchQuery,
-                    onClick = onExpandSearch,
-                    onClearSearch = onClearSearch
-                )
-            }
-
-            SearchBarDisplayMode.DEFAULT -> {
+            SearchBarDisplayMode.HIDDEN -> {
                 MainDefaultTitleBar(
                     username = username,
                     viewMode = viewMode,
@@ -685,58 +664,6 @@ private fun MainExpandedSearchBar(
                     innerTextField()
                 }
             }
-        )
-
-        IconButton(
-            onClick = onClearSearch,
-            modifier = Modifier
-                .size(32.dp)
-                .testTag("clear_search_button")
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Delete search query",
-                tint = TextSubtle,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun MainDockedSearchBar(
-    searchQuery: String,
-    onClick: () -> Unit,
-    onClearSearch: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(40.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceContainer)
-            .border(1.dp, OutlineGrey, RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .padding(start = 12.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = "Search",
-            tint = PurpleLight,
-            modifier = Modifier.size(18.dp)
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Text(
-            text = searchQuery,
-            color = TextPrimary,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
         )
 
         IconButton(
