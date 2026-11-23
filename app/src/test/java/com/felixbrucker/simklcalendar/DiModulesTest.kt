@@ -9,6 +9,10 @@ import com.felixbrucker.simklcalendar.data.database.NotificationSettingDao
 import com.felixbrucker.simklcalendar.data.database.UserTokenDao
 import com.felixbrucker.simklcalendar.data.database.WatchedEpisodeDao
 import com.felixbrucker.simklcalendar.data.database.WatchlistDao
+import com.felixbrucker.simklcalendar.data.network.RefreshMutexProvider
+import com.felixbrucker.simklcalendar.data.network.TokenRefreshProvider
+import com.felixbrucker.simklcalendar.data.network.interceptor.ObfuscatingLoggingInterceptor
+import com.felixbrucker.simklcalendar.data.network.interceptor.PlainLoggingInterceptor
 import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.repository.CalendarRepository
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
@@ -99,10 +103,23 @@ class DiModulesTest {
     @Test
     fun testNetworkModuleProviders() {
         val moshi = JsonModule.provideMoshi()
-        val apiService = NetworkModule.providePublicSimklApiService(moshi)
+        val plainLoggingInterceptor = PlainLoggingInterceptor()
+        val apiService = NetworkModule.providePublicSimklApiService(moshi, plainLoggingInterceptor)
+
+        val refreshMutexProvider = mockk<RefreshMutexProvider>(relaxed = true)
+        val tokenRefreshProvider = mockk<TokenRefreshProvider>(relaxed = true)
+        val obfuscatingLoggingInterceptor = ObfuscatingLoggingInterceptor(tokenDao, testScope)
+        val authenticatedApiService = NetworkModule.provideAuthenticatedSimklApiService(
+            moshi = moshi,
+            tokenDao = tokenDao,
+            refreshMutexProvider = refreshMutexProvider,
+            tokenRefreshProvider = tokenRefreshProvider,
+            loggingInterceptor = obfuscatingLoggingInterceptor
+        )
 
         assertNotNull(moshi)
         assertNotNull(apiService)
+        assertNotNull(authenticatedApiService)
     }
 
     @Test

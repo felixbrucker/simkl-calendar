@@ -7,7 +7,8 @@ import com.felixbrucker.simklcalendar.data.network.interceptor.RateLimitIntercep
 import com.felixbrucker.simklcalendar.data.network.interceptor.SimklApiParameterInterceptor
 import com.felixbrucker.simklcalendar.data.network.PublicSimklApiService
 import com.felixbrucker.simklcalendar.data.network.TokenRefreshProvider
-import com.felixbrucker.simklcalendar.data.network.interceptor.LoggingInterceptor
+import com.felixbrucker.simklcalendar.data.network.interceptor.ObfuscatingLoggingInterceptor
+import com.felixbrucker.simklcalendar.data.network.interceptor.PlainLoggingInterceptor
 import com.felixbrucker.simklcalendar.data.network.interceptor.SimklApiAuthenticator
 import com.felixbrucker.simklcalendar.data.network.interceptor.SimklAuthenticatedApiParameterInterceptor
 import com.squareup.moshi.Moshi
@@ -29,11 +30,12 @@ object NetworkModule {
     @Singleton
     fun providePublicSimklApiService(
         moshi: Moshi,
+        loggingInterceptor: PlainLoggingInterceptor
     ): PublicSimklApiService {
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(RateLimitInterceptor())
             .addInterceptor(SimklApiParameterInterceptor())
-            .addInterceptor(LoggingInterceptor())
+            .addInterceptor(loggingInterceptor)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
@@ -54,6 +56,7 @@ object NetworkModule {
         tokenDao: UserTokenDao,
         refreshMutexProvider: RefreshMutexProvider,
         tokenRefreshProvider: TokenRefreshProvider,
+        loggingInterceptor: ObfuscatingLoggingInterceptor
     ): AuthenticatedSimklApiService {
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(RateLimitInterceptor())
@@ -63,7 +66,7 @@ object NetworkModule {
                 refreshMutexProvider = refreshMutexProvider,
                 tokenRefreshProvider = tokenRefreshProvider,
             ))
-            .addInterceptor(LoggingInterceptor())
+            .addInterceptor(loggingInterceptor)
             .authenticator(SimklApiAuthenticator(
                 tokenDao = tokenDao,
                 refreshMutexProvider = refreshMutexProvider,
