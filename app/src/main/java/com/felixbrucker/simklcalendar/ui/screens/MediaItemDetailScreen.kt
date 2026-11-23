@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
+import com.felixbrucker.simklcalendar.ui.composable.ExpressiveSwitch
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -545,7 +546,7 @@ fun CarouselHeaderWithToggle(
                 fontSize = 11.sp,
                 color = TextSubtle
             )
-            Switch(
+            ExpressiveSwitch(
                 checked = hideWatchlist,
                 onCheckedChange = onToggleChange,
                 modifier = Modifier.scale(0.7f),

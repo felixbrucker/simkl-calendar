@@ -65,7 +65,6 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -511,7 +510,7 @@ fun NotificationSettingsCard(
                         Text("Episode Alerts", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Text("Notify me as soon as each episode of this series airs.", color = TextSubtle, fontSize = 11.sp)
                     }
-                    Switch(
+                    ExpressiveSwitch(
                         checked = notifyEveryEpisode,
                         onCheckedChange = { isChecked ->
                             onNotifyEveryEpisodeChange(isChecked)
@@ -532,7 +531,7 @@ fun NotificationSettingsCard(
                         Text("Season Finished Airing", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Text("Notify me when the season has finished airing.", color = TextSubtle, fontSize = 11.sp)
                     }
-                    Switch(
+                    ExpressiveSwitch(
                         checked = notifySeasonFinished,
                         onCheckedChange = { isChecked ->
                             onNotifySeasonFinishedChange(isChecked)
@@ -551,7 +550,7 @@ fun NotificationSettingsCard(
                         Text("Theater Release", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Text("Notify me when the movie releases in theaters.", color = TextSubtle, fontSize = 11.sp)
                     }
-                    Switch(
+                    ExpressiveSwitch(
                         checked = notifyEveryEpisode,
                         onCheckedChange = { isChecked ->
                             onNotifyEveryEpisodeChange(isChecked)
@@ -572,7 +571,7 @@ fun NotificationSettingsCard(
                         Text("Digital / DVD Release", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Text("Notify me when the movie is available on digital or DVD.", color = TextSubtle, fontSize = 11.sp)
                     }
-                    Switch(
+                    ExpressiveSwitch(
                         checked = notifySeasonFinished,
                         onCheckedChange = { isChecked ->
                             onNotifySeasonFinishedChange(isChecked)
@@ -886,7 +885,7 @@ fun DownloadSettingsCard(
                     Text("Download Unwatched", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text("Auto search and add unwatched episodes.", color = TextSubtle, fontSize = 11.sp)
                 }
-                Switch(
+                ExpressiveSwitch(
                     checked = itemSettings?.downloadUnwatched ?: globalUnwatched,
                     onCheckedChange = {
                         onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadUnwatched = it))
@@ -904,7 +903,7 @@ fun DownloadSettingsCard(
                         Text("Download Season Unwatched", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Text("Auto download all episodes when a season finishes airing.", color = TextSubtle, fontSize = 11.sp)
                     }
-                    Switch(
+                    ExpressiveSwitch(
                         checked = itemSettings?.downloadSeasonUnwatched ?: globalSeasonUnwatched,
                         onCheckedChange = {
                             onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(downloadSeasonUnwatched = it))
@@ -959,7 +958,7 @@ fun DownloadSettingsCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Prefer HEVC / x265", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
-                Switch(
+                ExpressiveSwitch(
                     checked = itemSettings?.preferHevcOverride ?: globalPreferHevc,
                     onCheckedChange = {
                         onSaveItemDownloadSettings((itemSettings ?: ItemDownloadSettings(simklId)).copy(preferHevcOverride = it))

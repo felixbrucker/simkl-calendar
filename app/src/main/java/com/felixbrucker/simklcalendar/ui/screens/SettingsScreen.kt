@@ -42,6 +42,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import com.felixbrucker.simklcalendar.ui.composable.CustomOutlinedTextField
+import com.felixbrucker.simklcalendar.ui.composable.ExpressiveSwitch
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -1949,7 +1950,7 @@ private fun SettingsTrendingSwitchRow(
             color = TextPrimary,
             fontSize = 14.sp
         )
-        Switch(
+        ExpressiveSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
@@ -2043,7 +2044,7 @@ private fun SettingsDefaultAlertsContent(
                     fontSize = 12.sp
                 )
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = enableDefaultAiring,
                 onCheckedChange = onUpdateDefaultNotifyAiring
             )
@@ -2069,7 +2070,7 @@ private fun SettingsDefaultAlertsContent(
                     fontSize = 12.sp
                 )
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = enableDefaultSeasonFinished,
                 onCheckedChange = onUpdateDefaultNotifySeasonFinished
             )
@@ -2109,7 +2110,7 @@ private fun SettingsDefaultAlertsContent(
                     fontSize = 12.sp
                 )
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = enableDefaultMovieTheater,
                 onCheckedChange = onUpdateDefaultNotifyMovieTheater
             )
@@ -2135,7 +2136,7 @@ private fun SettingsDefaultAlertsContent(
                     fontSize = 12.sp
                 )
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = enableDefaultMovieDigital,
                 onCheckedChange = onUpdateDefaultNotifyMovieDigital
             )
@@ -2211,7 +2212,7 @@ private fun SettingsBatteryOptimizationContent(
                     fontSize = 12.sp
                 )
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = useExactAlarms,
                 onCheckedChange = onUpdateUseExactAlarms
             )
@@ -2333,7 +2334,7 @@ fun SettingsAutoDownloadToggles(
                 Text("Download Unwatched TV Shows", color = TextPrimary, fontSize = 15.sp)
                 Text("Default setting for newly tracked TV Shows.", color = TextSubtle, fontSize = 12.sp)
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = autoDownloadPrefs.autoDownloadUnwatchedTv,
                 onCheckedChange = actions.onUpdateUnwatchedTv,
                 enabled = isDownloaderInstalled
@@ -2349,7 +2350,7 @@ fun SettingsAutoDownloadToggles(
                 Text("Download Unwatched Anime", color = TextPrimary, fontSize = 15.sp)
                 Text("Default setting for newly tracked Anime.", color = TextSubtle, fontSize = 12.sp)
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = autoDownloadPrefs.autoDownloadUnwatchedAnime,
                 onCheckedChange = actions.onUpdateUnwatchedAnime,
                 enabled = isDownloaderInstalled
@@ -2365,7 +2366,7 @@ fun SettingsAutoDownloadToggles(
                 Text("Download Unwatched Movies", color = TextPrimary, fontSize = 15.sp)
                 Text("Default setting for newly tracked Movies.", color = TextSubtle, fontSize = 12.sp)
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = autoDownloadPrefs.autoDownloadUnwatchedMovie,
                 onCheckedChange = actions.onUpdateUnwatchedMovie,
                 enabled = isDownloaderInstalled
@@ -2381,7 +2382,7 @@ fun SettingsAutoDownloadToggles(
                 Text("Download Season Unwatched TV Shows", color = TextPrimary, fontSize = 15.sp)
                 Text("Default setting for newly tracked TV Shows.", color = TextSubtle, fontSize = 12.sp)
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = autoDownloadPrefs.autoDownloadSeasonUnwatchedTv,
                 onCheckedChange = actions.onUpdateSeasonUnwatchedTv,
                 enabled = isDownloaderInstalled
@@ -2397,7 +2398,7 @@ fun SettingsAutoDownloadToggles(
                 Text("Download Season Unwatched Anime", color = TextPrimary, fontSize = 15.sp)
                 Text("Default setting for newly tracked Anime.", color = TextSubtle, fontSize = 12.sp)
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = autoDownloadPrefs.autoDownloadSeasonUnwatchedAnime,
                 onCheckedChange = actions.onUpdateSeasonUnwatchedAnime,
                 enabled = isDownloaderInstalled
@@ -2419,7 +2420,7 @@ fun SettingsAutoDownloadToggles(
                     fontSize = 12.sp
                 )
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = autoDownloadPrefs.deleteFileOnWatched,
                 onCheckedChange = { enabled ->
                     if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !permissionState.hasPermission) {
@@ -2456,7 +2457,7 @@ fun SettingsAutoDownloadToggles(
                     fontSize = 12.sp
                 )
             }
-            Switch(
+            ExpressiveSwitch(
                 checked = autoDownloadPrefs.deleteEmptyParentDirectory,
                 onCheckedChange = actions.onUpdateDeleteEmptyParentDirectory,
                 enabled = isDownloaderInstalled && autoDownloadPrefs.deleteFileOnWatched
@@ -2844,7 +2845,7 @@ private fun SettingsAppLogsDiagnosticsContent(
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Switch(
+            ExpressiveSwitch(
                 checked = showDebugActions,
                 onCheckedChange = onUpdateShowDebugActions,
                 modifier = Modifier.testTag("show_debug_actions_switch")
@@ -2941,7 +2942,7 @@ fun SettingsSentrySection(
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Switch(
+            ExpressiveSwitch(
                 checked = sentryEnabled && isSentryConfigured,
                 onCheckedChange = onUpdateSentryEnabled,
                 enabled = isSentryConfigured,
@@ -3274,7 +3275,7 @@ fun PreferHevcRow(
             Text("Prefer HEVC / x265", color = TextPrimary, fontSize = 15.sp)
             Text("Prioritize high efficiency video coding results.", color = TextSubtle, fontSize = 12.sp)
         }
-        Switch(
+        ExpressiveSwitch(
             checked = autoDownloadPrefs.preferHevc,
             onCheckedChange = actions.onUpdatePreferHevc,
             enabled = isDownloaderInstalled
