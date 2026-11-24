@@ -329,11 +329,6 @@ fun WatchlistTableItemRow(
                 Box(
                     modifier = Modifier
                         .padding(horizontal = 6.dp)
-                        .sharedElementItem(
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            key = "type_${item.watchlistItem.simklId}"
-                        )
                         .size(4.dp, 16.dp)
                         .background(categoryColor, RoundedCornerShape(2.dp))
                 )
@@ -370,14 +365,7 @@ fun WatchlistTableItemRow(
                         color = TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .weight(TableWeights.LAST_EP)
-                            .sharedElementItem(
-                                sharedTransitionScope = sharedTransitionScope,
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                key = "last_ep_${item.watchlistItem.simklId}",
-                                enabled = item.lastAiredDate != null
-                            )
+                        modifier = Modifier.weight(TableWeights.LAST_EP)
                     )
 
                     // Next Ep
@@ -387,14 +375,7 @@ fun WatchlistTableItemRow(
                         color = PurpleLight,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .weight(TableWeights.NEXT_EP)
-                            .sharedElementItem(
-                                sharedTransitionScope = sharedTransitionScope,
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                key = "next_ep_${item.watchlistItem.simklId}",
-                                enabled = item.nextEpisodeDate != null
-                            )
+                        modifier = Modifier.weight(TableWeights.NEXT_EP)
                     )
                 }
 
@@ -408,13 +389,7 @@ fun WatchlistTableItemRow(
                     color = watchedColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(if (isSmallScreen) SmallTableWeights.WATCHED else TableWeights.WATCHED)
-                        .sharedElementItem(
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            key = "watched_progress_${item.watchlistItem.simklId}"
-                        )
+                    modifier = Modifier.weight(if (isSmallScreen) SmallTableWeights.WATCHED else TableWeights.WATCHED)
                 )
 
                 // Downloaded
@@ -430,13 +405,7 @@ fun WatchlistTableItemRow(
                         color = downloadedColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .weight(if (isSmallScreen) SmallTableWeights.DOWNLOADED else TableWeights.DOWNLOADED)
-                            .sharedElementItem(
-                                sharedTransitionScope = sharedTransitionScope,
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                key = "downloaded_progress_${item.watchlistItem.simklId}"
-                            )
+                        modifier = Modifier.weight(if (isSmallScreen) SmallTableWeights.DOWNLOADED else TableWeights.DOWNLOADED)
                     )
                 }
 

@@ -708,14 +708,7 @@ private fun DetailHeaderTitleOverlay(
             .padding(16.dp)
             .padding(end = 100.dp)
     ) {
-        DetailMediaTypeBadge(
-            type = data.type,
-            modifier = Modifier.sharedElementItem(
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-                key = "type_$sharedItemKey",
-            )
-        )
+        DetailMediaTypeBadge(type = data.type)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = data.title,
@@ -730,21 +723,13 @@ private fun DetailHeaderTitleOverlay(
                 )
                 .clickable(onClick = onTitleClick)
         )
-        DetailSubtitles(
-            data = data,
-            sharedItemKey = sharedItemKey,
-            sharedTransitionScope = sharedTransitionScope,
-            animatedVisibilityScope = animatedVisibilityScope
-        )
+        DetailSubtitles(data = data)
     }
 }
 
 @Composable
 private fun DetailSubtitles(
     data: DetailHeaderData,
-    sharedItemKey: String,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     if (data.hasUniqueTitleRomaji && data.titleRomaji != null) {
         Spacer(modifier = Modifier.height(2.dp))
@@ -753,12 +738,6 @@ private fun DetailSubtitles(
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
             color = TextSubtle,
-            modifier = Modifier.sharedElementItem(
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-                key = "romaji_title_$sharedItemKey",
-                enabled = !data.isWatchlist
-            )
         )
     }
     val animeSeasonLabel = MediaFormatter.formatAnimeSeasonLabel(data.type, data.animeSeason)
@@ -769,12 +748,6 @@ private fun DetailSubtitles(
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
             color = TextSubtle,
-            modifier = Modifier.sharedElementItem(
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-                key = "anime_season_$sharedItemKey",
-                enabled = !data.isWatchlist
-            )
         )
     }
 }

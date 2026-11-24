@@ -586,11 +586,6 @@ fun CalendarItemCard(
                         Badge(
                             containerColor = categoryColor.copy(alpha = 0.2f),
                             contentColor = categoryColor,
-                            modifier = Modifier.sharedElementItem(
-                                sharedTransitionScope = sharedTransitionScope,
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                key = "type_${item.primaryKey}"
-                            )
                         ) {
                             Text(item.type.displayName.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                         }
@@ -627,11 +622,6 @@ fun CalendarItemCard(
                             Badge(
                                 containerColor = SurfaceGreen,
                                 contentColor = GreenSuccess,
-                                modifier = Modifier.sharedElementItem(
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    key = "downloaded_badge_${item.primaryKey}"
-                                )
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -659,11 +649,6 @@ fun CalendarItemCard(
                             Badge(
                                 containerColor = PurpleContainerLight,
                                 contentColor = SurfacePurpleVariant,
-                                modifier = Modifier.sharedElementItem(
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    key = "premiere_badge_${item.primaryKey}"
-                                )
                             ) {
                                 Text("SEASON PREMIERE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                             }
@@ -674,11 +659,6 @@ fun CalendarItemCard(
                             Badge(
                                 containerColor = ErrorRed,
                                 contentColor = Color.White,
-                                modifier = Modifier.sharedElementItem(
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    key = "finale_badge_${item.primaryKey}"
-                                )
                             ) {
                                 Text("SEASON FINALE", fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                             }
@@ -690,11 +670,6 @@ fun CalendarItemCard(
                             Badge(
                                 containerColor = PurpleContainerLight,
                                 contentColor = SurfacePurpleVariant,
-                                modifier = Modifier.sharedElementItem(
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    key = "anime_season_${item.primaryKey}"
-                                )
                             ) {
                                 Text(
                                     text = animeSeasonLabel.uppercase(),
@@ -730,11 +705,6 @@ fun CalendarItemCard(
                             color = TextSubtle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.sharedElementItem(
-                                sharedTransitionScope = sharedTransitionScope,
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                key = "romaji_title_${item.primaryKey}"
-                            )
                         )
                     }
 
@@ -749,11 +719,6 @@ fun CalendarItemCard(
                                     text = epLabel,
                                     fontSize = 13.sp,
                                     color = TextSubtle,
-                                    modifier = Modifier.sharedElementItem(
-                                        sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope,
-                                        key = "episode_code_${item.primaryKey}"
-                                    )
                                 )
                                 Text(
                                     text = ": ",
@@ -766,11 +731,6 @@ fun CalendarItemCard(
                                     color = TextSubtle,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.sharedElementItem(
-                                        sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope,
-                                        key = "episode_title_${item.primaryKey}"
-                                    )
                                 )
                             }
                         }
@@ -800,11 +760,6 @@ fun CalendarItemCard(
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = PurpleLight,
-                                    modifier = Modifier.sharedElementItem(
-                                        sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope,
-                                        key = "air_time_${item.primaryKey}"
-                                    )
                                 )
                             }
                         }

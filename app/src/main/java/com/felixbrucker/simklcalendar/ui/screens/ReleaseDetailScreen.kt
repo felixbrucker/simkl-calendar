@@ -327,9 +327,6 @@ fun ReleaseDetailScreen(
                         onMediaStatusChange = { itemKeyToUpdate, newStatus ->
                             viewModel.updateMediaStatus(itemKeyToUpdate, newStatus)
                         },
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        sharedItemKey = itemKey
                     )
 
                     // Dynamic Action Buttons Section (Max 2 per row)
@@ -711,10 +708,7 @@ fun SelectedEpisodeDetailsCard(
     updatingWatchKeys: Set<String>,
     onWatchedStatusChange: (Boolean) -> Unit,
     onMediaStatusChange: (String, MediaStatus) -> Unit,
-    sharedItemKey: String,
     modifier: Modifier = Modifier,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -795,11 +789,6 @@ fun SelectedEpisodeDetailsCard(
                         color = TextPrimary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
-                        modifier = Modifier.sharedElementItem(
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            key = "air_time_$sharedItemKey"
-                        )
                     )
                 }
             }
@@ -820,11 +809,6 @@ fun SelectedEpisodeDetailsCard(
                         color = TextPrimary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
-                        modifier = Modifier.sharedElementItem(
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            key = "episode_code_$sharedItemKey"
-                        )
                     )
                 }
 
@@ -840,11 +824,6 @@ fun SelectedEpisodeDetailsCard(
                         color = TextPrimary,
                         fontWeight = FontWeight.Medium,
                         fontSize = 14.sp,
-                        modifier = Modifier.sharedElementItem(
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            key = "episode_title_$sharedItemKey"
-                        )
                     )
                 }
             }
@@ -873,12 +852,6 @@ fun SelectedEpisodeDetailsCard(
                     ItemMediaStatusDropdown(
                         item = mediaStatusItem,
                         onStatusChange = { newStatus -> onMediaStatusChange(mediaStatusItem.primaryKey, newStatus) },
-                        modifier = Modifier.sharedElementItem(
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            key = "downloaded_badge_$sharedItemKey",
-                            enabled = mediaStatusItem.mediaStatus == MediaStatus.DOWNLOADED
-                        )
                     )
                 }
             }
@@ -896,12 +869,6 @@ fun SelectedEpisodeDetailsCard(
                             modifier = Modifier
                                 .background(PurpleContainerLight, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
-                                .sharedElementItem(
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    key = "premiere_badge_$sharedItemKey",
-                                    enabled = activeItem.isSeasonPremiere
-                                )
                         ) {
                             Text(
                                 text = "🎉 SEASON PREMIERE",
@@ -916,12 +883,6 @@ fun SelectedEpisodeDetailsCard(
                             modifier = Modifier
                                 .background(ErrorRed, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
-                                .sharedElementItem(
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    key = "finale_badge_$sharedItemKey",
-                                    enabled = activeItem.isSeasonFinale
-                                )
                         ) {
                             Text("🎬 SEASON FINALE", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
