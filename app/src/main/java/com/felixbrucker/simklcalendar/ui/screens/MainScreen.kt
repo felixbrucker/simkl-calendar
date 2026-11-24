@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +40,9 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -52,6 +56,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,6 +64,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
+import com.felixbrucker.simklcalendar.ui.composable.AnimatedMenuButton
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.ErrorRed
 import com.felixbrucker.simklcalendar.ui.theme.YellowAccent
@@ -331,37 +337,52 @@ fun MainScreen(
                                     tint = Color.White
                                 )
                             }
-                            IconButton(
-                                onClick = onNavigateToTrending,
-                                modifier = Modifier.testTag("trending_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                    contentDescription = "Trending",
-                                    tint = Color.White
-                                )
-                            }
-                            ApiSearchButton(
-                                onClick = {
-                                    isApiSearchActive = true
-                                    coroutineScope.launch {
-                                        delay(100.milliseconds)
-                                        focusRequester.requestFocus()
-                                        keyboardController?.show()
-                                    }
-                                }
-                            )
-                        }
 
-                        IconButton(
-                            onClick = onNavigateToSettings,
-                            modifier = Modifier.testTag("settings_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Settings",
-                                tint = Color.White
-                            )
+                            if (isSmallScreen) {
+                                MainMobileMenuButton(
+                                    onNavigateToTrending = onNavigateToTrending,
+                                    onNavigateToSettings = onNavigateToSettings,
+                                    onOpenApiSearch = {
+                                        isApiSearchActive = true
+                                        coroutineScope.launch {
+                                            delay(100.milliseconds)
+                                            focusRequester.requestFocus()
+                                            keyboardController?.show()
+                                        }
+                                    }
+                                )
+                            } else {
+                                IconButton(
+                                    onClick = onNavigateToTrending,
+                                    modifier = Modifier.testTag("trending_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                        contentDescription = "Trending",
+                                        tint = Color.White
+                                    )
+                                }
+                                ApiSearchButton(
+                                    onClick = {
+                                        isApiSearchActive = true
+                                        coroutineScope.launch {
+                                            delay(100.milliseconds)
+                                            focusRequester.requestFocus()
+                                            keyboardController?.show()
+                                        }
+                                    }
+                                )
+                                IconButton(
+                                    onClick = onNavigateToSettings,
+                                    modifier = Modifier.testTag("settings_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = "Settings",
+                                        tint = Color.White
+                                    )
+                                }
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -1300,3 +1321,87 @@ fun ApiSearchResultsLazyColumn(
         }
     }
 }
+
+@Composable
+private fun MainMobileMenuButton(
+    onNavigateToTrending: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onOpenApiSearch: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Box {
+        AnimatedMenuButton(
+            menuExpanded = menuExpanded,
+            onClick = { menuExpanded = true },
+            animationDurationMillis = 200
+        )
+        MainMobileDropdownMenu(
+            expanded = menuExpanded,
+            onDismiss = { menuExpanded = false },
+            onNavigateToTrending = onNavigateToTrending,
+            onNavigateToSettings = onNavigateToSettings,
+            onOpenApiSearch = onOpenApiSearch
+        )
+    }
+}
+
+@Composable
+private fun MainMobileDropdownMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onNavigateToTrending: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onOpenApiSearch: () -> Unit
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = Modifier.background(SurfaceContainer)
+    ) {
+        DropdownMenuItem(
+            text = { Text("Trending", color = TextPrimary) },
+            onClick = {
+                onDismiss()
+                onNavigateToTrending()
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                    contentDescription = null,
+                    tint = PurpleLight
+                )
+            }
+        )
+        DropdownMenuItem(
+            text = { Text("Global Search", color = TextPrimary) },
+            onClick = {
+                onDismiss()
+                onOpenApiSearch()
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.TravelExplore,
+                    contentDescription = null,
+                    tint = PurpleLight
+                )
+            }
+        )
+        DropdownMenuItem(
+            text = { Text("Settings", color = TextPrimary) },
+            onClick = {
+                onDismiss()
+                onNavigateToSettings()
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    tint = PurpleLight
+                )
+            }
+        )
+    }
+}
+
+

@@ -460,7 +460,9 @@ fun LogViewerTopBarActions(
             onButtonBoundsChanged = onButtonBoundsChanged
         )
         LogViewerCopyIconButton(onCopyLogs = onCopyLogs)
-        LogViewerClearIconButton(onClearLogs = onClearLogs)
+        if (effectiveSearchDisplayMode == SearchBarDisplayMode.HIDDEN) {
+            LogViewerClearIconButton(onClearLogs = onClearLogs)
+        }
     }
 }
 
@@ -576,7 +578,8 @@ fun LogViewerContentContainer(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp)
+            .padding(bottom = 8.dp)
             .nestedScroll(nestedScrollConnection)
     ) {
         LogViewerCountHeaderContainer(
@@ -630,7 +633,6 @@ fun LogViewerCountHeaderContainer(
             }
             .clipToBounds()
             .fillMaxWidth()
-            .padding(bottom = 6.dp)
     )
 }
 

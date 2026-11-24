@@ -3,11 +3,18 @@ package com.felixbrucker.simklcalendar.ui.screens
 import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -44,8 +51,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
 import com.felixbrucker.simklcalendar.data.database.TrendingMediaItem
 import com.felixbrucker.simklcalendar.data.model.MediaType
 import com.felixbrucker.simklcalendar.data.model.TrendingPeriod
@@ -355,41 +364,167 @@ private fun TrendingMobileLayout(
             animatedVisibilityScope = animatedVisibilityScope
         )
 
-        AnimatedVisibility(
-            visible = isFilterOpen,
-            enter = fadeIn(animationSpec = tween(200)),
-            exit = fadeOut(animationSpec = tween(200))
+        TrendingMobileFilterOverlay(
+            isFilterOpen = isFilterOpen,
+            uiPreferences = uiPreferences,
+            minYearBound = minYearBound,
+            maxYearBound = maxYearBound,
+            onDismissFilter = onDismissFilter,
+            viewModel = viewModel
+        )
+    }
+}
+
+@Composable
+private fun TrendingMobileFilterOverlay(
+    isFilterOpen: Boolean,
+    uiPreferences: UiPreferences,
+    minYearBound: Int,
+    maxYearBound: Int,
+    onDismissFilter: () -> Unit,
+    viewModel: TrendingViewModel
+) {
+    val density = LocalDensity.current
+    val sidebarWidth = 320.dp
+    val sidebarWidthPx = with(density) { sidebarWidth.toPx() }
+    val offsetX = remember { Animatable(sidebarWidthPx) }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(isFilterOpen) {
+        if (isFilterOpen) {
+            offsetX.animateTo(0f, animationSpec = tween(250))
+        } else {
+            offsetX.animateTo(sidebarWidthPx, animationSpec = tween(200))
+        }
+    }
+
+    if (isFilterOpen || offsetX.value < sidebarWidthPx) {
+        val alpha = (1f - (offsetX.value / sidebarWidthPx)).coerceIn(0f, 1f)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f * alpha))
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        val velocityTracker = VelocityTracker()
+                        val down = awaitFirstDown()
+                        velocityTracker.addPosition(down.uptimeMillis, down.position)
+                        val pointer = down
+
+                        do {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == pointer.id } ?: break
+                            if (change.pressed) {
+                                val dragAmount = change.positionChange().x
+                                velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                change.consume()
+
+                                coroutineScope.launch {
+                                    val newOffset = (offsetX.value + dragAmount).coerceIn(0f, sidebarWidthPx)
+                                    offsetX.snapTo(newOffset)
+                                    if (newOffset >= sidebarWidthPx * 0.5f) {
+                                        offsetX.animateTo(sidebarWidthPx, animationSpec = tween(200))
+                                        onDismissFilter()
+                                    }
+                                }
+                            } else {
+                                break
+                            }
+                        } while (event.changes.any { it.pressed })
+
+                        val velocity = velocityTracker.calculateVelocity().x
+                        coroutineScope.launch {
+                            if (offsetX.value >= sidebarWidthPx * 0.5f || velocity > 800f) {
+                                offsetX.animateTo(sidebarWidthPx, animationSpec = tween(200))
+                                onDismissFilter()
+                            } else {
+                                offsetX.animateTo(0f, animationSpec = tween(200))
+                            }
+                        }
+                    }
+                },
+            contentAlignment = Alignment.CenterEnd
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable(onClick = onDismissFilter)
-            ) {
-                AnimatedVisibility(
-                    visible = isFilterOpen,
-                    enter = slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(250)),
-                    exit = slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(200)),
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(320.dp)
-                            .background(SurfaceDark)
-                            .clickable(enabled = false, onClick = {})
-                            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp)
-                    ) {
-                        TrendingFilterSidebarContent(
-                            uiPreferences = uiPreferences,
-                            minYearBound = minYearBound,
-                            maxYearBound = maxYearBound,
-                            viewModel = viewModel
-                        )
+            TrendingMobileFilterSidebar(
+                sidebarWidth = sidebarWidth,
+                offsetX = offsetX,
+                uiPreferences = uiPreferences,
+                minYearBound = minYearBound,
+                maxYearBound = maxYearBound,
+                onDismissFilter = onDismissFilter,
+                viewModel = viewModel
+            )
+        }
+    }
+}
+
+@Composable
+private fun TrendingMobileFilterSidebar(
+    sidebarWidth: androidx.compose.ui.unit.Dp,
+    offsetX: Animatable<Float, AnimationVector1D>,
+    uiPreferences: UiPreferences,
+    minYearBound: Int,
+    maxYearBound: Int,
+    onDismissFilter: () -> Unit,
+    viewModel: TrendingViewModel
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val sidebarWidthPx = with(density) { sidebarWidth.toPx() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(sidebarWidth)
+            .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+            .background(SurfaceDark)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val velocityTracker = VelocityTracker()
+                    val down = awaitFirstDown()
+                    velocityTracker.addPosition(down.uptimeMillis, down.position)
+                    val pointer = down
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == pointer.id } ?: break
+                        if (change.pressed) {
+                            val dragAmount = change.positionChange().x
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            change.consume()
+
+                            coroutineScope.launch {
+                                val newOffset = (offsetX.value + dragAmount).coerceIn(0f, sidebarWidthPx)
+                                offsetX.snapTo(newOffset)
+                                if (newOffset >= sidebarWidthPx * 0.5f) {
+                                    offsetX.animateTo(sidebarWidthPx, animationSpec = tween(200))
+                                    onDismissFilter()
+                                }
+                            }
+                        } else {
+                            break
+                        }
+                    } while (event.changes.any { it.pressed })
+
+                    val velocity = velocityTracker.calculateVelocity().x
+                    coroutineScope.launch {
+                        if (offsetX.value >= sidebarWidthPx * 0.5f || velocity > 800f) {
+                            offsetX.animateTo(sidebarWidthPx, animationSpec = tween(200))
+                            onDismissFilter()
+                        } else {
+                            offsetX.animateTo(0f, animationSpec = tween(200))
+                        }
                     }
                 }
             }
-        }
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp)
+    ) {
+        TrendingFilterSidebarContent(
+            uiPreferences = uiPreferences,
+            minYearBound = minYearBound,
+            maxYearBound = maxYearBound,
+            viewModel = viewModel
+        )
     }
 }
 
