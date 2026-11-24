@@ -387,6 +387,7 @@ fun SimklCalendarApp(
                      targetState.destination.route?.startsWith("media_item") == true)
                 val isMediaItemToSearch =
                     (initialState.destination.route?.startsWith("media_item") == true &&
+                     initialState.arguments?.getBoolean("usingSharedTransition") == false &&
                      targetState.destination.route?.startsWith("calendar") == true)
 
                 if (isSlideScreen || isDetailToDetail || isMediaItemToSearch) slideInFromLeft else EnterTransition.None
@@ -406,6 +407,7 @@ fun SimklCalendarApp(
                      targetState.destination.route?.startsWith("media_item") == true)
                 val isMediaItemToSearch =
                     (initialState.destination.route?.startsWith("media_item") == true &&
+                     initialState.arguments?.getBoolean("usingSharedTransition") == false &&
                      targetState.destination.route?.startsWith("calendar") == true)
 
                 if (isSlideScreen || isDetailToDetail || isMediaItemToSearch) slideOutToRight else ExitTransition.None
@@ -433,14 +435,18 @@ fun SimklCalendarApp(
                 route = "calendar",
                 enterTransition = { slideInFromRight },
                 exitTransition = {
-                    if (targetState.destination.route?.startsWith("release_detail") == true) {
+                    val targetRoute = targetState.destination.route ?: ""
+                    val arguments = targetState.arguments
+                    if (targetRoute.startsWith("release_detail") || arguments?.getBoolean("usingSharedTransition") == true) {
                         ExitTransition.None
                     } else {
                         slideOutToLeft
                     }
                 },
                 popEnterTransition = {
-                    if (initialState.destination.route?.startsWith("release_detail") == true) {
+                    val initialRoute = initialState.destination.route ?: ""
+                    val arguments = initialState.arguments
+                    if (initialRoute.startsWith("release_detail") || arguments?.getBoolean("usingSharedTransition") == true) {
                         EnterTransition.None
                     } else {
                         slideInFromLeft
@@ -467,7 +473,7 @@ fun SimklCalendarApp(
                         }
                     },
                     onNavigateToWatchlistItemDetail = { tableItem ->
-                        navController.navigate("media_item/${tableItem.watchlistItem.simklId}/${tableItem.watchlistItem.type.key}")
+                        navController.navigate("media_item/${tableItem.watchlistItem.simklId}/${tableItem.watchlistItem.type.key}?usingSharedTransition=true")
                     },
                     onNavigateToDetail = { simklId, mediaType ->
                         navController.navigate("media_item/$simklId/${mediaType.key}")
@@ -498,10 +504,14 @@ fun SimklCalendarApp(
 
             // 7. Media Item Detail Screen
             composable(
-                route = "media_item/{simklId}/{mediaType}",
+                route = "media_item/{simklId}/{mediaType}?usingSharedTransition={usingSharedTransition}",
                 arguments = listOf(
                     navArgument("simklId") { type = NavType.IntType },
-                    navArgument("mediaType") { type = NavType.StringType }
+                    navArgument("mediaType") { type = NavType.StringType },
+                    navArgument("usingSharedTransition") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    }
                 ),
                 deepLinks = listOf(
                     navDeepLink { uriPattern = "simklcalendar://media_item/{simklId}/{mediaType}" }
