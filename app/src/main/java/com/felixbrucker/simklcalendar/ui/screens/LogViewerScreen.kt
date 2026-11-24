@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,23 +20,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,8 +45,6 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -67,32 +65,37 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.felixbrucker.simklcalendar.data.logging.LogEntry
+import com.felixbrucker.simklcalendar.ui.composable.AlignedPopover
+import com.felixbrucker.simklcalendar.ui.composable.SearchBarDisplayMode
+import com.felixbrucker.simklcalendar.ui.composable.TopAppBarTitleSectionWithExpandableSearch
 import com.felixbrucker.simklcalendar.ui.theme.ErrorPink
 import com.felixbrucker.simklcalendar.ui.theme.GreenSuccess
 import com.felixbrucker.simklcalendar.ui.theme.OutlineGrey
-import com.felixbrucker.simklcalendar.ui.theme.OutlineVariant
 import com.felixbrucker.simklcalendar.ui.theme.PurpleLight
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceContainer
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceDarkGreen
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceGreyDark
-import com.felixbrucker.simklcalendar.ui.theme.SurfacePurple
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceRedDeep
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantDark
 import com.felixbrucker.simklcalendar.ui.theme.SurfaceVariantGrey
@@ -102,14 +105,26 @@ import com.felixbrucker.simklcalendar.ui.theme.TextPrimary
 import com.felixbrucker.simklcalendar.ui.theme.TextSubtle
 import com.felixbrucker.simklcalendar.ui.theme.YellowWarningLight
 import com.felixbrucker.simklcalendar.ui.viewmodel.LogViewerViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 private val logTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
     .withZone(ZoneId.systemDefault())
+
+private fun logPriorityColors(priority: Int): Pair<Color, Color> {
+    return when (priority) {
+        Log.ERROR -> SurfaceRedDeep to ErrorPink
+        Log.WARN -> SurfaceYellowDark to YellowWarningLight
+        Log.INFO -> SurfaceDarkGreen to GreenSuccess
+        Log.DEBUG -> SurfaceVariantDark to PurpleLight
+        else -> SurfaceGreyDark to TextSubtle
+    }
+}
 
 @Composable
 fun LogViewerScreen(
@@ -120,16 +135,29 @@ fun LogViewerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     val allLogs by viewModel.allLogs.collectAsState()
     val filteredLogs by viewModel.filteredLogs.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    val selectedPriority by viewModel.selectedPriority.collectAsState()
+    val selectedPriorities by viewModel.selectedPriorities.collectAsState()
 
     var showClearDialog by remember { mutableStateOf(false) }
+    var showFilterPopover by remember { mutableStateOf(false) }
+    var filterButtonBounds by remember { mutableStateOf<Rect?>(null) }
+    var isSearchActive by remember { mutableStateOf(false) }
+    var isSearchFocused by remember { mutableStateOf(false) }
     var topControlsHeightPx by remember { mutableFloatStateOf(0f) }
     var topControlsOffsetPx by remember { mutableFloatStateOf(0f) }
     var shouldAutoScroll by remember { mutableStateOf(true) }
+
+    val effectiveSearchDisplayMode = if (isSearchActive || isSearchFocused || searchQuery.isNotBlank()) {
+        SearchBarDisplayMode.EXPANDED
+    } else {
+        SearchBarDisplayMode.HIDDEN
+    }
 
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
@@ -147,127 +175,189 @@ fun LogViewerScreen(
         }
     }
 
+    BackHandler(enabled = isSearchActive || searchQuery.isNotBlank() || showFilterPopover) {
+        if (showFilterPopover) {
+            showFilterPopover = false
+        } else {
+            if (searchQuery.isNotBlank()) {
+                viewModel.setSearchQuery("")
+            }
+            isSearchActive = false
+            isSearchFocused = false
+        }
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
+
+    LogViewerEffects(
+        listState = listState,
+        filteredLogs = filteredLogs,
+        shouldAutoScroll = shouldAutoScroll,
+        onUpdateOffset = { topControlsOffsetPx = it },
+        onUpdateAutoScroll = { shouldAutoScroll = it }
+    )
+
+    LogViewerScaffold(
+        modifier = modifier,
+        allLogs = allLogs,
+        filteredLogs = filteredLogs,
+        searchQuery = searchQuery,
+        listState = listState,
+        effectiveSearchDisplayMode = effectiveSearchDisplayMode,
+        focusRequester = focusRequester,
+        topControlsHeightPx = topControlsHeightPx,
+        topControlsOffsetPx = topControlsOffsetPx,
+        nestedScrollConnection = nestedScrollConnection,
+        onNavigateBack = onNavigateBack,
+        onCopyLogs = { copyLogsToClipboard(context = context, filteredLogs = filteredLogs) },
+        onClearLogs = { showClearDialog = true },
+        onOpenFilter = { showFilterPopover = true },
+        onButtonBoundsChanged = { filterButtonBounds = it },
+        onOpenSearch = {
+            isSearchActive = true
+            scope.launch {
+                delay(100.milliseconds)
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            }
+        },
+        onSearchQueryChange = { viewModel.setSearchQuery(it) },
+        onFocusChanged = { isSearchFocused = it },
+        onSearch = {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+            isSearchFocused = false
+        },
+        onClearSearch = {
+            if (searchQuery.isNotEmpty()) {
+                viewModel.setSearchQuery("")
+            } else {
+                isSearchActive = false
+                isSearchFocused = false
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
+        },
+        onJumpToBottom = {
+            if (filteredLogs.isNotEmpty()) {
+                shouldAutoScroll = true
+                scope.launch { listState.animateScrollToItem(filteredLogs.size - 1) }
+            }
+        },
+        onUpdateHeight = { topControlsHeightPx = it },
+        onUpdateOffset = { topControlsOffsetPx = it }
+    )
+
+    if (showClearDialog) {
+        ClearLogsDialog(
+            onConfirm = { viewModel.clearLogs(); showClearDialog = false },
+            onDismiss = { showClearDialog = false }
+        )
+    }
+
+    AlignedPopover(
+        isVisible = showFilterPopover,
+        anchorBounds = filterButtonBounds,
+        onDismissRequest = { showFilterPopover = false }
+    ) {
+        LogViewerPriorityChips(
+            selectedPriorities = selectedPriorities,
+            onTogglePriority = { viewModel.togglePriority(it) }
+        )
+    }
+}
+
+@Composable
+fun LogViewerEffects(
+    listState: LazyListState,
+    filteredLogs: List<LogEntry>,
+    shouldAutoScroll: Boolean,
+    onUpdateOffset: (Float) -> Unit,
+    onUpdateAutoScroll: (Boolean) -> Unit
+) {
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .collect { (currentIndex, currentOffset) ->
                 if (currentIndex == 0 && currentOffset == 0) {
-                    topControlsOffsetPx = 0f
+                    onUpdateOffset(0f)
                 }
             }
     }
-
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress to listState.canScrollForward }
             .collect { (isScrolling, canScrollForward) ->
                 if (isScrolling) {
-                    shouldAutoScroll = !canScrollForward
+                    onUpdateAutoScroll(!canScrollForward)
                 }
             }
     }
-
     LaunchedEffect(filteredLogs) {
         if (shouldAutoScroll && filteredLogs.isNotEmpty()) {
             listState.scrollToItem(filteredLogs.size - 1)
         }
     }
+}
 
-    fun copyLogsToClipboard() {
-        if (filteredLogs.isEmpty()) {
-            Toast.makeText(context, "No logs to copy", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val text = filteredLogs.joinToString("\n") { entry ->
-            val timeStr = try {
-                logTimeFormatter.format(Instant.ofEpochMilli(entry.timestamp))
-            } catch (_: Exception) {
-                entry.timestamp.toString()
-            }
-            val tagStr = entry.tag ?: "SimklCalendar"
-            val levelStr = entry.priorityLabel()
-            val base = "[$timeStr] [$levelStr] [$tagStr]: ${entry.message}"
-            if (!entry.throwableStackTrace.isNullOrBlank()) {
-                "$base\n${entry.throwableStackTrace}"
-            } else {
-                base
-            }
-        }
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("SimklCalendar Logs", text)
-        @Suppress("UsePropertyAccessSyntax")
-        clipboard.setPrimaryClip(clip)
-        Toast.makeText(context, "Copied ${filteredLogs.size} log entries to clipboard", Toast.LENGTH_SHORT).show()
-    }
-
+@Composable
+fun LogViewerScaffold(
+    modifier: Modifier,
+    allLogs: List<LogEntry>,
+    filteredLogs: List<LogEntry>,
+    searchQuery: String,
+    listState: LazyListState,
+    effectiveSearchDisplayMode: SearchBarDisplayMode,
+    focusRequester: FocusRequester,
+    topControlsHeightPx: Float,
+    topControlsOffsetPx: Float,
+    nestedScrollConnection: NestedScrollConnection,
+    onNavigateBack: () -> Unit,
+    onCopyLogs: () -> Unit,
+    onClearLogs: () -> Unit,
+    onOpenFilter: () -> Unit,
+    onButtonBoundsChanged: (Rect) -> Unit,
+    onOpenSearch: () -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+    onSearch: () -> Unit,
+    onClearSearch: () -> Unit,
+    onJumpToBottom: () -> Unit,
+    onUpdateHeight: (Float) -> Unit,
+    onUpdateOffset: (Float) -> Unit
+) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             LogViewerTopBar(
-                onNavigateBack = onNavigateBack,
-                onCopyLogs = { copyLogsToClipboard() },
-                onClearLogs = { showClearDialog = true }
+                searchQuery = searchQuery,
+                onSearchQueryChange = onSearchQueryChange,
+                effectiveSearchDisplayMode = effectiveSearchDisplayMode,
+                focusRequester = focusRequester,
+                onFocusChanged = onFocusChanged,
+                onSearch = onSearch,
+                onClearSearch = onClearSearch,
+                onOpenSearch = onOpenSearch,
+                onCopyLogs = onCopyLogs,
+                onClearLogs = onClearLogs,
+                onOpenFilter = onOpenFilter,
+                onButtonBoundsChanged = onButtonBoundsChanged,
+                onNavigateBack = onNavigateBack
             )
         },
         containerColor = SurfaceDark
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-                .nestedScroll(nestedScrollConnection)
-        ) {
-            LogViewerTopControls(
-                searchQuery = searchQuery,
-                onSearchQueryChange = { viewModel.setSearchQuery(it) },
-                selectedPriority = selectedPriority,
-                onSelectPriority = { viewModel.setSelectedPriority(it) },
-                filteredLogsCount = filteredLogs.size,
-                totalLogsCount = allLogs.size,
-                onJumpToBottom = {
-                    if (filteredLogs.isNotEmpty()) {
-                        shouldAutoScroll = true
-                        scope.launch {
-                            listState.animateScrollToItem(filteredLogs.size - 1)
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .layout { measurable, constraints ->
-                        val placeable = measurable.measure(constraints)
-                        val measuredHeight = placeable.height
-                        if (measuredHeight > 0 && topControlsHeightPx != measuredHeight.toFloat()) {
-                            topControlsHeightPx = measuredHeight.toFloat()
-                            topControlsOffsetPx = topControlsOffsetPx.coerceIn(-topControlsHeightPx, 0f)
-                        }
-
-                        val layoutHeight = (measuredHeight + topControlsOffsetPx.roundToInt()).coerceAtLeast(0)
-
-                        layout(placeable.width, layoutHeight) {
-                            placeable.placeRelative(0, topControlsOffsetPx.roundToInt())
-                        }
-                    }
-                    .clipToBounds()
-            )
-
-            if (filteredLogs.isEmpty()) {
-                LogEmptyView(isLogsEmpty = allLogs.isEmpty())
-            } else {
-                LogViewerList(
-                    filteredLogs = filteredLogs,
-                    listState = listState,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-    }
-
-    if (showClearDialog) {
-        ClearLogsDialog(
-            onConfirm = {
-                viewModel.clearLogs()
-                showClearDialog = false
-            },
-            onDismiss = { showClearDialog = false }
+        LogViewerContentContainer(
+            innerPadding = innerPadding,
+            allLogs = allLogs,
+            filteredLogs = filteredLogs,
+            listState = listState,
+            nestedScrollConnection = nestedScrollConnection,
+            filteredLogsCount = filteredLogs.size,
+            totalLogsCount = allLogs.size,
+            topControlsHeightPx = topControlsHeightPx,
+            topControlsOffsetPx = topControlsOffsetPx,
+            onJumpToBottom = onJumpToBottom,
+            onUpdateHeight = onUpdateHeight,
+            onUpdateOffset = onUpdateOffset
         )
     }
 }
@@ -275,90 +365,153 @@ fun LogViewerScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogViewerTopBar(
-    onNavigateBack: () -> Unit,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    effectiveSearchDisplayMode: SearchBarDisplayMode,
+    focusRequester: FocusRequester,
+    onFocusChanged: (Boolean) -> Unit,
+    onSearch: () -> Unit,
+    onClearSearch: () -> Unit,
+    onOpenSearch: () -> Unit,
     onCopyLogs: () -> Unit,
-    onClearLogs: () -> Unit
+    onClearLogs: () -> Unit,
+    onOpenFilter: () -> Unit,
+    onButtonBoundsChanged: (Rect) -> Unit,
+    onNavigateBack: () -> Unit
 ) {
     TopAppBar(
-        title = { Text("App Log Viewer", color = TextPrimary, fontWeight = FontWeight.Bold) },
+        title = {
+            LogViewerSearchTitle(
+                effectiveSearchDisplayMode = effectiveSearchDisplayMode,
+                searchQuery = searchQuery,
+                focusRequester = focusRequester,
+                onSearchQueryChange = onSearchQueryChange,
+                onFocusChanged = onFocusChanged,
+                onSearch = onSearch,
+                onClearSearch = onClearSearch
+            )
+        },
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
             }
         },
         actions = {
-            IconButton(onClick = onCopyLogs, modifier = Modifier.testTag("copy_logs_button")) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "Copy Logs", tint = PurpleLight)
-            }
-            IconButton(onClick = onClearLogs, modifier = Modifier.testTag("clear_logs_button")) {
-                Icon(Icons.Default.Delete, contentDescription = "Clear Logs", tint = ErrorPink)
-            }
+            LogViewerTopBarActions(
+                effectiveSearchDisplayMode = effectiveSearchDisplayMode,
+                onOpenSearch = onOpenSearch,
+                onOpenFilter = onOpenFilter,
+                onButtonBoundsChanged = onButtonBoundsChanged,
+                onCopyLogs = onCopyLogs,
+                onClearLogs = onClearLogs
+            )
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceDark)
     )
 }
 
 @Composable
-fun LogViewerSearchInput(
+fun LogViewerSearchTitle(
+    effectiveSearchDisplayMode: SearchBarDisplayMode,
     searchQuery: String,
-    onSearchQueryChange: (String) -> Unit
+    focusRequester: FocusRequester,
+    onSearchQueryChange: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+    onSearch: () -> Unit,
+    onClearSearch: () -> Unit
 ) {
-    val focusManager = LocalFocusManager.current
-    OutlinedTextField(
-        value = searchQuery,
-        onValueChange = onSearchQueryChange,
-        placeholder = { Text("Filter logs by tag or text...", fontSize = 13.sp) },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextSubtle) },
-        trailingIcon = {
-            if (searchQuery.isNotEmpty()) {
-                IconButton(onClick = { onSearchQueryChange("") }) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear search", tint = TextSubtle)
-                }
-            }
-        },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-        modifier = Modifier.fillMaxWidth().testTag("log_search_input"),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = PurpleLight,
-            unfocusedBorderColor = OutlineVariant,
-            focusedContainerColor = SurfaceContainer,
-            unfocusedContainerColor = SurfaceContainer,
-            focusedTextColor = TextPrimary,
-            unfocusedTextColor = TextPrimary
-        )
+    TopAppBarTitleSectionWithExpandableSearch(
+        searchDisplayMode = effectiveSearchDisplayMode,
+        searchQuery = searchQuery,
+        searchQueryPlaceholder = "Filter logs by tag or text...",
+        focusRequester = focusRequester,
+        onSearchQueryChange = onSearchQueryChange,
+        onFocusChanged = onFocusChanged,
+        onSearch = onSearch,
+        onClearSearch = onClearSearch,
+        regularTopAppBarTitleSection = { LogViewerTitleText() }
     )
 }
 
 @Composable
-fun LogViewerPriorityFilterChip(
-    priorityVal: Int,
-    label: String,
-    isSelected: Boolean,
-    onSelectPriority: (Int) -> Unit
-) {
-    FilterChip(
-        selected = isSelected,
-        onClick = { onSelectPriority(priorityVal) },
-        label = { Text(label, fontSize = 12.sp) },
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = PurpleLight,
-            selectedLabelColor = SurfacePurple,
-            containerColor = SurfaceContainer,
-            labelColor = TextSubtle
-        )
+fun LogViewerTitleText() {
+    Text(
+        text = "App Log Viewer",
+        color = TextPrimary,
+        fontWeight = FontWeight.Bold
     )
+}
+
+@Composable
+fun LogViewerTopBarActions(
+    effectiveSearchDisplayMode: SearchBarDisplayMode,
+    onOpenSearch: () -> Unit,
+    onOpenFilter: () -> Unit,
+    onButtonBoundsChanged: (Rect) -> Unit,
+    onCopyLogs: () -> Unit,
+    onClearLogs: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (effectiveSearchDisplayMode == SearchBarDisplayMode.HIDDEN) {
+            LogViewerSearchIconButton(onOpenSearch = onOpenSearch)
+        }
+        LogViewerFilterIconButton(
+            onOpenFilter = onOpenFilter,
+            onButtonBoundsChanged = onButtonBoundsChanged
+        )
+        LogViewerCopyIconButton(onCopyLogs = onCopyLogs)
+        LogViewerClearIconButton(onClearLogs = onClearLogs)
+    }
+}
+
+@Composable
+fun LogViewerSearchIconButton(onOpenSearch: () -> Unit) {
+    IconButton(onClick = onOpenSearch, modifier = Modifier.testTag("open_search_button")) {
+        Icon(Icons.Default.Search, contentDescription = "Open Search")
+    }
+}
+
+@Composable
+fun LogViewerFilterIconButton(
+    onOpenFilter: () -> Unit,
+    onButtonBoundsChanged: (Rect) -> Unit
+) {
+    IconButton(
+        onClick = onOpenFilter,
+        modifier = Modifier
+            .testTag("open_filter_button")
+            .onGloballyPositioned { coordinates ->
+                val bounds = coordinates.boundsInWindow()
+                if (!bounds.isEmpty && bounds.width > 0f) {
+                    onButtonBoundsChanged(bounds)
+                }
+            }
+    ) {
+        Icon(Icons.Default.Tune, contentDescription = "Filter Logs")
+    }
+}
+
+@Composable
+fun LogViewerCopyIconButton(onCopyLogs: () -> Unit) {
+    IconButton(onClick = onCopyLogs, modifier = Modifier.testTag("copy_logs_button")) {
+        Icon(Icons.Default.ContentCopy, contentDescription = "Copy Logs", tint = PurpleLight)
+    }
+}
+
+@Composable
+fun LogViewerClearIconButton(onClearLogs: () -> Unit) {
+    IconButton(onClick = onClearLogs, modifier = Modifier.testTag("clear_logs_button")) {
+        Icon(Icons.Default.Delete, contentDescription = "Clear Logs", tint = ErrorPink)
+    }
 }
 
 @Composable
 fun LogViewerPriorityChips(
-    selectedPriority: Int,
-    onSelectPriority: (Int) -> Unit
+    selectedPriorities: Set<Int>,
+    onTogglePriority: (Int) -> Unit
 ) {
     val priorities = remember {
         listOf(
-            -1 to "All",
             Log.VERBOSE to "Verbose",
             Log.DEBUG to "Debug",
             Log.INFO to "Info",
@@ -367,29 +520,129 @@ fun LogViewerPriorityChips(
         )
     }
     FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        modifier = Modifier.wrapContentWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         priorities.forEach { (priorityVal, label) ->
             LogViewerPriorityFilterChip(
                 priorityVal = priorityVal,
                 label = label,
-                isSelected = selectedPriority == priorityVal,
-                onSelectPriority = onSelectPriority
+                isSelected = priorityVal in selectedPriorities,
+                onTogglePriority = onTogglePriority
             )
         }
     }
 }
 
 @Composable
+fun LogViewerPriorityFilterChip(
+    priorityVal: Int,
+    label: String,
+    isSelected: Boolean,
+    onTogglePriority: (Int) -> Unit
+) {
+    val (chipBg, chipFg) = remember(priorityVal) { logPriorityColors(priorityVal) }
+
+    FilterChip(
+        selected = isSelected,
+        onClick = { onTogglePriority(priorityVal) },
+        label = { Text(label, fontSize = 13.sp) },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = chipBg,
+            labelColor = chipFg,
+            selectedContainerColor = chipFg,
+            selectedLabelColor = SurfaceDark
+        )
+    )
+}
+
+@Composable
+fun LogViewerContentContainer(
+    innerPadding: PaddingValues,
+    allLogs: List<LogEntry>,
+    filteredLogs: List<LogEntry>,
+    listState: LazyListState,
+    nestedScrollConnection: NestedScrollConnection,
+    filteredLogsCount: Int,
+    totalLogsCount: Int,
+    topControlsHeightPx: Float,
+    topControlsOffsetPx: Float,
+    onJumpToBottom: () -> Unit,
+    onUpdateHeight: (Float) -> Unit,
+    onUpdateOffset: (Float) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .nestedScroll(nestedScrollConnection)
+    ) {
+        LogViewerCountHeaderContainer(
+            filteredLogsCount = filteredLogsCount,
+            totalLogsCount = totalLogsCount,
+            onJumpToBottom = onJumpToBottom,
+            topControlsHeightPx = topControlsHeightPx,
+            topControlsOffsetPx = topControlsOffsetPx,
+            onUpdateHeight = onUpdateHeight,
+            onUpdateOffset = onUpdateOffset
+        )
+
+        if (filteredLogs.isEmpty()) {
+            LogEmptyView(isLogsEmpty = allLogs.isEmpty())
+        } else {
+            LogViewerList(
+                filteredLogs = filteredLogs,
+                listState = listState,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+@Composable
+fun LogViewerCountHeaderContainer(
+    filteredLogsCount: Int,
+    totalLogsCount: Int,
+    onJumpToBottom: () -> Unit,
+    topControlsHeightPx: Float,
+    topControlsOffsetPx: Float,
+    onUpdateHeight: (Float) -> Unit,
+    onUpdateOffset: (Float) -> Unit
+) {
+    LogViewerCountHeader(
+        filteredLogsCount = filteredLogsCount,
+        totalLogsCount = totalLogsCount,
+        onJumpToBottom = onJumpToBottom,
+        modifier = Modifier
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val measuredHeight = placeable.height
+                if (measuredHeight > 0 && topControlsHeightPx != measuredHeight.toFloat()) {
+                    onUpdateHeight(measuredHeight.toFloat())
+                    onUpdateOffset(topControlsOffsetPx.coerceIn(-measuredHeight.toFloat(), 0f))
+                }
+                val layoutHeight = (measuredHeight + topControlsOffsetPx.roundToInt()).coerceAtLeast(0)
+                layout(placeable.width, layoutHeight) {
+                    placeable.placeRelative(0, topControlsOffsetPx.roundToInt())
+                }
+            }
+            .clipToBounds()
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
+    )
+}
+
+@Composable
 fun LogViewerCountHeader(
     filteredLogsCount: Int,
     totalLogsCount: Int,
-    onJumpToBottom: () -> Unit
+    onJumpToBottom: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -407,31 +660,6 @@ fun LogViewerCountHeader(
                 Text("Jump to Bottom", fontSize = 11.sp, color = PurpleLight)
             }
         }
-    }
-}
-
-@Composable
-fun LogViewerTopControls(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    selectedPriority: Int,
-    onSelectPriority: (Int) -> Unit,
-    filteredLogsCount: Int,
-    totalLogsCount: Int,
-    onJumpToBottom: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.fillMaxWidth().padding(bottom = 6.dp)
-    ) {
-        LogViewerSearchInput(searchQuery = searchQuery, onSearchQueryChange = onSearchQueryChange)
-        LogViewerPriorityChips(selectedPriority = selectedPriority, onSelectPriority = onSelectPriority)
-        LogViewerCountHeader(
-            filteredLogsCount = filteredLogsCount,
-            totalLogsCount = totalLogsCount,
-            onJumpToBottom = onJumpToBottom
-        )
     }
 }
 
@@ -607,15 +835,7 @@ fun LogEntryCard(entry: LogEntry) {
 
     val isExpandable = isMessageLong || isStackTraceLong
 
-    val (badgeBg, badgeFg) = remember(entry.priority) {
-        when (entry.priority) {
-            Log.ERROR -> SurfaceRedDeep to ErrorPink
-            Log.WARN -> SurfaceYellowDark to YellowWarningLight
-            Log.INFO -> SurfaceDarkGreen to GreenSuccess
-            Log.DEBUG -> SurfaceVariantDark to PurpleLight
-            else -> SurfaceGreyDark to TextSubtle
-        }
-    }
+    val (badgeBg, badgeFg) = remember(entry.priority) { logPriorityColors(entry.priority) }
 
     val formattedTime = remember(entry.timestamp) {
         try {
@@ -659,7 +879,7 @@ fun LogEntryCard(entry: LogEntry) {
                 Spacer(modifier = Modifier.height(6.dp))
                 LogEntryStackTrace(
                     stackTrace = entry.throwableStackTrace,
-                    isLong = isStackTraceLong,
+                    isLong = isMessageLong,
                     isExpanded = isExpanded
                 )
             }
@@ -693,4 +913,31 @@ fun ClearLogsDialog(
             }
         }
     )
+}
+
+fun copyLogsToClipboard(context: Context, filteredLogs: List<LogEntry>) {
+    if (filteredLogs.isEmpty()) {
+        Toast.makeText(context, "No logs to copy", Toast.LENGTH_SHORT).show()
+        return
+    }
+    val text = filteredLogs.joinToString("\n") { entry ->
+        val timeStr = try {
+            logTimeFormatter.format(Instant.ofEpochMilli(entry.timestamp))
+        } catch (_: Exception) {
+            entry.timestamp.toString()
+        }
+        val tagStr = entry.tag ?: "SimklCalendar"
+        val levelStr = entry.priorityLabel()
+        val base = "[$timeStr] [$levelStr] [$tagStr]: ${entry.message}"
+        if (!entry.throwableStackTrace.isNullOrBlank()) {
+            "$base\n${entry.throwableStackTrace}"
+        } else {
+            base
+        }
+    }
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText("SimklCalendar Logs", text)
+    @Suppress("UsePropertyAccessSyntax")
+    clipboard.setPrimaryClip(clip)
+    Toast.makeText(context, "Copied ${filteredLogs.size} log entries to clipboard", Toast.LENGTH_SHORT).show()
 }

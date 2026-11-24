@@ -1,5 +1,6 @@
 package com.felixbrucker.simklcalendar.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.felixbrucker.simklcalendar.data.logging.LogEntry
@@ -30,16 +31,18 @@ class LogViewerViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val _selectedPriority = MutableStateFlow(-1)
-    val selectedPriority: StateFlow<Int> = _selectedPriority.asStateFlow()
+    private val _selectedPriorities = MutableStateFlow(
+        setOf(Log.VERBOSE, Log.DEBUG, Log.INFO, Log.WARN, Log.ERROR)
+    )
+    val selectedPriorities: StateFlow<Set<Int>> = _selectedPriorities.asStateFlow()
 
     val filteredLogs: StateFlow<List<LogEntry>> = combine(
         logRepository.logsFlow,
         _searchQuery,
-        _selectedPriority
-    ) { logs, query, priority ->
+        _selectedPriorities
+    ) { logs, query, priorities ->
         logs.filter { entry ->
-            val matchesPriority = priority == -1 || entry.priority == priority
+            val matchesPriority = entry.priority in priorities
             val matchesSearch = query.isBlank() ||
                     (entry.tag?.contains(query, ignoreCase = true) == true) ||
                     entry.message.contains(query, ignoreCase = true) ||
@@ -58,8 +61,13 @@ class LogViewerViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun setSelectedPriority(priority: Int) {
-        _selectedPriority.value = priority
+    fun togglePriority(priority: Int) {
+        val current = _selectedPriorities.value
+        _selectedPriorities.value = if (priority in current) {
+            current - priority
+        } else {
+            current + priority
+        }
     }
 
     fun clearLogs() {

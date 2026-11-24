@@ -60,6 +60,7 @@ fun TopAppBarTitleSectionWithExpandableSearch(
     onSearch: () -> Unit,
     onClearSearch: () -> Unit,
     isLoading: Boolean = false,
+    imeAction: ImeAction = ImeAction.Done,
     regularTopAppBarTitleSection: @Composable () -> Unit
 ) {
     AnimatedContent(
@@ -87,6 +88,7 @@ fun TopAppBarTitleSectionWithExpandableSearch(
                     onFocusChanged = onFocusChanged,
                     onSearch = onSearch,
                     onClearSearch = onClearSearch,
+                    imeAction = imeAction,
                     isLoading = isLoading
                 )
             }
@@ -107,6 +109,7 @@ private fun ExpandedSearchBar(
     onFocusChanged: (Boolean) -> Unit,
     onSearch: () -> Unit,
     onClearSearch: () -> Unit,
+    imeAction: ImeAction = ImeAction.Done,
     isLoading: Boolean = false
 ) {
     Row(
@@ -151,8 +154,8 @@ private fun ExpandedSearchBar(
                 fontWeight = FontWeight.Normal
             ),
             cursorBrush = SolidColor(PurpleLight),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+            keyboardOptions = KeyboardOptions(imeAction = imeAction),
+            keyboardActions = KeyboardActions(onSearch = { onSearch() }, onDone = { onSearch() }),
             decorationBox = { innerTextField ->
                 Box(contentAlignment = Alignment.CenterStart) {
                     if (searchQuery.isEmpty()) {

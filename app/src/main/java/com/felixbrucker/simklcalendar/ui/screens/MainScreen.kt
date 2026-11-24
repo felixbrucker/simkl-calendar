@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -164,6 +165,9 @@ fun MainScreen(
     // Search UI State
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var isApiSearchActive by rememberSaveable { mutableStateOf(false) }
+    val imeAction = remember(isApiSearchActive) {
+        if (isApiSearchActive) ImeAction.Search else ImeAction.Done
+    }
     var isSearchFocused by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -277,6 +281,7 @@ fun MainScreen(
                                     keyboardController?.hide()
                                 }
                             },
+                            imeAction = imeAction,
                             isLoading = isApiSearchActive && apiSearchQuery.isNotBlank() && apiSearchResults.loadState.refresh is LoadState.Loading
                         ) {
                             MainDefaultTitleBar(
