@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
@@ -34,6 +34,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -757,10 +758,12 @@ fun MediaEpisodeCardHeader(
                     Spacer(modifier = Modifier.width(4.dp))
                 }
 
+                val rotation by animateFloatAsState(targetValue = if (isExpanded) 180f else 0f, label = "arrowRotation")
                 Icon(
-                    imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    imageVector = Icons.Default.ArrowDropDown,
                     contentDescription = if (isExpanded) "Collapse" else "Expand",
-                    tint = Color.White
+                    tint = Color.White,
+                    modifier = Modifier.rotate(rotation)
                 )
             }
         }
@@ -1033,7 +1036,11 @@ fun LazyListScope.mediaEpisodeCardSection(
     if (isExpanded) {
         if (uiState.items.isEmpty()) {
             item(key = "episode_card_empty") {
-                MediaEpisodeCardEmptyFooter(modifier = Modifier.padding(horizontal = 16.dp))
+                MediaEpisodeCardEmptyFooter(
+                    modifier = Modifier
+                        .animateItem()
+                        .padding(horizontal = 16.dp)
+                )
             }
         } else {
             items(
@@ -1051,11 +1058,17 @@ fun LazyListScope.mediaEpisodeCardSection(
                     onNavigateToReleaseDetail = onNavigateToReleaseDetail,
                     onManualSearchEpisode = onManualSearchEpisode,
                     isSmallScreen = isSmallScreen,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    modifier = Modifier
+                        .animateItem()
+                        .padding(horizontal = 16.dp)
                 )
             }
             item(key = "episode_card_bottom") {
-                MediaEpisodeCardBottomSpacer(modifier = Modifier.padding(horizontal = 16.dp))
+                MediaEpisodeCardBottomSpacer(
+                    modifier = Modifier
+                        .animateItem()
+                        .padding(horizontal = 16.dp)
+                )
             }
         }
     }
