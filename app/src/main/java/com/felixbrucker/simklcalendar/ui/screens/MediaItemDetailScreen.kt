@@ -10,6 +10,7 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -69,6 +70,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import com.felixbrucker.simklcalendar.extensions.toPosterUrl
+import com.felixbrucker.simklcalendar.ui.composable.EpisodeListSliceType
+import com.felixbrucker.simklcalendar.ui.composable.episodeListSliceBorder
 import com.felixbrucker.simklcalendar.ui.composable.CustomSearchLinksCard
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderOpenSimklButton
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
@@ -711,12 +714,20 @@ fun MediaEpisodeCardHeader(
     modifier: Modifier = Modifier
 ) {
     val shape = if (isExpanded) RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp) else RoundedCornerShape(12.dp)
-    Card(
-        shape = shape,
-        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
-        modifier = modifier
+    val sliceModifier = if (isExpanded) {
+        modifier
             .fillMaxWidth()
-            .clickable { onToggleExpand() }
+            .episodeListSliceBorder(EpisodeListSliceType.HEADER)
+    } else {
+        modifier
+            .fillMaxWidth()
+            .border(1.dp, OutlineVariant, shape)
+    }
+
+    Surface(
+        color = SurfaceContainer,
+        shape = shape,
+        modifier = sliceModifier.clickable { onToggleExpand() }
     ) {
         Row(
             modifier = Modifier
@@ -930,29 +941,30 @@ fun MediaEpisodeCardItemRow(
     isSmallScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Surface(
+        color = SurfaceContainer,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .background(SurfaceContainer)
-            .padding(horizontal = 16.dp)
+            .episodeListSliceBorder(EpisodeListSliceType.MIDDLE)
     ) {
-        when (item) {
-            is EpisodeListItemUiModel.SeasonHeader -> MediaSeasonHeader(
-                seasonHeader = item,
-                onMarkSeasonWatched = onMarkSeasonWatched,
-                onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus,
-                onManualSearchSeason = onManualSearchSeason
-            )
-            is EpisodeListItemUiModel.EpisodeRow -> EpisodeRowContent(
-                epRow = item,
-                downloadsFlow = downloadsFlow,
-                onMarkEpisodeWatched = onMarkEpisodeWatched,
-                onUpdateMediaStatus = onUpdateMediaStatus,
-                onNavigateToReleaseDetail = onNavigateToReleaseDetail,
-                onManualSearchEpisode = onManualSearchEpisode,
-                isSmallScreen = isSmallScreen
-            )
+        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+            when (item) {
+                is EpisodeListItemUiModel.SeasonHeader -> MediaSeasonHeader(
+                    seasonHeader = item,
+                    onMarkSeasonWatched = onMarkSeasonWatched,
+                    onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus,
+                    onManualSearchSeason = onManualSearchSeason
+                )
+                is EpisodeListItemUiModel.EpisodeRow -> EpisodeRowContent(
+                    epRow = item,
+                    downloadsFlow = downloadsFlow,
+                    onMarkEpisodeWatched = onMarkEpisodeWatched,
+                    onUpdateMediaStatus = onUpdateMediaStatus,
+                    onNavigateToReleaseDetail = onNavigateToReleaseDetail,
+                    onManualSearchEpisode = onManualSearchEpisode,
+                    isSmallScreen = isSmallScreen
+                )
+            }
         }
     }
 }
@@ -961,17 +973,16 @@ fun MediaEpisodeCardItemRow(
 fun MediaEpisodeCardEmptyFooter(
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Surface(
+        color = SurfaceContainer,
+        shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-            .background(
-                color = SurfaceContainer,
-                shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-            )
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .episodeListSliceBorder(EpisodeListSliceType.FOOTER)
     ) {
-        Text(text = "No episodes available", fontSize = 13.sp, color = TextSubtle)
+        Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(text = "No episodes available", fontSize = 13.sp, color = TextSubtle)
+        }
     }
 }
 
@@ -979,16 +990,15 @@ fun MediaEpisodeCardEmptyFooter(
 fun MediaEpisodeCardBottomSpacer(
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Surface(
+        color = SurfaceContainer,
+        shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
-            .background(
-                color = SurfaceContainer,
-                shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-            )
-            .height(8.dp)
-    )
+            .episodeListSliceBorder(EpisodeListSliceType.FOOTER)
+    ) {
+        Spacer(modifier = Modifier.height(12.dp))
+    }
 }
 
 fun LazyListScope.mediaEpisodeCardSection(
@@ -1015,17 +1025,15 @@ fun LazyListScope.mediaEpisodeCardSection(
             onMarkSeasonWatched = onMarkSeasonWatched,
             onUpdateSeasonMediaStatus = onUpdateSeasonMediaStatus,
             onManualSearchSeason = onManualSearchSeason,
-            modifier = if (isExpanded) {
-                Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)
-            } else {
-                Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
-            }
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .padding(top = 8.dp, bottom = if (isExpanded) 0.dp else 8.dp)
         )
     }
     if (isExpanded) {
         if (uiState.items.isEmpty()) {
             item(key = "episode_card_empty") {
-                MediaEpisodeCardEmptyFooter()
+                MediaEpisodeCardEmptyFooter(modifier = Modifier.padding(horizontal = 16.dp))
             }
         } else {
             items(
@@ -1042,11 +1050,12 @@ fun LazyListScope.mediaEpisodeCardSection(
                     onManualSearchSeason = onManualSearchSeason,
                     onNavigateToReleaseDetail = onNavigateToReleaseDetail,
                     onManualSearchEpisode = onManualSearchEpisode,
-                    isSmallScreen = isSmallScreen
+                    isSmallScreen = isSmallScreen,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
             item(key = "episode_card_bottom") {
-                MediaEpisodeCardBottomSpacer()
+                MediaEpisodeCardBottomSpacer(modifier = Modifier.padding(horizontal = 16.dp))
             }
         }
     }
