@@ -157,7 +157,7 @@ class TorrentSearchManager @Inject constructor(
         val provider = if (mediaType == MediaType.ANIME) nyaaProvider else tpbProvider
         val category = if (mediaType == MediaType.ANIME) Category.ANIME_ENGLISH_TRANSLATED else Category.VIDEO
 
-        Timber.tag(TAG).d("Searching provider ${provider.javaClass.simpleName} with term '$term'")
+        Timber.tag(TAG).i("Searching provider ${provider.javaClass.simpleName} with term '$term'")
 
         val rawResults = provider
             .search(term = term, category = category, orderBy = OrderBy.SeederDescending)
@@ -174,7 +174,7 @@ class TorrentSearchManager @Inject constructor(
             .sortedUsing(preferredKeywords)
             .let { searchResultFilter(it) }
 
-        Timber.tag(TAG).d("Torrent search returned ${finalResults.size} results for term '$term' (${rawResults.size} raw results)")
+        Timber.tag(TAG).i("Torrent search returned ${finalResults.size} results for term '$term' (${rawResults.size} raw results)")
         return finalResults
     }
 }

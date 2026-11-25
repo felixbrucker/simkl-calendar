@@ -76,14 +76,14 @@ class TorrentServiceHelper @Inject constructor(
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            Timber.tag(TAG).d("Service connected")
+            Timber.tag(TAG).i("Torrent Download Service connected")
             val serviceInterface = ITorrentDownloadService.Stub.asInterface(binder)
             _service.value = serviceInterface
             _isBound.value = true
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
-            Timber.tag(TAG).d("Service disconnected")
+            Timber.tag(TAG).i("Torrent Download Service disconnected")
             _service.value = null
             _isBound.value = false
         }
@@ -102,7 +102,7 @@ class TorrentServiceHelper @Inject constructor(
             }
             val success = appContext.bindService(intent, connection, Context.BIND_AUTO_CREATE)
             if (!success) {
-                Timber.tag(TAG).e("Failed to bind to Torrent Download Service")
+                Timber.tag(TAG).w("Failed to bind to Torrent Download Service")
             }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error binding to service")

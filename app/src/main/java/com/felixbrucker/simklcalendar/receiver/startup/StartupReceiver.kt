@@ -33,7 +33,7 @@ class StartupReceiver: BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) {
             return
         }
-        Timber.tag(TAG).d("StartupReceiver triggered for action ${intent.action}")
+        Timber.tag(TAG).i("StartupReceiver triggered for action ${intent.action}")
 
         // Reschedule all alarms, as they are removed on app update and system reboot
         val pendingResult = goAsync()
@@ -41,7 +41,7 @@ class StartupReceiver: BroadcastReceiver() {
             try {
                 alarmScheduler.scheduleAllItemsAiredAlarms()
                 notificationManager.restoreActiveNotifications()
-                Timber.tag(TAG).d("Rescheduled all item aired alarms and restored active notifications after startup/update")
+                Timber.tag(TAG).i("Rescheduled all item aired alarms and restored active notifications after startup/update")
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error rescheduling alarms and notifications on startup")
             } finally {

@@ -830,7 +830,7 @@ class CalendarViewModel @Inject constructor(
                                         // Fetch current items from repository flow
                                         val currentEntity = calendarRepository.findCalendarItem(item.primaryKey)
                                         if (currentEntity?.mediaStatus == MediaStatus.DOWNLOADING && currentEntity.downloadTaskId == taskId) {
-                                            Timber.tag(TAG).d("Task $taskId still not found after 3s and status is still DOWNLOADING with same taskId, reverting for ${item.primaryKey}")
+                                            Timber.tag(TAG).w("Task $taskId still not found after 3s and status is still DOWNLOADING with same taskId, reverting for ${item.primaryKey}")
                                             calendarRepository.updateDownloadTaskId(item.primaryKey, null, MediaStatus.WANTED)
                                             torrentServiceHelper.clearDownload(taskId)
                                         } else {

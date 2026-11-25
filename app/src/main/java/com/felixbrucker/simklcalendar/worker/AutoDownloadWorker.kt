@@ -26,10 +26,10 @@ class AutoDownloadWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        Timber.tag(TAG).d("Starting background torrent search for WANTED items")
+        Timber.tag(TAG).i("Starting background torrent search for WANTED items")
 
         if (!torrentServiceHelper.isServiceInstalled()) {
-            Timber.tag(TAG).d("Torrent Downloader service not installed. Skipping search.")
+            Timber.tag(TAG).w("Torrent Downloader service not installed. Skipping search.")
             return Result.success()
         }
 
@@ -63,7 +63,7 @@ class AutoDownloadWorker @AssistedInject constructor(
                 ExistingPeriodicWorkPolicy.UPDATE,
                 searchRequest
             )
-            Timber.tag(TAG).d("Enqueued $effectiveInterval-hour periodic background torrent search work")
+            Timber.tag(TAG).i("Enqueued $effectiveInterval-hour periodic background torrent search work")
         }
 
         fun enqueueSearchOnce(context: Context) {
@@ -76,7 +76,7 @@ class AutoDownloadWorker @AssistedInject constructor(
                 .build()
 
             WorkManager.getInstance(context).enqueue(searchRequest)
-            Timber.tag(TAG).d("Enqueued background torrent search work")
+            Timber.tag(TAG).i("Enqueued background torrent search work")
         }
     }
 }

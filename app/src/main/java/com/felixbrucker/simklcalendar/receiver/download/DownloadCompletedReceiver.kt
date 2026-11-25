@@ -71,7 +71,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                     MediaStatus.DOWNLOADED,
                     firstFilePath
                 )
-                Timber.tag(TAG).d(
+                Timber.tag(TAG).i(
                     "Updated item $itemPrimaryKey to DOWNLOADED status, " +
                         "cleared taskId, and persisted filePath=$firstFilePath"
                 )
@@ -129,7 +129,7 @@ class DownloadCompletedReceiver: BroadcastReceiver() {
                         MediaStatus.DOWNLOADED,
                         matchingFilePath
                     )
-                    Timber.tag(TAG).d(
+                    Timber.tag(TAG).i(
                         "Updated item %s to DOWNLOADED status, filePath=%s",
                         item.primaryKey,
                         matchingFilePath

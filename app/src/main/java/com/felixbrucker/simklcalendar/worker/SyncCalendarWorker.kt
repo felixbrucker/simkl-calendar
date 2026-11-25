@@ -30,10 +30,10 @@ class SyncCalendarWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        Timber.tag(TAG).d("Starting periodic background calendar synchronization")
+        Timber.tag(TAG).i("Starting periodic background calendar synchronization")
         val token = userRepository.getActiveUserToken()
         if (token == null || token.accessToken.isEmpty()) {
-            Timber.tag(TAG).d("User is not authenticated. Skipping periodic calendar synchronization.")
+            Timber.tag(TAG).w("User is not authenticated. Skipping periodic calendar synchronization.")
             return Result.success()
         }
         return try {
@@ -49,7 +49,7 @@ class SyncCalendarWorker @AssistedInject constructor(
             // Step 3: Prune expired MediaItems older than 3 months
             mediaRepository.pruneExpiredMediaItems()
 
-            Timber.tag(TAG).d("Periodic calendar synchronization succeeded")
+            Timber.tag(TAG).i("Periodic calendar synchronization succeeded")
             Result.success()
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Periodic calendar synchronization worker encountered an error")
@@ -80,7 +80,7 @@ class SyncCalendarWorker @AssistedInject constructor(
                 ExistingPeriodicWorkPolicy.UPDATE,
                 syncRequest
             )
-            Timber.tag(TAG).d("Enqueued $effectiveInterval-hour periodic background calendar sync work")
+            Timber.tag(TAG).i("Enqueued $effectiveInterval-hour periodic background calendar sync work")
         }
     }
 }

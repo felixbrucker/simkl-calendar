@@ -78,7 +78,7 @@ class MediaRepository @Inject constructor(
         val cutoff = Instant.now().minus(months * 30, ChronoUnit.DAYS)
         val deletedCount = mediaItemDao.deleteExpiredMediaItems(cutoff)
         if (deletedCount > 0) {
-            Timber.tag(TAG).d("Pruned $deletedCount expired MediaItem entities older than $months months")
+            Timber.tag(TAG).i("Pruned $deletedCount expired MediaItem entities older than $months months")
         }
         deletedCount
     }

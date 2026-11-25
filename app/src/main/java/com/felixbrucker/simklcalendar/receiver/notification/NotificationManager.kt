@@ -76,7 +76,7 @@ class NotificationManager @Inject constructor(
         try {
             context.getSystemNotificationManager().notify(notificationId, notification)
             addActiveNotification(item.primaryKey)
-            Timber.tag(TAG).d("Successfully displayed notification id=$notificationId")
+            Timber.tag(TAG).i("Successfully displayed notification id=$notificationId")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error posting notification")
         }
@@ -153,7 +153,7 @@ class NotificationManager @Inject constructor(
 
         try {
             context.getSystemNotificationManager().notify(notificationId, builder.build())
-            Timber.tag(TAG).d("Successfully displayed trending notification id=$notificationId for $simklId")
+            Timber.tag(TAG).i("Successfully displayed trending notification id=$notificationId for $simklId")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error posting trending notification")
         }
@@ -209,7 +209,7 @@ class NotificationManager @Inject constructor(
         val notification = buildNotificationForUpdate(item, loadingAction)
         try {
             systemNotificationManager.notify(notificationId, notification)
-            Timber.tag(TAG).d("Successfully updated notification id=$notificationId")
+            Timber.tag(TAG).i("Successfully updated notification id=$notificationId")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error updating notification")
         }
@@ -224,7 +224,7 @@ class NotificationManager @Inject constructor(
         try {
             context.getSystemNotificationManager().cancel(item.notificationId)
             removeActiveNotification(item.primaryKey)
-            Timber.tag(TAG).d("Successfully dismissed notification id=${item.notificationId} primaryKey=${item.primaryKey}")
+            Timber.tag(TAG).i("Successfully dismissed notification id=${item.notificationId} primaryKey=${item.primaryKey}")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error dismissing notification id=${item.notificationId}")
         }
@@ -291,7 +291,7 @@ class NotificationManager @Inject constructor(
         try {
             context.getSystemNotificationManager().cancel(notificationId)
             removeActiveTrendingNotification(simklId)
-            Timber.tag(TAG).d("Successfully dismissed trending notification simklId=$simklId")
+            Timber.tag(TAG).i("Successfully dismissed trending notification simklId=$simklId")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error dismissing trending notification simklId=$simklId")
         }
@@ -320,7 +320,7 @@ class NotificationManager @Inject constructor(
                     val notification = buildNotification(item)
                     try {
                         systemNotificationManager.notify(item.notificationId, notification)
-                        Timber.tag(TAG).d("Restored missing notification primaryKey=$primaryKey id=${item.notificationId}")
+                        Timber.tag(TAG).i("Restored missing notification primaryKey=$primaryKey id=${item.notificationId}")
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "Error restoring notification primaryKey=$primaryKey")
                     }
@@ -363,7 +363,7 @@ class NotificationManager @Inject constructor(
             if (!currentlyPostedIds.contains(notificationId)) {
                 try {
                     showTrendingNotificationInternal(trendingItem)
-                    Timber.tag(TAG).d("Restored missing trending notification simklId=$simklId id=$notificationId")
+                    Timber.tag(TAG).i("Restored missing trending notification simklId=$simklId id=$notificationId")
                 } catch (e: Exception) {
                     Timber.tag(TAG).e(e, "Error restoring trending notification simklId=$simklId")
                 }

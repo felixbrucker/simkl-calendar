@@ -70,6 +70,7 @@ class SettingsBackupManager @Inject constructor(
                 outputStream.writer().use { it.write(json) }
             } ?: throw IllegalAccessException("Could not open output stream for URI")
 
+            Timber.tag(TAG).i("Settings exported successfully to $uri")
             Result.success(Unit)
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to export settings")

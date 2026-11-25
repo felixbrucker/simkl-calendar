@@ -236,6 +236,7 @@ class UserRepository @Inject constructor(
                     )
                 )
             }
+            Timber.tag(TAG).i("OAuth code exchange successful for user '$username'")
             true
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "OAuth Code exchange failed")

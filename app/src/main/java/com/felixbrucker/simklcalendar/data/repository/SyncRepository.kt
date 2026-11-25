@@ -150,7 +150,7 @@ class SyncRepository @Inject constructor(
             val shouldFetchDeltas = savedTimestamp == null || (currentActivitiesTimestamp != null && currentActivitiesTimestamp != savedTimestamp)
 
             if (shouldFetchDeltas) {
-                Timber.tag(TAG).d("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
+                Timber.tag(TAG).i("Watchlist Sync: Calling /sync/all-items (forceFullSync=$forceFullSync, saved=$savedTimestamp, current=$currentActivitiesTimestamp)")
 
                 val syncResponse = authenticatedSimklApiService.getSyncAllItems(
                     dateFrom = savedTimestamp,
@@ -255,7 +255,7 @@ class SyncRepository @Inject constructor(
                         watchlistItemDao.clearAll()
                     }
                     watchlistItemDao.insertWatchlistItems(allWatchlistItems)
-                    Timber.tag(TAG).d("Synced ${allWatchlistItems.size} WatchlistItem entries into DB")
+                    Timber.tag(TAG).i("Synced ${allWatchlistItems.size} WatchlistItem entries into DB")
                 }
 
 
@@ -347,7 +347,7 @@ class SyncRepository @Inject constructor(
                 }
                 changesDetected = true
             } else {
-                Timber.tag(TAG).d("Watchlist Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
+                Timber.tag(TAG).i("Watchlist Sync: /sync/activities timestamp unchanged ($savedTimestamp), skipping /sync/all-items")
             }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error during watchlist sync")
@@ -399,7 +399,7 @@ class SyncRepository @Inject constructor(
                     }
 
                     if (response.code() == 304) {
-                        Timber.tag(TAG).d("Trending for $typeKey not modified (HTTP 304)")
+                        Timber.tag(TAG).i("Trending for $typeKey not modified (HTTP 304)")
                         syncMetadataRepo.setTrendingLastModifiedAt(lastSyncKey, nowMillis)
                         return@async
                     }
@@ -490,7 +490,7 @@ class SyncRepository @Inject constructor(
         // 1. Load local tracked items (IDs only for filtering)
         val allTrackedIds = watchlistDao.getAllTrackedIds().toSet()
         if (allTrackedIds.isEmpty()) {
-            Timber.tag(TAG).d("No tracked items in watchlist, skipping calendar json sync.")
+            Timber.tag(TAG).w("No tracked items in watchlist, skipping calendar json sync.")
             return@withContext SyncResult()
         }
 
@@ -593,7 +593,7 @@ class SyncRepository @Inject constructor(
                             }
 
                             if (response.code() == 304) {
-                                Timber.tag(TAG).d("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
+                                Timber.tag(TAG).i("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
                                 syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, nowMillis)
                                 return@async null
                             }
@@ -808,9 +808,9 @@ class SyncRepository @Inject constructor(
 
         val totalCalendarItemDbChanges = itemsToInsert.size + itemsToUpdate.size
         if (totalCalendarItemDbChanges == 0) {
-            Timber.tag(TAG).d("Calendar sync complete: no changes detected, skipped DB writes")
+            Timber.tag(TAG).i("Calendar sync complete: no changes detected, skipped DB writes")
         } else {
-            Timber.tag(TAG).d("Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
+            Timber.tag(TAG).i("Calendar sync complete: applied $totalCalendarItemDbChanges DB mutations (${itemsToInsert.size} inserted, ${itemsToUpdate.size} updated)")
         }
 
         syncMetadataRepo.setLastCalendarJsonSync(nowMillis)
@@ -844,7 +844,7 @@ class SyncRepository @Inject constructor(
         if (targetSimklIds.isNotEmpty()) {
             val targetedIds = allTrackedIds.filter { it in targetSimklIds }
             if (targetedIds.isNotEmpty()) {
-                Timber.tag(TAG).d("Starting targeted backfill for ${targetedIds.size} shows...")
+                Timber.tag(TAG).i("Starting targeted backfill for ${targetedIds.size} shows...")
                 val targetedResult = performBackfillForShows(targetedIds)
                 hasCalendarItemChanges = targetedResult.hasCalendarItemChanges
                 hasWantedItems = targetedResult.hasWantedItems
@@ -865,7 +865,7 @@ class SyncRepository @Inject constructor(
 
         // Logic: Sync when month changed AND more than 1 day since last sync
         if (sameMonth || !moreThanOneDayAgo) {
-            Timber.tag(TAG).d("Full backfill skipped: same month or < 1 day since last sync")
+            Timber.tag(TAG).i("Full backfill skipped: same month or < 1 day since last sync")
             return@withContext SyncResult(
                 hasCalendarItemChanges = hasCalendarItemChanges,
                 hasWantedItems = hasWantedItems,
@@ -878,7 +878,7 @@ class SyncRepository @Inject constructor(
             allTrackedIds
         }
         if (remainingIds.isNotEmpty()) {
-            Timber.tag(TAG).d("Starting backfill for ${remainingIds.size} shows...")
+            Timber.tag(TAG).i("Starting backfill for ${remainingIds.size} shows...")
             val remainingResult = performBackfillForShows(remainingIds)
             hasCalendarItemChanges = hasCalendarItemChanges || remainingResult.hasCalendarItemChanges
             hasWantedItems = hasWantedItems || remainingResult.hasWantedItems
@@ -1034,9 +1034,9 @@ class SyncRepository @Inject constructor(
 
         val totalMutations = totalInserted + totalUpdated
         if (totalMutations == 0) {
-            Timber.tag(TAG).d("Backfill complete: no changes detected, skipped DB writes")
+            Timber.tag(TAG).i("Backfill complete: no changes detected, skipped DB writes")
         } else {
-            Timber.tag(TAG).d(
+            Timber.tag(TAG).i(
                 "Backfill complete: applied $totalMutations DB mutations " +
                     "($totalInserted inserted, $totalUpdated updated)"
             )
@@ -1295,7 +1295,7 @@ class SyncRepository @Inject constructor(
             val cutoff = Instant.now().minus(cutoffDays, ChronoUnit.DAYS)
             val deletedCount = calendarDao.deleteWatchedItemsOlderThan(cutoff)
             if (deletedCount > 0) {
-                Timber.tag(TAG).d("Cleaned up $deletedCount old watched calendar items (watched over $cutoffDays days ago)")
+                Timber.tag(TAG).i("Cleaned up $deletedCount old watched calendar items (watched over $cutoffDays days ago)")
             }
             deletedCount
         } catch (e: Exception) {
@@ -1308,7 +1308,7 @@ class SyncRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             watchlistDao.deleteItem(simklId)
             watchlistItemDao.deleteWatchlistItem(simklId)
-            Timber.tag(TAG).d("Removed watchlist item and related data for simklId=$simklId")
+            Timber.tag(TAG).i("Removed watchlist item and related data for simklId=$simklId")
         }
     }
 }

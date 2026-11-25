@@ -144,7 +144,7 @@ class WatchHistoryRepository @Inject constructor(
             val shouldMarkCompleted = isLastSeason && allPrevWatched
 
             val statusValue = if (shouldMarkCompleted) "completed" else null
-            Timber.tag(TAG).d("Marking season $season as watched for simklId $simklId (isCompleted=$shouldMarkCompleted, status=$statusValue)")
+            Timber.tag(TAG).i("Marking season $season as watched for simklId $simklId (isCompleted=$shouldMarkCompleted, status=$statusValue)")
 
             val request = if (mediaType == MediaType.ANIME) {
                 SyncHistoryRequest(
@@ -431,7 +431,7 @@ class WatchHistoryRepository @Inject constructor(
 internal fun File.deleteWith(removeEmptyParent: Boolean) {
     if (!exists()) return
     delete()
-    Timber.tag(WatchHistoryRepository.TAG).d("Deleted downloaded file: $absolutePath")
+    Timber.tag(WatchHistoryRepository.TAG).i("Deleted downloaded file: $absolutePath")
     if (removeEmptyParent) {
         parentFile?.deleteIfEmptyNonExcludedDirectory(
             excludedDirNames = listOf("anime", "series", "movies")
@@ -448,7 +448,7 @@ internal fun File.deleteIfEmptyNonExcludedDirectory(excludedDirNames: List<Strin
         return
     }
     delete()
-    Timber.tag(WatchHistoryRepository.TAG).d("Deleted empty directory: $absolutePath")
+    Timber.tag(WatchHistoryRepository.TAG).i("Deleted empty directory: $absolutePath")
 }
 
 internal fun File.isEmptyDirectory(): Boolean {

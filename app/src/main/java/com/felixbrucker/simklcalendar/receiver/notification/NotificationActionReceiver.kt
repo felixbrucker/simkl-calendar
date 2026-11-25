@@ -94,7 +94,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     private fun handleMarkItemWatched(intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
-        Timber.tag(TAG).d("Handling mark item watched action for key=$itemPrimaryKey")
+        Timber.tag(TAG).i("Handling mark item watched action for key=$itemPrimaryKey")
 
         val pendingResult = goAsync()
         scope.launch {
@@ -135,7 +135,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     private fun handleMarkSeasonWatched(intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
-        Timber.tag(TAG).d("Handling mark season watched action for key=$itemPrimaryKey")
+        Timber.tag(TAG).i("Handling mark season watched action for key=$itemPrimaryKey")
 
         val pendingResult = goAsync()
         scope.launch {
@@ -171,7 +171,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     private fun handleDownloadItem(intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
-        Timber.tag(TAG).d("Handling download item action for key=$itemPrimaryKey")
+        Timber.tag(TAG).i("Handling download item action for key=$itemPrimaryKey")
 
         val pendingResult = goAsync()
         scope.launch {
@@ -203,7 +203,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     private fun handleNotificationDismissed(intent: Intent) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
-        Timber.tag(TAG).d("Handling notification dismissed action for key=$itemPrimaryKey")
+        Timber.tag(TAG).i("Handling notification dismissed action for key=$itemPrimaryKey")
         val pendingResult = goAsync()
         scope.launch {
             try {
@@ -219,7 +219,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
     private fun handleTrendingNotificationDismissed(intent: Intent) {
         val simklId = intent.getIntExtra(EXTRA_TRENDING_SIMKL_ID, -1)
         if (simklId == -1) return
-        Timber.tag(TAG).d("Handling trending notification dismissed action for simklId=$simklId")
+        Timber.tag(TAG).i("Handling trending notification dismissed action for simklId=$simklId")
         val pendingResult = goAsync()
         scope.launch {
             try {
@@ -234,7 +234,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
 
     private fun handleDownloadSeasonMissingEpisodes(intent: Intent, context: Context) {
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
-        Timber.tag(TAG).d("Handling download season missing episodes action for key=$itemPrimaryKey")
+        Timber.tag(TAG).i("Handling download season missing episodes action for key=$itemPrimaryKey")
 
         val pendingResult = goAsync()
         scope.launch {

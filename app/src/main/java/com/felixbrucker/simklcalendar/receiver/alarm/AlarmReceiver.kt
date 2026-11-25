@@ -89,7 +89,7 @@ class AlarmReceiver: BroadcastReceiver() {
             return
         }
 
-        Timber.tag(TAG).d("Processing item aired for '${item.title}' (key=$itemPrimaryKey)")
+        Timber.tag(TAG).i("Processing item aired for '${item.title}' (key=$itemPrimaryKey)")
 
         // First, ensure the item's media status is correctly set after it aired
         calendarRepository.updateItemAiredStatus(item)
@@ -100,7 +100,7 @@ class AlarmReceiver: BroadcastReceiver() {
         // Second, check if we should post a notification for this item
         val shouldPostNotification = shouldPostNotificationForItem(item)
         if (shouldPostNotification) {
-            Timber.tag(TAG).d("Posting notification for '${item.title}'")
+            Timber.tag(TAG).i("Posting notification for '${item.title}'")
             notificationManager.showNotification(item)
             calendarItemDao.markItemAsNotified(itemPrimaryKey)
         } else {
@@ -111,7 +111,7 @@ class AlarmReceiver: BroadcastReceiver() {
         // Lastly, search and download torrents if configured
         try {
             if (item.mediaStatus == MediaStatus.WANTED) {
-                Timber.tag(TAG).d("Searching and downloading WANTED episode for '${item.title}'")
+                Timber.tag(TAG).i("Searching and downloading WANTED episode for '${item.title}'")
                 downloadRepository.searchAndDownloadItem(item)
                 didSearchAndDownload = true
             }
@@ -126,7 +126,7 @@ class AlarmReceiver: BroadcastReceiver() {
                     MediaType.MOVIE -> false
                 }
                 if (isDownloadSeasonUnwatchedEnabled) {
-                    Timber.tag(TAG).d("Season finale aired for '${item.title}', downloading unwatched season ${calendarItem.season}")
+                    Timber.tag(TAG).i("Season finale aired for '${item.title}', downloading unwatched season ${calendarItem.season}")
                     downloadRepository.searchAndDownloadSeason(item.simklId, calendarItem.season)
                     didSearchAndDownload = true
                 }
