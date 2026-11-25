@@ -3,6 +3,7 @@ package com.felixbrucker.simklcalendar.ui.composable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,12 +14,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -28,7 +29,12 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
@@ -72,25 +78,208 @@ data class EpisodeListActions(
     val onSearchSeasonManually: (season: Int) -> Unit,
 )
 
-@Composable
-fun EpisodeListCard(
+private enum class EpisodeListSliceType {
+    HEADER,
+    MIDDLE,
+    FOOTER
+}
+
+private fun Modifier.episodeListSliceBorder(sliceType: EpisodeListSliceType): Modifier = this.drawWithContent {
+    drawContent()
+
+    val strokeWidth = 1.dp.toPx()
+    val radius = 12.dp.toPx()
+    val color = OutlineVariant
+    val w = size.width
+    val h = size.height
+    val effectiveRadius = minOf(radius, w / 2, h / 2)
+    val stroke = Stroke(width = strokeWidth)
+    val arcSize = Size(maxOf(0f, effectiveRadius * 2 - strokeWidth), maxOf(0f, effectiveRadius * 2 - strokeWidth))
+
+    when (sliceType) {
+        EpisodeListSliceType.HEADER -> {
+            drawArc(
+                color = color,
+                startAngle = 180f,
+                sweepAngle = 90f,
+                useCenter = false,
+                topLeft = Offset(strokeWidth / 2, strokeWidth / 2),
+                size = arcSize,
+                style = stroke
+            )
+            drawArc(
+                color = color,
+                startAngle = 270f,
+                sweepAngle = 90f,
+                useCenter = false,
+                topLeft = Offset(w - effectiveRadius * 2 + strokeWidth / 2, strokeWidth / 2),
+                size = arcSize,
+                style = stroke
+            )
+            drawLine(
+                color = color,
+                start = Offset(effectiveRadius, strokeWidth / 2),
+                end = Offset(w - effectiveRadius, strokeWidth / 2),
+                strokeWidth = strokeWidth
+            )
+            drawLine(
+                color = color,
+                start = Offset(strokeWidth / 2, effectiveRadius),
+                end = Offset(strokeWidth / 2, h),
+                strokeWidth = strokeWidth
+            )
+            drawLine(
+                color = color,
+                start = Offset(w - strokeWidth / 2, effectiveRadius),
+                end = Offset(w - strokeWidth / 2, h),
+                strokeWidth = strokeWidth
+            )
+        }
+        EpisodeListSliceType.MIDDLE -> {
+            drawLine(
+                color = color,
+                start = Offset(strokeWidth / 2, 0f),
+                end = Offset(strokeWidth / 2, h),
+                strokeWidth = strokeWidth
+            )
+            drawLine(
+                color = color,
+                start = Offset(w - strokeWidth / 2, 0f),
+                end = Offset(w - strokeWidth / 2, h),
+                strokeWidth = strokeWidth
+            )
+        }
+        EpisodeListSliceType.FOOTER -> {
+            val effectiveRadius = minOf(radius, w / 2)
+            val arcSize = Size(maxOf(0f, effectiveRadius * 2 - strokeWidth), maxOf(0f, effectiveRadius * 2 - strokeWidth))
+            drawArc(
+                color = color,
+                startAngle = 180f,
+                sweepAngle = -90f,
+                useCenter = false,
+                topLeft = Offset(strokeWidth / 2, -effectiveRadius + strokeWidth / 2),
+                size = arcSize,
+                style = stroke
+            )
+            drawArc(
+                color = color,
+                startAngle = 90f,
+                sweepAngle = -90f,
+                useCenter = false,
+                topLeft = Offset(w - effectiveRadius * 2 + strokeWidth / 2, -effectiveRadius + strokeWidth / 2),
+                size = arcSize,
+                style = stroke
+            )
+            drawLine(
+                color = color,
+                start = Offset(effectiveRadius, h - strokeWidth / 2),
+                end = Offset(w - effectiveRadius, h - strokeWidth / 2),
+                strokeWidth = strokeWidth
+            )
+        }
+    }
+}
+
+fun LazyListScope.episodeListCardSection(
     state: EpisodeListState,
     actions: EpisodeListActions,
-    modifier: Modifier = Modifier,
+    horizontalPadding: Dp = 16.dp,
+    verticalPadding: Dp = 8.dp
 ) {
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
-        border = BorderStroke(1.dp, OutlineVariant),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            EpisodeListCardHeader(title = state.cardTitle, mediaType = state.mediaType, itemCount = state.items.size)
-            Spacer(modifier = Modifier.height(10.dp))
-            EpisodeListContent(
-                state = state,
-                actions = actions
-            )
+    item(key = "episode_list_header") {
+        Surface(
+            color = SurfaceContainer,
+            shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding)
+                .padding(top = verticalPadding)
+                .episodeListSliceBorder(EpisodeListSliceType.HEADER)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 8.dp)) {
+                EpisodeListCardHeader(title = state.cardTitle, mediaType = state.mediaType, itemCount = state.items.size)
+            }
+        }
+    }
+
+    if (state.mediaType == MediaType.MOVIE) {
+        val sortedMovieItems = state.items.sortedByDescending { it.date }
+        items(
+            items = sortedMovieItems,
+            key = { "movie_${it.primaryKey}" }
+        ) { epItem ->
+            Surface(
+                color = SurfaceContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = horizontalPadding)
+                    .episodeListSliceBorder(EpisodeListSliceType.MIDDLE)
+            ) {
+                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    EpisodeListRow(epItem = epItem, state = state, actions = actions)
+                }
+            }
+        }
+    } else {
+        val grouped = state.items.groupBy { it.season ?: 1 }
+        val sortedSeasons = grouped.keys.sortedDescending()
+        sortedSeasons.forEach { season ->
+            val seasonEpisodes = grouped[season] ?: emptyList()
+            val sortedSeasonEpisodes = seasonEpisodes.sortedByDescending { it.episodeNumber ?: 0 }
+            if (state.showSeasonHeaders) {
+                val headerState = SeasonHeaderState(
+                    season = season,
+                    episodes = sortedSeasonEpisodes,
+                    updatingWatchKeys = state.updatingWatchKeys,
+                    onMarkSeasonWatched = actions.onMarkSeasonWatched,
+                    onMarkSeasonUnwatched = actions.onMarkSeasonUnwatched,
+                    onUpdateSeasonMediaStatus = actions.onUpdateSeasonMediaStatus,
+                    onSearchSeasonManually = actions.onSearchSeasonManually
+                )
+                item(key = "season_header_$season") {
+                    Surface(
+                        color = SurfaceContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = horizontalPadding)
+                            .episodeListSliceBorder(EpisodeListSliceType.MIDDLE)
+                    ) {
+                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                            SeasonSectionHeader(state = headerState)
+                        }
+                    }
+                }
+            }
+            items(
+                items = sortedSeasonEpisodes,
+                key = { "episode_${it.primaryKey}" }
+            ) { epItem ->
+                Surface(
+                    color = SurfaceContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = horizontalPadding)
+                        .episodeListSliceBorder(EpisodeListSliceType.MIDDLE)
+                ) {
+                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        EpisodeListRow(epItem = epItem, state = state, actions = actions)
+                    }
+                }
+            }
+        }
+    }
+
+    item(key = "episode_list_footer") {
+        Surface(
+            color = SurfaceContainer,
+            shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding)
+                .padding(bottom = verticalPadding)
+                .episodeListSliceBorder(EpisodeListSliceType.FOOTER)
+        ) {
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
@@ -112,80 +301,6 @@ private fun EpisodeListCardHeader(
         color = TextPrimary,
         fontSize = 15.sp
     )
-}
-
-@Composable
-fun EpisodeListContent(
-    state: EpisodeListState,
-    actions: EpisodeListActions,
-    modifier: Modifier = Modifier,
-) {
-    if (state.mediaType == MediaType.MOVIE) {
-        MovieEpisodeListContent(state = state, actions = actions, modifier = modifier)
-    } else {
-        ShowEpisodeListContent(state = state, actions = actions, modifier = modifier)
-    }
-}
-
-@Composable
-private fun MovieEpisodeListContent(
-    state: EpisodeListState,
-    actions: EpisodeListActions,
-    modifier: Modifier = Modifier,
-) {
-    val sortedMovieItems = remember(state.items) {
-        state.items.sortedByDescending { it.date }
-    }
-    Column(modifier = modifier) {
-        sortedMovieItems.forEach { epItem ->
-            EpisodeListRow(epItem = epItem, state = state, actions = actions)
-        }
-    }
-}
-
-@Composable
-private fun ShowEpisodeListContent(
-    state: EpisodeListState,
-    actions: EpisodeListActions,
-    modifier: Modifier = Modifier,
-) {
-    val grouped = remember(state.items) { state.items.groupBy { it.season ?: 1 } }
-    val sortedSeasons = remember(grouped) { grouped.keys.sortedDescending() }
-    Column(modifier = modifier) {
-        sortedSeasons.forEach { season ->
-            SeasonEpisodesSection(season = season, grouped = grouped, state = state, actions = actions)
-        }
-    }
-}
-
-@Composable
-private fun SeasonEpisodesSection(
-    season: Int,
-    grouped: Map<Int, List<CalendarItemWithWatchlist>>,
-    state: EpisodeListState,
-    actions: EpisodeListActions,
-) {
-    val seasonEpisodes = grouped[season] ?: emptyList()
-    val sortedSeasonEpisodes = remember(seasonEpisodes) {
-        seasonEpisodes.sortedByDescending { it.episodeNumber ?: 0 }
-    }
-    if (state.showSeasonHeaders) {
-        val headerState = remember(season, sortedSeasonEpisodes, state.updatingWatchKeys, actions) {
-            SeasonHeaderState(
-                season = season,
-                episodes = sortedSeasonEpisodes,
-                updatingWatchKeys = state.updatingWatchKeys,
-                onMarkSeasonWatched = actions.onMarkSeasonWatched,
-                onMarkSeasonUnwatched = actions.onMarkSeasonUnwatched,
-                onUpdateSeasonMediaStatus = actions.onUpdateSeasonMediaStatus,
-                onSearchSeasonManually = actions.onSearchSeasonManually
-            )
-        }
-        SeasonSectionHeader(state = headerState)
-    }
-    sortedSeasonEpisodes.forEach { epItem ->
-        EpisodeListRow(epItem = epItem, state = state, actions = actions)
-    }
 }
 
 @Immutable
@@ -240,58 +355,70 @@ private fun SeasonHeaderActions(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        val hasSearchableEpisode = remember(state.episodes) {
-            state.episodes.any { it.mediaStatus.isSearchable }
-        }
-
-        if (hasSearchableEpisode) {
-            OutlinedButton(
-                onClick = { state.onSearchSeasonManually(state.season) },
-                shape = RoundedCornerShape(6.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
-                modifier = Modifier.height(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = PurpleLight,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Search manually",
-                    fontSize = 11.sp,
-                    color = PurpleLight,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        val isWatched = remember(state.episodes) {
-            state.episodes.all { it.isWatched }
-        }
-        val isLoading = remember(state.episodes, state.updatingWatchKeys) {
-            state.episodes.any { state.updatingWatchKeys.contains(it.primaryKey) }
-        }
-
-        WatchedStatusDropdown(
-            isWatched = isWatched,
-            onStatusChange = { watched ->
-                if (watched) {
-                    state.onMarkSeasonWatched(state.season)
-                } else {
-                    state.onMarkSeasonUnwatched(state.season)
-                }
-            },
-            isLoading = isLoading
-        )
-
-        MediaStatusDropdown(
-            currentStatus = commonStatus ?: MediaStatus.IGNORED,
-            onStatusChange = { state.onUpdateSeasonMediaStatus(state.season, it) }
-        )
+        SeasonSearchAction(state = state)
+        SeasonStatusDropdowns(state = state, commonStatus = commonStatus)
     }
+}
+
+@Composable
+private fun SeasonSearchAction(state: SeasonHeaderState) {
+    val hasSearchableEpisode = remember(state.episodes) {
+        state.episodes.any { it.mediaStatus.isSearchable }
+    }
+
+    if (hasSearchableEpisode) {
+        OutlinedButton(
+            onClick = { state.onSearchSeasonManually(state.season) },
+            shape = RoundedCornerShape(6.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            border = BorderStroke(1.dp, PurpleLight.copy(alpha = 0.5f)),
+            modifier = Modifier.height(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = PurpleLight,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "Search manually",
+                fontSize = 11.sp,
+                color = PurpleLight,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeasonStatusDropdowns(
+    state: SeasonHeaderState,
+    commonStatus: MediaStatus?,
+) {
+    val isWatched = remember(state.episodes) {
+        state.episodes.all { it.isWatched }
+    }
+    val isLoading = remember(state.episodes, state.updatingWatchKeys) {
+        state.episodes.any { state.updatingWatchKeys.contains(it.primaryKey) }
+    }
+
+    WatchedStatusDropdown(
+        isWatched = isWatched,
+        onStatusChange = { watched ->
+            if (watched) {
+                state.onMarkSeasonWatched(state.season)
+            } else {
+                state.onMarkSeasonUnwatched(state.season)
+            }
+        },
+        isLoading = isLoading
+    )
+
+    MediaStatusDropdown(
+        currentStatus = commonStatus ?: MediaStatus.IGNORED,
+        onStatusChange = { state.onUpdateSeasonMediaStatus(state.season, it) }
+    )
 }
 
 @Composable
@@ -475,7 +602,7 @@ private fun EpisodeListRowDropdowns(
             ItemWatchedStatusDropdown(
                 item = epItem,
                 onWatchedStatusChange = { watched -> onWatchedStatusChange(epItem, watched) },
-                updatingWatchKeys = updatingWatchKeys
+                updatingWatchKeys = updatingWatchKeys,
             )
             ItemMediaStatusDropdown(
                 item = epItem,

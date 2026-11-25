@@ -20,10 +20,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import com.felixbrucker.simklcalendar.ui.composable.episodeListCardSection
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -80,7 +80,6 @@ import com.felixbrucker.simklcalendar.ui.composable.DetailHeader
 import com.felixbrucker.simklcalendar.ui.composable.DetailHeaderData
 import com.felixbrucker.simklcalendar.ui.composable.DownloadSettingsCard
 import com.felixbrucker.simklcalendar.ui.composable.EpisodeListActions
-import com.felixbrucker.simklcalendar.ui.composable.EpisodeListCard
 import com.felixbrucker.simklcalendar.ui.composable.EpisodeListState
 import com.felixbrucker.simklcalendar.ui.composable.ItemMediaStatusDropdown
 import com.felixbrucker.simklcalendar.ui.composable.ItemWatchedStatusDropdown
@@ -267,43 +266,42 @@ fun ReleaseDetailScreen(
                 Text("Show details not found.", color = TextPrimary)
             }
         } else {
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .verticalScroll(rememberScrollState())
             ) {
-                // Banner / Poster Header
-                DetailHeader(
-                    data = DetailHeaderData(
-                        isWatchlist = false,
-                        simklId = activeItem.simklId,
-                        type = activeItem.type,
-                        title = activeItem.title,
-                        poster = activeItem.poster,
-                        rating = activeItem.rating,
-                        titleRomaji = activeItem.titleRomaji,
-                        hasUniqueTitleRomaji = activeItem.hasUniqueTitleRomaji,
-                        animeSeason = activeItem.animeSeason,
-                    ),
-                    onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId, activeItem.type) },
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope,
-                    sharedItemKey = itemKey
-                )
+                item(key = "detail_header") {
+                    // Banner / Poster Header
+                    DetailHeader(
+                        data = DetailHeaderData(
+                            isWatchlist = false,
+                            simklId = activeItem.simklId,
+                            type = activeItem.type,
+                            title = activeItem.title,
+                            poster = activeItem.poster,
+                            rating = activeItem.rating,
+                            titleRomaji = activeItem.titleRomaji,
+                            hasUniqueTitleRomaji = activeItem.hasUniqueTitleRomaji,
+                            animeSeason = activeItem.animeSeason,
+                        ),
+                        onTitleClick = { onNavigateToWatchlistItem(activeItem.simklId, activeItem.type) },
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        sharedItemKey = itemKey
+                    )
+                }
 
-                // Airing / Release details info
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Watched Episode Highlight Banner
+                item(key = "watched_banner") {
                     if (activeItem.isWatched) {
-                        WatchedEpisodeHighlightBanner(activeItem = activeItem)
+                        WatchedEpisodeHighlightBanner(
+                            activeItem = activeItem,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
                     }
+                }
 
+                item(key = "selected_episode_details") {
                     SelectedEpisodeDetailsCard(
                         activeItem = activeItem,
                         theatricalItem = theatricalItem,
@@ -327,9 +325,11 @@ fun ReleaseDetailScreen(
                         onMediaStatusChange = { itemKeyToUpdate, newStatus ->
                             viewModel.updateMediaStatus(itemKeyToUpdate, newStatus)
                         },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
+                }
 
-                    // Dynamic Action Buttons Section (Max 2 per row)
+                item(key = "dynamic_actions") {
                     val actions = remember(
                         activeItem,
                         showScheduleItems,
@@ -432,7 +432,10 @@ fun ReleaseDetailScreen(
                     }
 
                     if (actions.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             actions.chunked(if (isSmallScreen) 1 else 2).forEach { rowActions ->
                                 if (rowActions.size == 2) {
                                     Row(
@@ -449,99 +452,9 @@ fun ReleaseDetailScreen(
                             }
                         }
                     }
+                }
 
-                    val initialSearchTitle = remember(activeItem.watchlistItem) {
-                        activeItem.getSearchTitle()
-                    }
-
-                    if (showEpisodeManualSearchDialog) {
-                        ManualSearchDialog(
-                            initialTitle = initialSearchTitle,
-                            mediaType = activeItem.type,
-                            animeSeasonOrSeason = activeItem.animeSeason ?: activeItem.season,
-                            itemSettings = itemSettings,
-                            initialIncludeSeason = false,
-                            dialogTitle = "Search Episode Manually",
-                            onPerformSearch = { customTitle ->
-                                viewModel.searchTorrents(
-                                    item = activeItem,
-                                    customTitle = customTitle,
-                                )
-                            },
-                            onSelectResult = { selectedResult ->
-                                viewModel.downloadEpisodeResult(
-                                    item = activeItem,
-                                    resultItem = selectedResult,
-                                    onResult = { _, msg ->
-                                        scope.launch { snackbarHostState.showSnackbar(msg) }
-                                    }
-                                )
-                            },
-                            onDismiss = { showEpisodeManualSearchDialog = false }
-                        )
-                    }
-
-                    if (manualSearchSeasonNum != null) {
-                        val seasonOfItem = manualSearchSeasonNum!!
-                        val season = activeItem.animeSeason ?: seasonOfItem
-                        ManualSearchDialog(
-                            initialTitle = initialSearchTitle,
-                            mediaType = activeItem.type,
-                            animeSeasonOrSeason = season,
-                            itemSettings = itemSettings,
-                            initialIncludeSeason = true,
-                            dialogTitle = "Search Season $season Manually",
-                            onPerformSearch = { customTitle ->
-                                viewModel.searchSeasonTorrents(
-                                    simklId = activeItem.simklId,
-                                    season = seasonOfItem,
-                                    customTitle = customTitle,
-                                )
-                            },
-                            onSelectResult = { selectedResult ->
-                                viewModel.downloadSeasonResult(
-                                    simklId = activeItem.simklId,
-                                    season = seasonOfItem,
-                                    resultItem = selectedResult,
-                                    onResult = { _, msg ->
-                                        scope.launch { snackbarHostState.showSnackbar(msg) }
-                                    }
-                                )
-                            },
-                            onDismiss = { manualSearchSeasonNum = null }
-                        )
-                    }
-
-                    if (showDeleteConfirmation) {
-                        val itemLabel = activeItem.formattedItemLabel
-                        AlertDialog(
-                            onDismissRequest = { showDeleteConfirmation = false },
-                            title = { Text("Delete $itemLabel", fontWeight = FontWeight.Bold, color = TextPrimary) },
-                            text = { Text("Are you sure you want to delete this item? This action cannot be undone.", color = TextSubtle) },
-                            confirmButton = {
-                                Button(
-                                    onClick = {
-                                        showDeleteConfirmation = false
-                                        viewModel.deleteCalendarItem(activeItem.primaryKey) {
-                                            onNavigateBack()
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = SurfaceRedWine,
-                                        contentColor = ErrorPink
-                                    )
-                                ) {
-                                    Text("Delete")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showDeleteConfirmation = false }) {
-                                    Text("Cancel")
-                                }
-                            }
-                        )
-                    }
-
+                item(key = "search_links_card") {
                     CustomSearchLinksCard(
                         searchLinks = customSearchLinks,
                         title = activeItem.title,
@@ -552,67 +465,68 @@ fun ReleaseDetailScreen(
                         snackbarHostState = snackbarHostState,
                         scope = scope,
                         context = context,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
+                }
 
-                    // Scheduled Episodes / Releases selector card
-                    if (showScheduleItems.size > 1) {
-                        EpisodeListCard(
-                            state = EpisodeListState(
-                                items = showScheduleItems,
-                                mediaType = activeItem.type,
-                                isSmallScreen = isSmallScreen,
-                                activeItemKey = activeItem.primaryKey,
-                                updatingWatchKeys = updatingWatchKeys,
-                                torrentDownloads = torrentDownloads,
-                                showSeasonHeaders = showScheduleItems.groupBy { it.season ?: 1 }.size > 1,
-                            ),
-                            actions = EpisodeListActions(
-                                onItemClick = { epItem -> activeItemKey = epItem.primaryKey },
-                                onWatchedStatusChange = { epItem, watched ->
-                                    if (epItem.type == MediaType.MOVIE) {
-                                        if (watched) {
-                                            viewModel.markMovieWatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
-                                        } else {
-                                            viewModel.markMovieUnwatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
-                                        }
+                if (showScheduleItems.size > 1) {
+                    episodeListCardSection(
+                        state = EpisodeListState(
+                            items = showScheduleItems,
+                            mediaType = activeItem.type,
+                            isSmallScreen = isSmallScreen,
+                            activeItemKey = activeItem.primaryKey,
+                            updatingWatchKeys = updatingWatchKeys,
+                            torrentDownloads = torrentDownloads,
+                            showSeasonHeaders = showScheduleItems.groupBy { it.season ?: 1 }.size > 1,
+                        ),
+                        actions = EpisodeListActions(
+                            onItemClick = { epItem -> activeItemKey = epItem.primaryKey },
+                            onWatchedStatusChange = { epItem, watched ->
+                                if (epItem.type == MediaType.MOVIE) {
+                                    if (watched) {
+                                        viewModel.markMovieWatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
                                     } else {
-                                        if (watched) {
-                                            viewModel.markEpisodeWatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
-                                        } else {
-                                            viewModel.markEpisodeUnwatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
-                                        }
+                                        viewModel.markMovieUnwatched(epItem.simklId, epItem.primaryKey, epItem.title) { _, _ -> }
                                     }
-                                },
-                                onMediaStatusChange = { epKey, newStatus ->
-                                    viewModel.updateMediaStatus(epKey, newStatus)
-                                },
-                                onMarkSeasonWatched = { season ->
-                                    viewModel.markSeasonWatched(
-                                        simklId = activeItem.simklId,
-                                        season = season,
-                                        mediaType = activeItem.type,
-                                        showTitle = activeItem.title
-                                    ) { _, _ -> }
-                                },
-                                onMarkSeasonUnwatched = { season ->
-                                    viewModel.markSeasonUnwatched(
-                                        simklId = activeItem.simklId,
-                                        season = season,
-                                        mediaType = activeItem.type,
-                                        showTitle = activeItem.title
-                                    ) { _, _ -> }
-                                },
-                                onUpdateSeasonMediaStatus = { season, status ->
-                                    viewModel.updateSeasonMediaStatus(activeItem.simklId, season, status)
-                                },
-                                onSearchSeasonManually = { season ->
-                                    manualSearchSeasonNum = season
+                                } else {
+                                    if (watched) {
+                                        viewModel.markEpisodeWatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
+                                    } else {
+                                        viewModel.markEpisodeUnwatched(epItem.simklId, epItem.season, epItem.episodeNumber ?: 1, epItem.type, epItem.primaryKey, epItem.title) { _, _ -> }
+                                    }
                                 }
-                            )
-                        )
-                    }
+                            },
+                            onMediaStatusChange = { epKey, newStatus ->
+                                viewModel.updateMediaStatus(epKey, newStatus)
+                            },
+                            onMarkSeasonWatched = { season ->
+                                viewModel.markSeasonWatched(
+                                    simklId = activeItem.simklId,
+                                    season = season,
+                                    mediaType = activeItem.type,
+                                    showTitle = activeItem.title
+                                ) { _, _ -> }
+                            },
+                            onMarkSeasonUnwatched = { season ->
+                                viewModel.markSeasonUnwatched(
+                                    simklId = activeItem.simklId,
+                                    season = season,
+                                    mediaType = activeItem.type,
+                                    showTitle = activeItem.title
+                                ) { _, _ -> }
+                            },
+                            onUpdateSeasonMediaStatus = { season, status ->
+                                viewModel.updateSeasonMediaStatus(activeItem.simklId, season, status)
+                            },
+                            onSearchSeasonManually = { season ->
+                                manualSearchSeasonNum = season
+                            }
+                        ),
+                    )
+                }
 
-                    // Notification Settings
+                item(key = "notification_settings_card") {
                     NotificationSettingsCard(
                         isMovie = isMovie,
                         notifyEveryEpisode = notifyEveryEpisode,
@@ -633,9 +547,12 @@ fun ReleaseDetailScreen(
                                 notifySeasonFinished = isChecked
                             )
                         },
-                        checkPermission = { checkAndRequestNotificationPermission() }
+                        checkPermission = { checkAndRequestNotificationPermission() },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
+                }
 
+                item(key = "download_settings_card") {
                     DownloadSettingsCard(
                         watchlistItem = activeItem.watchlistItem!!,
                         autoDownloadPrefs = autoDownloadPrefs,
@@ -643,10 +560,103 @@ fun ReleaseDetailScreen(
                         isDownloaderInstalled = isDownloaderInstalled,
                         availableSubdirectories = availableSubdirectories,
                         onSaveItemDownloadSettings = { viewModel.saveItemDownloadSettings(it) },
-                        onSearchTorrents = { term -> viewModel.detectTorrents(simklId = activeItem.simklId, customTitle = term) }
+                        onSearchTorrents = { term -> viewModel.detectTorrents(simklId = activeItem.simklId, customTitle = term) },
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
                     )
                 }
             }
+        }
+
+        val initialSearchTitle = remember(activeItem?.watchlistItem) {
+            activeItem?.getSearchTitle() ?: ""
+        }
+
+        if (showEpisodeManualSearchDialog && activeItem != null) {
+            ManualSearchDialog(
+                initialTitle = initialSearchTitle,
+                mediaType = activeItem.type,
+                animeSeasonOrSeason = activeItem.animeSeason ?: activeItem.season,
+                itemSettings = itemSettings,
+                initialIncludeSeason = false,
+                dialogTitle = "Search Episode Manually",
+                onPerformSearch = { customTitle ->
+                    viewModel.searchTorrents(
+                        item = activeItem,
+                        customTitle = customTitle,
+                    )
+                },
+                onSelectResult = { selectedResult ->
+                    viewModel.downloadEpisodeResult(
+                        item = activeItem,
+                        resultItem = selectedResult,
+                        onResult = { _, msg ->
+                            scope.launch { snackbarHostState.showSnackbar(msg) }
+                        }
+                    )
+                },
+                onDismiss = { showEpisodeManualSearchDialog = false }
+            )
+        }
+
+        if (manualSearchSeasonNum != null && activeItem != null) {
+            val seasonOfItem = manualSearchSeasonNum!!
+            val season = activeItem.animeSeason ?: seasonOfItem
+            ManualSearchDialog(
+                initialTitle = initialSearchTitle,
+                mediaType = activeItem.type,
+                animeSeasonOrSeason = season,
+                itemSettings = itemSettings,
+                initialIncludeSeason = true,
+                dialogTitle = "Search Season $season Manually",
+                onPerformSearch = { customTitle ->
+                    viewModel.searchSeasonTorrents(
+                        simklId = activeItem.simklId,
+                        season = seasonOfItem,
+                        customTitle = customTitle,
+                    )
+                },
+                onSelectResult = { selectedResult ->
+                    viewModel.downloadSeasonResult(
+                        simklId = activeItem.simklId,
+                        season = seasonOfItem,
+                        resultItem = selectedResult,
+                        onResult = { _, msg ->
+                            scope.launch { snackbarHostState.showSnackbar(msg) }
+                        }
+                    )
+                },
+                onDismiss = { manualSearchSeasonNum = null }
+            )
+        }
+
+        if (showDeleteConfirmation && activeItem != null) {
+            val itemLabel = activeItem.formattedItemLabel
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = { Text("Delete $itemLabel", fontWeight = FontWeight.Bold, color = TextPrimary) },
+                text = { Text("Are you sure you want to delete this item? This action cannot be undone.", color = TextSubtle) },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDeleteConfirmation = false
+                            viewModel.deleteCalendarItem(activeItem.primaryKey) {
+                                onNavigateBack()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SurfaceRedWine,
+                            contentColor = ErrorPink
+                        )
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
@@ -714,7 +724,7 @@ fun SelectedEpisodeDetailsCard(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceContainer),
         border = BorderStroke(1.dp, OutlineVariant),
-        modifier = modifier
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
