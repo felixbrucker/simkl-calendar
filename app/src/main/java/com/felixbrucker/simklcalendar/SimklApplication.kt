@@ -54,9 +54,4 @@ class SimklApplication : Application(), Configuration.Provider {
                 .collect { sentryManager.updateSentryState(this@SimklApplication, it) }
         }
     }
-
-    override fun onTerminate() {
-        super.onTerminate()
-        Timber.tag(TAG).i("SimklApplication destroyed")
-    }
 }

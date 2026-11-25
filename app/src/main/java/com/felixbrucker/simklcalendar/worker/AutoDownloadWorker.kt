@@ -15,6 +15,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
+import com.felixbrucker.simklcalendar.extensions.isWorkCurrentlyQueued
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
@@ -58,12 +59,26 @@ class AutoDownloadWorker @AssistedInject constructor(
                 .setConstraints(constraints)
                 .build()
 
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            val workManager = WorkManager.getInstance(context)
+            val isCurrentlyQueued = workManager.isWorkCurrentlyQueued(UNIQUE_WORK_NAME)
+
+            workManager.enqueueUniquePeriodicWork(
                 UNIQUE_WORK_NAME,
                 ExistingPeriodicWorkPolicy.UPDATE,
                 searchRequest
             )
-            Timber.tag(TAG).i("Enqueued $effectiveInterval-hour periodic background torrent search work")
+
+            if (!isCurrentlyQueued) {
+                Timber.tag(TAG).i("Enqueued $effectiveInterval-hour periodic background torrent search work")
+            }
+        }
+
+        fun cancelPeriodicSearch(context: Context) {
+            val workManager = WorkManager.getInstance(context)
+            if (workManager.isWorkCurrentlyQueued(UNIQUE_WORK_NAME)) {
+                workManager.cancelUniqueWork(UNIQUE_WORK_NAME)
+                Timber.tag(TAG).i("Cancelled periodic background torrent search work")
+            }
         }
 
         fun enqueueSearchOnce(context: Context) {

@@ -68,7 +68,6 @@ class AlarmReceiver: BroadcastReceiver() {
             return
         }
         val itemPrimaryKey = intent.getStringExtra(EXTRA_ITEM_PRIMARY_KEY) ?: return
-        Timber.tag(TAG).d("Received item aired alarm for key=$itemPrimaryKey")
 
         val pendingResult = goAsync()
         scope.launch {

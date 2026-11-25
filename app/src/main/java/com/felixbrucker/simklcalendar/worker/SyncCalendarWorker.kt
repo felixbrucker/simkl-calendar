@@ -16,6 +16,7 @@ import com.felixbrucker.simklcalendar.data.preferences.NotificationRepository
 import com.felixbrucker.simklcalendar.data.repository.MediaRepository
 import com.felixbrucker.simklcalendar.data.repository.SyncRepository
 import com.felixbrucker.simklcalendar.data.repository.UserRepository
+import com.felixbrucker.simklcalendar.extensions.isWorkCurrentlyQueued
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
@@ -75,12 +76,18 @@ class SyncCalendarWorker @AssistedInject constructor(
                 .setConstraints(constraints)
                 .build()
 
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            val workManager = WorkManager.getInstance(context)
+            val isCurrentlyQueued = workManager.isWorkCurrentlyQueued(UNIQUE_WORK_NAME)
+
+            workManager.enqueueUniquePeriodicWork(
                 UNIQUE_WORK_NAME,
                 ExistingPeriodicWorkPolicy.UPDATE,
                 syncRequest
             )
-            Timber.tag(TAG).i("Enqueued $effectiveInterval-hour periodic background calendar sync work")
+
+            if (!isCurrentlyQueued) {
+                Timber.tag(TAG).i("Enqueued $effectiveInterval-hour periodic background calendar sync work")
+            }
         }
     }
 }

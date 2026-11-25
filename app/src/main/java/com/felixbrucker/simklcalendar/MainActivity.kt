@@ -56,6 +56,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -163,17 +164,23 @@ class MainActivity : ComponentActivity() {
                 }
         }
 
-        // Reactively handle search interval changes
+        // Reactively handle search interval and service status changes
         lifecycleScope.launch {
-            autoDownloadRepo.preferencesFlow
-                .map { it.searchIntervalHours }
+            combine(
+                autoDownloadRepo.preferencesFlow.map { it.searchIntervalHours },
+                torrentServiceHelper.isInstalled
+            ) { searchIntervalHours, isInstalled ->
+                Pair(searchIntervalHours, isInstalled)
+            }
                 .distinctUntilChanged()
-                .collect { searchIntervalHours ->
-                    if (torrentServiceHelper.isServiceInstalled()) {
+                .collect { (searchIntervalHours, isInstalled) ->
+                    if (isInstalled) {
                         AutoDownloadWorker.enqueuePeriodicSearch(
                             this@MainActivity,
                             searchIntervalHours.toLong()
                         )
+                    } else {
+                        AutoDownloadWorker.cancelPeriodicSearch(this@MainActivity)
                     }
                 }
         }
@@ -204,6 +211,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        torrentServiceHelper.refreshServiceStatus()
         downloadRepository.refreshDownloadSubdirectories()
     }
 

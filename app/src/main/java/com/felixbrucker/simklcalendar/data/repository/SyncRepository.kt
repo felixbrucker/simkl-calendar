@@ -101,7 +101,7 @@ class SyncRepository @Inject constructor(
     suspend fun syncCalendar(force: Boolean = false) = withContext(Dispatchers.IO) {
         val token = tokenDao.getActiveToken()
         if (token == null || token.accessToken.isEmpty()) {
-            Timber.tag(TAG).d("Skipping syncCalendar: user is not authenticated")
+            Timber.tag(TAG).w("Skipping syncCalendar: user is not authenticated")
             return@withContext
         }
         val watchlistSyncResult = syncWatchlist(forceFullSync = force)
@@ -134,7 +134,7 @@ class SyncRepository @Inject constructor(
     internal suspend fun syncWatchlist(forceFullSync: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
         val token = tokenDao.getActiveToken()
         if (token == null || token.accessToken.isEmpty()) {
-            Timber.tag(TAG).d("Skipping syncWatchlist: user is not authenticated")
+            Timber.tag(TAG).w("Skipping syncWatchlist: user is not authenticated")
             return@withContext SyncResult()
         }
         var changesDetected = false
@@ -399,7 +399,7 @@ class SyncRepository @Inject constructor(
                     }
 
                     if (response.code() == 304) {
-                        Timber.tag(TAG).i("Trending for $typeKey not modified (HTTP 304)")
+                        Timber.tag(TAG).d("Trending for $typeKey not modified (HTTP 304)")
                         syncMetadataRepo.setTrendingLastModifiedAt(lastSyncKey, nowMillis)
                         return@async
                     }
@@ -490,7 +490,7 @@ class SyncRepository @Inject constructor(
         // 1. Load local tracked items (IDs only for filtering)
         val allTrackedIds = watchlistDao.getAllTrackedIds().toSet()
         if (allTrackedIds.isEmpty()) {
-            Timber.tag(TAG).w("No tracked items in watchlist, skipping calendar json sync.")
+            Timber.tag(TAG).i("No tracked items in watchlist, skipping calendar json sync.")
             return@withContext SyncResult()
         }
 
@@ -593,7 +593,7 @@ class SyncRepository @Inject constructor(
                             }
 
                             if (response.code() == 304) {
-                                Timber.tag(TAG).i("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
+                                Timber.tag(TAG).d("Calendar JSON for $year/$month/$endpointType not modified (HTTP 304)")
                                 syncMetadataRepo.setCalendarLastModifiedAt(lastModifiedPrefKey, nowMillis)
                                 return@async null
                             }
