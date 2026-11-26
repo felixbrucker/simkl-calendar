@@ -362,7 +362,6 @@ fun LogViewerScaffold(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogViewerTopBar(
     searchQuery: String,

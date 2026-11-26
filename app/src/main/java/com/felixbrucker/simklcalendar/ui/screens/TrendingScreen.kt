@@ -74,7 +74,6 @@ private enum class TrendingSearchBarDisplayMode {
     DEFAULT, DOCKED, EXPANDED
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TrendingScreen(
     viewModel: TrendingViewModel,
@@ -693,6 +692,14 @@ private fun TrendingFilterRowMinRating(
     viewModel: TrendingViewModel
 ) {
     var sliderValue by remember(minRating) { mutableFloatStateOf(minRating) }
+    val minRatingSliderState = key(minRating) {
+        rememberSliderState(
+            value = sliderValue,
+            steps = 19,
+            trackRange = 0f..10f
+        )
+    }
+    minRatingSliderState.value = sliderValue
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -708,11 +715,9 @@ private fun TrendingFilterRowMinRating(
             )
         }
         Slider(
-            value = sliderValue,
+            state = minRatingSliderState,
             onValueChange = { sliderValue = it },
             onValueChangeFinished = { viewModel.setTrendingMinRating(sliderValue) },
-            valueRange = 0f..10f,
-            steps = 19,
             colors = SliderDefaults.colors(thumbColor = PurpleLight, activeTrackColor = PurpleLight)
         )
     }
@@ -730,6 +735,16 @@ private fun TrendingFilterRowMinYear(
     val initialVal = if (minYear <= 0) effectiveMin.toFloat() else minYear.toFloat().coerceIn(effectiveMin.toFloat(), effectiveMax.toFloat())
     var sliderVal by remember(minYear, effectiveMin, effectiveMax) { mutableFloatStateOf(initialVal) }
     val steps = (effectiveMax - effectiveMin - 1).coerceAtLeast(0)
+    val actualSteps = if (steps > 100) 0 else steps
+    val trackRange = effectiveMin.toFloat()..effectiveMax.toFloat()
+    val minYearSliderState = key(effectiveMin, effectiveMax, actualSteps) {
+        rememberSliderState(
+            value = sliderVal,
+            steps = actualSteps,
+            trackRange = trackRange
+        )
+    }
+    minYearSliderState.value = sliderVal
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -745,11 +760,9 @@ private fun TrendingFilterRowMinYear(
             )
         }
         Slider(
-            value = sliderVal,
+            state = minYearSliderState,
             onValueChange = { sliderVal = it },
             onValueChangeFinished = { viewModel.setTrendingMinYear(sliderVal.toInt()) },
-            valueRange = effectiveMin.toFloat()..effectiveMax.toFloat(),
-            steps = if (steps > 100) 0 else steps,
             colors = SliderDefaults.colors(thumbColor = PurpleLight, activeTrackColor = PurpleLight)
         )
     }

@@ -110,7 +110,6 @@ enum class SettingsCategory(
     DEBUG("Debug", "Diagnostics, Logs and Sentry crash reporting", Icons.Default.BugReport)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
@@ -1835,12 +1834,17 @@ private fun SettingsSyncIntervalContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Slider(
+        val syncIntervalSliderState = rememberSliderState(
             value = syncIntervalHours,
+            steps = 22,
+            trackRange = 1f..24f
+        )
+        syncIntervalSliderState.value = syncIntervalHours
+
+        Slider(
+            state = syncIntervalSliderState,
             onValueChange = onSyncIntervalChange,
             onValueChangeFinished = onSyncIntervalChangeFinished,
-            valueRange = 1f..24f,
-            steps = 22,
             colors = SliderDefaults.colors(
                 thumbColor = PurpleLight,
                 activeTrackColor = PurpleLight,
@@ -2685,13 +2689,18 @@ private fun SettingsAutomaticDownloadsContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Slider(
+            val searchIntervalSliderState = rememberSliderState(
                 value = searchIntervalHours,
+                steps = 22,
+                trackRange = 1f..24f
+            )
+            searchIntervalSliderState.value = searchIntervalHours
+
+            Slider(
+                state = searchIntervalSliderState,
                 onValueChange = onSearchIntervalChange,
                 onValueChangeFinished = onSearchIntervalHoursChangeFinished,
                 enabled = isDownloaderInstalled,
-                valueRange = 1f..24f,
-                steps = 22,
                 colors = SliderDefaults.colors(
                     thumbColor = PurpleLight,
                     activeTrackColor = PurpleLight,
