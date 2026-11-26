@@ -39,7 +39,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.felixbrucker.simklcalendar.worker.SyncCalendarWorker
-import com.felixbrucker.simklcalendar.worker.AutoDownloadWorker
 import com.felixbrucker.simklcalendar.ui.screens.MainScreen
 import com.felixbrucker.simklcalendar.ui.screens.LoginScreen
 import com.felixbrucker.simklcalendar.ui.screens.ReleaseDetailScreen
@@ -56,7 +55,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
 import com.felixbrucker.simklcalendar.receiver.notification.NotificationManager
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -64,15 +62,16 @@ import java.net.URLEncoder
 import java.net.URLDecoder
 import dagger.hilt.android.AndroidEntryPoint
 import com.felixbrucker.simklcalendar.data.preferences.AppSettingsRepository
-import com.felixbrucker.simklcalendar.data.preferences.AutoDownloadRepository
 import com.felixbrucker.simklcalendar.data.repository.DownloadRepository
 import com.felixbrucker.simklcalendar.data.util.OAuthEventHub
 import com.felixbrucker.simklcalendar.data.util.TorrentServiceHelper
 import com.felixbrucker.simklcalendar.ui.viewmodel.TrendingViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.seconds
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -83,9 +82,6 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var appSettingsRepo: AppSettingsRepository
-
-    @Inject
-    lateinit var autoDownloadRepo: AutoDownloadRepository
 
     @Inject
     lateinit var notificationManager: NotificationManager
@@ -164,32 +160,14 @@ class MainActivity : ComponentActivity() {
                 }
         }
 
-        // Reactively handle search interval and service status changes
-        lifecycleScope.launch {
-            combine(
-                autoDownloadRepo.preferencesFlow.map { it.searchIntervalHours },
-                torrentServiceHelper.isInstalled
-            ) { searchIntervalHours, isInstalled ->
-                Pair(searchIntervalHours, isInstalled)
-            }
-                .distinctUntilChanged()
-                .collect { (searchIntervalHours, isInstalled) ->
-                    if (isInstalled) {
-                        AutoDownloadWorker.enqueuePeriodicSearch(
-                            this@MainActivity,
-                            searchIntervalHours.toLong()
-                        )
-                    } else {
-                        AutoDownloadWorker.cancelPeriodicSearch(this@MainActivity)
-                    }
-                }
-        }
-
         downloadRepository.refreshDownloadSubdirectories()
         handleOAuthIntent(intent)
 
         lifecycleScope.launch(Dispatchers.Default) {
             handleNotificationNavigation(intent)
+            // wait a bit before trying to restore notifications because StartupReceiver might run
+            // first
+            delay(5.seconds)
             notificationManager.restoreActiveNotifications()
         }
 

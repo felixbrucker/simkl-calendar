@@ -33,7 +33,6 @@ class StartupReceiver: BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) {
             return
         }
-        Timber.tag(TAG).i("StartupReceiver triggered for action ${intent.action}")
 
         // Reschedule all alarms, as they are removed on app update and system reboot
         val pendingResult = goAsync()

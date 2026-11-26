@@ -267,7 +267,7 @@ class NotificationActionReceiver: BroadcastReceiver() {
                 // Trigger batch search and download for all WANTED items in the background, as this
                 // can take longer than the 10-second limit for receivers. Updating the notification
                 // is done in the repository.
-                AutoDownloadWorker.enqueueSearchOnce(context)
+                AutoDownloadWorker.enqueueImmediateSearch(context)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error starting season download from notification action")
                 updateNotification(itemPrimaryKey)

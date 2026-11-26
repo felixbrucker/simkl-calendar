@@ -1066,7 +1066,7 @@ fun SettingsDownloadsCategorySection(
             searchIntervalHours = searchIntervalHours,
             onSearchIntervalChange = onSearchIntervalChange,
             onSearchIntervalHoursChangeFinished = {
-                val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 24)
+                val roundedHours = searchIntervalHours.roundToInt().coerceIn(1, 12)
                 viewModel.updateSearchInterval(roundedHours)
             },
             actions = actions
@@ -1862,9 +1862,8 @@ private fun SettingsSyncIntervalContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("1 hour (frequent)", color = TextGrey, fontSize = 11.sp)
-            Text("12 hours (default)", color = TextGrey, fontSize = 11.sp)
-            Text("24 hours (daily)", color = TextGrey, fontSize = 11.sp)
+            Text("1 hour", color = TextGrey, fontSize = 11.sp)
+            Text("24 hours", color = TextGrey, fontSize = 11.sp)
         }
     }
 }
@@ -2664,13 +2663,13 @@ private fun SettingsAutomaticDownloadsContent(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Periodic Torrent Search",
+                        "Torrent Search Interval",
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary,
                         fontSize = 15.sp
                     )
                     Text(
-                        "Sets how frequently the app searches for torrents for episodes in 'Wanted' status.",
+                        "Sets how frequently background searches re-check for torrents while episodes/movies are in 'Wanted' status.",
                         color = TextSubtle,
                         fontSize = 12.sp,
                         lineHeight = 16.sp
@@ -2694,8 +2693,8 @@ private fun SettingsAutomaticDownloadsContent(
 
             val searchIntervalSliderState = rememberSliderState(
                 value = searchIntervalHours,
-                steps = 22,
-                trackRange = 1f..24f
+                steps = 10,
+                trackRange = 1f..12f
             )
             searchIntervalSliderState.value = searchIntervalHours
 
@@ -2720,7 +2719,6 @@ private fun SettingsAutomaticDownloadsContent(
             ) {
                 Text("1 hour", color = TextGrey, fontSize = 11.sp)
                 Text("12 hours", color = TextGrey, fontSize = 11.sp)
-                Text("24 hours", color = TextGrey, fontSize = 11.sp)
             }
         }
 

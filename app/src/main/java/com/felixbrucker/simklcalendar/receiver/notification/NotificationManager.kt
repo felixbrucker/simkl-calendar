@@ -90,7 +90,10 @@ class NotificationManager @Inject constructor(
         )
     }
 
-    private suspend fun showTrendingNotificationInternal(item: TrendingMediaItem) {
+    private suspend fun showTrendingNotificationInternal(
+        item: TrendingMediaItem,
+        shouldLog: Boolean = true
+    ) {
         createNotificationChannel()
         val isNotificationPermissionGranted = validateNotificationPermissionsGranted()
         if (!isNotificationPermissionGranted) return
@@ -153,7 +156,9 @@ class NotificationManager @Inject constructor(
 
         try {
             context.getSystemNotificationManager().notify(notificationId, builder.build())
-            Timber.tag(TAG).i("Successfully displayed trending notification id=$notificationId for $simklId")
+            if (shouldLog) {
+                Timber.tag(TAG).i("Successfully displayed trending notification id=$notificationId for simklId=$simklId")
+            }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error posting trending notification")
         }
@@ -331,7 +336,7 @@ class NotificationManager @Inject constructor(
         restoreActiveTrendingNotifications()
     }
 
-    suspend fun restoreActiveTrendingNotifications() {
+    private suspend fun restoreActiveTrendingNotifications() {
         val activeTrending = getActiveTrendingNotifications()
         if (activeTrending.isEmpty()) {
             return
@@ -362,7 +367,7 @@ class NotificationManager @Inject constructor(
             val notificationId = abs(("trending_${mediaItem.mediaType.key}_$simklId").hashCode())
             if (!currentlyPostedIds.contains(notificationId)) {
                 try {
-                    showTrendingNotificationInternal(trendingItem)
+                    showTrendingNotificationInternal(trendingItem, shouldLog = false)
                     Timber.tag(TAG).i("Restored missing trending notification simklId=$simklId id=$notificationId")
                 } catch (e: Exception) {
                     Timber.tag(TAG).e(e, "Error restoring trending notification simklId=$simklId")

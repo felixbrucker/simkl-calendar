@@ -73,7 +73,7 @@ class NotificationActionReceiverTest {
         every { Toast.makeText(any(), any<CharSequence>(), any()) } returns toastMock
 
         mockkObject(AutoDownloadWorker.Companion)
-        every { AutoDownloadWorker.enqueueSearchOnce(any()) } returns Unit
+        every { AutoDownloadWorker.enqueueImmediateSearch(any()) } returns Unit
 
         notificationManagerMock = mockk(relaxed = true)
         coEvery { notificationManagerMock.updateNotification(any()) } returns Unit
@@ -304,6 +304,6 @@ class NotificationActionReceiverTest {
 
         verify(timeout = 3000) { pendingResult.finish() }
         coVerify(timeout = 3000) { repositoryMock.updateMediaStatus("v2_100_1_1", MediaStatus.WANTED) }
-        verify(timeout = 3000) { AutoDownloadWorker.enqueueSearchOnce(context) }
+        verify(timeout = 3000) { AutoDownloadWorker.enqueueImmediateSearch(context) }
     }
 }
