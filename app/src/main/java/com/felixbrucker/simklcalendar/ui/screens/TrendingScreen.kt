@@ -8,7 +8,6 @@ import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -21,12 +20,8 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
@@ -35,22 +30,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,6 +49,8 @@ import com.felixbrucker.simklcalendar.data.model.TrendingPeriod
 import com.felixbrucker.simklcalendar.data.model.WatchlistStatus
 import com.felixbrucker.simklcalendar.data.preferences.UiPreferences
 import com.felixbrucker.simklcalendar.ui.composable.MediaTypeFilterChips
+import com.felixbrucker.simklcalendar.ui.composable.SearchBarDisplayMode
+import com.felixbrucker.simklcalendar.ui.composable.TopAppBarTitleSectionWithExpandableSearch
 import com.felixbrucker.simklcalendar.ui.composable.TrendingItemCard
 import com.felixbrucker.simklcalendar.ui.composable.TrendingPeriodSelector
 import com.felixbrucker.simklcalendar.ui.theme.*
@@ -69,10 +59,6 @@ import com.felixbrucker.simklcalendar.ui.viewmodel.TrendingViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
-
-private enum class TrendingSearchBarDisplayMode {
-    DEFAULT, DOCKED, EXPANDED
-}
 
 @Composable
 fun TrendingScreen(
@@ -110,9 +96,8 @@ fun TrendingScreen(
     }
 
     val searchDisplayMode = when {
-        isSearchActive || isSearchFocused -> TrendingSearchBarDisplayMode.EXPANDED
-        searchQuery.isNotBlank() -> TrendingSearchBarDisplayMode.DOCKED
-        else -> TrendingSearchBarDisplayMode.DEFAULT
+        isSearchActive || isSearchFocused -> SearchBarDisplayMode.EXPANDED
+        else -> SearchBarDisplayMode.HIDDEN
     }
 
     val windowInfo = LocalWindowInfo.current
@@ -139,10 +124,10 @@ fun TrendingScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    TrendingTopAppBarTitleSection(
-                        trendingPeriod = trendingPeriod,
+                    TopAppBarTitleSectionWithExpandableSearch(
                         searchDisplayMode = searchDisplayMode,
                         searchQuery = searchQuery,
+                        searchQueryPlaceholder = "Search trending items...",
                         focusRequester = focusRequester,
                         onSearchQueryChange = { viewModel.setSearchQuery(it) },
                         onFocusChanged = { isSearchFocused = it },
@@ -159,21 +144,14 @@ fun TrendingScreen(
                             focusManager.clearFocus()
                             keyboardController?.hide()
                         },
-                        onExpandSearch = {
-                            isSearchActive = true
-                            coroutineScope.launch {
-                                delay(100.milliseconds)
-                                focusRequester.requestFocus()
-                                keyboardController?.show()
-                            }
+                        regularTopAppBarTitleSection = {
+                            Text("Trending (${trendingPeriod.titleLabel})", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     )
                 },
                 navigationIcon = {
-                    if (searchDisplayMode != TrendingSearchBarDisplayMode.EXPANDED) {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                        }
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
                 actions = {
@@ -848,7 +826,7 @@ private fun ScrollbarContainer(
 
 @Composable
 private fun TrendingTopBarActions(
-    searchDisplayMode: TrendingSearchBarDisplayMode,
+    searchDisplayMode: SearchBarDisplayMode,
     isFilterOpen: Boolean,
     onOpenSearch: () -> Unit,
     onToggleFilters: () -> Unit
@@ -857,7 +835,7 @@ private fun TrendingTopBarActions(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        if (searchDisplayMode == TrendingSearchBarDisplayMode.DEFAULT) {
+        if (searchDisplayMode == SearchBarDisplayMode.HIDDEN) {
             IconButton(
                 onClick = onOpenSearch,
                 modifier = Modifier.testTag("search_button")
@@ -877,187 +855,6 @@ private fun TrendingTopBarActions(
                 imageVector = Icons.Default.Tune,
                 contentDescription = "Filters",
                 tint = if (isFilterOpen) PurpleLight else Color.White
-            )
-        }
-    }
-}
-
-@Composable
-private fun TrendingTopAppBarTitleSection(
-    trendingPeriod: TrendingPeriod,
-    searchDisplayMode: TrendingSearchBarDisplayMode,
-    searchQuery: String,
-    focusRequester: FocusRequester,
-    onSearchQueryChange: (String) -> Unit,
-    onFocusChanged: (Boolean) -> Unit,
-    onSearch: () -> Unit,
-    onClearSearch: () -> Unit,
-    onExpandSearch: () -> Unit
-) {
-    AnimatedContent(
-        targetState = searchDisplayMode,
-        transitionSpec = {
-            if (targetState == TrendingSearchBarDisplayMode.EXPANDED) {
-                (slideInHorizontally(animationSpec = tween(280)) { width -> width } + fadeIn(animationSpec = tween(250))) togetherWith
-                        (slideOutHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeOut(animationSpec = tween(200)))
-            } else if (initialState == TrendingSearchBarDisplayMode.EXPANDED && targetState == TrendingSearchBarDisplayMode.DEFAULT) {
-                (slideInHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeIn(animationSpec = tween(200))) togetherWith
-                        (slideOutHorizontally(animationSpec = tween(280)) { width -> width } + fadeOut(animationSpec = tween(250)))
-            } else {
-                fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
-            }
-        },
-        label = "trending_top_bar_search_transition"
-    ) { mode ->
-        when (mode) {
-            TrendingSearchBarDisplayMode.EXPANDED -> {
-                TrendingExpandedSearchBar(
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = onSearchQueryChange,
-                    focusRequester = focusRequester,
-                    onFocusChanged = onFocusChanged,
-                    onSearch = onSearch,
-                    onClearSearch = onClearSearch
-                )
-            }
-
-            TrendingSearchBarDisplayMode.DOCKED -> {
-                TrendingDockedSearchBar(
-                    searchQuery = searchQuery,
-                    onClick = onExpandSearch,
-                    onClearSearch = onClearSearch
-                )
-            }
-
-            TrendingSearchBarDisplayMode.DEFAULT -> {
-                Text("Trending (${trendingPeriod.titleLabel})", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TrendingExpandedSearchBar(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    focusRequester: FocusRequester,
-    onFocusChanged: (Boolean) -> Unit,
-    onSearch: () -> Unit,
-    onClearSearch: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(44.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(SurfaceContainer)
-            .border(1.dp, PurpleLight, RoundedCornerShape(22.dp))
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = "Search active",
-            tint = PurpleLight,
-            modifier = Modifier.size(20.dp)
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        BasicTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(focusRequester)
-                .onFocusChanged { state -> onFocusChanged(state.isFocused) }
-                .testTag("search_input_field"),
-            singleLine = true,
-            textStyle = TextStyle(
-                color = TextPrimary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Normal
-            ),
-            cursorBrush = SolidColor(PurpleLight),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-            decorationBox = { innerTextField ->
-                Box(contentAlignment = Alignment.CenterStart) {
-                    if (searchQuery.isEmpty()) {
-                        Text(
-                            text = "Search trending items...",
-                            color = TextGrey,
-                            fontSize = 14.sp
-                        )
-                    }
-                    innerTextField()
-                }
-            }
-        )
-
-        IconButton(
-            onClick = onClearSearch,
-            modifier = Modifier
-                .size(32.dp)
-                .testTag("clear_search_button")
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Delete search query",
-                tint = TextSubtle,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun TrendingDockedSearchBar(
-    searchQuery: String,
-    onClick: () -> Unit,
-    onClearSearch: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(40.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceContainer)
-            .border(1.dp, OutlineGrey, RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .padding(start = 12.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = "Search",
-            tint = PurpleLight,
-            modifier = Modifier.size(18.dp)
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Text(
-            text = searchQuery,
-            color = TextPrimary,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-
-        IconButton(
-            onClick = onClearSearch,
-            modifier = Modifier
-                .size(32.dp)
-                .testTag("clear_search_button")
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Delete search query",
-                tint = TextSubtle,
-                modifier = Modifier.size(18.dp)
             )
         }
     }
