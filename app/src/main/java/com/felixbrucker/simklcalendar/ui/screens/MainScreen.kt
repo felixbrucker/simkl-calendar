@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.paging.compose.itemKey
 import com.felixbrucker.simklcalendar.data.database.CalendarItemWithWatchlist
 import com.felixbrucker.simklcalendar.data.preferences.ViewMode
 import com.felixbrucker.simklcalendar.data.util.PermissionUtil
@@ -1302,7 +1303,7 @@ fun ApiSearchResultsLazyColumn(
     ) {
         items(
             count = searchResults.itemCount,
-            key = { index -> searchResults.peek(index)?.ids?.simklId ?: index }
+            key = searchResults.itemKey { it.ids.simklId }
         ) { index ->
             val item = searchResults[index]
             if (item != null) {
