@@ -33,6 +33,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.lazy.LazyListState
+import com.felixbrucker.simklcalendar.ui.composable.VerticalScrollbar
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
@@ -1288,32 +1290,43 @@ fun ApiSearchResultsLazyColumn(
     searchResults: LazyPagingItems<SimklSearchItem>,
     watchlistStatusMap: Map<Int, WatchlistStatus>,
     onNavigateToDetail: (Int, MediaType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState()
 ) {
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 8.dp)
-    ) {
-        items(
-            count = searchResults.itemCount,
-            key = searchResults.itemKey { it.ids.simklId }
-        ) { index ->
-            val item = searchResults[index]
-            if (item != null) {
-                val watchlistStatus = watchlistStatusMap[item.ids.simklId]
-                SearchItemCard(
-                    item = item,
-                    watchlistStatus = watchlistStatus,
-                    onClick = { onNavigateToDetail(item.ids.simklId, item.mediaType) },
-                    modifier = Modifier.animateItem()
-                )
-            } else {
-                SearchItemSkeletonCard(
-                    modifier = Modifier.animateItem()
-                )
+    Box(modifier = modifier) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            items(
+                count = searchResults.itemCount,
+                key = searchResults.itemKey { it.ids.simklId }
+            ) { index ->
+                val item = searchResults[index]
+                if (item != null) {
+                    val watchlistStatus = watchlistStatusMap[item.ids.simklId]
+                    SearchItemCard(
+                        item = item,
+                        watchlistStatus = watchlistStatus,
+                        onClick = { onNavigateToDetail(item.ids.simklId, item.mediaType) },
+                        modifier = Modifier.animateItem()
+                    )
+                } else {
+                    SearchItemSkeletonCard(
+                        modifier = Modifier.animateItem()
+                    )
+                }
             }
         }
+
+        VerticalScrollbar(
+            listState = listState,
+            considerStickyHeaders = false,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+        )
     }
 }
 

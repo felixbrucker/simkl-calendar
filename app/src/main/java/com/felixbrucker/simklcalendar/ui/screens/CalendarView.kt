@@ -48,6 +48,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.felixbrucker.simklcalendar.ui.composable.VerticalScrollbar
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -234,53 +236,63 @@ private fun CalendarItemList(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
-    LazyColumn(
-        state = state.lazyListState,
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(bottom = 16.dp)
-    ) {
-        if (state.earlierItems.isNotEmpty()) {
-            item(key = "earlier_releases_toggle_card") {
-                CalendarEarlierReleasesHeader(
-                    showEarlierReleases = state.showEarlierReleases,
-                    earlierCount = state.earlierItems.size,
-                    searchQuery = state.searchQuery,
-                    onToggle = onToggleShowEarlierReleases
-                )
+    Box(modifier = modifier) {
+        LazyColumn(
+            state = state.lazyListState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            if (state.earlierItems.isNotEmpty()) {
+                item(key = "earlier_releases_toggle_card") {
+                    CalendarEarlierReleasesHeader(
+                        showEarlierReleases = state.showEarlierReleases,
+                        earlierCount = state.earlierItems.size,
+                        searchQuery = state.searchQuery,
+                        onToggle = onToggleShowEarlierReleases
+                    )
+                }
+
+                if (state.showEarlierReleases) {
+                    renderGroupedCalendarItems(
+                        groupedItems = state.earlierGrouped,
+                        keyPrefix = "earlier",
+                        headerColor = TextGreyMuted,
+                        torrentDownloads = state.torrentDownloads,
+                        onNavigateToShowDetail = onNavigateToShowDetail,
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                }
             }
 
-            if (state.showEarlierReleases) {
+            if (state.upcomingGrouped.isNotEmpty()) {
                 renderGroupedCalendarItems(
-                    groupedItems = state.earlierGrouped,
-                    keyPrefix = "earlier",
-                    headerColor = TextGreyMuted,
+                    groupedItems = state.upcomingGrouped,
+                    keyPrefix = "upcoming",
+                    headerColor = TextSubtle,
                     torrentDownloads = state.torrentDownloads,
                     onNavigateToShowDetail = onNavigateToShowDetail,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope
                 )
+            } else if (state.earlierItems.isNotEmpty() && !state.showEarlierReleases) {
+                item(key = "no_upcoming_prompt") {
+                    CalendarNoUpcomingReleasesNotice(
+                        searchQuery = state.searchQuery,
+                        earlierCount = state.earlierItems.size,
+                        onShowEarlierReleases = { onSetShowEarlierReleases(true) }
+                    )
+                }
             }
         }
 
-        if (state.upcomingGrouped.isNotEmpty()) {
-            renderGroupedCalendarItems(
-                groupedItems = state.upcomingGrouped,
-                keyPrefix = "upcoming",
-                headerColor = TextSubtle,
-                torrentDownloads = state.torrentDownloads,
-                onNavigateToShowDetail = onNavigateToShowDetail,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope
-            )
-        } else if (state.earlierItems.isNotEmpty() && !state.showEarlierReleases) {
-            item(key = "no_upcoming_prompt") {
-                CalendarNoUpcomingReleasesNotice(
-                    searchQuery = state.searchQuery,
-                    earlierCount = state.earlierItems.size,
-                    onShowEarlierReleases = { onSetShowEarlierReleases(true) }
-                )
-            }
-        }
+        VerticalScrollbar(
+            listState = state.lazyListState,
+            considerStickyHeaders = true,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+        )
     }
 }
 

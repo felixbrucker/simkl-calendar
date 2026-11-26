@@ -1,11 +1,9 @@
 package com.felixbrucker.simklcalendar.ui.screens
 
-import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
@@ -29,7 +26,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -38,6 +34,7 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
+import com.felixbrucker.simklcalendar.ui.composable.VerticalScrollbar
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -548,6 +545,7 @@ private fun TrendingMainContent(
 
             VerticalScrollbar(
                 listState = listState,
+                considerStickyHeaders = false,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
@@ -762,64 +760,6 @@ private fun TrendingFilterRowHasDvd(
         Checkbox(
             checked = hasDvd,
             onCheckedChange = { viewModel.toggleTrendingHasDvd() }
-        )
-    }
-}
-
-@SuppressLint("FrequentlyChangingValue")
-@Composable
-private fun VerticalScrollbar(
-    listState: LazyListState,
-    modifier: Modifier = Modifier
-) {
-    val totalItems = listState.layoutInfo.totalItemsCount
-    if (totalItems <= 1) return
-
-    val visibleItem = listState.layoutInfo.visibleItemsInfo.firstOrNull()
-    val itemSize = visibleItem?.size?.toFloat() ?: 100f
-    val firstIndex = listState.firstVisibleItemIndex.toFloat()
-    val scrollOffset = listState.firstVisibleItemScrollOffset.toFloat()
-    val rawPos = firstIndex + (scrollOffset / itemSize)
-    val progress = (rawPos / (totalItems - 1).toFloat()).coerceIn(0f, 1f)
-
-    val isScrolling = listState.isScrollInProgress
-    val alpha by animateFloatAsState(
-        targetValue = if (isScrolling) 1f else 0f,
-        animationSpec = tween(durationMillis = if (isScrolling) 100 else 400),
-        label = "scrollbar_fade"
-    )
-
-    if (alpha > 0f) {
-        ScrollbarContainer(progress = progress, alpha = alpha, modifier = modifier)
-    }
-}
-
-@Composable
-private fun ScrollbarContainer(
-    progress: Float,
-    alpha: Float,
-    modifier: Modifier = Modifier
-) {
-    BoxWithConstraints(
-        modifier = modifier
-            .width(6.dp)
-            .fillMaxHeight()
-            .alpha(alpha)
-            .padding(vertical = 4.dp)
-    ) {
-        val density = LocalDensity.current
-        val maxHeightPx = constraints.maxHeight.toFloat()
-        val thumbHeightPx = 40f
-        val availablePx = (maxHeightPx - thumbHeightPx).coerceAtLeast(0f)
-        val yOffsetDp = with(density) { (availablePx * progress).toDp() }
-        val thumbHeightDp = with(density) { thumbHeightPx.toDp() }
-
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .height(thumbHeightDp)
-                .offset(y = yOffsetDp)
-                .background(PurpleLight, RoundedCornerShape(2.dp))
         )
     }
 }

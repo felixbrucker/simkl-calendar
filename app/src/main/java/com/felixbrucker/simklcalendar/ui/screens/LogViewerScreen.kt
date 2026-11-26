@@ -62,6 +62,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.felixbrucker.simklcalendar.ui.composable.VerticalScrollbar
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
@@ -577,18 +579,18 @@ fun LogViewerContentContainer(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-            .padding(horizontal = 12.dp)
             .padding(bottom = 8.dp)
             .nestedScroll(nestedScrollConnection)
     ) {
         LogViewerCountHeaderContainer(
             filteredLogsCount = filteredLogsCount,
             totalLogsCount = totalLogsCount,
-            onJumpToBottom = onJumpToBottom,
             topControlsHeightPx = topControlsHeightPx,
             topControlsOffsetPx = topControlsOffsetPx,
+            onJumpToBottom = onJumpToBottom,
             onUpdateHeight = onUpdateHeight,
-            onUpdateOffset = onUpdateOffset
+            onUpdateOffset = onUpdateOffset,
+            modifier = Modifier.padding(horizontal = 12.dp)
         )
 
         if (filteredLogs.isEmpty()) {
@@ -607,17 +609,18 @@ fun LogViewerContentContainer(
 fun LogViewerCountHeaderContainer(
     filteredLogsCount: Int,
     totalLogsCount: Int,
-    onJumpToBottom: () -> Unit,
     topControlsHeightPx: Float,
     topControlsOffsetPx: Float,
+    onJumpToBottom: () -> Unit,
     onUpdateHeight: (Float) -> Unit,
-    onUpdateOffset: (Float) -> Unit
+    onUpdateOffset: (Float) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     LogViewerCountHeader(
         filteredLogsCount = filteredLogsCount,
         totalLogsCount = totalLogsCount,
         onJumpToBottom = onJumpToBottom,
-        modifier = Modifier
+        modifier = modifier
             .layout { measurable, constraints ->
                 val placeable = measurable.measure(constraints)
                 val measuredHeight = placeable.height
@@ -689,17 +692,30 @@ fun LogViewerList(
     listState: LazyListState,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        state = listState,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = modifier.testTag("log_entries_list")
-    ) {
-        items(
-            items = filteredLogs,
-            key = { entry -> entry.id }
-        ) { entry ->
-            LogEntryCard(entry = entry)
+    Box(modifier = modifier) {
+        LazyColumn(
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("log_entries_list")
+        ) {
+            items(
+                items = filteredLogs,
+                key = { entry -> entry.id }
+            ) { entry ->
+                LogEntryCard(entry = entry)
+            }
         }
+
+        VerticalScrollbar(
+            listState = listState,
+            considerStickyHeaders = false,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+        )
     }
 }
 
