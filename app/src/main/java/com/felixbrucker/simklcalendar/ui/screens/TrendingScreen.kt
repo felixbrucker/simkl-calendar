@@ -552,7 +552,7 @@ private fun TrendingMainContent(
             ) {
                 items(
                     trendingItems,
-                    key = { "${it.trendingEntry.mediaType}_${it.trendingEntry.simklId}" }
+                    key = { it.trendingEntry.simklId }
                 ) { item ->
                     val watchlistStatus = watchlistStatusMap[item.trendingEntry.simklId]
                     TrendingItemCard(
