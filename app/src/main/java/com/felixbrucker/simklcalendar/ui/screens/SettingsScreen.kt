@@ -39,8 +39,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import com.felixbrucker.simklcalendar.ui.composable.CustomOutlinedTextField
 import com.felixbrucker.simklcalendar.ui.composable.ExpressiveSwitch
 import androidx.compose.ui.layout.boundsInParent
@@ -3322,32 +3325,50 @@ fun SingleTorrentSizeInput(
     unit: String,
     onTextChange: (String) -> Unit,
     onUnitSelected: (String) -> Unit,
-    enabled: Boolean
+    enabled: Boolean,
 ) {
     val focusManager = LocalFocusManager.current
+    val textFieldState = rememberTextFieldState(initialText = textValue)
+    val currentTextValue by rememberUpdatedState(textValue)
+    val currentOnTextChange by rememberUpdatedState(onTextChange)
+
+    LaunchedEffect(textValue) {
+        if (textFieldState.text.toString() != textValue) {
+            textFieldState.setTextAndPlaceCursorAtEnd(textValue)
+        }
+    }
+
+    LaunchedEffect(textFieldState) {
+        snapshotFlow { textFieldState.text.toString() }
+            .collect { newText ->
+                if (newText != currentTextValue) {
+                    currentOnTextChange(newText)
+                }
+            }
+    }
+
     Box(modifier = Modifier.wrapContentWidth()) {
         CustomOutlinedTextField(
-            value = textValue,
-            onValueChange = onTextChange,
+            state = textFieldState,
             enabled = enabled,
-            singleLine = true,
-            minHeight = 16.dp,
-            minWidth = 104.dp,
+            lineLimits = TextFieldLineLimits.SingleLine,
             contentPadding = PaddingValues(start = 14.dp, top = 0.dp, end = 14.dp, bottom = 0.dp),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Decimal,
-                imeAction = ImeAction.Done
+                imeAction = ImeAction.Done,
             ),
-            keyboardActions = KeyboardActions(
-                onDone = { focusManager.clearFocus() }
-            ),
+            onKeyboardAction = KeyboardActionHandler {
+                focusManager.clearFocus()
+            },
             trailingIcon = {
                 TorrentSizeTrailingUnitDropdown(
                     unit = unit,
                     onUnitSelected = onUnitSelected,
-                    enabled = enabled
+                    enabled = enabled,
                 )
-            }
+            },
+            minHeight = 16.dp,
+            minWidth = 104.dp,
         )
     }
 }
