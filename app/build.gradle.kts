@@ -19,8 +19,8 @@ android {
     applicationId = "com.felixbrucker.simklcalendar"
     minSdk = 26
     targetSdk = 37
-    versionCode = 9
-    versionName = "1.7.0"
+    versionCode = 10
+    versionName = "1.8.0"
     buildConfigField("String", "APP_NAME", "\"simkl-calendar\"")
   }
 
